@@ -2,7 +2,19 @@
 
 A headless build simulation engine for Path of Exile. It takes a build and a game version and returns the numbers a player cares about, each with an explanation of where it came from.
 
-Status: early. Nothing usable yet.
+Status: early. Datasets (the game data the engine reads) can be written, read and inspected; no calculations yet.
+
+## Datasets
+
+A dataset holds one game version: stats, characters, stat description templates, edition constants and the passive trees (standard, ruthless, alternate). The format is in the `dataset` package. [pbt-extract](https://github.com/xaroth/pbt-extract) builds datasets from game files.
+
+`pbt` inspects datasets stored as `<root>/<version>/`:
+
+```sh
+go run ./cmd/pbt data show node 44297 --version 3.29.3.3 --root datasets
+go run ./cmd/pbt data show character Marauder --version 3.29.3.3 --root datasets
+go run ./cmd/pbt data diff 3.28.0.16 3.29.3.3 --root datasets
+```
 
 ## Develop
 

@@ -105,6 +105,28 @@ const (
 	Proxy
 )
 
+func (k NodeKind) String() string {
+	switch k {
+	case Normal:
+		return "normal"
+	case Notable:
+		return "notable"
+	case Keystone:
+		return "keystone"
+	case Mastery:
+		return "mastery"
+	case JewelSocket:
+		return "jewel socket"
+	case ClassStart:
+		return "class start"
+	case AscendancyStart:
+		return "ascendancy start"
+	case Proxy:
+		return "proxy"
+	}
+	return "unknown"
+}
+
 // Node is a passive tree node.
 type Node struct {
 	ID   uint32
