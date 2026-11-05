@@ -2,11 +2,10 @@
 // JSON manifest.
 package dataset
 
-//go:generate flatc --go -o internal stats.fbs characters.fbs
+//go:generate flatc --go -o internal stats.fbs characters.fbs descriptions.fbs constants.fbs tree.fbs
 
 import (
 	"bytes"
-	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -15,67 +14,23 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
+	"strings"
 )
 
 // FormatVersion is the dataset format written by this package. Read rejects other versions.
-const FormatVersion = 1
+const FormatVersion = 2
 
 // ManifestName is the manifest's file name inside a dataset directory.
 const ManifestName = "manifest.json"
 
 const (
-	statsFile      = "stats.fb"
-	charactersFile = "characters.fb"
+	statsFile        = "stats.fb"
+	charactersFile   = "characters.fb"
+	descriptionsFile = "descriptions.fb"
+	constantsFile    = "constants.fb"
+	treePrefix       = "tree-"
+	treeSuffix       = ".fb"
 )
-
-// Dataset holds the tables of one game version.
-type Dataset struct {
-	Manifest   Manifest
-	Stats      []Stat
-	Characters []Character
-}
-
-// Manifest identifies a dataset and its files.
-type Manifest struct {
-	Format  int    `json:"format"`
-	Game    string `json:"game"`
-	Version string `json:"version"`
-	// Source records where the data came from, such as the game build and schema revision.
-	Source map[string]string `json:"source"`
-	Files  []File            `json:"files"`
-}
-
-// File is one table group file listed in the manifest.
-type File struct {
-	Name   string `json:"name"`
-	Size   int    `json:"size"`
-	SHA256 string `json:"sha256"`
-}
-
-// Stat is a row of the stats group. Other groups refer to stats by row index.
-type Stat struct {
-	ID string
-}
-
-// Character is a playable class.
-type Character struct {
-	ID               string
-	Name             string
-	BaseStrength     int32
-	BaseDexterity    int32
-	BaseIntelligence int32
-	BaseMaxLife      int32
-	BaseMaxMana      int32
-	// Stats are sorted by Stat, without duplicates.
-	Stats []StatValue
-}
-
-// StatValue is a stat row index and its value.
-type StatValue struct {
-	Stat  uint32
-	Value int32
-}
 
 // Write writes d into dir as a dataset and returns the manifest it wrote. Format and Files are
 // filled in; the other manifest fields come from d.Manifest.
@@ -83,12 +38,18 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	if err := d.validate(); err != nil {
 		return Manifest{}, err
 	}
-	groups := []struct {
+	type group struct {
 		name string
 		b    []byte
-	}{
+	}
+	groups := []group{
 		{statsFile, encodeStats(d.Stats)},
 		{charactersFile, encodeCharacters(d.Characters)},
+		{descriptionsFile, encodeDescriptions(d.Descriptions)},
+		{constantsFile, encodeConstants(d.Constants)},
+	}
+	for _, t := range d.Trees {
+		groups = append(groups, group{treePrefix + t.Variant + treeSuffix, encodeTree(t)})
 	}
 	m := d.Manifest
 	m.Format = FormatVersion
@@ -127,16 +88,29 @@ func Read(fsys fs.FS) (*Dataset, error) {
 		return nil, fmt.Errorf("dataset format %d, want %d", d.Manifest.Format, FormatVersion)
 	}
 
-	decoders := map[string]func([]byte) error{
-		statsFile:      func(b []byte) (err error) { d.Stats, err = decodeStats(b); return err },
-		charactersFile: func(b []byte) (err error) { d.Characters, err = decodeCharacters(b); return err },
+	required := map[string]func([]byte) error{
+		statsFile:        func(b []byte) (err error) { d.Stats, err = decodeStats(b); return err },
+		charactersFile:   func(b []byte) (err error) { d.Characters, err = decodeCharacters(b); return err },
+		descriptionsFile: func(b []byte) (err error) { d.Descriptions, err = decodeDescriptions(b); return err },
+		constantsFile:    func(b []byte) (err error) { d.Constants, err = decodeConstants(b); return err },
 	}
+	seen := map[string]bool{}
 	for _, f := range d.Manifest.Files {
-		decode, ok := decoders[f.Name]
-		if !ok {
+		if seen[f.Name] {
+			return nil, fmt.Errorf("%s: file %s listed twice", ManifestName, f.Name)
+		}
+		seen[f.Name] = true
+		decode, ok := required[f.Name]
+		if !ok && strings.HasPrefix(f.Name, treePrefix) && strings.HasSuffix(f.Name, treeSuffix) {
+			decode = func(b []byte) error {
+				t, err := decodeTree(b)
+				d.Trees = append(d.Trees, t)
+				return err
+			}
+		} else if !ok {
 			return nil, fmt.Errorf("%s: unknown file %s", ManifestName, f.Name)
 		}
-		delete(decoders, f.Name)
+		delete(required, f.Name)
 		b, err := fs.ReadFile(fsys, f.Name)
 		if err != nil {
 			return nil, err
@@ -149,7 +123,7 @@ func Read(fsys fs.FS) (*Dataset, error) {
 			return nil, fmt.Errorf("%s: %w", f.Name, err)
 		}
 	}
-	for name := range decoders {
+	for name := range required {
 		return nil, fmt.Errorf("%s: missing file %s", ManifestName, name)
 	}
 	if err := d.validate(); err != nil {
@@ -167,24 +141,6 @@ func decodeSafely(decode func([]byte) error, b []byte) (err error) {
 		}
 	}()
 	return decode(b)
-}
-
-func (d *Dataset) validate() error {
-	n := uint32(len(d.Stats))
-	for _, c := range d.Characters {
-		if !slices.IsSortedFunc(c.Stats, func(a, b StatValue) int { return cmp.Compare(a.Stat, b.Stat) }) {
-			return fmt.Errorf("character %s: stats not sorted", c.ID)
-		}
-		for i, sv := range c.Stats {
-			if sv.Stat >= n {
-				return fmt.Errorf("character %s: stat %d out of range (%d stats)", c.ID, sv.Stat, n)
-			}
-			if i > 0 && c.Stats[i-1].Stat == sv.Stat {
-				return fmt.Errorf("character %s: stat %d repeated", c.ID, sv.Stat)
-			}
-		}
-	}
-	return nil
 }
 
 var errIdentifier = errors.New("wrong file identifier")

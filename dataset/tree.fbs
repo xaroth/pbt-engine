@@ -1,0 +1,68 @@
+include "characters.fbs";
+
+namespace fb;
+
+file_identifier "PBTR";
+
+enum NodeKind: ubyte {
+  Normal,
+  Notable,
+  Keystone,
+  Mastery,
+  JewelSocket,
+  ClassStart,
+  AscendancyStart,
+  Proxy,
+}
+
+// stats render with the passive aura description scope.
+table Buff {
+  stats: [StatValue] (required);
+}
+
+table MasteryEffect {
+  id: uint32;
+  stats: [StatValue] (required);
+}
+
+table Node {
+  id: uint32;
+  name: string (required);
+  kind: NodeKind;
+  ascendancy: string;
+  stats: [StatValue] (required);
+  buffs: [Buff];
+  skill_points: int32;
+  mastery_effects: [MasteryEffect];
+  // Undirected edges, sorted.
+  neighbours: [uint32] (required);
+  multiple_choice: bool;
+  multiple_choice_option: bool;
+}
+
+table Ascendancy {
+  id: string (required);
+  name: string (required);
+}
+
+table Class {
+  name: string (required);
+  base_strength: int32;
+  base_dexterity: int32;
+  base_intelligence: int32;
+  start_node: uint32;
+  ascendancies: [Ascendancy] (required);
+}
+
+table Tree {
+  variant: string (required);
+  total_points: int32;
+  ascendancy_points: int32;
+  classes: [Class] (required);
+  alternate_ascendancies: [Ascendancy] (required);
+  // Sorted by id.
+  nodes: [Node] (required);
+  jewel_slots: [uint32] (required);
+}
+
+root_type Tree;

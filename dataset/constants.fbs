@@ -1,0 +1,16 @@
+namespace fb;
+
+file_identifier "PBCO";
+
+// value / per, kept as a ratio so no rounding happens in the file.
+table Constant {
+  id: string (required);
+  value: int32;
+  per: int32 = 1;
+}
+
+table Constants {
+  constants: [Constant] (required);
+}
+
+root_type Constants;
