@@ -27,8 +27,8 @@ table MasteryEffect {
 
 table Node {
   id: uint32;
-  name: string (required);
   kind: NodeKind;
+  // Ascendancy id, or empty.
   ascendancy: string;
   stats: [StatValue] (required);
   buffs: [Buff];
@@ -42,11 +42,12 @@ table Node {
 
 table Ascendancy {
   id: string (required);
-  name: string (required);
 }
 
+// A class's index in classes is its class id.
 table Class {
-  name: string (required);
+  // Characters id of the class, such as Metadata/Characters/Str/Str.
+  character: string (required);
   base_strength: int32;
   base_dexterity: int32;
   base_intelligence: int32;

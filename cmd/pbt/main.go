@@ -1,11 +1,12 @@
 // Command pbt inspects pbt datasets.
 //
-//	pbt data show node <id> --version <v> [--variant standard] [--root datasets]
-//	pbt data show stat <id> --version <v> [--root datasets]
-//	pbt data show character <name> --version <v> [--root datasets]
-//	pbt data diff <version-a> <version-b> [--root datasets] [--limit 20]
+//	pbt data show node <id> --version <v> [--variant standard]
+//	pbt data show stat <id> --version <v>
+//	pbt data show character <name> --version <v>
+//	pbt data diff <version-a> <version-b> [--limit 20]
 //
-// Datasets are read from <root>/<version>.
+// Datasets are read from <root>/<version> (--root, default datasets), with display text in
+// --language (default en).
 package main
 
 import (
@@ -24,10 +25,11 @@ import (
 )
 
 const usage = `usage:
-  pbt data show node <id> --version <v> [--variant standard] [--root datasets]
-  pbt data show stat <id> --version <v> [--root datasets]
-  pbt data show character <name> --version <v> [--root datasets]
-  pbt data diff <version-a> <version-b> [--root datasets] [--limit 20]`
+  pbt data show node <id> --version <v> [--variant standard]
+  pbt data show stat <id> --version <v>
+  pbt data show character <name> --version <v>
+  pbt data diff <version-a> <version-b> [--limit 20]
+options for all: [--root datasets] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
 const (
@@ -72,7 +74,7 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 }
 
 func run(args []string, w io.Writer) error {
-	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20"})
+	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20", "language": "en"})
 	if err != nil {
 		return err
 	}
@@ -81,7 +83,7 @@ func run(args []string, w io.Writer) error {
 		if opts["version"] == "" {
 			return errors.New("--version is required")
 		}
-		d, err := load(opts["root"], opts["version"])
+		d, err := load(opts["root"], opts["version"], opts["language"])
 		if err != nil {
 			return err
 		}
@@ -98,11 +100,11 @@ func run(args []string, w io.Writer) error {
 		if err != nil || limit < 0 {
 			return fmt.Errorf("--limit %q: want a number >= 0", opts["limit"])
 		}
-		a, err := load(opts["root"], pos[2])
+		a, err := load(opts["root"], pos[2], opts["language"])
 		if err != nil {
 			return err
 		}
-		b, err := load(opts["root"], pos[3])
+		b, err := load(opts["root"], pos[3], opts["language"])
 		if err != nil {
 			return err
 		}
@@ -111,23 +113,49 @@ func run(args []string, w io.Writer) error {
 	return errors.New(usage)
 }
 
-func load(root, version string) (*dataset.Dataset, error) {
-	d, err := dataset.Read(os.DirFS(filepath.Join(root, version)))
+// load reads a dataset with the text of one language.
+func load(root, version, language string) (*dataset.Dataset, error) {
+	d, err := dataset.Read(os.DirFS(filepath.Join(root, version)), language)
 	if err != nil {
 		return nil, fmt.Errorf("dataset %s: %w", version, err)
 	}
 	return d, nil
 }
 
-// texter renders stat values of one dataset.
+// texter renders stat values and names of a dataset loaded with one language.
 type texter struct {
-	d   *dataset.Dataset
-	set *statdesc.Set
+	d     *dataset.Dataset
+	text  dataset.Text
+	set   *statdesc.Set
+	nodes map[uint32]string
 }
 
 func newTexter(d *dataset.Dataset) (texter, error) {
-	set, err := statdesc.NewSet(d.Descriptions)
-	return texter{d, set}, err
+	text := d.Texts[0] // load reads exactly one language
+	set, err := statdesc.NewSet(text.Descriptions)
+	nodes := make(map[uint32]string, len(text.NodeNames))
+	for _, n := range text.NodeNames {
+		nodes[n.ID] = n.Name
+	}
+	return texter{d, text, set, nodes}, err
+}
+
+func (t texter) characterName(id string) string {
+	for _, n := range t.text.CharacterNames {
+		if n.ID == id {
+			return n.Name
+		}
+	}
+	return id
+}
+
+func (t texter) ascendancyName(variant, id string) string {
+	for _, n := range t.text.AscendancyNames {
+		if n.Variant == variant && n.ID == id {
+			return n.Name
+		}
+	}
+	return id
 }
 
 // lines renders stats in scope, one entry per text line.
@@ -165,9 +193,9 @@ func showNode(w io.Writer, d *dataset.Dataset, variant, idArg string) error {
 	}
 	kind := n.Kind.String()
 	if n.Ascendancy != "" {
-		kind += ", " + n.Ascendancy
+		kind += ", " + t.ascendancyName(variant, n.Ascendancy)
 	}
-	p.printf("%d %s (%s)\n", n.ID, n.Name, kind)
+	p.printf("%d %s (%s)\n", n.ID, t.nodes[n.ID], kind)
 	for _, l := range t.lines(passiveScope, d.StatMap(n.Stats)) {
 		p.printf("  %s\n", l)
 	}
@@ -202,13 +230,17 @@ func showStat(w io.Writer, d *dataset.Dataset, id string) error {
 
 func showCharacter(w io.Writer, d *dataset.Dataset, name string) error {
 	p := &printer{w: w}
-	i := slices.IndexFunc(d.Characters, func(c dataset.Character) bool { return strings.EqualFold(c.Name, name) })
+	t, err := newTexter(d)
+	if err != nil {
+		return err
+	}
+	i := slices.IndexFunc(d.Characters, func(c dataset.Character) bool { return strings.EqualFold(t.characterName(c.ID), name) })
 	if i < 0 {
 		return fmt.Errorf("no character %s in %s", name, d.Manifest.Version)
 	}
 	c := d.Characters[i]
 	p.printf("%s (%s)\n  strength %d, dexterity %d, intelligence %d\n  base life %d, base mana %d\n",
-		c.Name, c.ID, c.BaseStrength, c.BaseDexterity, c.BaseIntelligence, c.BaseMaxLife, c.BaseMaxMana)
+		t.characterName(c.ID), c.ID, c.BaseStrength, c.BaseDexterity, c.BaseIntelligence, c.BaseMaxLife, c.BaseMaxMana)
 	m := d.StatMap(c.Stats)
 	for _, k := range slices.Sorted(maps.Keys(m)) {
 		p.printf("  %s = %d\n", k, m[k])
@@ -239,7 +271,10 @@ func diff(w io.Writer, a, b *dataset.Dataset, limit int) error {
 		len(a.Stats), len(b.Stats), len(d.StatsAdded), len(d.StatsRemoved), percent(len(a.Stats)-len(d.StatsRemoved), len(a.Stats)))
 	p.printf("characters changed: %s\n", list(d.CharactersChanged))
 	p.printf("constants added: %s; removed: %s; changed: %s\n", list(d.ConstantsAdded), list(d.ConstantsRemoved), list(d.ConstantsChanged))
-	p.printf("description scopes changed: %s\n", list(d.DescriptionScopesChanged))
+	for _, x := range d.Texts {
+		p.printf("text %s: description scopes changed: %s; names changed: %d nodes, %d characters, %d ascendancies\n",
+			x.Language, list(x.ScopesChanged), len(x.NodeNamesChanged), len(x.CharacterNamesChanged), len(x.AscendancyNamesChanged))
+	}
 	if len(d.TreeVariantsAdded)+len(d.TreeVariantsRemoved) > 0 {
 		p.printf("tree variants added: %s; removed: %s\n", list(d.TreeVariantsAdded), list(d.TreeVariantsRemoved))
 	}
@@ -252,7 +287,7 @@ func diff(w io.Writer, a, b *dataset.Dataset, limit int) error {
 				p.printf("  ... %d more\n", len(t.Changed)-limit)
 				break
 			}
-			p.printf("  %d %s [%s]\n", n.ID, n.Name, strings.Join(n.Fields, ", "))
+			p.printf("  %d %s [%s]\n", n.ID, tb.nodes[n.ID], strings.Join(n.Fields, ", "))
 			if n.StatsBefore == nil {
 				continue
 			}

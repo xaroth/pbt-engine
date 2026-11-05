@@ -53,16 +53,8 @@ func (rcv *Node) MutateId(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(4, n)
 }
 
-func (rcv *Node) Name() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
 func (rcv *Node) Kind() NodeKind {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		return NodeKind(rcv._tab.GetByte(o + rcv._tab.Pos))
 	}
@@ -70,11 +62,11 @@ func (rcv *Node) Kind() NodeKind {
 }
 
 func (rcv *Node) MutateKind(n NodeKind) bool {
-	return rcv._tab.MutateByteSlot(8, byte(n))
+	return rcv._tab.MutateByteSlot(6, byte(n))
 }
 
 func (rcv *Node) Ascendancy() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
@@ -82,7 +74,7 @@ func (rcv *Node) Ascendancy() []byte {
 }
 
 func (rcv *Node) Stats(obj *StatValue, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 8
@@ -93,7 +85,7 @@ func (rcv *Node) Stats(obj *StatValue, j int) bool {
 }
 
 func (rcv *Node) StatsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -101,7 +93,7 @@ func (rcv *Node) StatsLength() int {
 }
 
 func (rcv *Node) Buffs(obj *Buff, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 4
@@ -113,7 +105,7 @@ func (rcv *Node) Buffs(obj *Buff, j int) bool {
 }
 
 func (rcv *Node) BuffsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -121,7 +113,7 @@ func (rcv *Node) BuffsLength() int {
 }
 
 func (rcv *Node) SkillPoints() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -129,11 +121,11 @@ func (rcv *Node) SkillPoints() int32 {
 }
 
 func (rcv *Node) MutateSkillPoints(n int32) bool {
-	return rcv._tab.MutateInt32Slot(16, n)
+	return rcv._tab.MutateInt32Slot(14, n)
 }
 
 func (rcv *Node) MasteryEffects(obj *MasteryEffect, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 4
@@ -145,7 +137,7 @@ func (rcv *Node) MasteryEffects(obj *MasteryEffect, j int) bool {
 }
 
 func (rcv *Node) MasteryEffectsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -153,7 +145,7 @@ func (rcv *Node) MasteryEffectsLength() int {
 }
 
 func (rcv *Node) Neighbours(j int) uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.GetUint32(a + flatbuffers.UOffsetT(j*4))
@@ -162,7 +154,7 @@ func (rcv *Node) Neighbours(j int) uint32 {
 }
 
 func (rcv *Node) NeighboursLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -170,7 +162,7 @@ func (rcv *Node) NeighboursLength() int {
 }
 
 func (rcv *Node) MutateNeighbours(j int, n uint32) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.MutateUint32(a+flatbuffers.UOffsetT(j*4), n)
@@ -179,7 +171,7 @@ func (rcv *Node) MutateNeighbours(j int, n uint32) bool {
 }
 
 func (rcv *Node) MultipleChoice() bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
 	}
@@ -187,11 +179,11 @@ func (rcv *Node) MultipleChoice() bool {
 }
 
 func (rcv *Node) MutateMultipleChoice(n bool) bool {
-	return rcv._tab.MutateBoolSlot(22, n)
+	return rcv._tab.MutateBoolSlot(20, n)
 }
 
 func (rcv *Node) MultipleChoiceOption() bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
 	}
@@ -199,56 +191,53 @@ func (rcv *Node) MultipleChoiceOption() bool {
 }
 
 func (rcv *Node) MutateMultipleChoiceOption(n bool) bool {
-	return rcv._tab.MutateBoolSlot(24, n)
+	return rcv._tab.MutateBoolSlot(22, n)
 }
 
 func NodeStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(10)
 }
 func NodeAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
 }
-func NodeAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(name), 0)
-}
 func NodeAddKind(builder *flatbuffers.Builder, kind NodeKind) {
-	builder.PrependByteSlot(2, byte(kind), 0)
+	builder.PrependByteSlot(1, byte(kind), 0)
 }
 func NodeAddAscendancy(builder *flatbuffers.Builder, ascendancy flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(ascendancy), 0)
+	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(ascendancy), 0)
 }
 func NodeAddStats(builder *flatbuffers.Builder, stats flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(stats), 0)
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(stats), 0)
 }
 func NodeStartStatsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(8, numElems, 4)
 }
 func NodeAddBuffs(builder *flatbuffers.Builder, buffs flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(buffs), 0)
+	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(buffs), 0)
 }
 func NodeStartBuffsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func NodeAddSkillPoints(builder *flatbuffers.Builder, skillPoints int32) {
-	builder.PrependInt32Slot(6, skillPoints, 0)
+	builder.PrependInt32Slot(5, skillPoints, 0)
 }
 func NodeAddMasteryEffects(builder *flatbuffers.Builder, masteryEffects flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(masteryEffects), 0)
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(masteryEffects), 0)
 }
 func NodeStartMasteryEffectsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func NodeAddNeighbours(builder *flatbuffers.Builder, neighbours flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(neighbours), 0)
+	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(neighbours), 0)
 }
 func NodeStartNeighboursVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func NodeAddMultipleChoice(builder *flatbuffers.Builder, multipleChoice bool) {
-	builder.PrependBoolSlot(9, multipleChoice, false)
+	builder.PrependBoolSlot(8, multipleChoice, false)
 }
 func NodeAddMultipleChoiceOption(builder *flatbuffers.Builder, multipleChoiceOption bool) {
-	builder.PrependBoolSlot(10, multipleChoiceOption, false)
+	builder.PrependBoolSlot(9, multipleChoiceOption, false)
 }
 func NodeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -19,25 +19,32 @@ func testDataset(version string, strength int32) *dataset.Dataset {
 		Manifest: dataset.Manifest{Game: "poe1", Version: version},
 		Stats:    []dataset.Stat{{ID: "base_strength"}, {ID: "aura_damage_+%"}},
 		Characters: []dataset.Character{{
-			ID: "Metadata/Characters/Str/Str", Name: "Marauder", BaseStrength: 32, BaseMaxLife: 38,
+			ID: "Metadata/Characters/Str/Str", BaseStrength: 32, BaseMaxLife: 38,
 			Stats: []dataset.StatValue{{Stat: 0, Value: 1}},
 		}},
-		Descriptions: []statdesc.Scope{
-			{Name: auraScope, Parent: passiveScope, Descriptions: []statdesc.Description{{
-				Stats:    []string{"aura_damage_+%"},
-				Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "Nearby Allies deal {0}% increased Damage"}},
-			}}},
-			{Name: passiveScope, Descriptions: []statdesc.Description{{
-				Stats:    []string{"base_strength"},
-				Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "{0:+d} to Strength\\nline two"}},
-			}}},
-		},
+		Texts: []dataset.Text{{
+			Language:        "en",
+			NodeNames:       []dataset.NodeName{{ID: 1, Name: "Start"}, {ID: 12345, Name: "Might"}},
+			CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
+			AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Ancestral Commander"}},
+			Descriptions: []statdesc.Scope{
+				{Name: auraScope, Parent: passiveScope, Descriptions: []statdesc.Description{{
+					Stats:    []string{"aura_damage_+%"},
+					Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "Nearby Allies deal {0}% increased Damage"}},
+				}}},
+				{Name: passiveScope, Descriptions: []statdesc.Description{{
+					Stats:    []string{"base_strength"},
+					Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "{0:+d} to Strength\\nline two"}},
+				}}},
+			},
+		}},
 		Trees: []dataset.Tree{{
 			Variant: "standard",
+			Classes: []dataset.Class{{Character: "Metadata/Characters/Str/Str", StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}}}},
 			Nodes: []dataset.Node{
-				{ID: 1, Name: "Start", Kind: dataset.ClassStart, Neighbours: []uint32{12345}},
+				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{12345}},
 				{
-					ID: 12345, Name: "Might", Kind: dataset.Notable, Ascendancy: "Juggernaut",
+					ID: 12345, Kind: dataset.Notable, Ascendancy: "Juggernaut",
 					Stats:          []dataset.StatValue{{Stat: 0, Value: strength}},
 					Buffs:          [][]dataset.StatValue{{{Stat: 1, Value: 5}}},
 					SkillPoints:    2,
@@ -76,7 +83,7 @@ func TestRun(t *testing.T) {
 			name: "show node",
 			args: []string{"data", "show", "node", "12345", "--version", "3.29", "--root", root},
 			want: []string{
-				"12345 Might (notable, Juggernaut)", "  +20 to Strength", "  line two",
+				"12345 Might (notable, Ancestral Commander)", "  +20 to Strength", "  line two",
 				"  Nearby Allies deal 5% increased Damage (aura)", "  grants 2 passive skill points",
 				"  mastery effect 7: +1 to Strength / line two", "  neighbours: 1",
 			},
@@ -96,6 +103,7 @@ func TestRun(t *testing.T) {
 			args: []string{"data", "diff", "3.28", "3.29", "--root", root},
 			want: []string{
 				"3.28 -> 3.29", "stats: 2 -> 2, 0 added, 0 removed; ids kept: 100.00%",
+				"text en: description scopes changed: none; names changed: 0 nodes, 0 characters, 0 ascendancies",
 				"tree standard: 0 nodes added, 0 removed, 1 changed; node ids kept: 100.00%; mastery effects 0 added, 0 removed",
 				"  12345 Might [stats]", "    - +10 to Strength", "    + +20 to Strength",
 			},
@@ -143,6 +151,7 @@ func TestRunErrors(t *testing.T) {
 		{name: "bad limit", args: []string{"data", "diff", "3.28", "3.29", "--root", root, "--limit", "-1"}},
 		{name: "diff missing a", args: []string{"data", "diff", "9.9", "3.29", "--root", root}},
 		{name: "diff missing b", args: []string{"data", "diff", "3.28", "9.9", "--root", root}},
+		{name: "missing language", args: []string{"data", "show", "node", "1", "--version", "3.29", "--root", root, "--language", "fr"}},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

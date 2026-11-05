@@ -6,7 +6,7 @@ Status: early. Datasets (the game data the engine reads) can be written, read an
 
 ## Datasets
 
-A dataset holds one game version: stats, characters, stat description templates, edition constants and the passive trees (standard, ruthless, alternate). The format is in the `dataset` package. [pbt-extract](https://github.com/xaroth/pbt-extract) builds datasets from game files.
+A dataset holds one game version: stats, characters, edition constants and the passive trees (standard, ruthless, alternate), which the simulation needs, plus one text file per language (`text-<lang>.fb`) with stat description templates and display names, which only display and text parsing need. The format is in the `dataset` package. [pbt-extract](https://github.com/xaroth/pbt-extract) builds datasets from game files.
 
 `pbt` inspects datasets stored as `<root>/<version>/`:
 
@@ -15,6 +15,8 @@ go run ./cmd/pbt data show node 44297 --version 3.29.3.3 --root datasets
 go run ./cmd/pbt data show character Marauder --version 3.29.3.3 --root datasets
 go run ./cmd/pbt data diff 3.28.0.16 3.29.3.3 --root datasets
 ```
+
+Text is read in English unless `--language` says otherwise.
 
 ## Develop
 

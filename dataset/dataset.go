@@ -2,7 +2,7 @@
 // JSON manifest.
 package dataset
 
-//go:generate flatc --go -o internal stats.fbs characters.fbs descriptions.fbs constants.fbs tree.fbs
+//go:generate flatc --go -o internal stats.fbs characters.fbs text.fbs constants.fbs tree.fbs
 
 import (
 	"bytes"
@@ -12,24 +12,26 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
 // FormatVersion is the dataset format written by this package. Read rejects other versions.
-const FormatVersion = 2
+const FormatVersion = 3
 
 // ManifestName is the manifest's file name inside a dataset directory.
 const ManifestName = "manifest.json"
 
 const (
-	statsFile        = "stats.fb"
-	charactersFile   = "characters.fb"
-	descriptionsFile = "descriptions.fb"
-	constantsFile    = "constants.fb"
-	treePrefix       = "tree-"
-	treeSuffix       = ".fb"
+	statsFile      = "stats.fb"
+	charactersFile = "characters.fb"
+	constantsFile  = "constants.fb"
+	treePrefix     = "tree-"
+	textPrefix     = "text-"
+	fbSuffix       = ".fb"
 )
 
 // Write writes d into dir as a dataset and returns the manifest it wrote. Format and Files are
@@ -45,11 +47,13 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	groups := []group{
 		{statsFile, encodeStats(d.Stats)},
 		{charactersFile, encodeCharacters(d.Characters)},
-		{descriptionsFile, encodeDescriptions(d.Descriptions)},
 		{constantsFile, encodeConstants(d.Constants)},
 	}
 	for _, t := range d.Trees {
-		groups = append(groups, group{treePrefix + t.Variant + treeSuffix, encodeTree(t)})
+		groups = append(groups, group{treePrefix + t.Variant + fbSuffix, encodeTree(t)})
+	}
+	for _, t := range d.Texts {
+		groups = append(groups, group{textPrefix + t.Language + fbSuffix, encodeText(t)})
 	}
 	m := d.Manifest
 	m.Format = FormatVersion
@@ -71,9 +75,11 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	return m, nil
 }
 
-// Read reads the dataset in fsys. It fails when the format version differs, a file's size or
-// hash differs from the manifest, or a file does not decode.
-func Read(fsys fs.FS) (*Dataset, error) {
+// Read reads the dataset in fsys with the display text of the given languages, such as "en".
+// Text files of other languages are not read. It fails when the format version differs, a
+// file read differs in size or hash from the manifest, a file does not decode, or a language
+// is missing.
+func Read(fsys fs.FS, languages ...string) (*Dataset, error) {
 	mb, err := fs.ReadFile(fsys, ManifestName)
 	if err != nil {
 		return nil, err
@@ -89,10 +95,13 @@ func Read(fsys fs.FS) (*Dataset, error) {
 	}
 
 	required := map[string]func([]byte) error{
-		statsFile:        func(b []byte) (err error) { d.Stats, err = decodeStats(b); return err },
-		charactersFile:   func(b []byte) (err error) { d.Characters, err = decodeCharacters(b); return err },
-		descriptionsFile: func(b []byte) (err error) { d.Descriptions, err = decodeDescriptions(b); return err },
-		constantsFile:    func(b []byte) (err error) { d.Constants, err = decodeConstants(b); return err },
+		statsFile:      func(b []byte) (err error) { d.Stats, err = decodeStats(b); return err },
+		charactersFile: func(b []byte) (err error) { d.Characters, err = decodeCharacters(b); return err },
+		constantsFile:  func(b []byte) (err error) { d.Constants, err = decodeConstants(b); return err },
+	}
+	wanted := map[string]bool{}
+	for _, l := range languages {
+		wanted[l] = true
 	}
 	seen := map[string]bool{}
 	for _, f := range d.Manifest.Files {
@@ -101,13 +110,26 @@ func Read(fsys fs.FS) (*Dataset, error) {
 		}
 		seen[f.Name] = true
 		decode, ok := required[f.Name]
-		if !ok && strings.HasPrefix(f.Name, treePrefix) && strings.HasSuffix(f.Name, treeSuffix) {
+		switch {
+		case ok:
+		case strings.HasPrefix(f.Name, treePrefix) && strings.HasSuffix(f.Name, fbSuffix):
 			decode = func(b []byte) error {
 				t, err := decodeTree(b)
 				d.Trees = append(d.Trees, t)
 				return err
 			}
-		} else if !ok {
+		case strings.HasPrefix(f.Name, textPrefix) && strings.HasSuffix(f.Name, fbSuffix):
+			lang := strings.TrimSuffix(strings.TrimPrefix(f.Name, textPrefix), fbSuffix)
+			if !wanted[lang] {
+				continue
+			}
+			delete(wanted, lang)
+			decode = func(b []byte) error {
+				t, err := decodeText(b)
+				d.Texts = append(d.Texts, t)
+				return err
+			}
+		default:
 			return nil, fmt.Errorf("%s: unknown file %s", ManifestName, f.Name)
 		}
 		delete(required, f.Name)
@@ -123,8 +145,11 @@ func Read(fsys fs.FS) (*Dataset, error) {
 			return nil, fmt.Errorf("%s: %w", f.Name, err)
 		}
 	}
-	for name := range required {
+	for _, name := range slices.Sorted(maps.Keys(required)) {
 		return nil, fmt.Errorf("%s: missing file %s", ManifestName, name)
+	}
+	for _, lang := range slices.Sorted(maps.Keys(wanted)) {
+		return nil, fmt.Errorf("dataset %s has no %s text", d.Manifest.Version, lang)
 	}
 	if err := d.validate(); err != nil {
 		return nil, err

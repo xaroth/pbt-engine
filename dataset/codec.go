@@ -43,7 +43,6 @@ func encodeCharacters(chars []Character) []byte {
 	offs := make([]flatbuffers.UOffsetT, len(chars))
 	for i, c := range chars {
 		id := b.CreateString(c.ID)
-		name := b.CreateString(c.Name)
 		fb.CharacterStartStatsVector(b, len(c.Stats))
 		for _, sv := range slices.Backward(c.Stats) {
 			fb.CreateStatValue(b, sv.Stat, sv.Value)
@@ -51,7 +50,6 @@ func encodeCharacters(chars []Character) []byte {
 		stats := b.EndVector(len(c.Stats))
 		fb.CharacterStart(b)
 		fb.CharacterAddId(b, id)
-		fb.CharacterAddName(b, name)
 		fb.CharacterAddBaseStrength(b, c.BaseStrength)
 		fb.CharacterAddBaseDexterity(b, c.BaseDexterity)
 		fb.CharacterAddBaseIntelligence(b, c.BaseIntelligence)
@@ -84,7 +82,6 @@ func decodeCharacters(buf []byte) ([]Character, error) {
 		}
 		out[i] = Character{
 			ID:               string(c.Id()),
-			Name:             string(c.Name()),
 			BaseStrength:     c.BaseStrength(),
 			BaseDexterity:    c.BaseDexterity(),
 			BaseIntelligence: c.BaseIntelligence(),

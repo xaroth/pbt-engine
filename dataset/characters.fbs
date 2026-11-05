@@ -10,7 +10,6 @@ struct StatValue {
 
 table Character {
   id: string (required);
-  name: string (required);
   base_strength: int32;
   base_dexterity: int32;
   base_intelligence: int32;

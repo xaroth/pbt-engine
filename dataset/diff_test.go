@@ -12,10 +12,13 @@ import (
 func TestCompareSame(t *testing.T) {
 	t.Parallel()
 	d := dataset.Compare(sample(), sample())
-	want := dataset.Diff{Trees: []dataset.TreeDiff{
-		{Variant: "ruthless"},
-		{Variant: "standard", NodesCompared: 2},
-	}}
+	want := dataset.Diff{
+		Trees: []dataset.TreeDiff{
+			{Variant: "ruthless"},
+			{Variant: "standard", NodesCompared: 2},
+		},
+		Texts: []dataset.TextDiff{{Language: "en"}, {Language: "zh-hant"}},
+	}
 	if diff := cmp.Diff(want, d, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Compare mismatch (-want +got):\n%s", diff)
 	}
@@ -29,32 +32,35 @@ func TestCompare(t *testing.T) {
 	b.Characters[0].Stats = []dataset.StatValue{{Stat: 0, Value: -75}, {Stat: 1, Value: 12}}
 	b.Characters = b.Characters[:1]
 	b.Constants = []dataset.Constant{{ID: "life_per_strength", Value: 1, Per: 3}, {ID: "new", Value: 1, Per: 1}}
-	b.Descriptions[1].Parent = ""
+	b.Texts[0].Descriptions[1].Parent = ""
+	b.Texts[0].NodeNames[1].Name = "Might"
+	b.Texts = append(b.Texts[:1], dataset.Text{Language: "fr"})
 	b.Trees = b.Trees[:1]
 	b.Trees = append(b.Trees, dataset.Tree{Variant: "alternate"})
 	nodes := b.Trees[0].Nodes
 	nodes[0].Neighbours = nil
 	nodes[1].Neighbours = nil
-	nodes[1].Name = "Might"
 	nodes[1].Stats = []dataset.StatValue{{Stat: 1, Value: 15}}
 	nodes[1].Buffs = nil
 	nodes[1].MasteryEffects = []dataset.MasteryEffect{{ID: 8}}
 	nodes[1].SkillPoints = 0
 	nodes[1].Kind = dataset.Keystone
 	nodes[1].Ascendancy = ""
-	b.Trees[0].Nodes = []dataset.Node{nodes[1], {ID: 3, Name: "New"}}
+	b.Trees[0].Nodes = []dataset.Node{nodes[1], {ID: 3}}
 	b.Trees[0].Classes, b.Trees[0].JewelSlots = nil, nil
 
 	got := dataset.Compare(a, b)
 	want := dataset.Diff{
-		StatsAdded:               []string{"new_stat"},
-		StatsRemoved:             []string{"level"},
-		CharactersChanged:        []string{"Metadata/Characters/Dex/Dex", "Metadata/Characters/Str/Str"},
-		ConstantsAdded:           []string{"new"},
-		ConstantsChanged:         []string{"life_per_strength"},
-		DescriptionScopesChanged: []string{"child"},
-		TreeVariantsAdded:        []string{"alternate"},
-		TreeVariantsRemoved:      []string{"ruthless"},
+		StatsAdded:          []string{"new_stat"},
+		StatsRemoved:        []string{"level"},
+		CharactersChanged:   []string{"Metadata/Characters/Dex/Dex", "Metadata/Characters/Str/Str"},
+		ConstantsAdded:      []string{"new"},
+		ConstantsChanged:    []string{"life_per_strength"},
+		Texts:               []dataset.TextDiff{{Language: "en", ScopesChanged: []string{"child"}, NodeNamesChanged: []uint32{2}}},
+		LanguagesAdded:      []string{"fr"},
+		LanguagesRemoved:    []string{"zh-hant"},
+		TreeVariantsAdded:   []string{"alternate"},
+		TreeVariantsRemoved: []string{"ruthless"},
 		Trees: []dataset.TreeDiff{{
 			Variant:        "standard",
 			Added:          []uint32{3},
@@ -63,8 +69,8 @@ func TestCompare(t *testing.T) {
 			EffectsRemoved: []uint32{7},
 			NodesCompared:  1,
 			Changed: []dataset.NodeDiff{{
-				ID: 2, Name: "Might",
-				Fields:      []string{"name", "kind", "ascendancy", "stats", "buffs", "skill_points", "mastery_effects", "neighbours"},
+				ID:          2,
+				Fields:      []string{"kind", "ascendancy", "stats", "buffs", "skill_points", "mastery_effects", "neighbours"},
 				StatsBefore: map[string]int32{"life_per_level": 10},
 				StatsAfter:  map[string]int32{"life_per_level": 15},
 			}},

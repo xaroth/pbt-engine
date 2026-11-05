@@ -1,0 +1,62 @@
+namespace fb;
+
+file_identifier "PBTX";
+
+// min/max are inclusive; with not set, the limit excludes min.
+struct Limit {
+  min: int32;
+  max: int32;
+  not: bool;
+}
+
+table Handler {
+  name: string (required);
+  stat: uint8;
+}
+
+table Variant {
+  limits: [Limit] (required);
+  text: string (required);
+  handlers: [Handler];
+}
+
+table Description {
+  stats: [string] (required);
+  variants: [Variant];
+}
+
+table Scope {
+  name: string (required);
+  parent: string;
+  descriptions: [Description] (required);
+}
+
+table NodeName {
+  id: uint32;
+  name: string (required);
+}
+
+table Name {
+  id: string (required);
+  name: string (required);
+}
+
+// Ascendancy names differ per tree variant for the same id.
+table AscendancyName {
+  variant: string (required);
+  id: string (required);
+  name: string (required);
+}
+
+// Display text for one language: stat description templates and names keyed by id.
+table Text {
+  language: string (required);
+  scopes: [Scope] (required);
+  // Sorted by id.
+  node_names: [NodeName] (required);
+  // Keyed by character id.
+  character_names: [Name] (required);
+  ascendancy_names: [AscendancyName] (required);
+}
+
+root_type Text;

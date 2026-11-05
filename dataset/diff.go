@@ -12,12 +12,14 @@ import (
 // Diff lists what changed between two datasets, keyed by game ids. Stat handles differ between
 // datasets, so stats are compared by stat id.
 type Diff struct {
-	StatsAdded, StatsRemoved               []string
-	CharactersChanged                      []string
-	ConstantsAdded, ConstantsRemoved       []string
-	ConstantsChanged                       []string
-	DescriptionScopesChanged               []string
-	Trees                                  []TreeDiff
+	StatsAdded, StatsRemoved         []string
+	CharactersChanged                []string
+	ConstantsAdded, ConstantsRemoved []string
+	ConstantsChanged                 []string
+	Trees                            []TreeDiff
+	// Texts compares the languages present in both datasets.
+	Texts                                  []TextDiff
+	LanguagesAdded, LanguagesRemoved       []string
 	TreeVariantsAdded, TreeVariantsRemoved []string
 }
 
@@ -31,11 +33,20 @@ type TreeDiff struct {
 	NodesCompared  int
 }
 
+// TextDiff lists display text changes in one language.
+type TextDiff struct {
+	Language              string
+	ScopesChanged         []string
+	NodeNamesChanged      []uint32
+	CharacterNamesChanged []string
+	// AscendancyNamesChanged holds "<variant>/<id>".
+	AscendancyNamesChanged []string
+}
+
 // NodeDiff is a node present in both trees whose content changed.
 type NodeDiff struct {
-	ID   uint32
-	Name string
-	// Fields names what changed: name, kind, ascendancy, stats, buffs, skill_points,
+	ID uint32
+	// Fields names what changed: kind, ascendancy, stats, buffs, skill_points,
 	// mastery_effects, neighbours.
 	Fields []string
 	// StatsBefore and StatsAfter are the node stats by stat id when stats changed.
@@ -66,13 +77,13 @@ func Compare(a, b *Dataset) Diff {
 		}
 	}
 
-	as := byKey(a.Descriptions, func(s statdesc.Scope) string { return s.Name })
-	bs := byKey(b.Descriptions, func(s statdesc.Scope) string { return s.Name })
-	for _, name := range sortedUnion(as, bs) {
-		x, inA := as[name]
-		y, inB := bs[name]
-		if !inA || !inB || !equalScope(x, y) {
-			d.DescriptionScopesChanged = append(d.DescriptionScopesChanged, name)
+	ax, bx := byKey(a.Texts, func(t Text) string { return t.Language }), byKey(b.Texts, func(t Text) string { return t.Language })
+	d.LanguagesAdded, d.LanguagesRemoved = setDiff(keys(ax), keys(bx))
+	for _, lang := range sortedUnion(ax, bx) {
+		x, inA := ax[lang]
+		y, inB := bx[lang]
+		if inA && inB {
+			d.Texts = append(d.Texts, compareTexts(x, y))
 		}
 	}
 
@@ -112,14 +123,13 @@ func compareTrees(a, b *Dataset, x, y Tree) TreeDiff {
 			continue
 		}
 		td.NodesCompared++
-		nd := NodeDiff{ID: id, Name: q.Name}
+		nd := NodeDiff{ID: id}
 		add := func(changed bool, field string) {
 			if changed {
 				nd.Fields = append(nd.Fields, field)
 			}
 		}
 		before, after := statMap(a, p.Stats), statMap(b, q.Stats)
-		add(p.Name != q.Name, "name")
 		add(p.Kind != q.Kind, "kind")
 		add(p.Ascendancy != q.Ascendancy, "ascendancy")
 		add(!maps.Equal(before, after), "stats")
@@ -140,6 +150,47 @@ func compareTrees(a, b *Dataset, x, y Tree) TreeDiff {
 	return td
 }
 
+func compareTexts(x, y Text) TextDiff {
+	td := TextDiff{Language: x.Language}
+	xs := byKey(x.Descriptions, func(s statdesc.Scope) string { return s.Name })
+	ys := byKey(y.Descriptions, func(s statdesc.Scope) string { return s.Name })
+	for _, name := range sortedUnion(xs, ys) {
+		p, inX := xs[name]
+		q, inY := ys[name]
+		if !inX || !inY || !equalScope(p, q) {
+			td.ScopesChanged = append(td.ScopesChanged, name)
+		}
+	}
+	td.NodeNamesChanged = changedNames(x.NodeNames, y.NodeNames, func(n NodeName) (uint32, string) { return n.ID, n.Name })
+	td.CharacterNamesChanged = changedNames(x.CharacterNames, y.CharacterNames, func(n Name) (string, string) { return n.ID, n.Name })
+	td.AscendancyNamesChanged = changedNames(x.AscendancyNames, y.AscendancyNames, func(n AscendancyName) (string, string) {
+		return n.Variant + "/" + n.ID, n.Name
+	})
+	return td
+}
+
+// changedNames returns the keys whose name differs, including keys present on one side only.
+func changedNames[T any, K cmp.Ordered](x, y []T, kv func(T) (K, string)) []K {
+	xm, ym := map[K]string{}, map[K]string{}
+	for _, v := range x {
+		k, n := kv(v)
+		xm[k] = n
+	}
+	for _, v := range y {
+		k, n := kv(v)
+		ym[k] = n
+	}
+	var out []K
+	for _, k := range sortedUnion(xm, ym) {
+		p, inX := xm[k]
+		q, inY := ym[k]
+		if !inX || !inY || p != q {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
 // StatMap resolves stat handles in svs to stat ids.
 func (d *Dataset) StatMap(svs []StatValue) map[string]int32 { return statMap(d, svs) }
 
@@ -152,7 +203,7 @@ func statMap(d *Dataset, svs []StatValue) map[string]int32 {
 }
 
 func sameCharacter(a, b *Dataset, x, y Character) bool {
-	return x.Name == y.Name && x.BaseStrength == y.BaseStrength && x.BaseDexterity == y.BaseDexterity &&
+	return x.BaseStrength == y.BaseStrength && x.BaseDexterity == y.BaseDexterity &&
 		x.BaseIntelligence == y.BaseIntelligence && x.BaseMaxLife == y.BaseMaxLife && x.BaseMaxMana == y.BaseMaxMana &&
 		maps.Equal(statMap(a, x.Stats), statMap(b, y.Stats))
 }

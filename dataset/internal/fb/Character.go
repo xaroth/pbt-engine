@@ -49,16 +49,8 @@ func (rcv *Character) Id() []byte {
 	return nil
 }
 
-func (rcv *Character) Name() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
 func (rcv *Character) BaseStrength() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -66,11 +58,11 @@ func (rcv *Character) BaseStrength() int32 {
 }
 
 func (rcv *Character) MutateBaseStrength(n int32) bool {
-	return rcv._tab.MutateInt32Slot(8, n)
+	return rcv._tab.MutateInt32Slot(6, n)
 }
 
 func (rcv *Character) BaseDexterity() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -78,11 +70,11 @@ func (rcv *Character) BaseDexterity() int32 {
 }
 
 func (rcv *Character) MutateBaseDexterity(n int32) bool {
-	return rcv._tab.MutateInt32Slot(10, n)
+	return rcv._tab.MutateInt32Slot(8, n)
 }
 
 func (rcv *Character) BaseIntelligence() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -90,11 +82,11 @@ func (rcv *Character) BaseIntelligence() int32 {
 }
 
 func (rcv *Character) MutateBaseIntelligence(n int32) bool {
-	return rcv._tab.MutateInt32Slot(12, n)
+	return rcv._tab.MutateInt32Slot(10, n)
 }
 
 func (rcv *Character) BaseMaxLife() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -102,11 +94,11 @@ func (rcv *Character) BaseMaxLife() int32 {
 }
 
 func (rcv *Character) MutateBaseMaxLife(n int32) bool {
-	return rcv._tab.MutateInt32Slot(14, n)
+	return rcv._tab.MutateInt32Slot(12, n)
 }
 
 func (rcv *Character) BaseMaxMana() int32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -114,11 +106,11 @@ func (rcv *Character) BaseMaxMana() int32 {
 }
 
 func (rcv *Character) MutateBaseMaxMana(n int32) bool {
-	return rcv._tab.MutateInt32Slot(16, n)
+	return rcv._tab.MutateInt32Slot(14, n)
 }
 
 func (rcv *Character) Stats(obj *StatValue, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 8
@@ -129,7 +121,7 @@ func (rcv *Character) Stats(obj *StatValue, j int) bool {
 }
 
 func (rcv *Character) StatsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -137,31 +129,28 @@ func (rcv *Character) StatsLength() int {
 }
 
 func CharacterStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(7)
 }
 func CharacterAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
 }
-func CharacterAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(name), 0)
-}
 func CharacterAddBaseStrength(builder *flatbuffers.Builder, baseStrength int32) {
-	builder.PrependInt32Slot(2, baseStrength, 0)
+	builder.PrependInt32Slot(1, baseStrength, 0)
 }
 func CharacterAddBaseDexterity(builder *flatbuffers.Builder, baseDexterity int32) {
-	builder.PrependInt32Slot(3, baseDexterity, 0)
+	builder.PrependInt32Slot(2, baseDexterity, 0)
 }
 func CharacterAddBaseIntelligence(builder *flatbuffers.Builder, baseIntelligence int32) {
-	builder.PrependInt32Slot(4, baseIntelligence, 0)
+	builder.PrependInt32Slot(3, baseIntelligence, 0)
 }
 func CharacterAddBaseMaxLife(builder *flatbuffers.Builder, baseMaxLife int32) {
-	builder.PrependInt32Slot(5, baseMaxLife, 0)
+	builder.PrependInt32Slot(4, baseMaxLife, 0)
 }
 func CharacterAddBaseMaxMana(builder *flatbuffers.Builder, baseMaxMana int32) {
-	builder.PrependInt32Slot(6, baseMaxMana, 0)
+	builder.PrependInt32Slot(5, baseMaxMana, 0)
 }
 func CharacterAddStats(builder *flatbuffers.Builder, stats flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(stats), 0)
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(stats), 0)
 }
 func CharacterStartStatsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(8, numElems, 4)

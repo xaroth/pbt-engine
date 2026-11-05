@@ -27,8 +27,7 @@ func uint32Vector(b *flatbuffers.Builder, start startFunc, vs []uint32) flatbuff
 	return b.EndVector(len(vs))
 }
 
-func encodeDescriptions(scopes []statdesc.Scope) []byte {
-	b := flatbuffers.NewBuilder(0)
+func encodeScopes(b *flatbuffers.Builder, scopes []statdesc.Scope) flatbuffers.UOffsetT {
 	scopeOffs := make([]flatbuffers.UOffsetT, len(scopes))
 	for si, sc := range scopes {
 		descOffs := make([]flatbuffers.UOffsetT, len(sc.Descriptions))
@@ -76,18 +75,79 @@ func encodeDescriptions(scopes []statdesc.Scope) []byte {
 		fb.ScopeAddDescriptions(b, descs)
 		scopeOffs[si] = fb.ScopeEnd(b)
 	}
-	vec := tableVector(b, fb.DescriptionsStartScopesVector, scopeOffs)
-	fb.DescriptionsStart(b)
-	fb.DescriptionsAddScopes(b, vec)
-	fb.FinishDescriptionsBuffer(b, fb.DescriptionsEnd(b))
+	return tableVector(b, fb.TextStartScopesVector, scopeOffs)
+}
+
+func encodeText(t Text) []byte {
+	b := flatbuffers.NewBuilder(0)
+	scopes := encodeScopes(b, t.Descriptions)
+	nodeOffs := make([]flatbuffers.UOffsetT, len(t.NodeNames))
+	for i, n := range t.NodeNames {
+		name := b.CreateString(n.Name)
+		fb.NodeNameStart(b)
+		fb.NodeNameAddId(b, n.ID)
+		fb.NodeNameAddName(b, name)
+		nodeOffs[i] = fb.NodeNameEnd(b)
+	}
+	nodes := tableVector(b, fb.TextStartNodeNamesVector, nodeOffs)
+	charOffs := make([]flatbuffers.UOffsetT, len(t.CharacterNames))
+	for i, n := range t.CharacterNames {
+		id := b.CreateString(n.ID)
+		name := b.CreateString(n.Name)
+		fb.NameStart(b)
+		fb.NameAddId(b, id)
+		fb.NameAddName(b, name)
+		charOffs[i] = fb.NameEnd(b)
+	}
+	chars := tableVector(b, fb.TextStartCharacterNamesVector, charOffs)
+	ascOffs := make([]flatbuffers.UOffsetT, len(t.AscendancyNames))
+	for i, n := range t.AscendancyNames {
+		variant := b.CreateSharedString(n.Variant)
+		id := b.CreateString(n.ID)
+		name := b.CreateString(n.Name)
+		fb.AscendancyNameStart(b)
+		fb.AscendancyNameAddVariant(b, variant)
+		fb.AscendancyNameAddId(b, id)
+		fb.AscendancyNameAddName(b, name)
+		ascOffs[i] = fb.AscendancyNameEnd(b)
+	}
+	ascs := tableVector(b, fb.TextStartAscendancyNamesVector, ascOffs)
+	lang := b.CreateString(t.Language)
+	fb.TextStart(b)
+	fb.TextAddLanguage(b, lang)
+	fb.TextAddScopes(b, scopes)
+	fb.TextAddNodeNames(b, nodes)
+	fb.TextAddCharacterNames(b, chars)
+	fb.TextAddAscendancyNames(b, ascs)
+	fb.FinishTextBuffer(b, fb.TextEnd(b))
 	return b.FinishedBytes()
 }
 
-func decodeDescriptions(buf []byte) ([]statdesc.Scope, error) {
-	if !fb.DescriptionsBufferHasIdentifier(buf) {
-		return nil, errIdentifier
+func decodeText(buf []byte) (Text, error) {
+	if !fb.TextBufferHasIdentifier(buf) {
+		return Text{}, errIdentifier
 	}
-	root := fb.GetRootAsDescriptions(buf, 0)
+	root := fb.GetRootAsText(buf, 0)
+	t := Text{Language: string(root.Language()), Descriptions: decodeScopes(root)}
+	var nn fb.NodeName
+	for i := range root.NodeNamesLength() {
+		root.NodeNames(&nn, i)
+		t.NodeNames = append(t.NodeNames, NodeName{ID: nn.Id(), Name: string(nn.Name())})
+	}
+	var n fb.Name
+	for i := range root.CharacterNamesLength() {
+		root.CharacterNames(&n, i)
+		t.CharacterNames = append(t.CharacterNames, Name{ID: string(n.Id()), Name: string(n.Name())})
+	}
+	var an fb.AscendancyName
+	for i := range root.AscendancyNamesLength() {
+		root.AscendancyNames(&an, i)
+		t.AscendancyNames = append(t.AscendancyNames, AscendancyName{Variant: string(an.Variant()), ID: string(an.Id()), Name: string(an.Name())})
+	}
+	return t, nil
+}
+
+func decodeScopes(root *fb.Text) []statdesc.Scope {
 	out := make([]statdesc.Scope, root.ScopesLength())
 	var sc fb.Scope
 	var d fb.Description
@@ -127,7 +187,7 @@ func decodeDescriptions(buf []byte) ([]statdesc.Scope, error) {
 		}
 		out[si] = s
 	}
-	return out, nil
+	return out
 }
 
 func encodeConstants(cs []Constant) []byte {
@@ -166,10 +226,8 @@ func ascendancyVector(b *flatbuffers.Builder, start startFunc, as []Ascendancy) 
 	offs := make([]flatbuffers.UOffsetT, len(as))
 	for i, a := range as {
 		id := b.CreateString(a.ID)
-		name := b.CreateString(a.Name)
 		fb.AscendancyStart(b)
 		fb.AscendancyAddId(b, id)
-		fb.AscendancyAddName(b, name)
 		offs[i] = fb.AscendancyEnd(b)
 	}
 	return tableVector(b, start, offs)
@@ -179,7 +237,6 @@ func encodeTree(t Tree) []byte {
 	b := flatbuffers.NewBuilder(0)
 	nodeOffs := make([]flatbuffers.UOffsetT, len(t.Nodes))
 	for i, n := range t.Nodes {
-		name := b.CreateString(n.Name)
 		asc := b.CreateSharedString(n.Ascendancy)
 		stats := statValueVector(b, fb.NodeStartStatsVector, n.Stats)
 		buffOffs := make([]flatbuffers.UOffsetT, len(n.Buffs))
@@ -202,7 +259,6 @@ func encodeTree(t Tree) []byte {
 		neighbours := uint32Vector(b, fb.NodeStartNeighboursVector, n.Neighbours)
 		fb.NodeStart(b)
 		fb.NodeAddId(b, n.ID)
-		fb.NodeAddName(b, name)
 		fb.NodeAddKind(b, fb.NodeKind(n.Kind))
 		fb.NodeAddAscendancy(b, asc)
 		fb.NodeAddStats(b, stats)
@@ -217,10 +273,10 @@ func encodeTree(t Tree) []byte {
 	nodes := tableVector(b, fb.TreeStartNodesVector, nodeOffs)
 	classOffs := make([]flatbuffers.UOffsetT, len(t.Classes))
 	for i, c := range t.Classes {
-		name := b.CreateString(c.Name)
+		char := b.CreateString(c.Character)
 		ascs := ascendancyVector(b, fb.ClassStartAscendanciesVector, c.Ascendancies)
 		fb.ClassStart(b)
-		fb.ClassAddName(b, name)
+		fb.ClassAddCharacter(b, char)
 		fb.ClassAddBaseStrength(b, c.BaseStrength)
 		fb.ClassAddBaseDexterity(b, c.BaseDexterity)
 		fb.ClassAddBaseIntelligence(b, c.BaseIntelligence)
@@ -273,7 +329,7 @@ func decodeAscendancies(get ascendancySource, n int) []Ascendancy {
 	var a fb.Ascendancy
 	for i := range out {
 		get(&a, i)
-		out[i] = Ascendancy{ID: string(a.Id()), Name: string(a.Name())}
+		out[i] = Ascendancy{ID: string(a.Id())}
 	}
 	return out
 }
@@ -293,7 +349,7 @@ func decodeTree(buf []byte) (Tree, error) {
 	for i := range root.ClassesLength() {
 		root.Classes(&c, i)
 		t.Classes = append(t.Classes, Class{
-			Name:             string(c.Name()),
+			Character:        string(c.Character()),
 			BaseStrength:     c.BaseStrength(),
 			BaseDexterity:    c.BaseDexterity(),
 			BaseIntelligence: c.BaseIntelligence(),
@@ -309,7 +365,6 @@ func decodeTree(buf []byte) (Tree, error) {
 		root.Nodes(&n, i)
 		node := Node{
 			ID:                   n.Id(),
-			Name:                 string(n.Name()),
 			Kind:                 NodeKind(n.Kind()),
 			Ascendancy:           string(n.Ascendancy()),
 			Stats:                decodeStatValues(&n),

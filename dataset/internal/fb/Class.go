@@ -41,7 +41,7 @@ func (rcv *Class) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-func (rcv *Class) Name() []byte {
+func (rcv *Class) Character() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -120,8 +120,8 @@ func (rcv *Class) AscendanciesLength() int {
 func ClassStart(builder *flatbuffers.Builder) {
 	builder.StartObject(6)
 }
-func ClassAddName(builder *flatbuffers.Builder, name flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(name), 0)
+func ClassAddCharacter(builder *flatbuffers.Builder, character flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(character), 0)
 }
 func ClassAddBaseStrength(builder *flatbuffers.Builder, baseStrength int32) {
 	builder.PrependInt32Slot(1, baseStrength, 0)

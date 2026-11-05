@@ -7,11 +7,45 @@ type Dataset struct {
 	Manifest   Manifest
 	Stats      []Stat
 	Characters []Character
-	// Descriptions are the stat description scopes used to render stat text.
-	Descriptions []statdesc.Scope
-	Constants    []Constant
+	Constants  []Constant
 	// Trees has one entry per tree variant, such as standard and ruthless.
 	Trees []Tree
+	// Texts holds display text per language. Read loads only the languages asked for; nothing
+	// else in the dataset depends on them.
+	Texts []Text
+}
+
+// Text is the display text of one language: stat description templates and names by id.
+type Text struct {
+	// Language is a lowercase tag such as "en".
+	Language     string
+	Descriptions []statdesc.Scope
+	// NodeNames are sorted by ID.
+	NodeNames []NodeName
+	// CharacterNames are keyed by Character.ID.
+	CharacterNames []Name
+	// AscendancyNames are keyed by tree variant and Ascendancy.ID; the same id can have a
+	// different name in another variant.
+	AscendancyNames []AscendancyName
+}
+
+// NodeName is the display name of a passive node.
+type NodeName struct {
+	ID   uint32
+	Name string
+}
+
+// Name is the display name of the object with id ID.
+type Name struct {
+	ID   string
+	Name string
+}
+
+// AscendancyName is the display name of an ascendancy in one tree variant.
+type AscendancyName struct {
+	Variant string
+	ID      string
+	Name    string
 }
 
 // Manifest identifies a dataset and its files.
@@ -45,7 +79,6 @@ type StatValue struct {
 // Character is a playable class.
 type Character struct {
 	ID               string
-	Name             string
 	BaseStrength     int32
 	BaseDexterity    int32
 	BaseIntelligence int32
@@ -74,9 +107,10 @@ type Tree struct {
 	JewelSlots []uint32
 }
 
-// Class is a character class as the tree sees it, indexed like the tree export.
+// Class is a character class as the tree sees it; its index in Tree.Classes is its class id.
 type Class struct {
-	Name             string
+	// Character is the Character.ID of the class.
+	Character        string
 	BaseStrength     int32
 	BaseDexterity    int32
 	BaseIntelligence int32
@@ -86,8 +120,7 @@ type Class struct {
 
 // Ascendancy is an ascendancy or alternate ascendancy class.
 type Ascendancy struct {
-	ID   string
-	Name string
+	ID string
 }
 
 // NodeKind classifies passive nodes.
@@ -130,9 +163,8 @@ func (k NodeKind) String() string {
 // Node is a passive tree node.
 type Node struct {
 	ID   uint32
-	Name string
 	Kind NodeKind
-	// Ascendancy is the name of the ascendancy the node belongs to, or empty.
+	// Ascendancy is the ID of the ascendancy the node belongs to, or empty.
 	Ascendancy string
 	// Stats are sorted by Stat, without duplicates.
 	Stats []StatValue

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -29,36 +30,25 @@ func sample() *dataset.Dataset {
 		Stats: []dataset.Stat{{ID: "level"}, {ID: "life_per_level"}, {ID: "base_maximum_all_resistances_%"}},
 		Characters: []dataset.Character{
 			{
-				ID: "Metadata/Characters/Str/Str", Name: "Marauder",
+				ID:           "Metadata/Characters/Str/Str",
 				BaseStrength: 32, BaseDexterity: 14, BaseIntelligence: 14, BaseMaxLife: 38, BaseMaxMana: 34,
 				Stats: []dataset.StatValue{{Stat: 0, Value: 1}, {Stat: 1, Value: 12}, {Stat: 2, Value: -75}},
 			},
-			{ID: "Metadata/Characters/Dex/Dex", Name: "Ranger"},
-		},
-		Descriptions: []statdesc.Scope{
-			{Name: "base", Descriptions: []statdesc.Description{
-				{Stats: []string{"level"}},
-				{Stats: []string{"life_per_level"}, Variants: []statdesc.Variant{{
-					Limits:   []statdesc.Limit{{Min: math.MinInt32, Max: -1}},
-					Text:     "{0} life",
-					Handlers: []statdesc.Handler{{Name: "negate"}},
-				}}},
-			}},
-			{Name: "child", Parent: "base"},
+			{ID: "Metadata/Characters/Dex/Dex"},
 		},
 		Constants: []dataset.Constant{{ID: "life_per_strength", Value: 1, Per: 2}},
 		Trees: []dataset.Tree{
 			{
 				Variant: "standard", TotalPoints: 123, AscendancyPoints: 8,
 				Classes: []dataset.Class{{
-					Name: "Marauder", BaseStrength: 32, BaseDexterity: 14, BaseIntelligence: 14, StartNode: 1,
-					Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut", Name: "Juggernaut"}},
+					Character: "Metadata/Characters/Str/Str", BaseStrength: 32, BaseDexterity: 14, BaseIntelligence: 14, StartNode: 1,
+					Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}},
 				}},
-				AlternateAscendancies: []dataset.Ascendancy{{ID: "Bloodline", Name: "Bloodline"}},
+				AlternateAscendancies: []dataset.Ascendancy{{ID: "Bloodline"}},
 				Nodes: []dataset.Node{
-					{ID: 1, Name: "MARAUDER", Kind: dataset.ClassStart, Neighbours: []uint32{2}},
+					{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{2}},
 					{
-						ID: 2, Name: "Strength", Kind: dataset.Notable, Ascendancy: "Juggernaut",
+						ID: 2, Kind: dataset.Notable, Ascendancy: "Juggernaut",
 						Stats:          []dataset.StatValue{{Stat: 1, Value: 10}},
 						Buffs:          [][]dataset.StatValue{{{Stat: 2, Value: -5}, {Stat: 0, Value: 1}}},
 						SkillPoints:    1,
@@ -71,7 +61,35 @@ func sample() *dataset.Dataset {
 			},
 			{Variant: "ruthless"},
 		},
+		Texts: []dataset.Text{
+			{
+				Language: "en",
+				Descriptions: []statdesc.Scope{
+					{Name: "base", Descriptions: []statdesc.Description{
+						{Stats: []string{"level"}},
+						{Stats: []string{"life_per_level"}, Variants: []statdesc.Variant{{
+							Limits:   []statdesc.Limit{{Min: math.MinInt32, Max: -1}},
+							Text:     "{0} life",
+							Handlers: []statdesc.Handler{{Name: "negate"}},
+						}}},
+					}},
+					{Name: "child", Parent: "base"},
+				},
+				NodeNames:       []dataset.NodeName{{ID: 1, Name: "MARAUDER"}, {ID: 2, Name: "Strength"}},
+				CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
+				AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Juggernaut"}},
+			},
+			{Language: "zh-hant"},
+		},
 	}
+}
+
+func languages(d *dataset.Dataset) []string {
+	var out []string
+	for _, t := range d.Texts {
+		out = append(out, t.Language)
+	}
+	return out
 }
 
 // written writes d and returns the dataset files as a MapFS.
@@ -113,7 +131,7 @@ func TestRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Write: %v", err)
 			}
-			got, err := dataset.Read(os.DirFS(dir))
+			got, err := dataset.Read(os.DirFS(dir), languages(testCase.d)...)
 			if err != nil {
 				t.Fatalf("Read: %v", err)
 			}
@@ -122,7 +140,7 @@ func TestRoundTrip(t *testing.T) {
 			if diff := cmp.Diff(&want, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("round trip mismatch (-want +got):\n%s", diff)
 			}
-			if wantFiles := 4 + len(testCase.d.Trees); m.Format != dataset.FormatVersion || len(m.Files) != wantFiles {
+			if wantFiles := 3 + len(testCase.d.Trees) + len(testCase.d.Texts); m.Format != dataset.FormatVersion || len(m.Files) != wantFiles {
 				t.Errorf("manifest: got format %d and %d files, want %d and %d", m.Format, len(m.Files), dataset.FormatVersion, wantFiles)
 			}
 		})
@@ -171,13 +189,25 @@ func TestWriteErrors(t *testing.T) {
 		{name: "repeated variant", change: func(d *dataset.Dataset) { d.Trees[1].Variant = "standard" }},
 		{name: "empty variant", change: func(d *dataset.Dataset) { d.Trees[1].Variant = "" }},
 		{name: "constant per zero", change: func(d *dataset.Dataset) { d.Constants[0].Per = 0 }},
-		{name: "description parent missing", change: func(d *dataset.Dataset) { d.Descriptions[1].Parent = "gone" }},
+		{name: "description parent missing", change: func(d *dataset.Dataset) { d.Texts[0].Descriptions[1].Parent = "gone" }},
 		{name: "description with too many stats", change: func(d *dataset.Dataset) {
-			d.Descriptions[0].Descriptions[0].Stats = make([]string, 257)
-			for i := range d.Descriptions[0].Descriptions[0].Stats {
-				d.Descriptions[0].Descriptions[0].Stats[i] = strconv.Itoa(i)
+			sc := &d.Texts[0].Descriptions[0].Descriptions[0]
+			sc.Stats = make([]string, 257)
+			for i := range sc.Stats {
+				sc.Stats[i] = strconv.Itoa(i)
 			}
 		}},
+		{name: "variant not a tag", change: func(d *dataset.Dataset) { d.Trees[1].Variant = "../x" }},
+		{name: "language not a tag", change: func(d *dataset.Dataset) { d.Texts[1].Language = "EN" }},
+		{name: "repeated language", change: func(d *dataset.Dataset) { d.Texts[1].Language = "en" }},
+		{name: "unknown class character", change: func(d *dataset.Dataset) { d.Trees[0].Classes[0].Character = "x" }},
+		{name: "unsorted node names", change: func(d *dataset.Dataset) {
+			n := d.Texts[0].NodeNames
+			n[0], n[1] = n[1], n[0]
+		}},
+		{name: "name for unknown node", change: func(d *dataset.Dataset) { d.Texts[0].NodeNames[1].ID = 9 }},
+		{name: "name for unknown character", change: func(d *dataset.Dataset) { d.Texts[0].CharacterNames[0].ID = "x" }},
+		{name: "name for unknown ascendancy", change: func(d *dataset.Dataset) { d.Texts[0].AscendancyNames[0].Variant = "ruthless" }},
 	}
 	for _, testCase := range treeCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -256,15 +286,41 @@ func TestReadErrors(t *testing.T) {
 		{name: "truncated", fsys: replace(1, charsBytes[:len(charsBytes)/2])},
 		{name: "stats too few for characters", fsys: replace(0, oneStatBytes)},
 		{name: "file listed twice", fsys: edit(func(m map[string]any) { m["files"] = append(files(m), files(m)[0]) })},
-		{name: "truncated tree", fsys: replace(4, good["tree-standard.fb"].Data[:40])},
-		{name: "truncated descriptions", fsys: replace(2, good["descriptions.fb"].Data[:40])},
+		{name: "truncated tree", fsys: replace(3, good["tree-standard.fb"].Data[:40])},
+		{name: "truncated text", fsys: replace(5, good["text-en.fb"].Data[:40])},
+		{name: "text not a text file", fsys: replace(5, good["constants.fb"].Data)},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := dataset.Read(testCase.fsys); err == nil {
+			if _, err := dataset.Read(testCase.fsys, "en"); err == nil {
 				t.Errorf("Read: got nil error, want an error")
 			}
 		})
+	}
+}
+
+func TestReadLanguages(t *testing.T) {
+	t.Parallel()
+	fsys := written(t, sample())
+	core, err := dataset.Read(fsys)
+	if err != nil {
+		t.Fatalf("Read without languages: %v", err)
+	}
+	if len(core.Texts) != 0 {
+		t.Errorf("Read without languages: got %d texts, want 0", len(core.Texts))
+	}
+	// A text file that is not asked for is not read, so its damage goes unnoticed.
+	broken := maps.Clone(fsys)
+	broken["text-zh-hant.fb"] = &fstest.MapFile{Data: []byte("x")}
+	got, err := dataset.Read(broken, "en")
+	if err != nil {
+		t.Fatalf("Read(en) with a damaged zh-hant file: %v", err)
+	}
+	if len(got.Texts) != 1 || got.Texts[0].Language != "en" {
+		t.Errorf("Read(en): got texts %v, want only en", languages(got))
+	}
+	if _, err := dataset.Read(fsys, "fr"); err == nil {
+		t.Errorf("Read(fr): got nil error, want an error for a missing language")
 	}
 }
