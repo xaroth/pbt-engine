@@ -1,0 +1,27 @@
+namespace fb;
+
+file_identifier "PBCH";
+
+// stat is a row index into the dataset's Stats group.
+struct StatValue {
+  stat: uint32;
+  value: int32;
+}
+
+table Character {
+  id: string (required);
+  name: string (required);
+  base_strength: int32;
+  base_dexterity: int32;
+  base_intelligence: int32;
+  base_max_life: int32;
+  base_max_mana: int32;
+  // Stats block of the character's .ot, merged over extends, sorted by stat.
+  stats: [StatValue] (required);
+}
+
+table Characters {
+  characters: [Character] (required);
+}
+
+root_type Characters;

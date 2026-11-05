@@ -1,0 +1,13 @@
+namespace fb;
+
+file_identifier "PBST";
+
+table Stat {
+  id: string (required);
+}
+
+table Stats {
+  stats: [Stat] (required);
+}
+
+root_type Stats;
