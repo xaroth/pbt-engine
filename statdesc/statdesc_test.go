@@ -164,3 +164,67 @@ func TestNewSetErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestKnownOrderDifferences holds node line orders where GGG's tree export differs from
+// description order (5 of about 1500 multi-line standard nodes on 3.29.3.3, same on 3.28.0.16).
+// Stat ids and description order are as in passive_skill_stat_descriptions.txt; the rule
+// GGG uses is not known. When a change makes one match, move it to TestDescribe.
+func TestKnownOrderDifferences(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name   string
+		descs  []statdesc.Description
+		stats  map[string]int32
+		want   []string // description order
+		export []string // GGG order
+	}{
+		{
+			name: "critical strike multiplier before chance (nodes 6064, 9014, 28754, 30471)",
+			descs: []statdesc.Description{
+				one("critical_strike_chance_+%", "{0}% increased Critical Strike Chance"),
+				one("base_critical_strike_multiplier_+", "{0:+d}% to Critical Strike Multiplier"),
+			},
+			stats:  map[string]int32{"critical_strike_chance_+%": 15, "base_critical_strike_multiplier_+": 10},
+			want:   []string{"15% increased Critical Strike Chance", "+10% to Critical Strike Multiplier"},
+			export: []string{"+10% to Critical Strike Multiplier", "15% increased Critical Strike Chance"},
+		},
+		{
+			name: "spectres before zombies (node 19897)",
+			descs: []statdesc.Description{
+				one("base_number_of_zombies_allowed", "{0:+d} to Maximum number of Raised Zombies"),
+				one("base_number_of_spectres_allowed", "{0:+d} to Maximum number of Spectres"),
+				one("base_number_of_skeletons_allowed", "{0:+d} to Maximum number of Skeletons"),
+			},
+			stats: map[string]int32{"base_number_of_zombies_allowed": 1, "base_number_of_spectres_allowed": 1, "base_number_of_skeletons_allowed": 1},
+			want: []string{
+				"+1 to Maximum number of Raised Zombies", "+1 to Maximum number of Spectres", "+1 to Maximum number of Skeletons",
+			},
+			export: []string{
+				"+1 to Maximum number of Spectres", "+1 to Maximum number of Raised Zombies", "+1 to Maximum number of Skeletons",
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			set, err := statdesc.NewSet([]statdesc.Scope{{Name: "passive", Descriptions: testCase.descs}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines, err := set.Describe("passive", testCase.stats)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, l := range lines {
+				got = append(got, l.Text)
+			}
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("Describe lines (-want +got):\n%s", diff)
+			}
+			if cmp.Equal(got, testCase.export) {
+				t.Errorf("now matches GGG order %q; move this case to TestDescribe", got)
+			}
+		})
+	}
+}
