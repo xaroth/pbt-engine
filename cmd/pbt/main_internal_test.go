@@ -109,6 +109,11 @@ func TestRun(t *testing.T) {
 			},
 		},
 		{
+			name: "show resolves latest",
+			args: []string{"data", "show", "stat", "aura_damage_+%", "--version", "latest", "--root", root},
+			want: []string{"(poe1 latest resolves to 3.29)", "aura_damage_+% (handle 1 of 2)"},
+		},
+		{
 			name: "diff with limit",
 			args: []string{"data", "diff", "3.28", "3.29", "--root", root, "--limit", "0"},
 			want: []string{"  ... 1 more"},

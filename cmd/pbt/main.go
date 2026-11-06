@@ -5,8 +5,9 @@
 //	pbt data show character <name> --version <v>
 //	pbt data diff <version-a> <version-b> [--limit 20]
 //
-// Datasets are read from <root>/<version> (--root, default datasets), with display text in
-// --language (default en).
+// Datasets are read from the subdirectories of --root (default datasets), with display text
+// in --language (default en). Versions resolve as dataset.Registry.Resolve does, so 3.29 is
+// the newest 3.29 dataset of --game (default poe1).
 package main
 
 import (
@@ -15,7 +16,6 @@ import (
 	"io"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,7 +29,7 @@ const usage = `usage:
   pbt data show stat <id> --version <v>
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
-options for all: [--root datasets] [--language en]`
+options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
 const (
@@ -74,7 +74,7 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 }
 
 func run(args []string, w io.Writer) error {
-	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20", "language": "en"})
+	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20", "language": "en", "game": "poe1"})
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func run(args []string, w io.Writer) error {
 		if opts["version"] == "" {
 			return errors.New("--version is required")
 		}
-		d, err := load(opts["root"], opts["version"], opts["language"])
+		d, err := load(w, opts, opts["version"])
 		if err != nil {
 			return err
 		}
@@ -100,11 +100,11 @@ func run(args []string, w io.Writer) error {
 		if err != nil || limit < 0 {
 			return fmt.Errorf("--limit %q: want a number >= 0", opts["limit"])
 		}
-		a, err := load(opts["root"], pos[2], opts["language"])
+		a, err := load(w, opts, pos[2])
 		if err != nil {
 			return err
 		}
-		b, err := load(opts["root"], pos[3], opts["language"])
+		b, err := load(w, opts, pos[3])
 		if err != nil {
 			return err
 		}
@@ -113,11 +113,23 @@ func run(args []string, w io.Writer) error {
 	return errors.New(usage)
 }
 
-// load reads a dataset with the text of one language.
-func load(root, version, language string) (*dataset.Dataset, error) {
-	d, err := dataset.Read(os.DirFS(filepath.Join(root, version)), language)
+// load resolves a version under --root and reads it with the text of --language. A version
+// that resolves to another name is reported.
+func load(w io.Writer, opts map[string]string, version string) (*dataset.Dataset, error) {
+	r, err := dataset.OpenRoot(os.DirFS(opts["root"]))
 	if err != nil {
-		return nil, fmt.Errorf("dataset %s: %w", version, err)
+		return nil, err
+	}
+	v, err := r.Resolve(opts["game"], version)
+	if err != nil {
+		return nil, err
+	}
+	if v.Name() != version {
+		fmt.Fprintf(w, "(%s %s resolves to %s)\n", opts["game"], version, v.Name())
+	}
+	d, err := v.Dataset(opts["language"])
+	if err != nil {
+		return nil, fmt.Errorf("dataset %s: %w", v.Name(), err)
 	}
 	return d, nil
 }
