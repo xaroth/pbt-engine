@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -212,5 +213,76 @@ func TestRunErrors(t *testing.T) {
 				t.Errorf("run(%q): got nil error, want an error", testCase.args)
 			}
 		})
+	}
+}
+
+// writeBuild writes a build file into a new directory and returns its path.
+func writeBuild(t *testing.T, data string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "build.json")
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestBuildCheck(t *testing.T) {
+	t.Parallel()
+	root := writeRoot(t)
+	testCases := []struct {
+		name, data, want, notes string
+	}{
+		{
+			name: "exact version",
+			data: `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,"nodes":[1,12345]}`,
+			want: "ok: poe1 3.29 (dataset 3.29), standard tree, Metadata/Characters/Str/Str Juggernaut, level 90, 2 nodes\n",
+		},
+		{
+			name:  "earlier patch",
+			data:  `{"format":1,"game":"poe1","version":"3.27.0.9","class":"Metadata/Characters/Str/Str","level":1,"nodes":[1]}`,
+			want:  "ok: poe1 3.27.0.9 (dataset 3.27.0.5), standard tree, Metadata/Characters/Str/Str no ascendancy, level 1, 1 nodes\n",
+			notes: "(poe1 3.27.0.9 has no dataset; using 3.27.0.5, the newest earlier patch of its league)\n",
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			var out, notes strings.Builder
+			if err := run([]string{"build", "check", writeBuild(t, testCase.data), "--root", root}, &out, &notes); err != nil {
+				t.Fatal(err)
+			}
+			if out.String() != testCase.want {
+				t.Errorf("stdout: got %q, want %q", out.String(), testCase.want)
+			}
+			if notes.String() != testCase.notes {
+				t.Errorf("stderr: got %q, want %q", notes.String(), testCase.notes)
+			}
+		})
+	}
+}
+
+func TestBuildCheckErrors(t *testing.T) {
+	t.Parallel()
+	root := writeRoot(t)
+	testCases := []struct {
+		name, data string
+	}{
+		{"not a build", `{"format":9}`},
+		{"unknown version", `{"format":1,"game":"poe1","version":"9.9","class":"Metadata/Characters/Str/Str","level":1,"nodes":[]}`},
+		{"unknown node", `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","level":1,"nodes":[2]}`},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			path := writeBuild(t, testCase.data)
+			err := run([]string{"build", "check", path, "--root", root}, io.Discard, io.Discard)
+			if err == nil || !strings.HasPrefix(err.Error(), path+": ") {
+				t.Errorf("got %v, want an error starting with the build file path", err)
+			}
+		})
+	}
+	missing := filepath.Join(t.TempDir(), "missing.json")
+	if err := run([]string{"build", "check", missing, "--root", root}, io.Discard, io.Discard); err == nil {
+		t.Error("missing file: got nil error, want error")
 	}
 }
