@@ -2,7 +2,7 @@
 
 A headless build simulation engine for Path of Exile. It takes a build and a game version and returns the numbers a player cares about, each with an explanation of where it came from.
 
-Status: early. Datasets (the game data the engine reads) can be written, read and inspected; no calculations yet.
+Status: early. Datasets (the game data the engine reads) can be written, read and inspected. The evaluator (`core`: stats, modifiers, contexts, actors, lazy incremental evaluation with revert) exists; no game rules yet.
 
 ## Datasets
 
@@ -26,6 +26,7 @@ Requires Go 1.27.
 go build ./...
 go test ./...
 golangci-lint run
+go test ./core -run '^$' -bench .   # benchmarks, also run in CI
 ```
 
 ## Licence
