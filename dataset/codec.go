@@ -1,6 +1,7 @@
 package dataset
 
 import (
+	"fmt"
 	"slices"
 
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -38,16 +39,17 @@ func decodeStats(buf []byte) ([]Stat, error) {
 	return out, nil
 }
 
-func encodeCharacters(chars []Character) []byte {
+func encodeCharacters(all []Stat, chars []Character) []byte {
 	b := flatbuffers.NewBuilder(0)
+	lists := make([][]StatValue, len(chars))
+	for i, c := range chars {
+		lists[i] = c.Stats
+	}
+	st := newStatTable(all, lists...)
 	offs := make([]flatbuffers.UOffsetT, len(chars))
 	for i, c := range chars {
 		id := b.CreateString(c.ID)
-		fb.CharacterStartStatsVector(b, len(c.Stats))
-		for _, sv := range slices.Backward(c.Stats) {
-			fb.CreateStatValue(b, sv.Stat, sv.Value)
-		}
-		stats := b.EndVector(len(c.Stats))
+		stats := statValueVector(b, fb.CharacterStartStatsVector, st.toLocal(c.Stats, true))
 		fb.CharacterStart(b)
 		fb.CharacterAddId(b, id)
 		fb.CharacterAddBaseStrength(b, c.BaseStrength)
@@ -59,26 +61,30 @@ func encodeCharacters(chars []Character) []byte {
 		offs[i] = fb.CharacterEnd(b)
 	}
 	vec := tableVector(b, fb.CharactersStartCharactersVector, offs)
+	ids := stringVector(b, fb.CharactersStartStatIdsVector, st.ids)
 	fb.CharactersStart(b)
 	fb.CharactersAddCharacters(b, vec)
+	fb.CharactersAddStatIds(b, ids)
 	fb.FinishCharactersBuffer(b, fb.CharactersEnd(b))
 	return b.FinishedBytes()
 }
 
-func decodeCharacters(buf []byte) ([]Character, error) {
+func decodeCharacters(buf []byte, index map[string]uint32) ([]Character, error) {
 	if !fb.CharactersBufferHasIdentifier(buf) {
 		return nil, errIdentifier
 	}
 	root := fb.GetRootAsCharacters(buf, 0)
+	h, err := handles(index, root.StatIdsLength(), root.StatIds)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Character, root.CharactersLength())
 	var c fb.Character
-	var sv fb.StatValue
 	for i := range out {
 		root.Characters(&c, i)
-		stats := make([]StatValue, c.StatsLength())
-		for j := range stats {
-			c.Stats(&sv, j)
-			stats[j] = StatValue{Stat: sv.Stat(), Value: sv.Value()}
+		stats, err := fromLocal(&c, h, true)
+		if err != nil {
+			return nil, fmt.Errorf("character %s: %w", c.Id(), err)
 		}
 		out[i] = Character{
 			ID:               string(c.Id()),
@@ -100,4 +106,12 @@ func tableVector(b *flatbuffers.Builder, start func(*flatbuffers.Builder, int) f
 		b.PrependUOffsetT(o)
 	}
 	return b.EndVector(len(offs))
+}
+
+func stringVector(b *flatbuffers.Builder, start startFunc, ss []string) flatbuffers.UOffsetT {
+	offs := make([]flatbuffers.UOffsetT, len(ss))
+	for i, s := range ss {
+		offs[i] = b.CreateString(s)
+	}
+	return tableVector(b, start, offs)
 }

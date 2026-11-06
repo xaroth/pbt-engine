@@ -1,6 +1,7 @@
 package dataset
 
 import (
+	"fmt"
 	"slices"
 
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -233,15 +234,24 @@ func ascendancyVector(b *flatbuffers.Builder, start startFunc, as []Ascendancy) 
 	return tableVector(b, start, offs)
 }
 
-func encodeTree(t Tree) []byte {
+func encodeTree(all []Stat, t Tree) []byte {
 	b := flatbuffers.NewBuilder(0)
+	var lists [][]StatValue
+	for _, n := range t.Nodes {
+		lists = append(lists, n.Stats)
+		lists = append(lists, n.Buffs...)
+		for _, e := range n.MasteryEffects {
+			lists = append(lists, e.Stats)
+		}
+	}
+	st := newStatTable(all, lists...)
 	nodeOffs := make([]flatbuffers.UOffsetT, len(t.Nodes))
 	for i, n := range t.Nodes {
 		asc := b.CreateSharedString(n.Ascendancy)
-		stats := statValueVector(b, fb.NodeStartStatsVector, n.Stats)
+		stats := statValueVector(b, fb.NodeStartStatsVector, st.toLocal(n.Stats, true))
 		buffOffs := make([]flatbuffers.UOffsetT, len(n.Buffs))
 		for bi, bf := range n.Buffs {
-			svs := statValueVector(b, fb.BuffStartStatsVector, bf)
+			svs := statValueVector(b, fb.BuffStartStatsVector, st.toLocal(bf, false))
 			fb.BuffStart(b)
 			fb.BuffAddStats(b, svs)
 			buffOffs[bi] = fb.BuffEnd(b)
@@ -249,7 +259,7 @@ func encodeTree(t Tree) []byte {
 		buffs := tableVector(b, fb.NodeStartBuffsVector, buffOffs)
 		effOffs := make([]flatbuffers.UOffsetT, len(n.MasteryEffects))
 		for ei, e := range n.MasteryEffects {
-			svs := statValueVector(b, fb.MasteryEffectStartStatsVector, e.Stats)
+			svs := statValueVector(b, fb.MasteryEffectStartStatsVector, st.toLocal(e.Stats, false))
 			fb.MasteryEffectStart(b)
 			fb.MasteryEffectAddId(b, e.ID)
 			fb.MasteryEffectAddStats(b, svs)
@@ -288,6 +298,7 @@ func encodeTree(t Tree) []byte {
 	alt := ascendancyVector(b, fb.TreeStartAlternateAscendanciesVector, t.AlternateAscendancies)
 	jewels := uint32Vector(b, fb.TreeStartJewelSlotsVector, t.JewelSlots)
 	variant := b.CreateString(t.Variant)
+	ids := stringVector(b, fb.TreeStartStatIdsVector, st.ids)
 	fb.TreeStart(b)
 	fb.TreeAddVariant(b, variant)
 	fb.TreeAddTotalPoints(b, t.TotalPoints)
@@ -296,6 +307,7 @@ func encodeTree(t Tree) []byte {
 	fb.TreeAddAlternateAscendancies(b, alt)
 	fb.TreeAddNodes(b, nodes)
 	fb.TreeAddJewelSlots(b, jewels)
+	fb.TreeAddStatIds(b, ids)
 	fb.FinishTreeBuffer(b, fb.TreeEnd(b))
 	return b.FinishedBytes()
 }
@@ -303,20 +315,6 @@ func encodeTree(t Tree) []byte {
 type statValueSource interface {
 	Stats(obj *fb.StatValue, j int) bool
 	StatsLength() int
-}
-
-func decodeStatValues(src statValueSource) []StatValue {
-	n := src.StatsLength()
-	if n == 0 {
-		return nil
-	}
-	out := make([]StatValue, n)
-	var sv fb.StatValue
-	for i := range out {
-		src.Stats(&sv, i)
-		out[i] = StatValue{Stat: sv.Stat(), Value: sv.Value()}
-	}
-	return out
 }
 
 type ascendancySource = func(obj *fb.Ascendancy, j int) bool
@@ -334,11 +332,15 @@ func decodeAscendancies(get ascendancySource, n int) []Ascendancy {
 	return out
 }
 
-func decodeTree(buf []byte) (Tree, error) {
+func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 	if !fb.TreeBufferHasIdentifier(buf) {
 		return Tree{}, errIdentifier
 	}
 	root := fb.GetRootAsTree(buf, 0)
+	h, err := handles(index, root.StatIdsLength(), root.StatIds)
+	if err != nil {
+		return Tree{}, err
+	}
 	t := Tree{
 		Variant:               string(root.Variant()),
 		TotalPoints:           root.TotalPoints(),
@@ -363,22 +365,34 @@ func decodeTree(buf []byte) (Tree, error) {
 	t.Nodes = make([]Node, root.NodesLength())
 	for i := range t.Nodes {
 		root.Nodes(&n, i)
+		stats, err := fromLocal(&n, h, true)
+		if err != nil {
+			return Tree{}, fmt.Errorf("node %d: %w", n.Id(), err)
+		}
 		node := Node{
 			ID:                   n.Id(),
 			Kind:                 NodeKind(n.Kind()),
 			Ascendancy:           string(n.Ascendancy()),
-			Stats:                decodeStatValues(&n),
+			Stats:                stats,
 			SkillPoints:          n.SkillPoints(),
 			MultipleChoice:       n.MultipleChoice(),
 			MultipleChoiceOption: n.MultipleChoiceOption(),
 		}
 		for j := range n.BuffsLength() {
 			n.Buffs(&bf, j)
-			node.Buffs = append(node.Buffs, decodeStatValues(&bf))
+			buff, err := fromLocal(&bf, h, false)
+			if err != nil {
+				return Tree{}, fmt.Errorf("node %d buff %d: %w", n.Id(), j, err)
+			}
+			node.Buffs = append(node.Buffs, buff)
 		}
 		for j := range n.MasteryEffectsLength() {
 			n.MasteryEffects(&e, j)
-			node.MasteryEffects = append(node.MasteryEffects, MasteryEffect{ID: e.Id(), Stats: decodeStatValues(&e)})
+			effect, err := fromLocal(&e, h, false)
+			if err != nil {
+				return Tree{}, fmt.Errorf("node %d mastery effect %d: %w", n.Id(), e.Id(), err)
+			}
+			node.MasteryEffects = append(node.MasteryEffects, MasteryEffect{ID: e.Id(), Stats: effect})
 		}
 		for j := range n.NeighboursLength() {
 			node.Neighbours = append(node.Neighbours, n.Neighbours(j))

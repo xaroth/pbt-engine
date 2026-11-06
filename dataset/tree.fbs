@@ -64,6 +64,8 @@ table Tree {
   // Sorted by id.
   nodes: [Node] (required);
   jewel_slots: [uint32] (required);
+  // Stat ids the file uses, sorted, so the file does not depend on the stats group's order.
+  stat_ids: [string] (required);
 }
 
 root_type Tree;
