@@ -272,3 +272,65 @@ func TestResolveOtherGame(t *testing.T) {
 		t.Errorf("got %v, want %q", err, want)
 	}
 }
+
+func TestBundleParts(t *testing.T) {
+	t.Parallel()
+	s := open(t, testDataset())
+	chars, err := resolve.CharacterStats(s, marauder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantChars := []resolve.StatValue{
+		{"base_strength", 32}, {"base_dexterity", 14}, {"base_intelligence", 14}, {"base_maximum_life", 38}, {"base_maximum_mana", 34},
+		{"life_per_level", 12}, {"base_maximum_all_resistances_%", 75},
+	}
+	if diff := cmp.Diff(wantChars, chars); diff != "" {
+		t.Errorf("CharacterStats (-want +got):\n%s", diff)
+	}
+	effect, err := resolve.MasteryEffectBundle(s, "standard", 9, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantEffect := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9}, Stats: []resolve.StatValue{{"maximum_life_+%", 10}}}
+	if diff := cmp.Diff(wantEffect, effect); diff != "" {
+		t.Errorf("MasteryEffectBundle (-want +got):\n%s", diff)
+	}
+	quests, err := resolve.CampaignBundles("poe1", build.CampaignActs6To10)
+	if err != nil || len(quests) != 1 || quests[0].Source != (resolve.QuestSource{ID: "a5q6"}) {
+		t.Errorf("CampaignBundles(poe1, acts 6 to 10): got %v, %v, want the a5q6 bundle", quests, err)
+	}
+}
+
+func TestBundlePartsErrors(t *testing.T) {
+	t.Parallel()
+	s := open(t, testDataset())
+	testCases := []struct {
+		name, want string
+		call       func() error
+	}{
+		{"unknown character", "resolve: dataset 3.29.3.3 has no character x", func() error {
+			_, err := resolve.CharacterStats(s, "x")
+			return err
+		}},
+		{"unknown mastery effect", "resolve: node 9 has no mastery effect 2", func() error {
+			_, err := resolve.MasteryEffectBundle(s, "standard", 9, 2)
+			return err
+		}},
+		{"mastery effect of unknown node", "has no node 5 in the standard tree", func() error {
+			_, err := resolve.MasteryEffectBundle(s, "standard", 5, 1)
+			return err
+		}},
+		{"campaign of another game", "resolve: campaign quest rewards of poe2 are not known", func() error {
+			_, err := resolve.CampaignBundles("poe2", build.CampaignActs1To5)
+			return err
+		}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			if err := testCase.call(); err == nil || !strings.Contains(err.Error(), testCase.want) {
+				t.Errorf("got %v, want an error containing %q", err, testCase.want)
+			}
+		})
+	}
+}
