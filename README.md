@@ -8,11 +8,11 @@ Status: early. Datasets (the game data the engine reads) can be written, read an
 
 A dataset holds one game version: stats, characters, edition constants and the passive trees (standard, ruthless, alternate), which the simulation needs, plus one text file per language (`text-<lang>.fb`) with stat description templates and display names, which only display and text parsing need. The format is in the `dataset` package. [pbt-extract](https://github.com/xaroth/pbt-extract) builds datasets from game files.
 
-`pbt` inspects datasets stored as `<root>/<version>/`:
+`dataset.Registry` holds several versions side by side and reads table groups on first use. A version resolves exactly, by prefix (`3.29` is the newest 3.29 dataset, `latest` the newest of all), or, for a patch without a dataset, to the newest earlier patch of the same league, else the newest patch of that league; leagues never fall back to each other. A subdirectory whose dataset cannot be opened, such as one in an older format, is skipped. `pbt` inspects the datasets in the subdirectories of `--root` and resolves `--version` of `--game` (default `poe1`) that way; fallbacks and skipped datasets are noted on stderr:
 
 ```sh
 go run ./cmd/pbt data show node 44297 --version 3.29.3.3 --root datasets
-go run ./cmd/pbt data show character Marauder --version 3.29.3.3 --root datasets
+go run ./cmd/pbt data show character Marauder --version 3.29 --root datasets
 go run ./cmd/pbt data diff 3.28.0.16 3.29.3.3 --root datasets
 ```
 
