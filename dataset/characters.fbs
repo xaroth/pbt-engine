@@ -2,7 +2,7 @@ namespace fb;
 
 file_identifier "PBCH";
 
-// stat is a row index into the dataset's Stats group.
+// stat is an index into the file's stat_ids.
 struct StatValue {
   stat: uint32;
   value: int32;
@@ -15,12 +15,14 @@ table Character {
   base_intelligence: int32;
   base_max_life: int32;
   base_max_mana: int32;
-  // Stats block of the character's .ot, merged over extends, sorted by stat.
+  // Stats block of the character's .ot, merged over extends.
   stats: [StatValue] (required);
 }
 
 table Characters {
   characters: [Character] (required);
+  // Stat ids the file uses, sorted, so the file does not depend on the stats group's order.
+  stat_ids: [string] (required);
 }
 
 root_type Characters;

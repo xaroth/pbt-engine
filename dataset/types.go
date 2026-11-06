@@ -53,6 +53,9 @@ type Manifest struct {
 	Format  int    `json:"format"`
 	Game    string `json:"game"`
 	Version string `json:"version"`
+	// ID is a hash of Game, Version and the file hashes. Datasets rebuilt with different content
+	// keep their version but get a new ID.
+	ID string `json:"id"`
 	// Source records where the data came from, such as the game build and schema revision.
 	Source map[string]string `json:"source"`
 	Files  []File            `json:"files"`
@@ -65,12 +68,13 @@ type File struct {
 	SHA256 string `json:"sha256"`
 }
 
-// Stat is a row of the stats group. Other groups refer to stats by row index.
+// Stat is a row of the stats group. In memory, other groups refer to stats by index into
+// Dataset.Stats, called a handle; files refer to them by id.
 type Stat struct {
 	ID string
 }
 
-// StatValue is a stat row index and its value.
+// StatValue is a stat handle and its value.
 type StatValue struct {
 	Stat  uint32
 	Value int32

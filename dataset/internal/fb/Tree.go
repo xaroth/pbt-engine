@@ -171,8 +171,25 @@ func (rcv *Tree) MutateJewelSlots(j int, n uint32) bool {
 	return false
 }
 
+func (rcv *Tree) StatIds(j int) []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.ByteVector(a + flatbuffers.UOffsetT(j*4))
+	}
+	return nil
+}
+
+func (rcv *Tree) StatIdsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func TreeStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(8)
 }
 func TreeAddVariant(builder *flatbuffers.Builder, variant flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(variant), 0)
@@ -205,6 +222,12 @@ func TreeAddJewelSlots(builder *flatbuffers.Builder, jewelSlots flatbuffers.UOff
 	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(jewelSlots), 0)
 }
 func TreeStartJewelSlotsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func TreeAddStatIds(builder *flatbuffers.Builder, statIds flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(statIds), 0)
+}
+func TreeStartStatIdsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func TreeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
