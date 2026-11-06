@@ -1,13 +1,42 @@
 package core
 
 import (
+	"errors"
 	"fmt"
+	"iter"
 	"math"
+	"slices"
 	"sort"
 )
 
-// Checkpoint is a position in the edit journal.
-type Checkpoint int
+type editKind uint8
+
+const (
+	editSource editKind = iota
+	editAdd
+	editRemove
+	editValue
+)
+
+type edit struct {
+	kind editKind
+	id   uint32 // source or slot
+	old  float64
+	on   bool
+	seq  uint64
+}
+
+// Checkpoint is a position in the edit journal, valid until Commit or until a Revert to an
+// earlier checkpoint drops it.
+type Checkpoint struct {
+	gen uint32
+	pos int
+	seq uint64 // seq of the entry before pos, 0 at the start
+}
+
+// ErrStaleCheckpoint is returned by Revert for a checkpoint dropped by Commit or an earlier
+// Revert.
+var ErrStaleCheckpoint = errors.New("core: stale checkpoint")
 
 func (s *Session) bump() {
 	if s.rev == math.MaxUint32-1 {
@@ -23,50 +52,82 @@ func (s *Session) touch(stat StatID, actor ActorID) {
 	s.stamp[int(stat)*s.nActors+int(actor)] = s.rev
 }
 
-// SourceEnabled reports whether a source's modifiers apply. Sources are enabled by default.
-func (s *Session) SourceEnabled(src SourceID) bool {
-	return int(src) >= len(s.srcOff) || !s.srcOff[src]
+func (s *Session) record(e edit) {
+	s.seq++
+	e.seq = s.seq
+	s.journal = append(s.journal, e)
 }
 
 // SetSourceEnabled enables or disables every modifier of a source.
-func (s *Session) SetSourceEnabled(src SourceID, on bool) {
-	if s.SourceEnabled(src) == on {
-		return
+func (s *Session) SetSourceEnabled(src SourceID, on bool) error {
+	if int(src) >= len(s.srcOff) {
+		return fmt.Errorf("core: unknown source %d", src)
 	}
-	s.journal = append(s.journal, edit{kind: editSource, id: uint32(src), on: !on})
+	if !s.srcOff[src] == on {
+		return nil
+	}
+	s.record(edit{kind: editSource, id: uint32(src), on: !on})
 	s.setSource(src, on)
+	return nil
 }
 
 func (s *Session) setSource(src SourceID, on bool) {
-	for int(src) >= len(s.srcOff) {
-		s.srcOff = append(s.srcOff, false)
-	}
 	s.srcOff[src] = !on
 	s.bump()
-	if int(src) < len(s.srcMods) {
-		for _, mi := range s.srcMods[src] {
-			s.touch(s.mStat[mi], s.mActor[mi])
-		}
+	for _, mi := range s.srcMods[src] {
+		s.touch(s.mStat[mi], s.mActor[mi])
 	}
 }
 
-// AddModifier adds a modifier and returns its id.
-func (s *Session) AddModifier(m Modifier) (ModID, error) {
+func (s *Session) checkRef(r Ref) error {
+	if r.Actor != Self && (r.Actor < 0 || int(r.Actor) >= s.nActors) {
+		return fmt.Errorf("actor %d out of range", r.Actor)
+	}
+	if int(r.Stat) >= s.nStats {
+		return fmt.Errorf("stat %d out of range", r.Stat)
+	}
+	if r.Ctx != Self && (r.Ctx < 0 || r.Ctx >= int64(len(s.masks))) {
+		return fmt.Errorf("context %d not interned", r.Ctx)
+	}
+	return nil
+}
+
+func (s *Session) checkModifier(m *Modifier) error {
 	if int(m.Stat) >= s.nStats {
-		return 0, fmt.Errorf("core: modifier stat %d out of range", m.Stat)
+		return fmt.Errorf("stat %d out of range", m.Stat)
 	}
 	if int(m.Actor) >= s.nActors {
-		return 0, fmt.Errorf("core: modifier actor %d out of range", m.Actor)
+		return fmt.Errorf("actor %d out of range", m.Actor)
 	}
 	if m.Op > OpFlag {
-		return 0, fmt.Errorf("core: modifier op %d unknown", m.Op)
+		return fmt.Errorf("op %d unknown", m.Op)
 	}
-	for _, sc := range m.Scales {
-		if !(sc.Step > 0) {
-			return 0, fmt.Errorf("core: modifier on %s: scale step %v", s.m.stats[m.Stat].Name, sc.Step)
+	if int(m.Source) >= len(s.srcOff) {
+		return fmt.Errorf("unknown source %d", m.Source)
+	}
+	for _, c := range m.Conds {
+		if err := s.checkRef(c.Ref); err != nil {
+			return fmt.Errorf("condition: %w", err)
 		}
 	}
-	id := ModID(len(s.mStat))
+	for _, sc := range m.Scales {
+		if err := s.checkRef(sc.Ref); err != nil {
+			return fmt.Errorf("scale: %w", err)
+		}
+		if !(sc.Step > 0) {
+			return fmt.Errorf("scale step %v, want > 0", sc.Step)
+		}
+	}
+	return nil
+}
+
+// AddModifier adds a modifier and returns its id. Refs must name existing actors, stats and
+// interned contexts, and the source must come from NewSource.
+func (s *Session) AddModifier(m Modifier) (ModID, error) {
+	if err := s.checkModifier(&m); err != nil {
+		return ModID{}, fmt.Errorf("core: modifier: %w", err)
+	}
+	slot := uint32(len(s.mStat))
 	s.mStat = append(s.mStat, m.Stat)
 	s.mActor = append(s.mActor, m.Actor)
 	s.mOp = append(s.mOp, m.Op)
@@ -76,134 +137,167 @@ func (s *Session) AddModifier(m Modifier) (ModID, error) {
 	pred := int32(-1)
 	if len(m.Pred.Req) > 0 || !m.Pred.Excl.IsZero() {
 		pred = int32(len(s.preds))
-		s.preds = append(s.preds, Predicate{Req: append([]Mask(nil), m.Pred.Req...), Excl: m.Pred.Excl})
+		s.preds = append(s.preds, Predicate{Req: slices.Clone(m.Pred.Req), Excl: m.Pred.Excl})
 	}
 	s.mPred = append(s.mPred, pred)
 	s.conds = append(s.conds, m.Conds...)
 	s.mCond = append(s.mCond, uint32(len(s.conds)))
 	s.scales = append(s.scales, m.Scales...)
 	s.mScale = append(s.mScale, uint32(len(s.scales)))
+	if int(slot) == len(s.slotGen) {
+		s.slotGen = append(s.slotGen, 1)
+	}
 
 	b := &s.buckets[int(m.Stat)*s.nActors+int(m.Actor)]
 	i := sort.Search(len(*b), func(i int) bool { return s.mSource[(*b)[i]] > m.Source })
-	*b = append(*b, 0)
-	copy((*b)[i+1:], (*b)[i:])
-	(*b)[i] = id
+	*b = slices.Insert(*b, i, slot)
+	s.srcMods[m.Source] = append(s.srcMods[m.Source], slot)
 
-	for int(m.Source) >= len(s.srcMods) {
-		s.srcMods = append(s.srcMods, nil)
-	}
-	s.srcMods[m.Source] = append(s.srcMods[m.Source], id)
-
-	s.journal = append(s.journal, edit{kind: editAdd, id: uint32(id)})
+	s.record(edit{kind: editAdd, id: slot})
 	s.bump()
 	s.touch(m.Stat, m.Actor)
-	return id, nil
+	return ModID{slot: slot, gen: s.slotGen[slot]}, nil
+}
+
+func (s *Session) slot(id ModID) (uint32, error) {
+	if int(id.slot) >= len(s.mStat) || s.slotGen[id.slot] != id.gen {
+		return 0, fmt.Errorf("core: unknown modifier %v", id)
+	}
+	return id.slot, nil
 }
 
 // RemoveModifier stops a modifier from applying. Revert restores it.
-func (s *Session) RemoveModifier(id ModID) {
-	if !s.mAlive[id] {
-		return
+func (s *Session) RemoveModifier(id ModID) error {
+	mi, err := s.slot(id)
+	if err != nil {
+		return err
 	}
-	s.journal = append(s.journal, edit{kind: editRemove, id: uint32(id)})
-	s.setAlive(id, false)
+	if !s.mAlive[mi] {
+		return nil
+	}
+	s.record(edit{kind: editRemove, id: mi})
+	s.setAlive(mi, false)
+	return nil
 }
 
-func (s *Session) setAlive(id ModID, on bool) {
-	s.mAlive[id] = on
+func (s *Session) setAlive(mi uint32, on bool) {
+	s.mAlive[mi] = on
 	s.bump()
-	s.touch(s.mStat[id], s.mActor[id])
+	s.touch(s.mStat[mi], s.mActor[mi])
 }
 
 // SetModifierValue changes a modifier's value (a scenario field, a roll).
-func (s *Session) SetModifierValue(id ModID, v float64) {
-	if math.Float64bits(s.mValue[id]) == math.Float64bits(v) {
-		return
+func (s *Session) SetModifierValue(id ModID, v float64) error {
+	mi, err := s.slot(id)
+	if err != nil {
+		return err
 	}
-	s.journal = append(s.journal, edit{kind: editValue, id: uint32(id), old: s.mValue[id]})
-	s.setValue(id, v)
+	if math.Float64bits(s.mValue[mi]) == math.Float64bits(v) {
+		return nil
+	}
+	s.record(edit{kind: editValue, id: mi, old: s.mValue[mi]})
+	s.setValue(mi, v)
+	return nil
 }
 
-func (s *Session) setValue(id ModID, v float64) {
-	s.mValue[id] = v
+func (s *Session) setValue(mi uint32, v float64) {
+	s.mValue[mi] = v
 	s.bump()
-	s.touch(s.mStat[id], s.mActor[id])
+	s.touch(s.mStat[mi], s.mActor[mi])
 }
 
-// Modifier returns a copy of a modifier as stored, and whether it applies.
-func (s *Session) Modifier(id ModID) (Modifier, bool) {
-	m := Modifier{
-		Stat:   s.mStat[id],
-		Actor:  s.mActor[id],
-		Op:     s.mOp[id],
-		Value:  s.mValue[id],
-		Source: s.mSource[id],
-		Conds:  s.conds[s.mCond[id]:s.mCond[id+1]:s.mCond[id+1]],
-		Scales: s.scales[s.mScale[id]:s.mScale[id+1]:s.mScale[id+1]],
+// Modifier returns a copy of a modifier as stored, and whether RemoveModifier removed it.
+func (s *Session) Modifier(id ModID) (m Modifier, removed bool, err error) {
+	mi, err := s.slot(id)
+	if err != nil {
+		return Modifier{}, false, err
 	}
-	if p := s.mPred[id]; p >= 0 {
-		m.Pred = s.preds[p]
+	m = Modifier{
+		Stat:   s.mStat[mi],
+		Actor:  s.mActor[mi],
+		Op:     s.mOp[mi],
+		Value:  s.mValue[mi],
+		Source: s.mSource[mi],
+		Conds:  slices.Clone(s.conds[s.mCond[mi]:s.mCond[mi+1]]),
+		Scales: slices.Clone(s.scales[s.mScale[mi]:s.mScale[mi+1]]),
 	}
-	return m, s.mAlive[id]
+	if p := s.mPred[mi]; p >= 0 {
+		m.Pred = Predicate{Req: slices.Clone(s.preds[p].Req), Excl: s.preds[p].Excl}
+	}
+	return m, !s.mAlive[mi], nil
 }
 
-// NumModifiers returns the number of modifiers added, including removed ones.
-func (s *Session) NumModifiers() int { return len(s.mStat) }
+// Modifiers yields the ids of all modifiers added and not dropped by Revert, in the order
+// they were added.
+func (s *Session) Modifiers() iter.Seq[ModID] {
+	return func(yield func(ModID) bool) {
+		for mi := range uint32(len(s.mStat)) {
+			if !yield(ModID{slot: mi, gen: s.slotGen[mi]}) {
+				return
+			}
+		}
+	}
+}
 
 // Mark returns the current journal position for Revert.
-func (s *Session) Mark() Checkpoint { return Checkpoint(len(s.journal)) }
-
-// Revert undoes every edit made after cp, newest first.
-func (s *Session) Revert(cp Checkpoint) {
-	if cp < 0 || int(cp) > len(s.journal) {
-		panic(fmt.Sprintf("core: checkpoint %d outside journal of %d", cp, len(s.journal)))
+func (s *Session) Mark() Checkpoint {
+	cp := Checkpoint{gen: s.journalGen, pos: len(s.journal)}
+	if cp.pos > 0 {
+		cp.seq = s.journal[cp.pos-1].seq
 	}
-	for i := len(s.journal) - 1; i >= int(cp); i-- {
+	return cp
+}
+
+// Revert undoes every edit made after cp, newest first. Checkpoints taken after cp become
+// stale; cp stays valid.
+func (s *Session) Revert(cp Checkpoint) error {
+	if cp.gen != s.journalGen || cp.pos > len(s.journal) || (cp.pos > 0 && s.journal[cp.pos-1].seq != cp.seq) {
+		return ErrStaleCheckpoint
+	}
+	for i := len(s.journal) - 1; i >= cp.pos; i-- {
 		e := s.journal[i]
 		switch e.kind {
 		case editSource:
 			s.setSource(SourceID(e.id), e.on)
 		case editRemove:
-			s.setAlive(ModID(e.id), true)
+			s.setAlive(e.id, true)
 		case editValue:
-			s.setValue(ModID(e.id), e.old)
+			s.setValue(e.id, e.old)
 		case editAdd:
-			s.popModifier(ModID(e.id))
+			s.popModifier(e.id)
 		}
 	}
-	s.journal = s.journal[:cp]
+	s.journal = s.journal[:cp.pos]
+	return nil
 }
 
-// Commit forgets the journal; earlier checkpoints become invalid.
-func (s *Session) Commit() { s.journal = s.journal[:0] }
+// Commit forgets the journal; every earlier checkpoint becomes stale.
+func (s *Session) Commit() {
+	s.journal = s.journal[:0]
+	s.journalGen++
+}
 
 // popModifier removes the most recently added modifier.
-func (s *Session) popModifier(id ModID) {
-	stat, actor, src := s.mStat[id], s.mActor[id], s.mSource[id]
+func (s *Session) popModifier(mi uint32) {
+	stat, actor, src := s.mStat[mi], s.mActor[mi], s.mSource[mi]
 	b := &s.buckets[int(stat)*s.nActors+int(actor)]
-	for i, x := range *b {
-		if x == id {
-			*b = append((*b)[:i], (*b)[i+1:]...)
-			break
-		}
+	*b = slices.Delete(*b, slices.Index(*b, mi), slices.Index(*b, mi)+1)
+	s.srcMods[src] = s.srcMods[src][:len(s.srcMods[src])-1]
+	if s.mPred[mi] >= 0 {
+		s.preds = s.preds[:s.mPred[mi]]
 	}
-	sm := s.srcMods[src]
-	s.srcMods[src] = sm[:len(sm)-1]
-	if s.mPred[id] >= 0 {
-		s.preds = s.preds[:s.mPred[id]]
-	}
-	s.conds = s.conds[:s.mCond[id]]
-	s.scales = s.scales[:s.mScale[id]]
-	s.mStat = s.mStat[:id]
-	s.mActor = s.mActor[:id]
-	s.mOp = s.mOp[:id]
-	s.mValue = s.mValue[:id]
-	s.mSource = s.mSource[:id]
-	s.mAlive = s.mAlive[:id]
-	s.mPred = s.mPred[:id]
-	s.mCond = s.mCond[:id+1]
-	s.mScale = s.mScale[:id+1]
+	s.conds = s.conds[:s.mCond[mi]]
+	s.scales = s.scales[:s.mScale[mi]]
+	s.mStat = s.mStat[:mi]
+	s.mActor = s.mActor[:mi]
+	s.mOp = s.mOp[:mi]
+	s.mValue = s.mValue[:mi]
+	s.mSource = s.mSource[:mi]
+	s.mAlive = s.mAlive[:mi]
+	s.mPred = s.mPred[:mi]
+	s.mCond = s.mCond[:mi+1]
+	s.mScale = s.mScale[:mi+1]
+	s.slotGen[mi]++
 	s.bump()
 	s.touch(stat, actor)
 }

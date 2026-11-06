@@ -56,11 +56,11 @@ type StatDef struct {
 	Includes []StatID
 	// Flag stats are 1 when any OpFlag modifier matches, else 0, unless a formula says otherwise.
 	Flag bool
-	// CycleBreak marks a stat family whose conditional reads of each other are resolved by
-	// the game without recursion (attributes granting attributes). A condition or scale on a
-	// modifier of a CycleBreak stat that reads another CycleBreak stat sees the unconditional
-	// value: the same node evaluated without any conditional or scaled modifier.
-	CycleBreak bool
+	// CycleFamily groups stats whose reads of each other the game resolves without recursion
+	// (attributes granting attributes); 0 is no family. A condition, scale or formula of a stat
+	// that reads a stat of the same family sees the unconditional value: that node evaluated
+	// without any conditional or scaled modifier.
+	CycleFamily uint8
 	// Formula replaces the default aggregation; nil uses Agg.Default (or the flag rule).
 	Formula Formula
 }
@@ -110,8 +110,8 @@ type Dimension struct {
 // Bit returns the bit of the value at index i.
 func (d *Dimension) Bit(i int) Bit { return d.First + Bit(i) }
 
-// Model holds stat definitions and context dimensions. It is built once by rules, then shared
-// read-only by any number of sessions; it must not change after the first session is created.
+// Model holds stat definitions and context dimensions. Rules build it, then call Freeze; a
+// frozen model is read-only and can be shared by any number of sessions and goroutines.
 type Model struct {
 	stats    []StatDef
 	byName   map[string]StatID
@@ -128,9 +128,15 @@ func NewModel() *Model {
 
 func (m *Model) mutable() {
 	if m.frozen {
-		panic("core: model changed after a session was created")
+		panic("core: model changed after Freeze")
 	}
 }
+
+// Freeze ends registration. Changing the model afterwards panics.
+func (m *Model) Freeze() { m.frozen = true }
+
+// Frozen reports whether Freeze was called.
+func (m *Model) Frozen() bool { return m.frozen }
 
 // AddStat registers a stat. Names are unique.
 func (m *Model) AddStat(def StatDef) (StatID, error) {

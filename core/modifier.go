@@ -10,12 +10,17 @@ type CtxID uint32
 // GlobalCtx is the context with no bits set.
 const GlobalCtx CtxID = 0
 
-// SourceID is a handle to where modifiers came from (tree node, item mod, scenario field).
-// Its meaning lives outside core; core only enables and disables it.
+// SourceID is a handle to where modifiers came from (tree node, item mod, scenario field),
+// handed out by Session.NewSource. Its meaning lives outside core; core only enables and
+// disables it.
 type SourceID uint32
 
-// ModID identifies a modifier within a session.
-type ModID uint32
+// ModID identifies a modifier within a session. The zero ModID is never valid; an id of a
+// modifier dropped by Revert stays invalid.
+type ModID struct {
+	slot uint32
+	gen  uint32
+}
 
 // Op is how a modifier combines with others on the same stat.
 type Op uint8

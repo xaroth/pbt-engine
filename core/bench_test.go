@@ -1,31 +1,33 @@
-package core
+package core_test
 
 import (
 	"math"
 	"math/rand/v2"
 	"testing"
+
+	"github.com/xaroth/pbt-engine/core"
 )
 
 // sheetWorld approximates a character sheet over a full passive tree: 2400 sources with
 // 1 or 2 modifiers each over attributes, pools, defences and filler stats, a tenth of them
 // conditional or scaled.
 type sheetWorld struct {
-	m       *Model
-	mods    []Modifier
-	outputs []StatID
-	life    StatID
+	m       *core.Model
+	mods    []core.Modifier
+	outputs []core.StatID
+	life    core.StatID
 	nSrc    int
 }
 
 func newSheetWorld() *sheetWorld {
-	w := &sheetWorld{m: NewModel(), nSrc: 2400}
+	w := &sheetWorld{m: core.NewModel(), nSrc: 2400}
 	m := w.m
-	str := m.MustAddStat(StatDef{Name: "str", CycleBreak: true, Round: RoundFloor})
-	dex := m.MustAddStat(StatDef{Name: "dex", CycleBreak: true, Round: RoundFloor})
-	in := m.MustAddStat(StatDef{Name: "int", CycleBreak: true, Round: RoundFloor})
-	pool := func(name string, attr StatID, div float64) StatID {
-		id := m.MustAddStat(StatDef{Name: name, Round: RoundHalf})
-		m.SetFormula(id, func(r Reader, a Agg) float64 {
+	str := m.MustAddStat(core.StatDef{Name: "str", CycleFamily: 1, Round: core.RoundFloor})
+	dex := m.MustAddStat(core.StatDef{Name: "dex", CycleFamily: 1, Round: core.RoundFloor})
+	in := m.MustAddStat(core.StatDef{Name: "int", CycleFamily: 1, Round: core.RoundFloor})
+	pool := func(name string, attr core.StatID, div float64) core.StatID {
+		id := m.MustAddStat(core.StatDef{Name: name, Round: core.RoundHalf})
+		m.SetFormula(id, func(r core.Reader, a core.Agg) float64 {
 			return (a.Base + math.Floor(r.Stat(attr)/div)) * (1 + a.Inc/100) * a.More
 		})
 		return id
@@ -34,56 +36,61 @@ func newSheetWorld() *sheetWorld {
 	mana := pool("mana", in, 2)
 	es := pool("es", in, 10)
 	eva := pool("evasion", dex, 5)
-	arm := m.MustAddStat(StatDef{Name: "armour", Round: RoundHalf})
-	ele := m.MustAddStat(StatDef{Name: "ele_res"})
-	var res []StatID
+	arm := m.MustAddStat(core.StatDef{Name: "armour", Round: core.RoundHalf})
+	ele := m.MustAddStat(core.StatDef{Name: "ele_res"})
+	var res []core.StatID
 	for _, n := range []string{"fire", "cold", "lightning"} {
-		res = append(res, m.MustAddStat(StatDef{Name: n + "_res", Includes: []StatID{ele}, HasMax: true, Max: 75}))
+		res = append(res, m.MustAddStat(core.StatDef{Name: n + "_res", Includes: []core.StatID{ele}, HasMax: true, Max: 75}))
 	}
-	regen := m.MustAddStat(StatDef{Name: "life_regen", Round: RoundHalf, Places: 1})
-	m.SetFormula(regen, func(r Reader, a Agg) float64 { return r.Stat(w.life) * a.Base / 100 })
-	low := m.MustAddStat(StatDef{Name: "low_life", Flag: true})
-	var filler []StatID
+	regen := m.MustAddStat(core.StatDef{Name: "life_regen", Round: core.RoundHalf, Places: 1})
+	m.SetFormula(regen, func(r core.Reader, a core.Agg) float64 { return r.Stat(w.life) * a.Base / 100 })
+	low := m.MustAddStat(core.StatDef{Name: "low_life", Flag: true})
+	var filler []core.StatID
 	for i := range 60 {
-		filler = append(filler, m.MustAddStat(StatDef{Name: "filler" + string(rune('a'+i/26)) + string(rune('a'+i%26))}))
+		filler = append(filler, m.MustAddStat(core.StatDef{Name: "filler" + string(rune('a'+i/26)) + string(rune('a'+i%26))}))
 	}
-	w.outputs = append([]StatID{str, dex, in, w.life, mana, es, eva, arm, regen}, res...)
+	w.outputs = append([]core.StatID{str, dex, in, w.life, mana, es, eva, arm, regen}, res...)
 
 	r := rand.New(rand.NewPCG(1, 2))
-	attrs := []StatID{str, dex, in}
-	targets := append([]StatID{w.life, mana, es, eva, arm, ele, regen}, res...)
+	attrs := []core.StatID{str, dex, in}
+	targets := append([]core.StatID{w.life, mana, es, eva, arm, ele, regen}, res...)
 	for src := range w.nSrc {
 		for range 1 + r.IntN(2) {
-			mod := Modifier{Source: SourceID(src), Value: float64(5 + r.IntN(20))}
+			mod := core.Modifier{Source: core.SourceID(src), Value: float64(5 + r.IntN(20))}
 			switch k := r.IntN(10); {
 			case k < 3:
 				mod.Stat = attrs[r.IntN(3)]
 				mod.Value = 10
 			case k < 7:
 				mod.Stat = targets[r.IntN(len(targets))]
-				mod.Op = Op(r.IntN(2))
+				mod.Op = core.Op(r.IntN(2))
 			default:
 				mod.Stat = filler[r.IntN(len(filler))]
-				mod.Op = Op(r.IntN(3))
+				mod.Op = core.Op(r.IntN(3))
 			}
 			if r.IntN(10) == 0 {
 				if r.IntN(2) == 0 {
-					mod.Conds = []Cond{{Ref: SelfRef(low), Cmp: CmpGE, Threshold: 1}}
+					mod.Conds = []core.Cond{{Ref: core.SelfRef(low), Cmp: core.CmpGE, Threshold: 1}}
 				} else {
-					mod.Scales = []Scale{{Ref: SelfRef(attrs[r.IntN(3)]), Step: 10, Cap: 5}}
+					mod.Scales = []core.Scale{{Ref: core.SelfRef(attrs[r.IntN(3)]), Step: 10, Cap: 5}}
 				}
 			}
 			w.mods = append(w.mods, mod)
 		}
 	}
 	for _, a := range attrs { // class base
-		w.mods = append(w.mods, Modifier{Stat: a, Op: OpBase, Value: 20, Source: SourceID(w.nSrc)})
+		w.mods = append(w.mods, core.Modifier{Stat: a, Op: core.OpBase, Value: 20, Source: core.SourceID(w.nSrc)})
 	}
+	m.Freeze()
 	return w
 }
 
-func (w *sheetWorld) session(b *testing.B) *Session {
-	s := NewSession(w.m, 2)
+func (w *sheetWorld) session(b *testing.B) *core.Session {
+	s, err := core.NewSession(w.m, 2)
+	if err != nil {
+		b.Fatal(err)
+	}
+	sources(s, w.nSrc+1)
 	for _, m := range w.mods {
 		if _, err := s.AddModifier(m); err != nil {
 			b.Fatal(err)
@@ -93,9 +100,9 @@ func (w *sheetWorld) session(b *testing.B) *Session {
 	return s
 }
 
-func (w *sheetWorld) sheet(b *testing.B, s *Session) {
+func (w *sheetWorld) sheet(b *testing.B, s *core.Session) {
 	for _, o := range w.outputs {
-		if _, err := s.Get(0, o, GlobalCtx); err != nil {
+		if _, err := s.Get(0, o, core.GlobalCtx); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -127,15 +134,21 @@ func BenchmarkNodePower(b *testing.B) {
 	s := w.session(b)
 	w.sheet(b, s)
 	b.ReportAllocs()
+	whatIfs := 0
 	for b.Loop() {
-		for src := range SourceID(w.nSrc) {
+		for src := range core.SourceID(w.nSrc) {
 			cp := s.Mark()
-			s.SetSourceEnabled(src, false)
-			if _, err := s.Get(0, w.life, GlobalCtx); err != nil {
+			if err := s.SetSourceEnabled(src, false); err != nil {
 				b.Fatal(err)
 			}
-			s.Revert(cp)
+			if _, err := s.Get(0, w.life, core.GlobalCtx); err != nil {
+				b.Fatal(err)
+			}
+			if err := s.Revert(cp); err != nil {
+				b.Fatal(err)
+			}
+			whatIfs++
 		}
 	}
-	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*w.nSrc), "ns/whatif")
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(whatIfs), "ns/whatif")
 }
