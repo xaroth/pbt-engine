@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
@@ -284,5 +286,54 @@ func TestBuildCheckErrors(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing.json")
 	if err := run([]string{"build", "check", missing, "--root", root}, io.Discard, io.Discard); err == nil {
 		t.Error("missing file: got nil error, want error")
+	}
+}
+
+func TestBuildResolve(t *testing.T) {
+	t.Parallel()
+	d := testDataset("3.29", 20)
+	for _, id := range []string{"base_dexterity", "base_intelligence", "base_maximum_life", "base_maximum_mana", "level"} {
+		d.Stats = append(d.Stats, dataset.Stat{ID: id})
+	}
+	root := t.TempDir()
+	dir := filepath.Join(root, "3.29")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dataset.Write(dir, d); err != nil {
+		t.Fatal(err)
+	}
+	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,"nodes":[1,12345],"scenario":{"campaign":"acts-1-5"}}`)
+	var out, notes strings.Builder
+	if err := run([]string{"build", "resolve", path, "--root", root}, &out, &notes); err != nil {
+		t.Fatal(err)
+	}
+	want := `dataset poe1 3.29
+bundle player global character Metadata/Characters/Str/Str
+  base_strength = 32
+  base_dexterity = 0
+  base_intelligence = 0
+  base_maximum_life = 38
+  base_maximum_mana = 0
+  base_strength = 1
+bundle player global level
+  level = 90
+bundle player global node 12345
+  base_strength = 20
+bundle player buff node 12345
+  aura_damage_+% = 5
+note node 12345: mastery effect not chosen; builds have no mastery choices yet
+`
+	if diff := cmp.Diff(want, out.String()); diff != "" {
+		t.Errorf("(-want +got):\n%s", diff)
+	}
+	if notes.String() != "" {
+		t.Errorf("stderr: got %q, want nothing", notes.String())
+	}
+
+	// The shared test datasets lack the base column stats, which resolve requires.
+	err := run([]string{"build", "resolve", path, "--root", writeRoot(t)}, io.Discard, io.Discard)
+	if err == nil || !strings.HasPrefix(err.Error(), path+": resolve: ") {
+		t.Errorf("got %v, want a resolve error prefixed with the build file path", err)
 	}
 }

@@ -5,6 +5,7 @@
 //	pbt data show character <name> --version <v>
 //	pbt data diff <version-a> <version-b> [--limit 20]
 //	pbt build check <build.json>
+//	pbt build resolve <build.json>
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions of --game (default poe1) resolve as
@@ -26,6 +27,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/resolve"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
@@ -35,6 +37,7 @@ const usage = `usage:
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
   pbt build check <build.json>
+  pbt build resolve <build.json>
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -137,6 +140,16 @@ func run(args []string, w, notes io.Writer) error {
 		p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Store().Manifest().Version,
 			b.Variant, b.Class, cmp.Or(b.Ascendancy, "no ascendancy"), b.Level, len(b.Nodes))
 		return p.err
+	case len(pos) == 3 && pos[0] == "build" && pos[1] == "resolve":
+		c, err := checkBuild(w, opts["root"], pos[2])
+		if err != nil {
+			return err
+		}
+		r, err := resolve.Resolve(c)
+		if err != nil {
+			return fmt.Errorf("%s: %w", pos[2], err)
+		}
+		return r.Dump(w)
 	}
 	return errors.New(usage)
 }
