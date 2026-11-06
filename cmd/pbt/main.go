@@ -125,7 +125,9 @@ func load(w io.Writer, opts map[string]string, version string) (*dataset.Dataset
 		return nil, err
 	}
 	if v.Name() != version {
-		fmt.Fprintf(w, "(%s %s resolves to %s)\n", opts["game"], version, v.Name())
+		if _, err := fmt.Fprintf(w, "(%s %s resolves to %s)\n", opts["game"], version, v.Name()); err != nil {
+			return nil, err
+		}
 	}
 	d, err := v.Dataset(opts["language"])
 	if err != nil {
