@@ -5,8 +5,11 @@
 //	pbt data show character <name> --version <v>
 //	pbt data diff <version-a> <version-b> [--limit 20]
 //
-// Datasets are read from <root>/<version> (--root, default datasets), with display text in
-// --language (default en).
+// Datasets are read from the subdirectories of --root (default datasets), with display text
+// in --language (default en). Versions of --game (default poe1) resolve as
+// dataset.Registry.Resolve does, so 3.29 is the newest 3.29 dataset; a version that resolves
+// to another one is noted on stderr. Subdirectories whose dataset cannot be opened are skipped
+// with a warning on stderr.
 package main
 
 import (
@@ -15,7 +18,6 @@ import (
 	"io"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,7 +31,7 @@ const usage = `usage:
   pbt data show stat <id> --version <v>
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
-options for all: [--root datasets] [--language en]`
+options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
 const (
@@ -38,7 +40,7 @@ const (
 )
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout); err != nil {
+	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "pbt:", err)
 		os.Exit(1)
 	}
@@ -71,8 +73,9 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 	return pos, opts, nil
 }
 
-func run(args []string, w io.Writer) error {
-	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20", "language": "en"})
+// run writes results to w and notes about how they were found to notes.
+func run(args []string, w, notes io.Writer) error {
+	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20", "language": "en", "game": "poe1"})
 	if err != nil {
 		return err
 	}
@@ -85,11 +88,11 @@ func run(args []string, w io.Writer) error {
 		if pos[2] == "node" {
 			variants = []string{opts["variant"]}
 		}
-		s, err := open(opts["root"], opts["version"])
+		res, err := resolveVersions(notes, opts, opts["version"])
 		if err != nil {
 			return err
 		}
-		d, err := read(s, variants, opts["language"])
+		d, err := read(res[0].Store, variants, opts["language"])
 		if err != nil {
 			return err
 		}
@@ -106,15 +109,12 @@ func run(args []string, w io.Writer) error {
 		if err != nil || limit < 0 {
 			return fmt.Errorf("--limit %q: want a number >= 0", opts["limit"])
 		}
-		sa, err := open(opts["root"], pos[2])
+		res, err := resolveVersions(notes, opts, pos[2], pos[3])
 		if err != nil {
 			return err
 		}
+		sa, sb := res[0].Store, res[1].Store
 		a, err := read(sa, sa.Manifest().Trees(), opts["language"])
-		if err != nil {
-			return err
-		}
-		sb, err := open(opts["root"], pos[3])
 		if err != nil {
 			return err
 		}
@@ -127,13 +127,39 @@ func run(args []string, w io.Writer) error {
 	return errors.New(usage)
 }
 
-// open opens the dataset of version under root.
-func open(root, version string) (*dataset.Store, error) {
-	s, err := dataset.Open(os.DirFS(filepath.Join(root, version)))
-	if err != nil {
-		return nil, fmt.Errorf("dataset %s: %w", version, err)
+// resolveVersions resolves versions of --game among the datasets under --root and notes on
+// notes each dataset skipped and each version that resolves to another one.
+func resolveVersions(notes io.Writer, opts map[string]string, versions ...string) ([]dataset.Resolution, error) {
+	reg, err := dataset.OpenRoot(os.DirFS(opts["root"]))
+	if reg == nil {
+		return nil, err
 	}
-	return s, nil
+	p := &printer{w: notes}
+	if err != nil {
+		for line := range strings.SplitSeq(err.Error(), "\n") {
+			p.printf("pbt: skipped %s/%s\n", opts["root"], line)
+		}
+	}
+	var out []dataset.Resolution
+	for _, version := range versions {
+		res, err := reg.Resolve(opts["game"], version)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, res)
+	}
+	for _, res := range out {
+		name := res.Store.Manifest().Version
+		switch res.Match {
+		case dataset.MatchNewest:
+			p.printf("(%s %s resolves to %s)\n", opts["game"], res.Requested, name)
+		case dataset.MatchEarlierPatch:
+			p.printf("(%s %s has no dataset; using %s, the newest earlier patch of its league)\n", opts["game"], res.Requested, name)
+		case dataset.MatchLaterPatch:
+			p.printf("(%s %s has no dataset or earlier patch; using %s, the newest patch of its league)\n", opts["game"], res.Requested, name)
+		}
+	}
+	return out, p.err
 }
 
 // read reads the given tree variants and the text of one language from s.
