@@ -20,7 +20,7 @@ Text is read in English unless `--language` says otherwise.
 
 ## Builds
 
-A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and a scenario: the campaign stage (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and the outcome of the bandit quest (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `pbt build check build.json --root datasets` checks every id against the dataset the version resolves to:
+A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and a scenario: the campaign stage (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and the outcome of the bandit quest (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `pbt build check build.json --root datasets` checks every id against the dataset the version resolves to; `pbt build resolve build.json --root datasets` prints the stat bundles the build resolves to (game stat ids and values per source: character, level, the quest rewards of the campaign stage, each node) and the edition constants:
 
 ```json
 {"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
