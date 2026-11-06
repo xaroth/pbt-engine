@@ -6,6 +6,7 @@
 //	pbt data diff <version-a> <version-b> [--limit 20]
 //	pbt build check <build.json>
 //	pbt build resolve <build.json>
+//	pbt semantics coverage --version <v> [--variant standard]
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions of --game (default poe1) resolve as
@@ -28,6 +29,8 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/resolve"
+	"github.com/xaroth/pbt-engine/semantics"
+	"github.com/xaroth/pbt-engine/semantics/poe1"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
@@ -38,6 +41,7 @@ const usage = `usage:
   pbt data diff <version-a> <version-b> [--limit 20]
   pbt build check <build.json>
   pbt build resolve <build.json>
+  pbt semantics coverage --version <v> [--variant standard]
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -150,6 +154,12 @@ func run(args []string, w, notes io.Writer) error {
 			return fmt.Errorf("%s: %w", pos[2], err)
 		}
 		return r.Dump(w)
+	case len(pos) == 2 && pos[0] == "semantics" && pos[1] == "coverage":
+		res, err := resolveVersions(notes, opts["root"], opts["game"], opts["version"])
+		if err != nil {
+			return err
+		}
+		return coverage(w, res[0].Store, opts["variant"])
 	}
 	return errors.New(usage)
 }
@@ -187,6 +197,27 @@ func resolveVersions(notes io.Writer, root, game string, versions ...string) ([]
 		}
 	}
 	return out, p.err
+}
+
+// coverage prints how far the edition's semantics table covers the stats of s that feed the
+// character sheet.
+func coverage(w io.Writer, s *dataset.Store, variant string) error {
+	if g := s.Manifest().Game; g != "poe1" {
+		return fmt.Errorf("no semantics table for %s", g)
+	}
+	t, err := poe1.Load()
+	if err != nil {
+		return err
+	}
+	feeds, err := poe1.FeedsSheet(s)
+	if err != nil {
+		return err
+	}
+	c, err := semantics.Cover(s, variant, t, feeds)
+	if err != nil {
+		return err
+	}
+	return c.WriteText(w)
 }
 
 // read reads the given tree variants and the text of one language from s.

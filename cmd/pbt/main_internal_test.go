@@ -132,6 +132,11 @@ func TestRun(t *testing.T) {
 			notes: []string{"(poe1 3.27.0.1 has no dataset or earlier patch; using 3.27.0.5, the newest patch of its league)"},
 		},
 		{
+			name: "semantics coverage",
+			args: []string{"semantics", "coverage", "--version", "3.29", "--root", root},
+			want: []string{"coverage poe1 3.29 standard tree and characters: 9 stats; 8 authored, 0 unknown, 0 display-only, 0 gaps, 1 outside"},
+		},
+		{
 			name: "diff with limit",
 			args: []string{"data", "diff", "3.28", "3.29", "--root", root, "--limit", "0"},
 			want: []string{"  ... 1 more"},

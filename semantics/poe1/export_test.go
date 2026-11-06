@@ -1,0 +1,35 @@
+package poe1
+
+import (
+	"regexp"
+
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/resolve"
+)
+
+// Excluded returns a func that, for a stat whose text matches the sheet phrases but that
+// FeedsSheet rejects, returns why and the line; ok is false for every other stat.
+func Excluded(s *dataset.Store) (func(stat string, scope resolve.Scope) (why, line string, ok bool), error) {
+	t, err := newSheetText(s)
+	if err != nil {
+		return nil, err
+	}
+	return func(stat string, scope resolve.Scope) (string, string, bool) {
+		j := t.judge(stat, scope)
+		return j.excludes, j.excluded, !j.feeds && j.excludes != ""
+	}, nil
+}
+
+// Rules returns every rule FeedsSheet decides with, keyed "group: name".
+func Rules() map[string]*regexp.Regexp {
+	out := map[string]*regexp.Regexp{}
+	for group, rules := range map[string][]rule{
+		"feeds by id": feedsByID, "not theirs by id": notTheirsByID, "not sheet by id": notSheetByID,
+		"sheet line": sheetLines, "not their line": notTheirLines, "not sheet line": notSheetLines,
+	} {
+		for _, r := range rules {
+			out[group+": "+r.name] = r.re
+		}
+	}
+	return out
+}
