@@ -1,0 +1,99 @@
+anger_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Anger has {0}% increased Mana Reservation Efficiency
+attack_mana_cost_+% global: not a sheet value, by id: mana cost: {0}% increased Mana Cost of Attacks
+base_chaos_damage_resistance_% buff: not the player: enemies: Nearby Enemies have {0:+d}% to Chaos Resistance
+base_cold_damage_resistance_% buff: not the player: enemies: Nearby Enemies have {0:+d}% to Cold Resistance
+base_energy_shield_gained_on_enemy_death global: not a sheet value, by id: recovery on events: Gain {0} Energy Shield per Enemy Killed
+base_energy_shield_regeneration_rate_per_minute global: not a sheet value: energy shield recharge and recovery: Regenerate {0} Energy Shield per second
+base_life_gain_per_target global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Hit with Attacks
+base_life_gained_on_enemy_death global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Killed
+base_life_gained_on_spell_hit global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Hit with Spells
+base_life_reservation_efficiency_+% global: not a sheet value, by id: reservation: {0}% increased Life Reservation Efficiency of Skills
+base_mana_cost_-% global: not a sheet value, by id: mana cost: {0}% reduced Mana Cost of Skills
+base_mana_gained_on_enemy_death global: not a sheet value, by id: recovery on events: Gain {0} Mana per Enemy Killed
+base_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: {0}% increased Mana Reservation Efficiency of Skills
+base_reduce_enemy_cold_resistance_% global: not a sheet value, by id: penetration: Damage Penetrates {0}% Cold Resistance
+base_reduce_enemy_fire_resistance_% global: not a sheet value, by id: penetration: Damage Penetrates {0}% Fire Resistance
+base_reduce_enemy_lightning_resistance_% global: not a sheet value, by id: penetration: Damage Penetrates {0}% Lightning Resistance
+cold_penetration_%_vs_chilled_enemies global: not a sheet value, by id: penetration: Damage Penetrates {0}% Cold Resistance against Chilled Enemies
+consecrated_ground_allies_recover_es_as_well_as_life_from_life_regeneration global: listed: life regeneration also recovering energy shield is recovery, not a sheet value: Consecrated Ground you create causes Life Regeneration to
+curse_aura_skills_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: {0}% increased Mana Reservation Efficiency of Curse Aura Skills
+curse_mana_cost_+% global: not a sheet value, by id: mana cost: {0}% increased Mana Cost of Curse Skills
+determination_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Determination has {0}% increased Mana Reservation Efficiency
+discipline_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Discipline has {0}% increased Mana Reservation Efficiency
+enemies_cursed_by_you_have_life_regeneration_rate_+% global: not the player, by id: enemy stat: Enemies Cursed by you have {}% increased Life Regeneration Rate
+enemies_poisoned_by_you_cannot_regen_life global: not the player, by id: enemy stat: Enemies Poisoned by you cannot Regenerate Life
+enemies_poisoned_by_you_chaos_resistance_+% global: not the player, by id: enemy stat: Enemies Poisoned by you have {0:+d}% to Chaos Resistance
+energy_shield_recharge_+%_if_amulet_has_evasion_mod global: not a sheet value, by id: energy shield recharge and recovery: {0}% increased Energy Shield Recharge Rate if Equipped Amulet has an Explicit Evasion Modifier
+energy_shield_recharge_rate_+% global: not a sheet value, by id: energy shield recharge and recovery: {0}% increased Energy Shield Recharge Rate
+energy_shield_recharge_rate_+%_per_different_mastery global: not a sheet value, by id: energy shield recharge and recovery: {0}% reduced Energy Shield Recharge Rate for each different type of Mastery you have Allocated
+energy_shield_recovery_rate_+%_if_not_hit_recently global: not a sheet value, by id: energy shield recharge and recovery: {0}% increased Energy Shield Recovery Rate if you haven't been Hit Recently
+fire_exposure_you_inflict_applies_extra_fire_resistance_+% global: not a sheet value, by id: exposure: Fire Exposure you inflict applies an extra {0:+d}% to Fire Resistance
+first_X_stacks_of_tincture_toxicity_have_no_effect global: not a sheet value: mana burn: The first {0} Mana Burn applied to you have no effect
+flask_life_and_mana_to_recover_+% global: not a sheet value, by id: flask recovery: {0}% increased Life and Mana Recovery from Flasks
+flask_life_to_recover_+% global: not a sheet value, by id: flask recovery: {0}% increased Life Recovery from Flasks
+flask_mana_to_recover_+% global: not a sheet value, by id: flask recovery: {0}% increased Mana Recovery from Flasks
+gain_x_life_on_trap_triggered_by_an_enemy global: not a sheet value: recovery on events: Recover {0} Life when your Trap is triggered by an Enemy
+golem_maximum_life_+% global: not the player, by id: minion, totem or golem stat: Golems have {0}% increased Maximum Life
+grace_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Grace has {0}% increased Mana Reservation Efficiency
+haste_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Haste has {0}% increased Mana Reservation Efficiency
+hatred_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Hatred has {0}% increased Mana Reservation Efficiency
+herald_skills_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: {0}% increased Mana Reservation Efficiency of Herald Skills
+ignites_and_chill_apply_elemental_resistance_+ global: not the player: enemies: Enemies Ignited or Chilled by you have {:+d}% to Elemental Resistances
+ignites_apply_fire_resistance_+ global: not the player: enemies: Enemies Ignited by you have {0:+d}% to Fire Resistance
+keystone_eldritch_battery global: not a sheet value: energy shield recharge and recovery: 50% less Energy Shield Recharge Rate
+keystone_elemental_equilibrium global: not a sheet value: exposure: Exposure inflicted this way applies -25% to Resistances
+keystone_supreme_ego global: not a sheet value: reservation: 40% more Mana Reservation of Aura Skills
+keystone_wicked_ward global: not a sheet value: energy shield recharge and recovery: 40% less Energy Shield Recharge Rate
+life_gained_on_block global: not a sheet value, by id: recovery on events: {0} Life gained when you Block
+life_mastery_nearby_enemy_life_regeneration_rate_+% global: not the player: enemies: Nearby Enemies have {0}% reduced Life Regeneration Rate
+life_regeneration_rate_+% buff: not the player: enemies: Nearby Enemies have {0}% reduced Life Regeneration rate
+link_skill_mana_cost_+% global: not a sheet value, by id: mana cost: {0}% increased Mana Cost of Link Skills
+main_hand_claw_life_gain_on_hit global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Hit with Main Hand Claw Attacks
+malevolence_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Malevolence has {0}% increased Mana Reservation Efficiency
+mana_cost_+%_while_on_full_energy_shield global: not a sheet value, by id: mana cost: {0}% increased Mana Cost of Skills while on Full Energy Shield
+mana_gain_per_target global: not a sheet value, by id: recovery on events: Gain {0} Mana per Enemy Hit with Attacks
+mana_gained_on_attack_hit_if_used_mana_flask_in_past_10_seconds global: not a sheet value, by id: recovery on events: Gain {0} Mana per Enemy Hit with Attacks if you've used a Mana Flask in the past 10 seconds
+mana_gained_on_block global: not a sheet value, by id: recovery on events: {0} Mana gained when you Block
+mana_reservation_efficiency_+%_for_skills_that_throw_mines global: not a sheet value, by id: reservation: {0}% increased Mana Reservation Efficiency of Skills that throw Mines
+mark_skill_mana_cost_+% global: not a sheet value, by id: mana cost: {0}% increased Mana Cost of Mark Skills
+marked_enemies_cannot_regenerate_life global: not the player, by id: enemy stat: Marked Enemy cannot Regenerate Life
+maximum_life_+%_for_corpses_you_create global: not a sheet value: corpses: Corpses you Spawn have {0}% reduced Maximum Life
+maximum_physical_damage_reduction_% global: listed: reads "to maximum Armour", but its id and Character.ot value (90) make it the cap on physical damage reduction from armour: {0:+d}% to maximum Armour
+mine_damage_penetrates_%_elemental_resistance global: not a sheet value, by id: penetration: Mine Damage Penetrates {0}% Elemental Resistances
+minion_chaos_resistance_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% to Chaos Resistance
+minion_elemental_resistance_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% to all Elemental Resistances
+minion_life_recovery_rate_+% global: not the player, by id: minion, totem or golem stat: Minions have {0}% increased Life Recovery rate
+minion_life_regeneration_rate_per_minute_% global: not the player, by id: minion, totem or golem stat: Minions Regenerate {0}% of Life per second
+minion_maximum_all_elemental_resistances_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% to all maximum Elemental Resistances
+minion_maximum_life_%_to_add_as_maximum_energy_shield global: not the player, by id: minion, totem or golem stat: Minions gain {0}% of Maximum Life as Extra Maximum Energy Shield
+minion_maximum_life_+% global: not the player, by id: minion, totem or golem stat: Minions have {0}% increased maximum Life
+necromancer_defensive_notable_minion_maximum_life_+%_final global: not the player: minions and totems: Minions have {0}% less Maximum Life
+off_hand_claw_mana_gain_on_hit global: not a sheet value, by id: recovery on events: Gain {0} Mana per Enemy Hit with Off Hand Claw Attacks
+pathfinder_flask_life_to_recover_+%_final global: not a sheet value, by id: flask recovery: {0}% more Life Recovery from Flasks
+pathfinder_skills_penetrate_elemental_resistances_%_if_charges_consumed_from_bismuth_flask global: not a sheet value, by id: penetration: If Bismuth Flask Charges are consumed, Penetrate {0}% Elemental Resistances
+pride_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Pride has {0}% increased Mana Reservation Efficiency
+purity_of_elements_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Purity of Elements has {0}% increased Mana Reservation Efficiency
+purity_of_fire_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Purity of Fire has {0}% increased Mana Reservation Efficiency
+purity_of_ice_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Purity of Ice has {0}% increased Mana Reservation Efficiency
+purity_of_lightning_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Purity of Lightning has {0}% increased Mana Reservation Efficiency
+recover_1_life_per_x_life_regeneration_per_minute_every_4_seconds global: not a sheet value, by id: recovery on events: Every 4 seconds, Recover 1 Life for every {0} Life Recovery per second from Regeneration
+recover_X_life_on_block global: not a sheet value, by id: recovery on events: Recover {0} Life when you Block
+recover_X_life_when_fortification_expires_per_fortification_lost global: not a sheet value, by id: recovery on events: Recover {0} Life for each Fortification lost
+recover_x_energy_shield_on_spell_block global: not a sheet value, by id: recovery on events: Recover {} Energy Shield when you Block Spell Damage
+recover_x_energy_shield_on_suppressing_spell global: not a sheet value, by id: recovery on events: Recover {} Energy Shield when you Suppress Spell Damage
+reduce_enemy_chaos_resistance_% global: not a sheet value, by id: penetration: Damage Penetrates {0}% Chaos Resistance
+reduce_enemy_cold_resistance_with_weapons_% global: not a sheet value, by id: penetration: Damage with Weapons Penetrates {0}% Cold Resistance
+reduce_enemy_elemental_resistance_with_weapons_% global: not a sheet value, by id: penetration: Damage with Weapons Penetrates {0}% Elemental Resistances
+reduce_enemy_fire_resistance_with_weapons_% global: not a sheet value, by id: penetration: Damage with Weapons Penetrates {0}% Fire Resistance
+reduce_enemy_lightning_resistance_with_weapons_% global: not a sheet value, by id: penetration: Damage with Weapons Penetrates {0}% Lightning Resistance
+spellslinger_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: {0}% increased Mana Reservation Efficiency of Skills Supported by Spellslinger
+stance_skills_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: {0}% increased Mana Reservation Efficiency of Stance Skills
+tincture_toxicity_rate_+% global: not a sheet value: mana burn: Tinctures applied to you have {0}% reduced Mana Burn rate
+tinctures_deactivate_on_reaching_X_toxicity global: not a sheet value: mana burn: Tinctures deactivate when you have {0} or more Mana Burn
+totem_chaos_resistance_% global: not the player, by id: minion, totem or golem stat: Totems gain +{0}% to Chaos Resistance
+totem_elemental_resistance_% global: not the player, by id: minion, totem or golem stat: Totems gain {0:+d}% to all Elemental Resistances
+totems_regenerate_%_life_per_minute global: not the player, by id: minion, totem or golem stat: Totems Regenerate {0}% of Life per second
+trap_damage_penetrates_%_elemental_resistance global: not a sheet value, by id: penetration: Trap Damage Penetrates {0}% Elemental Resistances
+warden_tincture_toxicity_rate_+%_final global: not a sheet value: mana burn: Tinctures applied to you have {0}% less Mana Burn rate
+wrath_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Wrath has {0}% increased Mana Reservation Efficiency
+zealotry_mana_reservation_efficiency_+% global: not a sheet value, by id: reservation: Zealotry has {0}% increased Mana Reservation Efficiency

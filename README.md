@@ -27,6 +27,12 @@ A build file (`build` package) names a game, version, tree variant, class (`Char
  "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "scenario": {"bandits": "help-oak"}}
 ```
 
+## Semantics
+
+What a game stat id means in engine terms is authored by us from game data: stat ids, stat description text, object templates. The `semantics` package holds the table format: entries keyed by stat id and scope, with optional game version ranges, a status (`authored`, `unknown` or `display-only`), the sources each was authored from, and for unknown entries a typed reason (a scenario condition, equipped items, a rule still to write, and so on).
+
+The Path of Exile 1 table (`semantics/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `semantics/poe1/testdata` for review. `pbt semantics coverage --version 3.29 --root datasets` lists the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
+
 ## Develop
 
 Requires Go 1.27.
@@ -36,6 +42,8 @@ go build ./...
 go test ./...
 golangci-lint run
 go test ./core -run '^$' -bench .   # benchmarks
+PBT_DATASETS=datasets go test ./semantics/poe1   # also check the table against real datasets
+PBT_DATASETS=datasets go test ./semantics/poe1 -update   # rewrite its fixtures and golden lists
 ```
 
 ## Licence
