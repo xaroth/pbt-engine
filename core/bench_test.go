@@ -98,6 +98,7 @@ func (w *sheetWorld) session(b *testing.B) *core.Session {
 			b.Fatal(err)
 		}
 	}
+	s.Commit()
 	return s
 }
 
@@ -129,8 +130,7 @@ func BenchmarkSheetCold(b *testing.B) {
 	}
 }
 
-// BenchmarkNodePower disables each source in turn, reads life and enables the source again,
-// as node power does.
+// BenchmarkNodePower disables each source in turn, reads life and reverts, as node power does.
 func BenchmarkNodePower(b *testing.B) {
 	w := newSheetWorld(b)
 	s := w.session(b)
@@ -139,13 +139,14 @@ func BenchmarkNodePower(b *testing.B) {
 	whatIfs := 0
 	for b.Loop() {
 		for src := range core.SourceID(w.nSrc) {
+			cp := s.Mark()
 			if err := s.SetSourceEnabled(src, false); err != nil {
 				b.Fatal(err)
 			}
 			if _, err := s.Get(0, w.life, core.GlobalCtx); err != nil {
 				b.Fatal(err)
 			}
-			if err := s.SetSourceEnabled(src, true); err != nil {
+			if err := s.Revert(cp); err != nil {
 				b.Fatal(err)
 			}
 			whatIfs++

@@ -2,6 +2,9 @@ package core
 
 import "math"
 
+// JournalLen returns the number of journalled edits.
+func JournalLen(s *Session) int { return len(s.journal) }
+
 // NearWrap moves the revision and epoch counters next to their wraparound.
 func NearWrap(s *Session) {
 	s.rev = math.MaxUint32 - 3

@@ -13,4 +13,6 @@ var (
 	// ErrOutOfRange is a parameter outside its allowed range, such as an unknown Op, a scale
 	// step that is not positive or more context bits than MaxBits.
 	ErrOutOfRange = errors.New("core: out of range")
+	// ErrStaleCheckpoint is a checkpoint dropped by Commit or by a Revert to an earlier one.
+	ErrStaleCheckpoint = errors.New("core: stale checkpoint")
 )
