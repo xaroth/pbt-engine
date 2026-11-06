@@ -91,6 +91,18 @@ func sample() *dataset.Dataset {
 	}
 }
 
+func variants(d *dataset.Dataset) []string {
+	var out []string
+	for _, t := range d.Trees {
+		out = append(out, t.Variant)
+	}
+	return out
+}
+
+func all(d *dataset.Dataset) dataset.Options {
+	return dataset.Options{Trees: variants(d), Languages: languages(d)}
+}
+
 func languages(d *dataset.Dataset) []string {
 	var out []string
 	for _, t := range d.Texts {
@@ -138,7 +150,7 @@ func TestRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Write: %v", err)
 			}
-			got, err := dataset.Read(os.DirFS(dir), languages(testCase.d)...)
+			got, err := dataset.Read(os.DirFS(dir), all(testCase.d))
 			if err != nil {
 				t.Fatalf("Read: %v", err)
 			}
@@ -209,7 +221,7 @@ func TestFilesIndependentOfStatOrder(t *testing.T) {
 			t.Errorf("%s: got equal bytes %v, want %v", name, same, want)
 		}
 	}
-	got, err := dataset.Read(b, languages(sample())...)
+	got, err := dataset.Read(b, all(sample()))
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
@@ -439,11 +451,13 @@ func TestReadErrors(t *testing.T) {
 		{name: "truncated tree", want: "tree-standard.fb: malformed", fsys: replace(3, good["tree-standard.fb"].Data[:40])},
 		{name: "truncated text", want: "text-en.fb: malformed", fsys: replace(5, good["text-en.fb"].Data[:40])},
 		{name: "text not a text file", want: "text-en.fb: wrong file identifier", fsys: replace(5, good["constants.fb"].Data)},
+		{name: "tree of another variant", want: `tree-standard.fb: holds tree variant "ruthless"`, fsys: replace(3, good["tree-ruthless.fb"].Data)},
+		{name: "text of another language", want: `text-en.fb: holds text language "zh-hant"`, fsys: replace(5, good["text-zh-hant.fb"].Data)},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := dataset.Read(testCase.fsys, "en")
+			_, err := dataset.Read(testCase.fsys, all(sample()))
 			checkError(t, err, testCase.is, testCase.want)
 		})
 	}
@@ -452,7 +466,7 @@ func TestReadErrors(t *testing.T) {
 func TestReadLanguages(t *testing.T) {
 	t.Parallel()
 	fsys := written(t, sample())
-	core, err := dataset.Read(fsys)
+	core, err := dataset.Read(fsys, dataset.Options{Trees: variants(sample())})
 	if err != nil {
 		t.Fatalf("Read without languages: %v", err)
 	}
@@ -462,13 +476,71 @@ func TestReadLanguages(t *testing.T) {
 	// A text file that is not asked for is not read, so its damage goes unnoticed.
 	broken := maps.Clone(fsys)
 	broken["text-zh-hant.fb"] = &fstest.MapFile{Data: []byte("x")}
-	got, err := dataset.Read(broken, "en")
+	en := dataset.Options{Trees: variants(sample()), Languages: []string{"en"}}
+	got, err := dataset.Read(broken, en)
 	if err != nil {
 		t.Fatalf("Read(en) with a damaged zh-hant file: %v", err)
 	}
 	if len(got.Texts) != 1 || got.Texts[0].Language != "en" {
 		t.Errorf("Read(en): got texts %v, want only en", languages(got))
 	}
-	_, err = dataset.Read(fsys, "fr")
+	_, err = dataset.Read(fsys, dataset.Options{Languages: []string{"fr"}})
 	checkError(t, err, nil, "has no fr text")
+}
+
+func TestReadOwnsDataset(t *testing.T) {
+	t.Parallel()
+	fsys := written(t, sample())
+	first, err := dataset.Read(fsys, all(sample()))
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	first.Trees[0].Nodes[0].ID = 99
+	first.Characters[0].Stats[0].Value = 99
+	second, err := dataset.Read(fsys, all(sample()))
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if got := second.Trees[0].Nodes[0].ID; got != 1 {
+		t.Errorf("node id after editing another Read's dataset: got %d, want 1", got)
+	}
+	if got := second.Characters[0].Stats[0].Value; got != 1 {
+		t.Errorf("character stat after editing another Read's dataset: got %d, want 1", got)
+	}
+}
+
+func TestReadTrees(t *testing.T) {
+	t.Parallel()
+	fsys := written(t, sample())
+	m, err := dataset.ReadManifest(fsys)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if diff := gocmp.Diff([]string{"standard", "ruthless"}, m.Trees()); diff != "" {
+		t.Errorf("Manifest.Trees (-want +got):\n%s", diff)
+	}
+	if diff := gocmp.Diff([]string{"en", "zh-hant"}, m.Languages()); diff != "" {
+		t.Errorf("Manifest.Languages (-want +got):\n%s", diff)
+	}
+
+	// A tree that is not asked for is not read, so its damage goes unnoticed, and text names
+	// of its nodes and ascendancies are not checked against it.
+	broken := maps.Clone(fsys)
+	broken["tree-ruthless.fb"] = &fstest.MapFile{Data: []byte("x")}
+	got, err := dataset.Read(broken, dataset.Options{Trees: []string{"standard"}, Languages: []string{"en"}})
+	if err != nil {
+		t.Fatalf("Read(standard) with a damaged ruthless file: %v", err)
+	}
+	if diff := gocmp.Diff([]string{"standard"}, variants(got)); diff != "" {
+		t.Errorf("Read(standard): trees (-want +got):\n%s", diff)
+	}
+	none, err := dataset.Read(fsys, dataset.Options{Languages: []string{"en"}})
+	if err != nil {
+		t.Fatalf("Read without trees: %v", err)
+	}
+	if len(none.Trees) != 0 {
+		t.Errorf("Read without trees: got %v, want none", variants(none))
+	}
+	_, err = dataset.Read(fsys, dataset.Options{Trees: []string{"atlas"}})
+	checkError(t, err, nil, "has no atlas tree")
 }
