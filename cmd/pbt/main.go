@@ -4,6 +4,7 @@
 //	pbt data show stat <id> --version <v>
 //	pbt data show character <name> --version <v>
 //	pbt data diff <version-a> <version-b> [--limit 20]
+//	pbt build check <build.json>
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions of --game (default poe1) resolve as
@@ -13,6 +14,7 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
@@ -31,6 +34,7 @@ const usage = `usage:
   pbt data show stat <id> --version <v>
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
+  pbt build check <build.json>
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -75,7 +79,7 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 
 // run writes results to w and notes about how they were found to notes.
 func run(args []string, w, notes io.Writer) error {
-	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": "standard", "root": "datasets", "limit": "20", "language": "en", "game": "poe1"})
+	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": build.DefaultVariant, "root": "datasets", "limit": "20", "language": "en", "game": "poe1"})
 	if err != nil {
 		return err
 	}
@@ -88,7 +92,7 @@ func run(args []string, w, notes io.Writer) error {
 		if pos[2] == "node" {
 			variants = []string{opts["variant"]}
 		}
-		res, err := resolveVersions(notes, opts, opts["version"])
+		res, err := resolveVersions(notes, opts["root"], opts["game"], opts["version"])
 		if err != nil {
 			return err
 		}
@@ -109,7 +113,7 @@ func run(args []string, w, notes io.Writer) error {
 		if err != nil || limit < 0 {
 			return fmt.Errorf("--limit %q: want a number >= 0", opts["limit"])
 		}
-		res, err := resolveVersions(notes, opts, pos[2], pos[3])
+		res, err := resolveVersions(notes, opts["root"], opts["game"], pos[2], pos[3])
 		if err != nil {
 			return err
 		}
@@ -123,26 +127,36 @@ func run(args []string, w, notes io.Writer) error {
 			return err
 		}
 		return diff(w, a, b, limit)
+	case len(pos) == 3 && pos[0] == "build" && pos[1] == "check":
+		c, err := checkBuild(notes, opts["root"], pos[2])
+		if err != nil {
+			return err
+		}
+		p := &printer{w: w}
+		b := c.Build()
+		p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Store().Manifest().Version,
+			b.Variant, b.Class, cmp.Or(b.Ascendancy, "no ascendancy"), b.Level, len(b.Nodes))
+		return p.err
 	}
 	return errors.New(usage)
 }
 
-// resolveVersions resolves versions of --game among the datasets under --root and notes on
-// notes each dataset skipped and each version that resolves to another one.
-func resolveVersions(notes io.Writer, opts map[string]string, versions ...string) ([]dataset.Resolution, error) {
-	reg, err := dataset.OpenRoot(os.DirFS(opts["root"]))
+// resolveVersions resolves versions of game among the datasets under root and notes on notes
+// each dataset skipped and each version that resolves to another one.
+func resolveVersions(notes io.Writer, root, game string, versions ...string) ([]dataset.Resolution, error) {
+	reg, err := dataset.OpenRoot(os.DirFS(root))
 	if reg == nil {
 		return nil, err
 	}
 	p := &printer{w: notes}
 	if err != nil {
 		for line := range strings.SplitSeq(err.Error(), "\n") {
-			p.printf("pbt: skipped %s/%s\n", opts["root"], line)
+			p.printf("pbt: skipped %s/%s\n", root, line)
 		}
 	}
 	var out []dataset.Resolution
 	for _, version := range versions {
-		res, err := reg.Resolve(opts["game"], version)
+		res, err := reg.Resolve(game, version)
 		if err != nil {
 			return nil, err
 		}
@@ -152,11 +166,11 @@ func resolveVersions(notes io.Writer, opts map[string]string, versions ...string
 		name := res.Store.Manifest().Version
 		switch res.Match {
 		case dataset.MatchNewest:
-			p.printf("(%s %s resolves to %s)\n", opts["game"], res.Requested, name)
+			p.printf("(%s %s resolves to %s)\n", game, res.Requested, name)
 		case dataset.MatchEarlierPatch:
-			p.printf("(%s %s has no dataset; using %s, the newest earlier patch of its league)\n", opts["game"], res.Requested, name)
+			p.printf("(%s %s has no dataset; using %s, the newest earlier patch of its league)\n", game, res.Requested, name)
 		case dataset.MatchLaterPatch:
-			p.printf("(%s %s has no dataset or earlier patch; using %s, the newest patch of its league)\n", opts["game"], res.Requested, name)
+			p.printf("(%s %s has no dataset or earlier patch; using %s, the newest patch of its league)\n", game, res.Requested, name)
 		}
 	}
 	return out, p.err
@@ -169,6 +183,28 @@ func read(s *dataset.Store, variants []string, language string) (*dataset.Datase
 		return nil, fmt.Errorf("dataset %s: %w", s.Manifest().Version, err)
 	}
 	return d, nil
+}
+
+// checkBuild reads a build file and checks it against the dataset its version resolves to
+// under --root.
+func checkBuild(notes io.Writer, root, path string) (*build.Checked, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	b, err := build.Parse(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	res, err := resolveVersions(notes, root, b.Game, b.Version)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	c, err := build.Check(b, res[0].Store)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	return c, nil
 }
 
 // texter renders stat values and names of a dataset loaded with one language.

@@ -18,6 +18,15 @@ go run ./cmd/pbt data diff 3.28.0.16 3.29.3.3 --root datasets
 
 Text is read in English unless `--language` says otherwise.
 
+## Builds
+
+A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and a scenario: the campaign stage (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and the outcome of the bandit quest (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `pbt build check build.json --root datasets` checks every id against the dataset the version resolves to:
+
+```json
+{"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
+ "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "scenario": {"bandits": "help-oak"}}
+```
+
 ## Develop
 
 Requires Go 1.27.
