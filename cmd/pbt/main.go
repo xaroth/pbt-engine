@@ -47,9 +47,7 @@ func main() {
 // parseArgs splits --name value and --name=value options from positional arguments.
 func parseArgs(args []string, known map[string]string) ([]string, map[string]string, error) {
 	opts := map[string]string{}
-	for k, v := range known {
-		opts[k] = v
-	}
+	maps.Copy(opts, known)
 	var pos []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
