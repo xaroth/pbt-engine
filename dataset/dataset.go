@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -40,7 +39,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	if _, err := statIndex(d.Stats); err != nil {
 		return Manifest{}, err
 	}
-	if err := d.validate(); err != nil {
+	if err := d.validate(true); err != nil {
 		return Manifest{}, err
 	}
 	type group struct {
@@ -79,110 +78,42 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	return m, nil
 }
 
-// Read reads the dataset in fsys with the display text of the given languages, such as "en".
-// Text files of other languages are not read. It fails when the format version differs, the
-// manifest id does not match its files, a file read differs in size or hash from the manifest,
-// a file does not decode, or a language is missing.
-func Read(fsys fs.FS, languages ...string) (*Dataset, error) {
+// Options selects the groups Read loads besides stats, characters and constants, which it
+// always loads. ReadManifest lists what a dataset holds.
+type Options struct {
+	// Trees are tree variants, such as "standard".
+	Trees []string
+	// Languages are display text languages, such as "en".
+	Languages []string
+}
+
+// ReadManifest reads the manifest of the dataset in fsys. It fails when the format version
+// differs, a file is listed twice, or the id does not match the files.
+func ReadManifest(fsys fs.FS) (Manifest, error) {
+	var m Manifest
 	mb, err := fs.ReadFile(fsys, ManifestName)
 	if err != nil {
-		return nil, err
+		return m, err
 	}
-	d := &Dataset{}
 	dec := json.NewDecoder(bytes.NewReader(mb))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&d.Manifest); err != nil {
-		return nil, fmt.Errorf("%s: %w", ManifestName, err)
+	if err := dec.Decode(&m); err != nil {
+		return m, fmt.Errorf("%s: %w", ManifestName, err)
 	}
-	if d.Manifest.Format != FormatVersion {
-		return nil, fmt.Errorf("dataset format %d, want %d", d.Manifest.Format, FormatVersion)
-	}
-	if d.Manifest.ID != d.Manifest.contentID() {
-		return nil, fmt.Errorf("%s: id does not match game, version and files", ManifestName)
-	}
-
-	var index map[string]uint32
-	required := map[string]func([]byte) error{
-		statsFile: func(b []byte) (err error) {
-			if d.Stats, err = decodeStats(b); err != nil {
-				return err
-			}
-			index, err = statIndex(d.Stats)
-			return err
-		},
-		charactersFile: func(b []byte) (err error) { d.Characters, err = decodeCharacters(b, index); return err },
-		constantsFile:  func(b []byte) (err error) { d.Constants, err = decodeConstants(b); return err },
-	}
-	type read struct {
-		name   string
-		b      []byte
-		decode func([]byte) error
-	}
-	var reads []read
-	wanted := map[string]bool{}
-	for _, l := range languages {
-		wanted[l] = true
+	if m.Format != FormatVersion {
+		return m, fmt.Errorf("dataset format %d, want %d", m.Format, FormatVersion)
 	}
 	seen := map[string]bool{}
-	for _, f := range d.Manifest.Files {
+	for _, f := range m.Files {
 		if seen[f.Name] {
-			return nil, fmt.Errorf("%s: file %s listed twice", ManifestName, f.Name)
+			return m, fmt.Errorf("%s: file %s listed twice", ManifestName, f.Name)
 		}
 		seen[f.Name] = true
-		decode, ok := required[f.Name]
-		switch {
-		case ok:
-		case strings.HasPrefix(f.Name, treePrefix) && strings.HasSuffix(f.Name, fbSuffix):
-			decode = func(b []byte) error {
-				t, err := decodeTree(b, index)
-				d.Trees = append(d.Trees, t)
-				return err
-			}
-		case strings.HasPrefix(f.Name, textPrefix) && strings.HasSuffix(f.Name, fbSuffix):
-			lang := strings.TrimSuffix(strings.TrimPrefix(f.Name, textPrefix), fbSuffix)
-			if !wanted[lang] {
-				continue
-			}
-			delete(wanted, lang)
-			decode = func(b []byte) error {
-				t, err := decodeText(b)
-				d.Texts = append(d.Texts, t)
-				return err
-			}
-		default:
-			return nil, fmt.Errorf("%s: unknown file %s", ManifestName, f.Name)
-		}
-		delete(required, f.Name)
-		b, err := fs.ReadFile(fsys, f.Name)
-		if err != nil {
-			return nil, err
-		}
-		sum := sha256.Sum256(b)
-		if len(b) != f.Size || hex.EncodeToString(sum[:]) != f.SHA256 {
-			return nil, fmt.Errorf("%s: size or sha256 differs from %s", f.Name, ManifestName)
-		}
-		if f.Name == statsFile {
-			// Other files refer to stats by id, so stats are decoded first.
-			reads = slices.Insert(reads, 0, read{f.Name, b, decode})
-		} else {
-			reads = append(reads, read{f.Name, b, decode})
-		}
 	}
-	for _, name := range slices.Sorted(maps.Keys(required)) {
-		return nil, fmt.Errorf("%s: missing file %s", ManifestName, name)
+	if m.ID != m.contentID() {
+		return m, fmt.Errorf("%s: id does not match game, version and files", ManifestName)
 	}
-	for _, lang := range slices.Sorted(maps.Keys(wanted)) {
-		return nil, fmt.Errorf("dataset %s has no %s text", d.Manifest.Version, lang)
-	}
-	for _, r := range reads {
-		if err := decodeSafely(r.decode, r.b); err != nil {
-			return nil, fmt.Errorf("%s: %w", r.name, err)
-		}
-	}
-	if err := d.validate(); err != nil {
-		return nil, err
-	}
-	return d, nil
+	return m, nil
 }
 
 // contentID hashes the game, version and file hashes, so datasets with the same version but
@@ -195,6 +126,33 @@ func (m Manifest) contentID() string {
 	}
 	sum := sha256.Sum256([]byte(s.String()))
 	return hex.EncodeToString(sum[:])
+}
+
+// Trees returns the tree variants in the dataset, in manifest order.
+func (m Manifest) Trees() []string { return m.tagged(treePrefix) }
+
+// Languages returns the text languages in the dataset, in manifest order.
+func (m Manifest) Languages() []string { return m.tagged(textPrefix) }
+
+func (m Manifest) tagged(prefix string) []string {
+	var out []string
+	for _, f := range m.Files {
+		if isGroup(f.Name, prefix) {
+			out = append(out, groupTag(f.Name, prefix))
+		}
+	}
+	return out
+}
+
+// Read reads the dataset in fsys with the groups o selects; files not selected are not read.
+// It is Open followed by Store.Dataset, and fails when either does. The Store is not kept, so
+// the Dataset belongs to the caller.
+func Read(fsys fs.FS, o Options) (*Dataset, error) {
+	s, err := Open(fsys)
+	if err != nil {
+		return nil, err
+	}
+	return s.Dataset(o)
 }
 
 // decodeSafely turns a panic from reading a malformed buffer into an error; the Go FlatBuffers

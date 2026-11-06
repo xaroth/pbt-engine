@@ -2,7 +2,8 @@ package dataset
 
 import "github.com/xaroth/pbt-engine/statdesc"
 
-// Dataset holds the tables of one game version.
+// Dataset holds the tables of one game version. A Dataset from Read belongs to the caller; one
+// from Store.Dataset shares its tables with the Store and every other caller, so it is read-only.
 type Dataset struct {
 	Manifest   Manifest
 	Stats      []Stat

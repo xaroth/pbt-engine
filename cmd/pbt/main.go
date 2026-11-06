@@ -81,7 +81,15 @@ func run(args []string, w io.Writer) error {
 		if opts["version"] == "" {
 			return errors.New("--version is required")
 		}
-		d, err := load(opts["root"], opts["version"], opts["language"])
+		var variants []string // stats and characters need no tree
+		if pos[2] == "node" {
+			variants = []string{opts["variant"]}
+		}
+		s, err := open(opts["root"], opts["version"])
+		if err != nil {
+			return err
+		}
+		d, err := read(s, variants, opts["language"])
 		if err != nil {
 			return err
 		}
@@ -98,11 +106,19 @@ func run(args []string, w io.Writer) error {
 		if err != nil || limit < 0 {
 			return fmt.Errorf("--limit %q: want a number >= 0", opts["limit"])
 		}
-		a, err := load(opts["root"], pos[2], opts["language"])
+		sa, err := open(opts["root"], pos[2])
 		if err != nil {
 			return err
 		}
-		b, err := load(opts["root"], pos[3], opts["language"])
+		a, err := read(sa, sa.Manifest().Trees(), opts["language"])
+		if err != nil {
+			return err
+		}
+		sb, err := open(opts["root"], pos[3])
+		if err != nil {
+			return err
+		}
+		b, err := read(sb, sb.Manifest().Trees(), opts["language"])
 		if err != nil {
 			return err
 		}
@@ -111,11 +127,20 @@ func run(args []string, w io.Writer) error {
 	return errors.New(usage)
 }
 
-// load reads a dataset with the text of one language.
-func load(root, version, language string) (*dataset.Dataset, error) {
-	d, err := dataset.Read(os.DirFS(filepath.Join(root, version)), language)
+// open opens the dataset of version under root.
+func open(root, version string) (*dataset.Store, error) {
+	s, err := dataset.Open(os.DirFS(filepath.Join(root, version)))
 	if err != nil {
 		return nil, fmt.Errorf("dataset %s: %w", version, err)
+	}
+	return s, nil
+}
+
+// read reads the given tree variants and the text of one language from s.
+func read(s *dataset.Store, variants []string, language string) (*dataset.Dataset, error) {
+	d, err := s.Dataset(dataset.Options{Trees: variants, Languages: []string{language}})
+	if err != nil {
+		return nil, fmt.Errorf("dataset %s: %w", s.Manifest().Version, err)
 	}
 	return d, nil
 }
@@ -129,7 +154,7 @@ type texter struct {
 }
 
 func newTexter(d *dataset.Dataset) (texter, error) {
-	text := d.Texts[0] // load reads exactly one language
+	text := d.Texts[0] // read reads exactly one language
 	set, err := statdesc.NewSet(text.Descriptions)
 	nodes := make(map[uint32]string, len(text.NodeNames))
 	for _, n := range text.NodeNames {
