@@ -27,6 +27,17 @@ A build file (`build` package) names a game, version, tree variant, class (`Char
 
 Text is read in English unless `--language` says otherwise.
 
+## Stat semantics
+
+`semantics/poe1/<version>.json` says what game stat ids mean as engine modifiers, with a status per stat (generated, override, unknown), and `<version>-coverage.md` reports coverage. The tables are generated from Path of Building's parse of the lines that standard tree nodes render to, plus the hand-written `semantics/poe1/overrides.json`:
+
+```sh
+cd <pob>/src && LUA_PATH="../runtime/lua/?.lua;../runtime/lua/?/init.lua" \
+  luajit <pbt-engine>/cmd/pbt-semgen/modcache.lua Data/ModCache.lua > /tmp/modcache.json
+go run ./cmd/pbt-semgen <dataset dir> /tmp/modcache.json semantics/poe1/overrides.json <pob commit> \
+  semantics/poe1/<version>.json semantics/poe1/<version>-coverage.md
+```
+
 ## Develop
 
 Requires Go 1.27.

@@ -1,0 +1,23 @@
+[
+  {"stat": "base_strength", "mods": [{"stat": "strength", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Characters column; PoB CalcSetup adds the class's base attributes as BASE"},
+  {"stat": "base_dexterity", "mods": [{"stat": "dexterity", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Characters column; PoB CalcSetup adds the class's base attributes as BASE"},
+  {"stat": "base_intelligence", "mods": [{"stat": "intelligence", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Characters column; PoB CalcSetup adds the class's base attributes as BASE"},
+  {"stat": "life_per_level", "mods": [{"stat": "life_per_level", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Character.ot stat; rules multiply it by level (PoB CalcSetup: Life BASE life_per_level per Level, on top of base 38)"},
+  {"stat": "mana_per_level", "mods": [{"stat": "mana_per_level", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Character.ot stat; rules multiply it by level (PoB CalcSetup: Mana BASE mana_per_level per Level, on top of base 34)"},
+  {"stat": "base_maximum_all_resistances_%", "mods": [
+     {"stat": "fire_resistance_max", "op": "base", "mul": 1, "div": 1},
+     {"stat": "cold_resistance_max", "op": "base", "mul": 1, "div": 1},
+     {"stat": "lightning_resistance_max", "op": "base", "mul": 1, "div": 1},
+     {"stat": "chaos_resistance_max", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Character.ot stat; PoB CalcSetup sets each of the four maximum resistances to it"},
+  {"stat": "mana_regeneration_rate_per_minute_%", "mods": [{"stat": "mana_regen_percent", "op": "base", "mul": 1, "div": 60}],
+   "reason": "Character.ot stat, per minute; PoB uses ManaRegenBase 1.75% of mana per second, which is 105 per minute"},
+  {"stat": "base_evasion_rating", "mods": [{"stat": "evasion", "op": "base", "mul": 1, "div": 1}],
+   "reason": "Character.ot stat; PoB CalcSetup adds it as Evasion BASE"},
+  {"stat": "level", "reason": "Read by rules (pool per level), not a modifier"}
+]

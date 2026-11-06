@@ -1,0 +1,1203 @@
+{
+  "format": 1,
+  "game": "poe1",
+  "version": "3.28.0.16",
+  "pob": "3dbca44",
+  "entries": [
+    {
+      "stat": "X_armour_if_you_have_blocked_recently",
+      "status": "unknown",
+      "reason": "PoB modifier Armour BASE has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "X_to_armour_per_2_strength",
+      "status": "unknown",
+      "reason": "PoB modifier Armour BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "additional_all_attributes",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "strength",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "dexterity",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "intelligence",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "additional_chaos_resistance_against_damage_over_time_%",
+      "status": "unknown",
+      "reason": "PoB modifier ChaosResist BASE has flags",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "additional_dexterity_per_allocated_mastery",
+      "status": "unknown",
+      "reason": "PoB modifier Dex BASE has a Multiplier tag",
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "additional_intelligence_per_allocated_mastery",
+      "status": "unknown",
+      "reason": "PoB modifier Int BASE has a Multiplier tag",
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "additional_maximum_all_elemental_resistances_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "elemental_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 9
+    },
+    {
+      "stat": "additional_maximum_all_elemental_resistances_%_if_all_equipment_grants_armour",
+      "status": "unknown",
+      "reason": "PoB modifier ElementalResistMax BASE has a StatThreshold tag, has a StatThreshold tag, has a StatThreshold tag, has a StatThreshold tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "additional_maximum_all_elemental_resistances_%_if_killed_cursed_enemy_recently",
+      "status": "unknown",
+      "reason": "PoB modifier ElementalResistMax BASE has a Condition tag, has a ActorCondition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "additional_maximum_all_elemental_resistances_%_with_reserved_life_and_mana",
+      "status": "unknown",
+      "reason": "PoB modifier ElementalResistMax BASE has a StatThreshold tag, has a StatThreshold tag",
+      "sheet": true,
+      "uses": 7
+    },
+    {
+      "stat": "additional_strength_per_allocated_mastery",
+      "status": "unknown",
+      "reason": "PoB modifier Str BASE has a Multiplier tag",
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "all_attributes_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "strength",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "dexterity",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "intelligence",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "armour_+%_if_have_been_hit_recently",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "armour_+%_if_you_havent_been_hit_recently",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "armour_+%_per_rage",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "armour_+%_per_second_while_stationary_up_to_100",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Multiplier tag, has a Condition tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "armour_+%_while_stationary",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "armour_+_per_10_unreserved_max_mana",
+      "status": "unknown",
+      "reason": "PoB modifier Armour BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "armour_and_evasion_+%_during_onslaught",
+      "status": "unknown",
+      "reason": "PoB modifier ArmourAndEvasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "armour_and_evasion_+%_while_fortified",
+      "status": "unknown",
+      "reason": "PoB modifier ArmourAndEvasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "armour_evasion_+%_while_leeching",
+      "status": "unknown",
+      "reason": "PoB modifier ArmourAndEvasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 9
+    },
+    {
+      "stat": "armour_evasion_rating_+%_final_per_fortification_above_20",
+      "status": "unknown",
+      "reason": "PoB modifier ArmourAndEvasion MORE has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "armour_from_gloves_and_boots_+%",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a SlotName tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "armour_from_shield_doubled",
+      "status": "unknown",
+      "reason": "PoB modifier Armour MORE has a SlotName tag, has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "base_chaos_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "chaos_resistance",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 22
+    },
+    {
+      "stat": "base_cold_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "cold_resistance",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 6
+    },
+    {
+      "stat": "base_dexterity",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "dexterity",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Characters column; PoB CalcSetup adds the class's base attributes as BASE",
+      "uses": 84
+    },
+    {
+      "stat": "base_dexterity_and_intelligence",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "dexterity",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "intelligence",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "base_evasion_rating",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "evasion",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Character.ot stat; PoB CalcSetup adds it as Evasion BASE",
+      "uses": 4
+    },
+    {
+      "stat": "base_fire_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "fire_resistance",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 17
+    },
+    {
+      "stat": "base_intelligence",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "intelligence",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Characters column; PoB CalcSetup adds the class's base attributes as BASE",
+      "uses": 92
+    },
+    {
+      "stat": "base_life_regeneration_rate_per_minute",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "life_regen",
+          "op": "base",
+          "mul": 1,
+          "div": 60
+        }
+      ],
+      "sheet": true,
+      "uses": 8
+    },
+    {
+      "stat": "base_lightning_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "lightning_resistance",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 6
+    },
+    {
+      "stat": "base_mana_regeneration_rate_per_minute",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "mana_regen",
+          "op": "base",
+          "mul": 1,
+          "div": 60
+        }
+      ],
+      "sheet": true,
+      "uses": 13
+    },
+    {
+      "stat": "base_maximum_all_resistances_%",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "fire_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "cold_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "lightning_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "chaos_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Character.ot stat; PoB CalcSetup sets each of the four maximum resistances to it"
+    },
+    {
+      "stat": "base_maximum_chaos_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "chaos_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "base_maximum_cold_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "cold_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "base_maximum_energy_shield",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "energy_shield",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 13
+    },
+    {
+      "stat": "base_maximum_fire_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "fire_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "base_maximum_life",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "life",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 29
+    },
+    {
+      "stat": "base_maximum_lightning_damage_resistance_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "lightning_resistance_max",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "base_maximum_mana",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "mana",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 11
+    },
+    {
+      "stat": "base_physical_damage_reduction_rating",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "armour",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 4
+    },
+    {
+      "stat": "base_resist_all_elements_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "elemental_resistance",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 36
+    },
+    {
+      "stat": "base_strength",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "strength",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Characters column; PoB CalcSetup adds the class's base attributes as BASE",
+      "uses": 92
+    },
+    {
+      "stat": "base_strength_and_dexterity",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "strength",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "dexterity",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "base_strength_and_intelligence",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "strength",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "intelligence",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 7
+    },
+    {
+      "stat": "body_armour_evasion_rating_+%",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a SlotName tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "chaos_damage_resistance_is_doubled",
+      "status": "unknown",
+      "reason": "PoB modifier ChaosResist MORE has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "damage_reduction_rating_from_body_armour_doubled",
+      "status": "unknown",
+      "reason": "PoB modifier Armour MORE has a SlotName tag, has a Multiplier tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "dexterity_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "dexterity",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "energy_shield_+%_if_both_rings_have_evasion_mod",
+      "status": "unknown",
+      "reason": "PoB modifier EnergyShield INC has a ItemCondition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "energy_shield_from_helmet_+%",
+      "status": "unknown",
+      "reason": "PoB modifier EnergyShield INC has a SlotName tag",
+      "sheet": true,
+      "uses": 6
+    },
+    {
+      "stat": "evasion_+%_if_hit_recently",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 7
+    },
+    {
+      "stat": "evasion_and_physical_damage_reduction_rating_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "armour",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        },
+        {
+          "stat": "evasion",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 20
+    },
+    {
+      "stat": "evasion_rating_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "evasion",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 69
+    },
+    {
+      "stat": "evasion_rating_+%_if_energy_shield_recharge_started_in_past_2_seconds",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "evasion_rating_+%_if_have_not_been_hit_recently",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "evasion_rating_+%_per_10_intelligence",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a PerStat tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "evasion_rating_+%_per_frenzy_charge",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Multiplier tag",
+      "sheet": true,
+      "uses": 4
+    },
+    {
+      "stat": "evasion_rating_+%_while_moving",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "evasion_rating_+%_while_phasing",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "evasion_rating_+%_while_tincture_active",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "evasion_rating_+%_while_you_have_energy_shield",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion INC has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "evasion_rating_+_per_1_helmet_energy_shield",
+      "status": "unknown",
+      "reason": "PoB modifier Evasion BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "every_4_seconds_regenerate_%_of_armour_and_evasion_as_life_over_1_second",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegen BASE has a Condition tag, has a PercentStat tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "guardian_gain_life_regeneration_per_minute_%_for_1_second_every_10_seconds",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 4
+    },
+    {
+      "stat": "intelligence_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "intelligence",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "keystone_blood_magic",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "mana",
+          "op": "more",
+          "mul": -100,
+          "div": 1
+        },
+        {
+          "stat": "life",
+          "op": "more",
+          "mul": 10,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "keystone_eternal_youth",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "life_regen",
+          "op": "more",
+          "mul": -50,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "keystone_miracle_of_thaumaturgy",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "energy_shield",
+          "op": "more",
+          "mul": -100,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "keystone_veterans_awareness",
+      "status": "unknown",
+      "reason": "PoB modifier ElementalResist BASE has a Condition tag; PoB modifier ElementalResistMax BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "level",
+      "status": "override",
+      "reason": "Read by rules (pool per level), not a modifier"
+    },
+    {
+      "stat": "life_mastery_count_maximum_life_+%_final",
+      "status": "unknown",
+      "reason": "PoB modifier Life MORE has a MultiplierThreshold tag",
+      "sheet": true,
+      "uses": 14
+    },
+    {
+      "stat": "life_per_level",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "life_per_level",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Character.ot stat; rules multiply it by level (PoB CalcSetup: Life BASE life_per_level per Level, on top of base 38)",
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_%_per_minute_if_detonated_mine_recently",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "life_regeneration_%_per_minute_if_player_minion_died_recently",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_%_per_minute_if_stunned_an_enemy_recently",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_per_minute_%_per_fortification",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_per_minute_%_while_channelling",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegen BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 8
+    },
+    {
+      "stat": "life_regeneration_rate_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "life_regen",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "life_regen_percent",
+          "op": "base",
+          "mul": 1,
+          "div": 60
+        }
+      ],
+      "sheet": true,
+      "uses": 50
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_if_consumed_corpse_recently",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_if_used_life_flask_in_past_10_seconds",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_per_endurance_charge",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_per_mine_detonated_recently_up_to_20%",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_per_trap_triggered_recently_up_to_20%",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_when_on_low_life",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_while_stationary",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "life_regeneration_rate_per_minute_%_while_using_flask",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_per_level",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "mana_per_level",
+          "op": "base",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "reason": "Character.ot stat; rules multiply it by level (PoB CalcSetup: Mana BASE mana_per_level per Level, on top of base 34)"
+    },
+    {
+      "stat": "mana_regeneration_+%_for_4_seconds_on_movement_skill_use",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_regeneration_rate_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "mana_regen",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 36
+    },
+    {
+      "stat": "mana_regeneration_rate_+%_if_enemy_frozen_recently",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_regeneration_rate_+%_if_enemy_shocked_recently",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen INC has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_regeneration_rate_+%_per_1%_spell_block_chance",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen INC has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_regeneration_rate_+%_per_power_charge",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen INC has a Multiplier tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_regeneration_rate_+%_while_stationary",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen INC has a Condition tag",
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "mana_regeneration_rate_per_minute_%",
+      "status": "override",
+      "mods": [
+        {
+          "stat": "mana_regen_percent",
+          "op": "base",
+          "mul": 1,
+          "div": 60
+        }
+      ],
+      "reason": "Character.ot stat, per minute; PoB uses ManaRegenBase 1.75% of mana per second, which is 105 per minute",
+      "uses": 2
+    },
+    {
+      "stat": "mana_regeneration_rate_per_minute_%_if_inflicted_exposure_recently",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegenPercent BASE has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "mana_regeneration_rate_per_minute_%_per_active_totem",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegenPercent BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "maximum_energy_shield_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "energy_shield",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 85
+    },
+    {
+      "stat": "maximum_energy_shield_+_per_X_body_armour_evasion_rating",
+      "status": "unknown",
+      "reason": "PoB modifier EnergyShield BASE has a PerStat tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "maximum_life_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "life",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 121
+    },
+    {
+      "stat": "maximum_life_+%_if_no_life_tags_on_body_armour",
+      "status": "unknown",
+      "reason": "PoB modifier Life INC has a ItemCondition tag",
+      "sheet": true,
+      "uses": 14
+    },
+    {
+      "stat": "maximum_mana_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "mana",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 86
+    },
+    {
+      "stat": "no_energy_shield",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "energy_shield",
+          "op": "more",
+          "mul": -100,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 2
+    },
+    {
+      "stat": "physical_damage_reduction_rating_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "armour",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 62
+    },
+    {
+      "stat": "physical_damage_reduction_rating_+%_per_endurance_charge",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Multiplier tag",
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "regenerate_%_maximum_mana_over_2_seconds_on_consuming_corpse",
+      "status": "unknown",
+      "reason": "PoB modifier ManaRegen BASE has a PercentStat tag, has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "resist_all_elements_+%_while_holding_shield",
+      "status": "unknown",
+      "reason": "PoB modifier ElementalResist BASE has a Condition tag",
+      "sheet": true,
+      "uses": 5
+    },
+    {
+      "stat": "shield_maximum_energy_shield_+%",
+      "status": "unknown",
+      "reason": "PoB modifier EnergyShield INC has a SlotName tag",
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "strength_+%",
+      "status": "generated",
+      "mods": [
+        {
+          "stat": "strength",
+          "op": "inc",
+          "mul": 1,
+          "div": 1
+        }
+      ],
+      "sheet": true,
+      "uses": 3
+    },
+    {
+      "stat": "warcry_physical_damage_reduction_rating_+%_per_5_power_for_8_seconds",
+      "status": "unknown",
+      "reason": "PoB modifier Armour INC has a Multiplier tag, has a Condition tag",
+      "sheet": true,
+      "uses": 1
+    },
+    {
+      "stat": "you_and_totem_life_regeneration_rate_per_minute_%_per_active_totem",
+      "status": "unknown",
+      "reason": "PoB modifier LifeRegenPercent BASE has a PerStat tag; PoB modifier LifeRegenPercent BASE has flags",
+      "sheet": true,
+      "uses": 1
+    }
+  ]
+}
