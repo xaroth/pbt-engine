@@ -121,21 +121,56 @@ type Resolved struct {
 	Notes []string
 }
 
-// characterColumns maps Characters columns to the stat ids that carry them as bundle stats.
-var characterColumns = []struct {
-	stat string
-	get  func(*dataset.Character) int32
-}{
-	{"base_strength", func(c *dataset.Character) int32 { return c.BaseStrength }},
-	{"base_dexterity", func(c *dataset.Character) int32 { return c.BaseDexterity }},
-	{"base_intelligence", func(c *dataset.Character) int32 { return c.BaseIntelligence }},
-	{"base_maximum_life", func(c *dataset.Character) int32 { return c.BaseMaxLife }},
-	{"base_maximum_mana", func(c *dataset.Character) int32 { return c.BaseMaxMana }},
+// CharacterColumn is a Characters column and the stat id that carries it in a character's
+// bundle.
+type CharacterColumn struct {
+	Column, Stat string
+	get          func(*dataset.Character) int32
 }
 
-// levelStat is the stat that carries the character level; the build's level replaces the
-// character's own (1).
-const levelStat = "level"
+// CharacterColumns returns the Characters columns resolve carries as stats, in bundle order.
+func CharacterColumns() []CharacterColumn {
+	return []CharacterColumn{
+		{"BaseStrength", "base_strength", func(c *dataset.Character) int32 { return c.BaseStrength }},
+		{"BaseDexterity", "base_dexterity", func(c *dataset.Character) int32 { return c.BaseDexterity }},
+		{"BaseIntelligence", "base_intelligence", func(c *dataset.Character) int32 { return c.BaseIntelligence }},
+		{"BaseMaxLife", "base_maximum_life", func(c *dataset.Character) int32 { return c.BaseMaxLife }},
+		{"BaseMaxMana", "base_maximum_mana", func(c *dataset.Character) int32 { return c.BaseMaxMana }},
+	}
+}
+
+// LevelStat is the stat that carries the character level. The level bundle carries it with
+// the build's level; the character's own (1) is dropped.
+const LevelStat = "level"
+
+// CharacterStats returns the stats of the bundle of the character with id in s: the
+// CharacterColumns, then its object template stats without LevelStat. It fails when a group
+// fails to load or s has no such character.
+func CharacterStats(s *dataset.Store, id string) ([]StatValue, error) {
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, err
+	}
+	chars, err := s.Characters()
+	if err != nil {
+		return nil, err
+	}
+	i := slices.IndexFunc(chars, func(c dataset.Character) bool { return c.ID == id })
+	if i < 0 {
+		return nil, fmt.Errorf("resolve: dataset %s has no character %s", s.Manifest().Version, id)
+	}
+	return characterStats(stats, &chars[i]), nil
+}
+
+// characterStats is CharacterStats of ch, whose stat handles index stats.
+func characterStats(stats []dataset.Stat, ch *dataset.Character) []StatValue {
+	cols := CharacterColumns()
+	out := make([]StatValue, 0, len(cols)+len(ch.Stats))
+	for _, col := range cols {
+		out = append(out, StatValue{Stat: col.Stat, Value: float64(col.get(ch))})
+	}
+	return append(out, slices.DeleteFunc(statValues(stats, ch.Stats), func(sv StatValue) bool { return sv.Stat == LevelStat })...)
+}
 
 // kitavaGame is the game whose campaign kitavaQuests and kitavaAffliction describe.
 const kitavaGame = "poe1"
@@ -150,6 +185,19 @@ var kitavaQuests = [...]string{"a5q6", "a10q3"}
 // KitavaWeaken2) read "-30% to all Resistances" and "a total of -60%".
 func kitavaAffliction() []StatValue {
 	return []StatValue{{"base_resist_all_elements_%", -30}, {"base_chaos_damage_resistance_%", -30}}
+}
+
+// CampaignBundles returns the bundles of the quest rewards a campaign stage of game implies,
+// in campaign order. It fails for a game other than poe1, whose rewards are not known.
+func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
+	if game != kitavaGame {
+		return nil, fmt.Errorf("resolve: campaign quest rewards of %s are not known", game)
+	}
+	var out []Bundle
+	for _, q := range kitavaQuests[:kitavaDefeats(c)] {
+		out = append(out, Bundle{Actor: Player, Scope: Global, Source: QuestSource{ID: q}, Stats: kitavaAffliction()})
+	}
+	return out, nil
 }
 
 func kitavaDefeats(c build.Campaign) int {
@@ -168,8 +216,10 @@ func kitavaDefeats(c build.Campaign) int {
 func Resolve(c *build.Checked) (*Resolved, error) {
 	s := c.Store()
 	m := s.Manifest()
-	if m.Game != kitavaGame {
-		return nil, fmt.Errorf("resolve: campaign quest rewards of %s are not known", m.Game)
+	b := c.Build()
+	quests, err := CampaignBundles(m.Game, b.Scenario.Campaign)
+	if err != nil {
+		return nil, err
 	}
 	stats, err := s.Stats()
 	if err != nil {
@@ -183,33 +233,23 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 	for _, st := range stats {
 		known[st.ID] = true
 	}
-	var missing []string
-	need := func(id string) string {
-		if !known[id] && !slices.Contains(missing, id) {
-			missing = append(missing, id)
-		}
-		return id
-	}
-	b := c.Build()
 	r := &Resolved{Game: m.Game, Version: m.Version}
 
 	ch := c.Character()
-	base := make([]StatValue, 0, len(characterColumns)+len(ch.Stats))
-	for _, col := range characterColumns {
-		base = append(base, StatValue{Stat: need(col.stat), Value: float64(col.get(ch))})
-	}
-	base = append(base, slices.DeleteFunc(statValues(stats, ch.Stats), func(sv StatValue) bool { return sv.Stat == levelStat })...)
 	r.Bundles = append(r.Bundles,
-		Bundle{Actor: Player, Scope: Global, Source: CharacterSource{ID: ch.ID}, Stats: base},
-		Bundle{Actor: Player, Scope: Global, Source: LevelSource{}, Stats: []StatValue{{Stat: need(levelStat), Value: float64(b.Level)}}},
+		Bundle{Actor: Player, Scope: Global, Source: CharacterSource{ID: ch.ID}, Stats: characterStats(stats, ch)},
+		Bundle{Actor: Player, Scope: Global, Source: LevelSource{}, Stats: []StatValue{{Stat: LevelStat, Value: float64(b.Level)}}},
 	)
-
-	for _, q := range kitavaQuests[:kitavaDefeats(b.Scenario.Campaign)] {
-		svs := kitavaAffliction()
-		for _, sv := range svs {
-			need(sv.Stat)
+	r.Bundles = append(r.Bundles, quests...)
+	// Only stats resolve names itself can be missing; node and template stats come from the
+	// dataset's stats.
+	var missing []string
+	for _, bd := range r.Bundles {
+		for _, sv := range bd.Stats {
+			if !known[sv.Stat] && !slices.Contains(missing, sv.Stat) {
+				missing = append(missing, sv.Stat)
+			}
 		}
-		r.Bundles = append(r.Bundles, Bundle{Actor: Player, Scope: Global, Source: QuestSource{ID: q}, Stats: svs})
 	}
 
 	for _, n := range c.Nodes() {
@@ -236,19 +276,43 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 // part of a build, so what-if questions can resolve nodes a build does not allocate. It fails
 // when the tree or stats fail to load or the tree has no such node.
 func NodeBundles(s *dataset.Store, variant string, id uint32) ([]Bundle, error) {
-	stats, err := s.Stats()
+	stats, n, err := node(s, variant, id)
 	if err != nil {
 		return nil, err
+	}
+	return nodeBundles(stats, n), nil
+}
+
+// MasteryEffectBundle returns the bundle mastery effect effect of the node with id in the
+// variant tree of s gives once chosen: its stats in global scope, from the node. It fails when
+// the tree or stats fail to load or the node has no such effect.
+func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (Bundle, error) {
+	stats, n, err := node(s, variant, id)
+	if err != nil {
+		return Bundle{}, err
+	}
+	i := slices.IndexFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect })
+	if i < 0 {
+		return Bundle{}, fmt.Errorf("resolve: node %d has no mastery effect %d", id, effect)
+	}
+	return Bundle{Actor: Player, Scope: Global, Source: NodeSource{ID: id}, Stats: statValues(stats, n.MasteryEffects[i].Stats)}, nil
+}
+
+// node returns the node with id in the variant tree of s and the stats its handles index.
+func node(s *dataset.Store, variant string, id uint32) ([]dataset.Stat, *dataset.Node, error) {
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, nil, err
 	}
 	tree, err := s.Tree(variant)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	i, ok := slices.BinarySearchFunc(tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
 	if !ok {
-		return nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree", s.Manifest().Version, id, variant)
+		return nil, nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree", s.Manifest().Version, id, variant)
 	}
-	return nodeBundles(stats, &tree.Nodes[i]), nil
+	return stats, &tree.Nodes[i], nil
 }
 
 // nodeBundles is NodeBundles of n, whose stat handles index stats.

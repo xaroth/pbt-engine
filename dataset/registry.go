@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
-	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -23,26 +21,12 @@ type Registry struct {
 
 type entry struct {
 	game    string
-	version []int
+	version GameVersion
 	store   *Store
 }
 
 func compareEntries(a, b entry) int {
-	return cmp.Or(cmp.Compare(a.game, b.game), slices.Compare(a.version, b.version))
-}
-
-// parseVersion parses a game version of numbers separated by dots, such as "3.29.3.3".
-func parseVersion(s string) ([]int, error) {
-	parts := strings.Split(s, ".")
-	out := make([]int, len(parts))
-	for i, p := range parts {
-		n, err := strconv.Atoi(p)
-		if err != nil || n < 0 || p != strconv.Itoa(n) {
-			return nil, fmt.Errorf("version %q: want numbers separated by dots", s)
-		}
-		out[i] = n
-	}
-	return out, nil
+	return cmp.Or(cmp.Compare(a.game, b.game), a.version.Compare(b.version))
 }
 
 // OpenRoot opens every dataset in a direct subdirectory of root that holds a manifest. Other
@@ -87,7 +71,7 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 	if m.Game == "" {
 		return nil, fmt.Errorf("%s: game is required", ManifestName)
 	}
-	parsed, err := parseVersion(m.Version)
+	parsed, err := ParseGameVersion(m.Version)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", ManifestName, err)
 	}
@@ -169,16 +153,16 @@ func (r *Registry) Resolve(game, version string) (Resolution, error) {
 		res.Store, res.Match = es[len(es)-1].store, MatchNewest
 		return res, nil
 	}
-	want, err := parseVersion(version)
+	want, err := ParseGameVersion(version)
 	if err != nil {
 		return res, err
 	}
 	for _, e := range slices.Backward(es) {
 		switch {
-		case slices.Equal(e.version, want):
+		case e.version.Compare(want) == 0:
 			res.Store, res.Match = e.store, MatchExact
 			return res, nil
-		case len(e.version) > len(want) && slices.Equal(e.version[:len(want)], want):
+		case e.version.HasPrefix(want):
 			if res.Store == nil {
 				res.Store, res.Match = e.store, MatchNewest
 			}
@@ -187,13 +171,13 @@ func (r *Registry) Resolve(game, version string) (Resolution, error) {
 	if res.Store != nil {
 		return res, nil
 	}
-	if len(want) > 2 {
+	if want.len() > 2 {
 		var later *Store
 		for _, e := range slices.Backward(es) {
-			if len(e.version) <= 2 || !slices.Equal(e.version[:2], want[:2]) {
+			if e.version.len() <= 2 || e.version.League().Compare(want.League()) != 0 {
 				continue
 			}
-			if slices.Compare(e.version, want) < 0 {
+			if e.version.Compare(want) < 0 {
 				res.Store, res.Match = e.store, MatchEarlierPatch
 				return res, nil
 			}
