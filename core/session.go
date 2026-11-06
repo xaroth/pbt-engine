@@ -29,7 +29,8 @@ type block struct {
 }
 
 // Session is one build: a modifier store over a Model, evaluated lazily and memoised. Edits
-// mark what they touch; the next read re-verifies only nodes whose inputs changed. A Session
+// mark what they touch; the next read re-verifies only nodes whose inputs changed. Edits are
+// journalled from the first Mark until Commit, so Revert can undo them. A Session
 // is not safe for concurrent use; sessions over the same Model are independent.
 type Session struct {
 	m       *Model
@@ -49,6 +50,7 @@ type Session struct {
 	mPred   []int32
 	mCond   []uint32 // offsets into conds, len(slots)+1
 	mScale  []uint32 // offsets into scales, len(slots)+1
+	slotGen []uint32 // never shrinks, so a ModID of a reverted add stays invalid
 	conds   []Cond
 	scales  []Scale
 	preds   []Predicate
@@ -64,6 +66,11 @@ type Session struct {
 	blockIdx []int32 // [(ctx*nActors+actor)*2+uncond] -> index into blocks, -1 if absent
 	stack    []uint32
 	err      error
+
+	journal    []edit
+	journalGen uint32 // starts at 1, so the zero Checkpoint is stale
+	seq        uint64
+	marked     bool // a Mark since the last Commit
 }
 
 // NewSession creates a session with actors 0 to actors-1 over m.
@@ -80,6 +87,8 @@ func NewSession(m *Model, actors int) (*Session, error) {
 		epoch:   1,
 		mCond:   []uint32{0},
 		mScale:  []uint32{0},
+
+		journalGen: 1,
 	}
 	s.buckets = make([][]uint32, s.nStats*actors)
 	s.stamp = make([]uint32, s.nStats*actors)

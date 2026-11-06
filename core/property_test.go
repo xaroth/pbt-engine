@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"errors"
 	"math"
 	"math/rand/v2"
 	"testing"
@@ -162,8 +163,8 @@ func equalBits(tb testing.TB, step int, got, exp []uint64) {
 	}
 }
 
-// TestIncrementalEqualsFresh applies random edits, reading random nodes in between, and checks
-// every node against a session built from scratch.
+// TestIncrementalEqualsFresh applies random edits, reverts and commits, reading random nodes
+// in between, and checks every node against a session built from scratch.
 func TestIncrementalEqualsFresh(t *testing.T) {
 	t.Parallel()
 	for seed := range uint64(40) {
@@ -176,18 +177,43 @@ func TestIncrementalEqualsFresh(t *testing.T) {
 			for range 40 {
 				ids = append(ids, add(t, s, w.mod(r)))
 			}
-			equalBits(t, -1, snapshot(t, fresh(t, w, s), true), snapshot(t, s, false))
+			s.Commit()
+			base := snapshot(t, s, false)
+			equalBits(t, -1, snapshot(t, fresh(t, w, s), true), base)
+			start := s.Mark()
 
+			var marks []core.Checkpoint
+			var snaps [][]uint64
+			committed := false
 			for step := range 60 {
-				switch k := r.IntN(14); {
+				switch k := r.IntN(20); {
 				case k < 6:
 					ids = append(ids, add(t, s, w.mod(r)))
 				case k < 10:
 					must(t, s.SetSourceEnabled(core.SourceID(r.IntN(nSources)), r.IntN(2) == 0))
 				case k < 12:
-					must(t, s.RemoveModifier(ids[r.IntN(len(ids))]))
+					droppedOK(t, s.RemoveModifier(ids[r.IntN(len(ids))]))
+				case k < 14:
+					droppedOK(t, s.SetModifierValue(ids[r.IntN(len(ids))], float64(r.IntN(41)-5)))
+				case k < 16:
+					marks = append(marks, s.Mark())
+					snaps = append(snaps, snapshot(t, s, false))
+				case k < 19:
+					if len(marks) > 0 {
+						i := r.IntN(len(marks))
+						must(t, s.Revert(marks[i]))
+						equalBits(t, step, snapshot(t, s, false), snaps[i])
+						marks, snaps = marks[:i+1], snaps[:i+1]
+					}
 				default:
-					must(t, s.SetModifierValue(ids[r.IntN(len(ids))], float64(r.IntN(41)-5)))
+					s.Commit()
+					committed = true
+					for _, cp := range marks {
+						if err := s.Revert(cp); !errors.Is(err, core.ErrStaleCheckpoint) {
+							t.Fatalf("step %d: revert after commit: got %v, want ErrStaleCheckpoint", step, err)
+						}
+					}
+					marks, snaps = nil, nil
 				}
 				for range 3 {
 					ctx := core.CtxID(r.IntN(len(w.ctxs)))
@@ -197,6 +223,18 @@ func TestIncrementalEqualsFresh(t *testing.T) {
 					equalBits(t, step, snapshot(t, s, step%2 == 0), snapshot(t, fresh(t, w, s), false))
 				}
 			}
+			if !committed {
+				must(t, s.Revert(start))
+				equalBits(t, 99, snapshot(t, s, true), base)
+			}
 		})
+	}
+}
+
+// droppedOK accepts ErrBadHandle: ids of modifiers dropped by Revert stay in the test's list.
+func droppedOK(tb testing.TB, err error) {
+	tb.Helper()
+	if err != nil && !errors.Is(err, core.ErrBadHandle) {
+		tb.Fatal(err)
 	}
 }

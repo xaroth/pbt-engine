@@ -15,9 +15,11 @@ const GlobalCtx CtxID = 0
 // disables it.
 type SourceID uint32
 
-// ModID identifies a modifier within a session. The zero ModID is never valid.
+// ModID identifies a modifier within a session. The zero ModID is never valid; an id of a
+// modifier dropped by Revert stays invalid.
 type ModID struct {
-	n uint32 // slot + 1
+	slot uint32
+	gen  uint32
 }
 
 // Op is how a modifier combines with others on the same stat.

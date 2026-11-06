@@ -29,6 +29,7 @@ func (s *Session) SetSourceEnabled(src SourceID, on bool) error {
 	if !s.srcOff[src] == on {
 		return nil
 	}
+	s.record(edit{kind: editSource, id: uint32(src), on: !on})
 	s.setSource(src, on)
 	return nil
 }
@@ -106,6 +107,9 @@ func (s *Session) AddModifier(m Modifier) (ModID, error) {
 	s.mCond = append(s.mCond, uint32(len(s.conds)))
 	s.scales = append(s.scales, m.Scales...)
 	s.mScale = append(s.mScale, uint32(len(s.scales)))
+	if int(slot) == len(s.slotGen) {
+		s.slotGen = append(s.slotGen, 1)
+	}
 
 	b := &s.buckets[int(m.Stat)*s.nActors+int(m.Actor)]
 	i, _ := slices.BinarySearchFunc(*b, m.Source, func(slot uint32, src SourceID) int {
@@ -117,21 +121,22 @@ func (s *Session) AddModifier(m Modifier) (ModID, error) {
 	*b = slices.Insert(*b, i, slot)
 	s.srcMods[m.Source] = append(s.srcMods[m.Source], slot)
 
+	s.record(edit{kind: editAdd, id: slot})
 	s.bump()
 	s.touch(m.Stat, m.Actor)
 	return s.modID(slot), nil
 }
 
-func (s *Session) modID(slot uint32) ModID { return ModID{n: slot + 1} }
+func (s *Session) modID(slot uint32) ModID { return ModID{slot: slot, gen: s.slotGen[slot]} }
 
 func (s *Session) slot(id ModID) (uint32, error) {
-	if id.n == 0 || int(id.n) > len(s.mStat) {
+	if int(id.slot) >= len(s.mStat) || s.slotGen[id.slot] != id.gen {
 		return 0, fmt.Errorf("%w: modifier %v", ErrBadHandle, id)
 	}
-	return id.n - 1, nil
+	return id.slot, nil
 }
 
-// RemoveModifier stops a modifier from applying.
+// RemoveModifier stops a modifier from applying. Revert restores it.
 func (s *Session) RemoveModifier(id ModID) error {
 	mi, err := s.slot(id)
 	if err != nil {
@@ -140,6 +145,7 @@ func (s *Session) RemoveModifier(id ModID) error {
 	if !s.mAlive[mi] {
 		return nil
 	}
+	s.record(edit{kind: editRemove, id: mi})
 	s.setAlive(mi, false)
 	return nil
 }
@@ -159,6 +165,7 @@ func (s *Session) SetModifierValue(id ModID, v float64) error {
 	if math.Float64bits(s.mValue[mi]) == math.Float64bits(v) {
 		return nil
 	}
+	s.record(edit{kind: editValue, id: mi, old: s.mValue[mi]})
 	s.setValue(mi, v)
 	return nil
 }
@@ -190,8 +197,8 @@ func (s *Session) Modifier(id ModID) (m Modifier, removed bool, err error) {
 	return m, !s.mAlive[mi], nil
 }
 
-// Modifiers yields the ids of all modifiers, removed ones included, in the order they were
-// added.
+// Modifiers yields the ids of all modifiers added and not dropped by Revert, removed ones
+// included, in the order they were added.
 func (s *Session) Modifiers() iter.Seq[ModID] {
 	return func(yield func(ModID) bool) {
 		for mi := range uint32(len(s.mStat)) {
