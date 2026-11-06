@@ -210,6 +210,18 @@ func TestBuildCheck(t *testing.T) {
 			}
 		})
 	}
+	out.Reset()
+	if err := run([]string{"build", "resolve", good, "--root", root}, &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{"bundle player global level\n  level = 90\n", "bundle player global node 12345\n  base_strength = 20\n", "bundle player buff node 12345\n"} {
+		if !strings.Contains(out.String(), line) {
+			t.Errorf("resolve: got:\n%s\nwant %q", out.String(), line)
+		}
+	}
+	if err := run([]string{"build", "resolve", filepath.Join(dir, "missing.json"), "--root", root}, io.Discard); err == nil {
+		t.Error("resolve missing file: got nil error, want error")
+	}
 	if err := run([]string{"build", "check", filepath.Join(dir, "missing.json"), "--root", root}, io.Discard); err == nil {
 		t.Error("missing file: got nil error, want error")
 	}

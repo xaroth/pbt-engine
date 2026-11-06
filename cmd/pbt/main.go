@@ -5,6 +5,7 @@
 //	pbt data show character <name> --version <v>
 //	pbt data diff <version-a> <version-b> [--limit 20]
 //	pbt build check <build.json>
+//	pbt build resolve <build.json>
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions resolve as dataset.Registry.Resolve does, so 3.29 is
@@ -24,6 +25,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/resolve"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
@@ -33,6 +35,7 @@ const usage = `usage:
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
   pbt build check <build.json>
+  pbt build resolve <build.json>
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -115,6 +118,16 @@ func run(args []string, w io.Writer) error {
 		return diff(w, a, b, limit)
 	case len(pos) == 3 && pos[0] == "build" && pos[1] == "check":
 		return checkBuild(w, opts["root"], pos[2])
+	case len(pos) == 3 && pos[0] == "build" && pos[1] == "resolve":
+		c, err := openBuild(opts["root"], pos[2])
+		if err != nil {
+			return err
+		}
+		r, err := resolve.Resolve(c)
+		if err != nil {
+			return err
+		}
+		return r.Dump(w)
 	}
 	return errors.New(usage)
 }
@@ -347,24 +360,29 @@ func list(s []string) string {
 	return strings.Join(s, ", ")
 }
 
-// checkBuild parses a build file and checks it against the dataset its version resolves to.
-func checkBuild(w io.Writer, root, path string) error {
+// openBuild parses a build file and checks it against the dataset its version resolves to.
+func openBuild(root, path string) (*build.Checked, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	b, err := build.Parse(data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	r, err := dataset.OpenRoot(os.DirFS(root))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c, err := build.Open(r, b)
+	return build.Open(r, b)
+}
+
+func checkBuild(w io.Writer, root, path string) error {
+	c, err := openBuild(root, path)
 	if err != nil {
 		return err
 	}
+	b := c.Build()
 	p := &printer{w: w}
 	p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Version().Name(),
 		c.Tree().Variant, c.Character().ID, cmp.Or(c.Ascendancy(), "no ascendancy"), c.Level(), len(c.Nodes()))
