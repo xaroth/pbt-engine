@@ -4,6 +4,7 @@
 //	pbt data show stat <id> --version <v>
 //	pbt data show character <name> --version <v>
 //	pbt data diff <version-a> <version-b> [--limit 20]
+//	pbt build check <build.json>
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions resolve as dataset.Registry.Resolve does, so 3.29 is
@@ -11,6 +12,7 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
@@ -29,6 +32,7 @@ const usage = `usage:
   pbt data show stat <id> --version <v>
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
+  pbt build check <build.json>
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -109,6 +113,8 @@ func run(args []string, w io.Writer) error {
 			return err
 		}
 		return diff(w, a, b, limit)
+	case len(pos) == 3 && pos[0] == "build" && pos[1] == "check":
+		return checkBuild(w, opts["root"], pos[2])
 	}
 	return errors.New(usage)
 }
@@ -339,4 +345,28 @@ func list(s []string) string {
 		return "none"
 	}
 	return strings.Join(s, ", ")
+}
+
+// checkBuild parses a build file and checks it against the dataset its version resolves to.
+func checkBuild(w io.Writer, root, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	b, err := build.Parse(data)
+	if err != nil {
+		return err
+	}
+	r, err := dataset.OpenRoot(os.DirFS(root))
+	if err != nil {
+		return err
+	}
+	c, err := build.Open(r, b)
+	if err != nil {
+		return err
+	}
+	p := &printer{w: w}
+	p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Version().Name(),
+		c.Tree().Variant, c.Character().ID, cmp.Or(c.Ascendancy(), "no ascendancy"), c.Level(), len(c.Nodes()))
+	return p.err
 }

@@ -3,6 +3,7 @@ package main
 // White-box: package main cannot be imported by an external test package.
 
 import (
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -166,5 +167,50 @@ func TestRunErrors(t *testing.T) {
 				t.Errorf("run(%q): got nil error, want an error", testCase.args)
 			}
 		})
+	}
+}
+
+// writeBuild writes a build file into dir and returns its path.
+func writeBuild(t *testing.T, dir, name, data string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestBuildCheck(t *testing.T) {
+	t.Parallel()
+	root := writeRoot(t)
+	dir := t.TempDir()
+	good := writeBuild(t, dir, "good.json", `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,"nodes":[1,12345]}`)
+	var out strings.Builder
+	if err := run([]string{"build", "check", good, "--root", root}, &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "ok: poe1 3.29 (dataset 3.29), standard tree, Metadata/Characters/Str/Str Juggernaut, level 90, 2 nodes\n"
+	if out.String() != want {
+		t.Errorf("got %q, want %q", out.String(), want)
+	}
+
+	testCases := []struct {
+		name, data string
+	}{
+		{"not a build", `{"format":9}`},
+		{"unknown version", `{"format":1,"game":"poe1","version":"9.9","class":"Metadata/Characters/Str/Str","level":1,"nodes":[]}`},
+		{"unknown node", `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","level":1,"nodes":[2]}`},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			path := writeBuild(t, t.TempDir(), "b.json", testCase.data)
+			if err := run([]string{"build", "check", path, "--root", root}, io.Discard); err == nil {
+				t.Error("got nil error, want error")
+			}
+		})
+	}
+	if err := run([]string{"build", "check", filepath.Join(dir, "missing.json"), "--root", root}, io.Discard); err == nil {
+		t.Error("missing file: got nil error, want error")
 	}
 }
