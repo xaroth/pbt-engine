@@ -1,0 +1,511 @@
+// Package semantics says what game stat ids mean in engine terms. A table, authored per game
+// edition from game data, maps (stat id, scope) to engine modifiers, each entry with a status
+// and the sources it was authored from. Engine stats and rules belong to the rules code; the
+// caller supplies their names when loading.
+package semantics
+
+import (
+	"bytes"
+	"cmp"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/xaroth/pbt-engine/core"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/resolve"
+)
+
+// Format is the table file format Load reads.
+const Format = 1
+
+// ErrInvalid is wrapped by every error Load returns for a malformed table.
+var ErrInvalid = errors.New("invalid semantics table")
+
+// Vocabulary names what a table may refer to: the engine stats and rules the rules code
+// defines.
+type Vocabulary interface {
+	IsEngineStat(name string) bool
+	IsRule(name string) bool
+}
+
+// Status says how far the meaning of a stat is known.
+type Status uint8
+
+// Statuses.
+const (
+	// Authored: the entry's modifiers, and its rule if it names one, are the stat's effect on
+	// engine stats, except what Omitted lists.
+	Authored Status = iota + 1
+	// Unknown: the stat has an effect the table does not express yet; Reason says why.
+	Unknown
+	// DisplayOnly: the stat only shows text; its effect comes from other stats.
+	DisplayOnly
+)
+
+var statusNames = [...]string{Authored: "authored", Unknown: "unknown", DisplayOnly: "display-only"}
+
+func (s Status) String() string { return name(statusNames[:], int(s), "status?") }
+
+// ReasonKind classifies why an entry is Unknown or DisplayOnly.
+type ReasonKind uint8
+
+// Reason kinds. Display is the only kind of a DisplayOnly entry.
+const (
+	// Condition: the effect depends on scenario state, such as being hit recently.
+	Condition ReasonKind = iota + 1
+	// Items: the effect depends on equipped items.
+	Items
+	// Charges: the effect scales with charges.
+	Charges
+	// Reservation: the effect depends on reserved life or mana.
+	Reservation
+	// Scale: the effect scales with a value that is not an engine stat, such as a count of
+	// allocated masteries.
+	Scale
+	// Context: the effect applies in a context, such as against damage over time, that a
+	// sheet value does not have.
+	Context
+	// Event: the effect recovers on an event or period instead of as a rate.
+	Event
+	// Rule: the effect needs rules code; Entry.Rule names it.
+	Rule
+	// Unestablished: game data does not settle what the stat does.
+	Unestablished
+	// Display: the stat only shows text.
+	Display
+)
+
+var reasonKindNames = [...]string{
+	Condition: "condition", Items: "items", Charges: "charges", Reservation: "reservation", Scale: "scale",
+	Context: "context", Event: "event", Rule: "rule", Unestablished: "unestablished", Display: "display",
+}
+
+func (k ReasonKind) String() string { return name(reasonKindNames[:], int(k), "reason?") }
+
+// Reason says why an entry is Unknown or DisplayOnly.
+type Reason struct {
+	Kind ReasonKind
+	Text string
+}
+
+func (r Reason) String() string { return r.Kind.String() + ": " + r.Text }
+
+// SourceKind is the kind of game source an entry was authored from.
+type SourceKind uint8
+
+// Source kinds.
+const (
+	// Description: a stat description template. Ref is the description file as the dataset
+	// names it, Text the template text and Handlers its value handlers, in order.
+	Description SourceKind = iota + 1
+	// ObjectTemplate: an object template (.ot) file every character extends. Ref is its path,
+	// Text a stat line "stat = value".
+	ObjectTemplate
+	// GameData: a Characters column, Ref "Characters.Column", that resolve carries as the
+	// entry's stat.
+	GameData
+	// StatID: the stat id itself, for stats without description text. Ref and Text are empty.
+	StatID
+)
+
+var sourceKindNames = [...]string{Description: "description", ObjectTemplate: "object-template", GameData: "game-data", StatID: "stat-id"}
+
+func (k SourceKind) String() string { return name(sourceKindNames[:], int(k), "source?") }
+
+func name(names []string, i int, unknown string) string {
+	if i > 0 && i < len(names) {
+		return names[i]
+	}
+	return unknown
+}
+
+func parseName[T ~uint8](names []string, s, what string) (T, error) {
+	if i := slices.Index(names, s); i > 0 {
+		return T(i), nil
+	}
+	return 0, fmt.Errorf("unknown %s %q", what, s)
+}
+
+// Source is a game source of an entry.
+type Source struct {
+	Kind     SourceKind
+	Ref      string
+	Text     string
+	Handlers []string
+}
+
+// templateLine parses an ObjectTemplate source's Text.
+func templateLine(text string) (stat string, value int32, err error) {
+	stat, v, ok := strings.Cut(text, " = ")
+	n, perr := strconv.ParseInt(v, 10, 32)
+	if !ok || stat == "" || perr != nil {
+		return "", 0, fmt.Errorf("object-template text %q: want \"stat = value\"", text)
+	}
+	return stat, int32(n), nil
+}
+
+// Ratio is the factor from a game stat value to a modifier value, Num/Den.
+type Ratio struct {
+	Num, Den int32
+}
+
+// Apply returns the modifier value for game stat value v.
+func (r Ratio) Apply(v float64) float64 { return v * float64(r.Num) / float64(r.Den) }
+
+func (r Ratio) String() string { return fmt.Sprintf("%d/%d", r.Num, r.Den) }
+
+func parseRatio(s string) (Ratio, error) {
+	if s == "" {
+		return Ratio{1, 1}, nil
+	}
+	num, den, hasDen := strings.Cut(s, "/")
+	if !hasDen {
+		den = "1"
+	}
+	n, err1 := strconv.ParseInt(num, 10, 32)
+	d, err2 := strconv.ParseInt(den, 10, 32)
+	if err1 != nil || err2 != nil || d <= 0 {
+		return Ratio{}, fmt.Errorf("factor %q: want n or n/d with d > 0", s)
+	}
+	return Ratio{int32(n), int32(d)}, nil
+}
+
+// Per scales a modifier by the value of engine stat Stat in steps of Step, as in "+1 Armour
+// per 2 Strength". The interpret stage counts whole steps (core.Scale); an entry whose text
+// does not establish that says so in Unvalidated.
+type Per struct {
+	Stat string
+	Step int32
+}
+
+// Mod is one engine modifier a stat gives: engine stat, op and value as the game stat value
+// times Factor, scaled by Per when set. Only an override has a zero Factor, for effects such
+// as "Removes all Mana".
+type Mod struct {
+	Stat   string
+	Op     core.Op
+	Factor Ratio
+	Per    *Per
+}
+
+// Entry is the meaning of one stat in one scope over a range of game versions.
+type Entry struct {
+	Stat  string
+	Scope resolve.Scope
+	// From and Until bound the game versions the entry holds for, Until excluded. The zero
+	// GameVersion leaves that end open.
+	From, Until dataset.GameVersion
+	Status      Status
+	// Mods are set only when Status is Authored.
+	Mods []Mod
+	// Rule names the rules code that carries the effect, on an Authored entry or an Unknown
+	// one whose Reason is Rule.
+	Rule    string
+	Sources []Source
+	// Reason is set when Status is Unknown or DisplayOnly.
+	Reason Reason
+	// Unvalidated, on an Authored entry, says what its sources do not establish and what
+	// would validate it. Empty means the sources establish every modifier.
+	Unvalidated string
+	// Omitted, on an Authored entry, lists the effects of the stat's text that the modifiers
+	// do not carry, such as a keystone's effects outside the engine stats. Empty means none.
+	Omitted string
+}
+
+// Holds reports whether the entry holds for game version v.
+func (e *Entry) Holds(v dataset.GameVersion) bool {
+	return (e.From.IsZero() || v.Compare(e.From) >= 0) && (e.Until.IsZero() || v.Compare(e.Until) < 0)
+}
+
+func (e *Entry) String() string {
+	s := e.Stat + " " + e.Scope.String()
+	if !e.From.IsZero() || !e.Until.IsZero() {
+		s += " [" + e.From.String() + ", " + e.Until.String() + ")"
+	}
+	return s
+}
+
+// Table is the semantics of one game edition. Entries are sorted by stat, scope (global before
+// buff) and From; the ranges of one stat and scope do not overlap.
+type Table struct {
+	Game    string
+	Entries []Entry
+}
+
+// Lookup returns the entry of stat in scope for game version v.
+func (t *Table) Lookup(stat string, scope resolve.Scope, v dataset.GameVersion) (*Entry, bool) {
+	i, _ := slices.BinarySearchFunc(t.Entries, stat, func(e Entry, s string) int { return cmp.Compare(e.Stat, s) })
+	for ; i < len(t.Entries) && t.Entries[i].Stat == stat; i++ {
+		if e := &t.Entries[i]; e.Scope == scope && e.Holds(v) {
+			return e, true
+		}
+	}
+	return nil, false
+}
+
+type fileTable struct {
+	Format  int         `json:"format"`
+	Game    string      `json:"game"`
+	Entries []fileEntry `json:"entries"`
+}
+
+type fileEntry struct {
+	Stat        string       `json:"stat"`
+	Scope       string       `json:"scope"`
+	From        string       `json:"from"`
+	Until       string       `json:"until"`
+	Status      string       `json:"status"`
+	Mods        []fileMod    `json:"mods"`
+	Rule        string       `json:"rule"`
+	Sources     []fileSource `json:"sources"`
+	Reason      *fileReason  `json:"reason"`
+	Unvalidated string       `json:"unvalidated"`
+	Omitted     string       `json:"omitted"`
+}
+
+type fileReason struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+type fileMod struct {
+	Stat   string   `json:"stat"`
+	Op     string   `json:"op"`
+	Factor string   `json:"factor"`
+	Per    *filePer `json:"per"`
+}
+
+type filePer struct {
+	Stat string `json:"stat"`
+	Step int32  `json:"step"`
+}
+
+type fileSource struct {
+	Kind     string   `json:"kind"`
+	Ref      string   `json:"ref"`
+	Text     string   `json:"text"`
+	Handlers []string `json:"handlers"`
+}
+
+// Load parses a table in JSON. Every engine stat and rule it names must be in vocab. Errors
+// wrap ErrInvalid.
+func Load(data []byte, vocab Vocabulary) (*Table, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var f fileTable
+	if err := dec.Decode(&f); err != nil {
+		return nil, fmt.Errorf("semantics: %w: %w", ErrInvalid, err)
+	}
+	// More would accept a trailing } or ].
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("semantics: %w: data after the table", ErrInvalid)
+	}
+	if f.Format != Format {
+		return nil, fmt.Errorf("semantics: %w: format %d, want %d", ErrInvalid, f.Format, Format)
+	}
+	if f.Game == "" {
+		return nil, fmt.Errorf("semantics: %w: no game", ErrInvalid)
+	}
+	t := &Table{Game: f.Game, Entries: make([]Entry, 0, len(f.Entries))}
+	for i := range f.Entries {
+		e, err := parseEntry(&f.Entries[i], vocab)
+		if err != nil {
+			return nil, fmt.Errorf("semantics: %w: entry %d (%s): %w", ErrInvalid, i, f.Entries[i].Stat, err)
+		}
+		if i > 0 {
+			if err := checkOrder(&t.Entries[i-1], &e); err != nil {
+				return nil, fmt.Errorf("semantics: %w: entry %d (%s): %w", ErrInvalid, i, e.String(), err)
+			}
+		}
+		t.Entries = append(t.Entries, e)
+	}
+	return t, nil
+}
+
+func checkOrder(prev, e *Entry) error {
+	c := cmp.Or(cmp.Compare(prev.Stat, e.Stat), cmp.Compare(prev.Scope, e.Scope))
+	switch {
+	case c > 0:
+		return errors.New("not sorted by stat and scope")
+	case c < 0:
+		return nil
+	case e.From.IsZero() || prev.Until.IsZero() || prev.Until.Compare(e.From) > 0:
+		return fmt.Errorf("versions overlap %s", prev.String())
+	}
+	return nil
+}
+
+func parseScope(name string) (resolve.Scope, error) {
+	for _, s := range []resolve.Scope{resolve.Global, resolve.Buff} {
+		if s.String() == name {
+			return s, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown scope %q", name)
+}
+
+func parseOp(name string) (core.Op, error) {
+	for _, o := range []core.Op{core.OpBase, core.OpInc, core.OpMore, core.OpOverride, core.OpFlag} {
+		if o.String() == name {
+			return o, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown op %q", name)
+}
+
+func parseBound(s string) (dataset.GameVersion, error) {
+	if s == "" {
+		return dataset.GameVersion{}, nil
+	}
+	return dataset.ParseGameVersion(s)
+}
+
+func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
+	if f.Stat == "" {
+		return Entry{}, errors.New("no stat")
+	}
+	e := Entry{Stat: f.Stat, Rule: f.Rule, Unvalidated: f.Unvalidated, Omitted: f.Omitted}
+	var err error
+	if e.Scope, err = parseScope(f.Scope); err != nil {
+		return Entry{}, err
+	}
+	if e.Status, err = parseName[Status](statusNames[:], f.Status, "status"); err != nil {
+		return Entry{}, err
+	}
+	if e.From, err = parseBound(f.From); err != nil {
+		return Entry{}, err
+	}
+	if e.Until, err = parseBound(f.Until); err != nil {
+		return Entry{}, err
+	}
+	if !e.From.IsZero() && !e.Until.IsZero() && e.From.Compare(e.Until) >= 0 {
+		return Entry{}, fmt.Errorf("from %s not before until %s", e.From, e.Until)
+	}
+	if f.Reason != nil {
+		if e.Reason.Kind, err = parseName[ReasonKind](reasonKindNames[:], f.Reason.Kind, "reason kind"); err != nil {
+			return Entry{}, err
+		}
+		if f.Reason.Text == "" {
+			return Entry{}, errors.New("reason without text")
+		}
+		e.Reason.Text = f.Reason.Text
+	}
+	if err := checkStatus(&e, len(f.Mods)); err != nil {
+		return Entry{}, err
+	}
+	if e.Rule != "" && !vocab.IsRule(e.Rule) {
+		return Entry{}, fmt.Errorf("unknown rule %q", e.Rule)
+	}
+	for i := range f.Mods {
+		m, err := parseMod(&f.Mods[i], vocab)
+		if err != nil {
+			return Entry{}, fmt.Errorf("mod %d: %w", i, err)
+		}
+		e.Mods = append(e.Mods, m)
+	}
+	if len(f.Sources) == 0 {
+		return Entry{}, errors.New("no sources")
+	}
+	for i := range f.Sources {
+		s, err := parseSource(&f.Sources[i])
+		if err != nil {
+			return Entry{}, fmt.Errorf("source %d: %w", i, err)
+		}
+		e.Sources = append(e.Sources, s)
+	}
+	return e, nil
+}
+
+// checkStatus checks the fields that depend on e's status.
+func checkStatus(e *Entry, mods int) error {
+	switch e.Status {
+	case Authored:
+		switch {
+		case mods == 0:
+			return errors.New("authored without mods")
+		case e.Reason.Kind != 0:
+			return errors.New("authored with a reason")
+		}
+		return nil
+	case Unknown:
+		switch {
+		case e.Reason.Kind == 0 || e.Reason.Kind == Display:
+			return fmt.Errorf("unknown needs a reason other than %s", Display)
+		case (e.Reason.Kind == Rule) != (e.Rule != ""):
+			return errors.New("unknown names a rule exactly when its reason is rule")
+		}
+	case DisplayOnly:
+		switch {
+		case e.Reason.Kind != Display:
+			return fmt.Errorf("display-only needs reason %s", Display)
+		case e.Rule != "":
+			return errors.New("display-only with a rule")
+		}
+	}
+	switch {
+	case mods > 0:
+		return fmt.Errorf("%s with mods", e.Status)
+	case e.Unvalidated != "" || e.Omitted != "":
+		return fmt.Errorf("%s with unvalidated or omitted; only authored entries have them", e.Status)
+	}
+	return nil
+}
+
+func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
+	if !vocab.IsEngineStat(f.Stat) {
+		return Mod{}, fmt.Errorf("unknown engine stat %q", f.Stat)
+	}
+	op, err := parseOp(f.Op)
+	if err != nil {
+		return Mod{}, err
+	}
+	factor, err := parseRatio(f.Factor)
+	if err != nil {
+		return Mod{}, err
+	}
+	if factor.Num == 0 && op != core.OpOverride {
+		return Mod{}, fmt.Errorf("factor %s on %s; only override may set a value of 0", factor, op)
+	}
+	m := Mod{Stat: f.Stat, Op: op, Factor: factor}
+	if f.Per != nil {
+		if !vocab.IsEngineStat(f.Per.Stat) {
+			return Mod{}, fmt.Errorf("per: unknown engine stat %q", f.Per.Stat)
+		}
+		if f.Per.Step <= 0 {
+			return Mod{}, fmt.Errorf("per %s: step %d, want > 0", f.Per.Stat, f.Per.Step)
+		}
+		m.Per = &Per{Stat: f.Per.Stat, Step: f.Per.Step}
+	}
+	return m, nil
+}
+
+func parseSource(f *fileSource) (Source, error) {
+	kind, err := parseName[SourceKind](sourceKindNames[:], f.Kind, "kind")
+	if err != nil {
+		return Source{}, err
+	}
+	s := Source{Kind: kind, Ref: f.Ref, Text: f.Text, Handlers: f.Handlers}
+	switch {
+	case s.Kind == StatID && (s.Ref != "" || s.Text != ""):
+		return Source{}, errors.New("stat-id with ref or text")
+	case s.Kind != StatID && s.Ref == "":
+		return Source{}, fmt.Errorf("%s without ref", s.Kind)
+	case s.Kind == Description && s.Text == "":
+		return Source{}, fmt.Errorf("%s without text", s.Kind)
+	case s.Kind != Description && len(s.Handlers) > 0:
+		return Source{}, fmt.Errorf("%s with handlers", s.Kind)
+	case s.Kind == GameData && s.Text != "":
+		return Source{}, fmt.Errorf("%s with text", s.Kind)
+	}
+	if s.Kind == ObjectTemplate {
+		if _, _, err := templateLine(s.Text); err != nil {
+			return Source{}, err
+		}
+	}
+	return s, nil
+}

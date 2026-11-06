@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "game": "poe1",
+  "entries": [
+    {"stat": "X_to_armour_per_2_strength", "scope": "global", "status": "authored", "mods": [{"stat": "armour", "op": "base", "per": {"stat": "strength", "step": 2}}], "sources": [{"kind": "description", "ref": "Metadata/StatDescriptions/stat_descriptions.txt", "text": "{0:+d} Armour per 2 Strength"}], "unvalidated": "whole steps"},
+    {"stat": "base_maximum_life", "scope": "global", "status": "authored", "mods": [{"stat": "life", "op": "base"}], "sources": [{"kind": "description", "ref": "Metadata/StatDescriptions/stat_descriptions.txt", "text": "{0:+d} to maximum Life"}, {"kind": "game-data", "ref": "Characters.BaseMaxLife"}]},
+    {"stat": "keystone_blood_magic", "scope": "global", "status": "authored", "mods": [{"stat": "mana", "op": "override", "factor": "0"}], "sources": [{"kind": "description", "ref": "Metadata/StatDescriptions/stat_descriptions.txt", "text": "Removes all mana\\nSkills Cost Life instead of Mana"}], "omitted": "Skills Cost Life instead of Mana"},
+    {"stat": "life_regeneration_rate_per_minute_%", "scope": "global", "until": "3.29", "status": "authored", "mods": [{"stat": "percent_of_life_regenerated_per_second", "op": "base", "factor": "1/60"}], "sources": [{"kind": "description", "ref": "Metadata/StatDescriptions/stat_descriptions.txt", "text": "Regenerate {0}% of Life per second", "handlers": ["per_minute_to_per_second"]}]},
+    {"stat": "life_regeneration_rate_per_minute_%", "scope": "global", "from": "3.29", "status": "authored", "mods": [{"stat": "percent_of_life_regenerated_per_second", "op": "base", "factor": "1/60"}], "sources": [{"kind": "description", "ref": "Metadata/StatDescriptions/stat_descriptions.txt", "text": "Regenerate {0}% of Life per second", "handlers": ["per_minute_to_per_second_2dp"]}]},
+    {"stat": "life_regeneration_rate_per_minute_%", "scope": "buff", "status": "unknown", "sources": [{"kind": "description", "ref": "Metadata/StatDescriptions/stat_descriptions.txt", "text": "You and nearby Allies Regenerate {0}% of Life per second", "handlers": ["per_minute_to_per_second"]}], "reason": {"kind": "condition", "text": "near the node's aura"}},
+    {"stat": "mana_%_to_add_as_energy_shield", "scope": "global", "status": "unknown", "rule": "gain_as_extra", "sources": [{"kind": "stat-id"}], "reason": {"kind": "rule", "text": "adds a share of maximum mana as energy shield"}},
+    {"stat": "maximum_all_resistances_%", "scope": "global", "status": "authored", "mods": [{"stat": "maximum_fire_resistance", "op": "base"}, {"stat": "maximum_cold_resistance", "op": "base"}], "sources": [{"kind": "object-template", "ref": "Metadata/Characters/Character.ot", "text": "maximum_all_resistances_% = 75"}, {"kind": "stat-id"}], "unvalidated": "no description text"},
+    {"stat": "removed_stat", "scope": "global", "until": "3.29", "status": "display-only", "sources": [{"kind": "stat-id"}], "reason": {"kind": "display", "text": "shows text only"}}
+  ]
+}
