@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// percent is what a percentage value is divided by to give a fraction.
+const percent = 100.0
+
 func (s *Session) get(id uint32) float64 {
 	r := s.rec(id)
 	if r.busy {
@@ -190,7 +193,7 @@ func (s *Session) eval(id uint32, deps *[]uint32, terms *[]Term) float64 {
 			case OpInc:
 				agg.Inc += v
 			case OpMore:
-				agg.More *= 1.0 + v/100.0
+				agg.More *= 1.0 + v/percent
 			case OpOverride:
 				agg.Override = v
 				agg.HasOverride = true

@@ -212,7 +212,7 @@ func kitavaDefeats(c build.Campaign) int {
 	case build.CampaignActs6To10:
 		return 1
 	case build.CampaignComplete:
-		return 2
+		return len(kitavaQuests())
 	}
 	return 0
 }

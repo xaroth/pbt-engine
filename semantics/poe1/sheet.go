@@ -94,8 +94,9 @@ type rule struct {
 }
 
 func newRules(pairs ...string) []rule {
-	out := make([]rule, 0, len(pairs)/2)
-	for i := 0; i < len(pairs); i += 2 {
+	const pairSize = 2
+	out := make([]rule, 0, len(pairs)/pairSize)
+	for i := 0; i < len(pairs); i += pairSize {
 		out = append(out, rule{pairs[i], regexp.MustCompile(pairs[i+1])})
 	}
 	return out

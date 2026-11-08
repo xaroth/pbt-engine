@@ -78,17 +78,20 @@ type Bit uint16
 // MaxBits is the number of context bits a Model can register over all dimensions.
 const MaxBits = 256
 
+// wordMask selects a bit's position within its 64-bit word of a Mask.
+const wordMask = 63
+
 // Mask is a set of context bits.
 type Mask [MaxBits / 64]uint64
 
 // Set returns m with bit b set.
 func (m Mask) Set(b Bit) Mask {
-	m[b>>6] |= 1 << (b & 63)
+	m[b>>6] |= 1 << (b & wordMask)
 	return m
 }
 
 // Has reports whether bit b is set.
-func (m Mask) Has(b Bit) bool { return m[b>>6]&(1<<(b&63)) != 0 }
+func (m Mask) Has(b Bit) bool { return m[b>>6]&(1<<(b&wordMask)) != 0 }
 
 // Intersects reports whether m and o share a bit.
 func (m Mask) Intersects(o Mask) bool {
@@ -258,7 +261,7 @@ func (d *StatDef) finish(r float64) float64 {
 		//exhaustive:ignore // RoundNone is excluded by the enclosing if
 		switch d.Round {
 		case RoundHalf:
-			x = math.Floor(x + 0.5)
+			x = math.Floor(x + half)
 		case RoundFloor:
 			x = math.Floor(x)
 		case RoundTrunc:
@@ -272,8 +275,11 @@ func (d *StatDef) finish(r float64) float64 {
 	return r + 0.0 // normalise -0
 }
 
-// maxPlaces is the most decimal places a stat can round to.
-const maxPlaces = 15
+const (
+	// maxPlaces is the most decimal places a stat can round to.
+	maxPlaces = 15
+	half      = 0.5
+)
 
 // fmin and fmax pick the first argument on ties, so signed zeros are deterministic.
 func fmin(a, b float64) float64 {

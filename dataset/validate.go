@@ -8,6 +8,9 @@ import (
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
+// maxDescriptionStats is what a handler's byte stat index can address.
+const maxDescriptionStats = 256
+
 // validate checks d. allTrees says every tree variant is loaded; text names of nodes are
 // checked against the trees only then, since names are shared across variants.
 func (d *Dataset) validate(allTrees bool) error {
@@ -165,8 +168,8 @@ func validateText(chars []Character, t Text) error {
 	}
 	for _, sc := range t.Descriptions {
 		for _, desc := range sc.Descriptions {
-			if len(desc.Stats) > 256 {
-				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most 256: %w", t.Language, sc.Name, len(desc.Stats), ErrInvalid)
+			if len(desc.Stats) > maxDescriptionStats {
+				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most %d: %w", t.Language, sc.Name, len(desc.Stats), maxDescriptionStats, ErrInvalid)
 			}
 		}
 	}
