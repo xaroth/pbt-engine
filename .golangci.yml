@@ -15,6 +15,8 @@ linters:
     - noinlineerr # too opinionated; checking errors inline ifs should be used VERY sparingly but blanket ban appears to be excessive
     - gomodguard # disable to stop annoying deprecation warnings
   settings:
+    exhaustive:
+      default-signifies-exhaustive: true
     funlen:
       ignore-comments: true
     lll:
