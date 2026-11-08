@@ -7,38 +7,42 @@ import "slices"
 
 // Engine stat names.
 const (
-	statLifeRegeneration                  = "life_regeneration"
-	statManaRegeneration                  = "mana_regeneration"
-	statElementalResistance               = "elemental_resistance"
-	statMaximumElementalResistance        = "maximum_elemental_resistance"
-	statMaximumAllResistances             = "maximum_all_resistances"
-	statFireResistanceCapped              = "fire_resistance_capped"
-	statColdResistanceCapped              = "cold_resistance_capped"
-	statLightningResistanceCapped         = "lightning_resistance_capped"
-	statChaosResistanceCapped             = "chaos_resistance_capped"
-	statArmour                            = "armour"
-	statChaosResistance                   = "chaos_resistance"
-	statColdResistance                    = "cold_resistance"
-	statDexterity                         = "dexterity"
-	statEvasionRating                     = "evasion_rating"
-	statFireResistance                    = "fire_resistance"
-	statIntelligence                      = "intelligence"
-	statLevel                             = "level"
-	statLifeRegeneratedPerSecond          = "life_regenerated_per_second"
-	statLifeRegenerationRate              = "life_regeneration_rate"
-	statLightningResistance               = "lightning_resistance"
-	statManaRegeneratedPerSecond          = "mana_regenerated_per_second"
-	statManaRegenerationRate              = "mana_regeneration_rate"
-	statMaximumChaosResistance            = "maximum_chaos_resistance"
-	statMaximumColdResistance             = "maximum_cold_resistance"
-	statMaximumEnergyShield               = "maximum_energy_shield"
-	statMaximumFireResistance             = "maximum_fire_resistance"
-	statMaximumLife                       = "maximum_life"
-	statMaximumLightningResistance        = "maximum_lightning_resistance"
-	statMaximumMana                       = "maximum_mana"
-	statPercentOfLifeRegeneratedPerSecond = "percent_of_life_regenerated_per_second"
-	statPercentOfManaRegeneratedPerSecond = "percent_of_mana_regenerated_per_second"
-	statStrength                          = "strength"
+	statNoStrengthBonusToMaximumLife             = "no_strength_bonus_to_maximum_life"
+	statNoIntelligenceBonusToMaximumMana         = "no_intelligence_bonus_to_maximum_mana"
+	statNoDexterityBonusToEvasionRating          = "no_dexterity_bonus_to_evasion_rating"
+	statNoIntelligenceBonusToMaximumEnergyShield = "no_intelligence_bonus_to_maximum_energy_shield"
+	statLifeRegeneration                         = "life_regeneration"
+	statManaRegeneration                         = "mana_regeneration"
+	statElementalResistance                      = "elemental_resistance"
+	statMaximumElementalResistance               = "maximum_elemental_resistance"
+	statMaximumAllResistances                    = "maximum_all_resistances"
+	statFireResistanceCapped                     = "fire_resistance_capped"
+	statColdResistanceCapped                     = "cold_resistance_capped"
+	statLightningResistanceCapped                = "lightning_resistance_capped"
+	statChaosResistanceCapped                    = "chaos_resistance_capped"
+	statArmour                                   = "armour"
+	statChaosResistance                          = "chaos_resistance"
+	statColdResistance                           = "cold_resistance"
+	statDexterity                                = "dexterity"
+	statEvasionRating                            = "evasion_rating"
+	statFireResistance                           = "fire_resistance"
+	statIntelligence                             = "intelligence"
+	statLevel                                    = "level"
+	statLifeRegeneratedPerSecond                 = "life_regenerated_per_second"
+	statLifeRegenerationRate                     = "life_regeneration_rate"
+	statLightningResistance                      = "lightning_resistance"
+	statManaRegeneratedPerSecond                 = "mana_regenerated_per_second"
+	statManaRegenerationRate                     = "mana_regeneration_rate"
+	statMaximumChaosResistance                   = "maximum_chaos_resistance"
+	statMaximumColdResistance                    = "maximum_cold_resistance"
+	statMaximumEnergyShield                      = "maximum_energy_shield"
+	statMaximumFireResistance                    = "maximum_fire_resistance"
+	statMaximumLife                              = "maximum_life"
+	statMaximumLightningResistance               = "maximum_lightning_resistance"
+	statMaximumMana                              = "maximum_mana"
+	statPercentOfLifeRegeneratedPerSecond        = "percent_of_life_regenerated_per_second"
+	statPercentOfManaRegeneratedPerSecond        = "percent_of_mana_regenerated_per_second"
+	statStrength                                 = "strength"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -48,6 +52,8 @@ const (
 // values the sheet shows. elemental_resistance and the maximum_ stats for all elemental and all
 // resistances hold modifiers to several resistances at once, which each resistance includes.
 //
+// The no_ stats are flags that turn off one inherent attribute bonus each.
+//
 // Regeneration is per second: life_regenerated_per_second is a flat amount ("Regenerate 10 Life
 // per second"), percent_of_life_regenerated_per_second a share of maximum life ("Regenerate 1%
 // of Life per second"), and life_regeneration_rate holds the increases and more multipliers of
@@ -55,6 +61,10 @@ const (
 // mana.
 func engineStats() []string {
 	return []string{
+		statNoStrengthBonusToMaximumLife,
+		statNoIntelligenceBonusToMaximumMana,
+		statNoDexterityBonusToEvasionRating,
+		statNoIntelligenceBonusToMaximumEnergyShield,
 		statElementalResistance,
 		statMaximumElementalResistance,
 		statMaximumAllResistances,
@@ -93,8 +103,6 @@ func engineStats() []string {
 // ruleNames are the rules the table refers to for mechanics a modifier cannot express.
 func ruleNames() []string {
 	return []string{
-		// The bonuses of strength, dexterity and intelligence, which some stats turn off.
-		"attribute_bonuses",
 		// Maximum resistances and the caps they put on resistances.
 		"resistance_caps",
 		"chaos_resistance_doubled",

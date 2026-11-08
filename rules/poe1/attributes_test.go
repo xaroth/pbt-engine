@@ -69,6 +69,21 @@ func TestAttributes(t *testing.T) {
 			name: "energy shield from intelligence", stat: "maximum_energy_shield", want: 101,
 			bundles: marauder(1, resolve.StatValue{Stat: "base_maximum_energy_shield", Value: 100}),
 		},
+		// "Strength provides no bonus to Maximum Life": 38 + 12
+		{
+			name: "no life from strength", stat: "maximum_life", want: 50,
+			bundles: marauder(1, resolve.StatValue{Stat: "gain_no_maximum_life_from_strength", Value: 1}),
+		},
+		// Magebane: 15 + 85 evasion without the 2% from dexterity, which would make it 102
+		{
+			name: "magebane", stat: "evasion_rating", want: 100,
+			bundles: marauder(1, resolve.StatValue{Stat: "keystone_magebane", Value: 1}, resolve.StatValue{Stat: "base_evasion_rating", Value: 85}),
+		},
+		// Solipsism: 100 energy shield without the 1% from intelligence
+		{
+			name: "solipsism", stat: "maximum_energy_shield", want: 100,
+			bundles: marauder(1, resolve.StatValue{Stat: "keystone_solipsism", Value: 1}, resolve.StatValue{Stat: "base_maximum_energy_shield", Value: 100}),
+		},
 		// no life at all still leaves 1
 		{name: "life at least 1", bundles: nil, stat: "maximum_life", want: 1},
 	}

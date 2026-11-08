@@ -55,6 +55,9 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		def.Round = core.RoundHalf
 	case statMaximumEnergyShield, statArmour, statEvasionRating:
 		def.Round, def.HasMin = core.RoundHalf, true
+	case statNoStrengthBonusToMaximumLife, statNoIntelligenceBonusToMaximumMana,
+		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield:
+		def.Flag = true
 	}
 	return regenerationDef(resistanceDef(def, ids), ids)
 }
