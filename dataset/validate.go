@@ -169,7 +169,8 @@ func validateText(chars []Character, t Text) error {
 	for _, sc := range t.Descriptions {
 		for _, desc := range sc.Descriptions {
 			if len(desc.Stats) > maxDescriptionStats {
-				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most %d: %w", t.Language, sc.Name, len(desc.Stats), maxDescriptionStats, ErrInvalid)
+				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most %d: %w",
+					t.Language, sc.Name, len(desc.Stats), maxDescriptionStats, ErrInvalid)
 			}
 		}
 	}
