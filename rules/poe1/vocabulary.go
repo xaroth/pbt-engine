@@ -7,6 +7,13 @@ import "slices"
 
 // Engine stat names.
 const (
+	statElementalResistance               = "elemental_resistance"
+	statMaximumElementalResistance        = "maximum_elemental_resistance"
+	statMaximumAllResistances             = "maximum_all_resistances"
+	statFireResistanceCapped              = "fire_resistance_capped"
+	statColdResistanceCapped              = "cold_resistance_capped"
+	statLightningResistanceCapped         = "lightning_resistance_capped"
+	statChaosResistanceCapped             = "chaos_resistance_capped"
 	statArmour                            = "armour"
 	statChaosResistance                   = "chaos_resistance"
 	statColdResistance                    = "cold_resistance"
@@ -32,14 +39,22 @@ const (
 	statStrength                          = "strength"
 )
 
-// engineStats are the engine stats of the character sheet, named after the game's words.
-// Resistances are uncapped values; the maximum_ stats are their caps. Regeneration is per
-// second: life_regenerated_per_second is a flat amount ("Regenerate 10 Life per second"),
-// percent_of_life_regenerated_per_second a share of maximum life ("Regenerate 1% of Life per
-// second"), and life_regeneration_rate holds the increases and more multipliers of the
-// "Life Regeneration rate"; the same for mana.
+// engineStats are the engine stats of the character sheet, named after the game's words, in
+// registration order: a stat follows the stats it includes or reads.
+//
+// Resistances are uncapped totals; the maximum_ stats are their caps and the _capped stats the
+// values the sheet shows. elemental_resistance and the maximum_ stats for all elemental and all
+// resistances hold modifiers to several resistances at once, which each resistance includes.
+//
+// Regeneration is per second: life_regenerated_per_second is a flat amount ("Regenerate 10 Life
+// per second"), percent_of_life_regenerated_per_second a share of maximum life ("Regenerate 1%
+// of Life per second"), and life_regeneration_rate holds the increases and more multipliers of
+// the "Life Regeneration rate"; the same for mana.
 func engineStats() []string {
 	return []string{
+		statElementalResistance,
+		statMaximumElementalResistance,
+		statMaximumAllResistances,
 		statArmour,
 		statChaosResistance,
 		statColdResistance,
@@ -63,6 +78,10 @@ func engineStats() []string {
 		statPercentOfLifeRegeneratedPerSecond,
 		statPercentOfManaRegeneratedPerSecond,
 		statStrength,
+		statFireResistanceCapped,
+		statColdResistanceCapped,
+		statLightningResistanceCapped,
+		statChaosResistanceCapped,
 	}
 }
 
