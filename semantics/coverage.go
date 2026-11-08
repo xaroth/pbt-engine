@@ -54,6 +54,31 @@ func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, s
 	if err != nil {
 		return nil, fmt.Errorf("semantics: dataset %w", err)
 	}
+	uses, err := statUses(s, variant)
+	if err != nil {
+		return nil, err
+	}
+	c := &Coverage{Game: m.Game, Version: m.Version, Variant: variant, Stats: make([]StatUse, 0, len(uses))}
+	for k, n := range uses {
+		u := StatUse{Stat: k.stat, Scope: k.scope, Uses: n, Feeds: feeds(k.stat, k.scope)}
+		if e, ok := t.Lookup(k.stat, k.scope, version); ok {
+			u.Entry = e
+		}
+		c.Stats = append(c.Stats, u)
+	}
+	slices.SortFunc(c.Stats, func(a, b StatUse) int {
+		return cmp.Or(cmp.Compare(b.Uses, a.Uses), cmp.Compare(a.Stat, b.Stat), cmp.Compare(a.Scope, b.Scope))
+	})
+	return c, nil
+}
+
+type useKey struct {
+	stat  string
+	scope resolve.Scope
+}
+
+// statUses counts how often each stat appears in the bundles Cover walks.
+func statUses(s *dataset.Store, variant string) (map[useKey]int, error) {
 	chars, err := s.Characters()
 	if err != nil {
 		return nil, fmt.Errorf("semantics: load characters: %w", err)
@@ -62,17 +87,34 @@ func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, s
 	if err != nil {
 		return nil, fmt.Errorf("semantics: load tree: %w", err)
 	}
-	type key struct {
-		stat  string
-		scope resolve.Scope
+	bundles, err := treeBundles(s, variant, tree)
+	if err != nil {
+		return nil, err
 	}
-	uses := map[key]int{}
+	uses := map[useKey]int{}
 	add := func(scope resolve.Scope, svs []resolve.StatValue) {
 		for _, sv := range svs {
-			uses[key{sv.Stat, scope}]++
+			uses[useKey{sv.Stat, scope}]++
 		}
 	}
-	bundles, err := resolve.CampaignBundles(m.Game, build.CampaignComplete)
+	for i := range chars {
+		cs, err := resolve.CharacterStats(s, chars[i].ID)
+		if err != nil {
+			return nil, fmt.Errorf("semantics: character stats: %w", err)
+		}
+		add(resolve.Global, cs)
+		add(resolve.Global, []resolve.StatValue{{Stat: resolve.LevelStat}})
+	}
+	for _, b := range bundles {
+		add(b.Scope, b.Stats)
+	}
+	return uses, nil
+}
+
+// treeBundles returns the quest rewards of a completed campaign, then the bundles of every
+// node of tree and its mastery effects.
+func treeBundles(s *dataset.Store, variant string, tree *dataset.Tree) ([]resolve.Bundle, error) {
+	bundles, err := resolve.CampaignBundles(s.Manifest().Game, build.CampaignComplete)
 	if err != nil {
 		return nil, fmt.Errorf("semantics: campaign bundles: %w", err)
 	}
@@ -91,30 +133,7 @@ func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, s
 			bundles = append(bundles, b)
 		}
 	}
-	for i := range chars {
-		cs, err := resolve.CharacterStats(s, chars[i].ID)
-		if err != nil {
-			return nil, fmt.Errorf("semantics: character stats: %w", err)
-		}
-		add(resolve.Global, cs)
-		add(resolve.Global, []resolve.StatValue{{Stat: resolve.LevelStat}})
-	}
-	for _, b := range bundles {
-		add(b.Scope, b.Stats)
-	}
-
-	c := &Coverage{Game: m.Game, Version: m.Version, Variant: variant, Stats: make([]StatUse, 0, len(uses))}
-	for k, n := range uses {
-		u := StatUse{Stat: k.stat, Scope: k.scope, Uses: n, Feeds: feeds(k.stat, k.scope)}
-		if e, ok := t.Lookup(k.stat, k.scope, version); ok {
-			u.Entry = e
-		}
-		c.Stats = append(c.Stats, u)
-	}
-	slices.SortFunc(c.Stats, func(a, b StatUse) int {
-		return cmp.Or(cmp.Compare(b.Uses, a.Uses), cmp.Compare(a.Stat, b.Stat), cmp.Compare(a.Scope, b.Scope))
-	})
-	return c, nil
+	return bundles, nil
 }
 
 // Summary counts c's stats.
@@ -146,42 +165,50 @@ func (c *Coverage) WriteText(w io.Writer) error {
 	s := c.Summary()
 	fmt.Fprintf(&b, "coverage %s %s %s tree and characters: %d stats; %d authored, %d unknown, %d display-only, %d gaps, %d outside\n",
 		c.Game, c.Version, c.Variant, len(c.Stats), s.Authored, s.Unknown, s.DisplayOnly, s.Gaps, s.Outside)
-	kinds := map[ReasonKind]int{}
+	writeReasonCounts(&b, c.Stats)
 	for i := range c.Stats {
-		if e := c.Stats[i].Entry; e != nil && e.Status == Unknown {
-			kinds[e.Reason.Kind]++
-		}
-	}
-	if len(kinds) > 0 {
-		order := slices.SortedFunc(maps.Keys(kinds), func(a, b ReasonKind) int { return cmp.Or(cmp.Compare(kinds[b], kinds[a]), cmp.Compare(a, b)) })
-		counts := make([]string, len(order))
-		for i, k := range order {
-			counts[i] = fmt.Sprintf("%s %d", k, kinds[k])
-		}
-		fmt.Fprintf(&b, "unknown by reason: %s\n", strings.Join(counts, ", "))
-	}
-	for i := range c.Stats {
-		u := &c.Stats[i]
-		e := u.Entry
-		switch {
-		case u.Gap():
-			fmt.Fprintf(&b, "gap %s %s, uses %d\n", u.Stat, u.Scope, u.Uses)
-		case e == nil:
-		case e.Status == Unknown && e.Rule != "":
-			fmt.Fprintf(&b, "unknown %s %s, uses %d: %s %s: %s\n", u.Stat, u.Scope, u.Uses, e.Reason.Kind, e.Rule, e.Reason.Text)
-		case e.Status == Unknown:
-			fmt.Fprintf(&b, "unknown %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Reason)
-		case e.Status == Authored:
-			if e.Unvalidated != "" {
-				fmt.Fprintf(&b, "unvalidated %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Unvalidated)
-			}
-			if e.Omitted != "" {
-				fmt.Fprintf(&b, "omitted %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Omitted)
-			}
-		}
+		writeStatUse(&b, &c.Stats[i])
 	}
 	if _, err := io.WriteString(w, b.String()); err != nil {
 		return fmt.Errorf("semantics: write: %w", err)
 	}
 	return nil
+}
+
+func writeReasonCounts(b *strings.Builder, stats []StatUse) {
+	kinds := map[ReasonKind]int{}
+	for i := range stats {
+		if e := stats[i].Entry; e != nil && e.Status == Unknown {
+			kinds[e.Reason.Kind]++
+		}
+	}
+	if len(kinds) == 0 {
+		return
+	}
+	order := slices.SortedFunc(maps.Keys(kinds), func(a, b ReasonKind) int { return cmp.Or(cmp.Compare(kinds[b], kinds[a]), cmp.Compare(a, b)) })
+	counts := make([]string, len(order))
+	for i, k := range order {
+		counts[i] = fmt.Sprintf("%s %d", k, kinds[k])
+	}
+	fmt.Fprintf(b, "unknown by reason: %s\n", strings.Join(counts, ", "))
+}
+
+func writeStatUse(b *strings.Builder, u *StatUse) {
+	e := u.Entry
+	switch {
+	case u.Gap():
+		fmt.Fprintf(b, "gap %s %s, uses %d\n", u.Stat, u.Scope, u.Uses)
+	case e == nil:
+	case e.Status == Unknown && e.Rule != "":
+		fmt.Fprintf(b, "unknown %s %s, uses %d: %s %s: %s\n", u.Stat, u.Scope, u.Uses, e.Reason.Kind, e.Rule, e.Reason.Text)
+	case e.Status == Unknown:
+		fmt.Fprintf(b, "unknown %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Reason)
+	case e.Status == Authored:
+		if e.Unvalidated != "" {
+			fmt.Fprintf(b, "unvalidated %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Unvalidated)
+		}
+		if e.Omitted != "" {
+			fmt.Fprintf(b, "omitted %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Omitted)
+		}
+	}
 }
