@@ -108,7 +108,7 @@ func TestOpenRootSkipsBadDatasets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b = bytes.Replace(b, []byte(`"format": 4`), []byte(`"format": 3`), 1)
+	b = bytes.Replace(b, []byte(`"format": 1`), []byte(`"format": 2`), 1)
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestOpenRootSkipsBadDatasets(t *testing.T) {
 	if r == nil {
 		t.Fatalf("OpenRoot: got a nil registry with %v, want the good dataset", err)
 	}
-	for _, want := range []string{"old: dataset format 3, want 4", "twice: dataset poe1 3.29.3.3 added twice"} {
+	for _, want := range []string{"old: dataset format 2, want 1", "twice: dataset poe1 3.29.3.3 added twice"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("OpenRoot error: got %v, want it to contain %q", err, want)
 		}
