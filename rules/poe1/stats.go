@@ -63,8 +63,11 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		def.Round, def.HasMin, def.Min = core.RoundHalf, true, 1
 	case statMaximumMana:
 		def.Round = core.RoundHalf
-	case statMaximumEnergyShield, statArmour, statEvasionRating:
+	case statMaximumEnergyShield:
 		def.Round, def.HasMin = core.RoundHalf, true
+	case statArmour, statEvasionRating:
+		def.Round, def.HasMin = core.RoundHalf, true
+		def.Includes = []core.StatID{mustID(ids, statArmourAndEvasionRating)}
 	case statNoStrengthBonusToMaximumLife, statNoIntelligenceBonusToMaximumMana,
 		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield,
 		statChaosResistanceIsDoubled, statElementalMaximumResistancesAreHighest,

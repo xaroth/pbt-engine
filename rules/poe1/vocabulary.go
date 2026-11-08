@@ -7,6 +7,7 @@ import "slices"
 
 // Engine stat names.
 const (
+	statArmourAndEvasionRating                   = "armour_and_evasion_rating"
 	statChaosResistanceIsDoubled                 = "chaos_resistance_is_doubled"
 	statElementalMaximumResistancesAreHighest    = "elemental_maximum_resistances_are_highest"
 	statLifeRegenerationIsNotApplied             = "life_regeneration_is_not_applied"
@@ -58,7 +59,8 @@ const (
 //
 // Resistances are uncapped totals; the maximum_ stats are their caps and the _capped stats the
 // values the sheet shows. elemental_resistance and the maximum_ stats for all elemental and all
-// resistances hold modifiers to several resistances at once, which each resistance includes.
+// resistances hold modifiers to several resistances at once, which each resistance includes;
+// armour_and_evasion_rating holds those to both, which armour and evasion rating include.
 //
 // The no_ stats are flags that turn off one inherent attribute bonus each; the _is_ and _are_
 // stats are flags of one-off mechanics. effective_maximum_ elemental resistances are the
@@ -79,6 +81,7 @@ func engineStats() []string {
 		statNoIntelligenceBonusToMaximumMana,
 		statNoDexterityBonusToEvasionRating,
 		statNoIntelligenceBonusToMaximumEnergyShield,
+		statArmourAndEvasionRating,
 		statElementalResistance,
 		statMaximumElementalResistance,
 		statMaximumAllResistances,
@@ -121,12 +124,10 @@ func engineStats() []string {
 // ruleNames are the rules the table refers to for mechanics a modifier cannot express.
 func ruleNames() []string {
 	return []string{
-		"convert_evasion_rating_to_armour",
-		"convert_life_to_energy_shield",
+		ruleConvert,
 		"energy_shield_from_spell_block_chance",
 		"fire_resistance_modifiers_also_apply",
-		// "Gain X% of a value as Extra Y": a share of one final value added to another.
-		"gain_as_extra",
+		ruleGainAsExtra,
 	}
 }
 
@@ -137,7 +138,11 @@ type Vocabulary struct{}
 func (Vocabulary) IsEngineStat(name string) bool { return slices.Contains(engineStats(), name) }
 
 // RuleParams returns the parameters of rule name of the character sheet, and false for an
-// unknown rule. No rule takes parameters yet.
+// unknown rule.
 func (Vocabulary) RuleParams(name string) ([]string, bool) {
+	switch name {
+	case ruleGainAsExtra, ruleConvert:
+		return []string{"from", "to"}, true
+	}
 	return nil, slices.Contains(ruleNames(), name)
 }
