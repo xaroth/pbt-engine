@@ -44,6 +44,7 @@ const (
 	fbSuffix       = ".fb"
 )
 
+// filePerm is world-readable because datasets are published files.
 const filePerm = 0o644
 
 // Write writes d into dir as a dataset and returns the manifest it wrote. Format, ID and Files
