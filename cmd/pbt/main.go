@@ -102,81 +102,112 @@ func run(args []string, w, notes io.Writer) error {
 	if err != nil {
 		return err
 	}
-	switch {
-	case len(pos) == 4 && pos[0] == "data" && pos[1] == "show":
-		if opts["version"] == "" {
-			return errVersionRequired
-		}
-		var variants []string // stats and characters need no tree
-		if pos[2] == "node" {
-			variants = []string{opts["variant"]}
-		}
-		res, err := resolveVersions(notes, opts["root"], opts["game"], opts["version"])
-		if err != nil {
-			return err
-		}
-		d, err := read(res[0].Store, variants, opts["language"])
-		if err != nil {
-			return err
-		}
-		switch pos[2] {
-		case "node":
-			return showNode(w, d, opts["variant"], pos[3])
-		case "stat":
-			return showStat(w, d, pos[3])
-		case "character":
-			return showCharacter(w, d, pos[3])
-		}
-	case len(pos) == 4 && pos[0] == "data" && pos[1] == "diff":
-		limit, err := strconv.Atoi(opts["limit"])
-		if err != nil || limit < 0 {
-			return fmt.Errorf("--limit %q: %w", opts["limit"], errLimit)
-		}
-		res, err := resolveVersions(notes, opts["root"], opts["game"], pos[2], pos[3])
-		if err != nil {
-			return err
-		}
-		sa, sb := res[0].Store, res[1].Store
-		a, err := read(sa, sa.Manifest().Trees(), opts["language"])
-		if err != nil {
-			return err
-		}
-		b, err := read(sb, sb.Manifest().Trees(), opts["language"])
-		if err != nil {
-			return err
-		}
-		return diff(w, a, b, limit)
-	case len(pos) == 3 && pos[0] == "build" && pos[1] == "check":
-		c, err := checkBuild(notes, opts["root"], pos[2])
-		if err != nil {
-			return err
-		}
-		p := &printer{w: w}
-		b := c.Build()
-		p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Store().Manifest().Version,
-			b.Variant, b.Class, cmp.Or(b.Ascendancy, "no ascendancy"), b.Level, len(b.Nodes))
-		return p.err
-	case len(pos) == 3 && pos[0] == "build" && pos[1] == "resolve":
-		c, err := checkBuild(w, opts["root"], pos[2])
-		if err != nil {
-			return err
-		}
-		r, err := resolve.Resolve(c)
-		if err != nil {
-			return fmt.Errorf("%s: %w", pos[2], err)
-		}
-		if err := r.Dump(w); err != nil {
-			return fmt.Errorf("dump: %w", err)
-		}
-		return nil
-	case len(pos) == 2 && pos[0] == "semantics" && pos[1] == "coverage":
-		res, err := resolveVersions(notes, opts["root"], opts["game"], opts["version"])
-		if err != nil {
-			return err
-		}
-		return coverage(w, res[0].Store, opts["variant"])
+	commands := map[string]struct {
+		args int
+		run  func(invocation) error
+	}{
+		"data show":          {4, dataShow},
+		"data diff":          {4, dataDiff},
+		"build check":        {3, buildCheck},
+		"build resolve":      {3, buildResolve},
+		"semantics coverage": {2, semanticsCoverage},
+	}
+	const commandWords = 2
+	cmd, ok := commands[strings.Join(pos[:min(len(pos), commandWords)], " ")]
+	if !ok || len(pos) != cmd.args {
+		return errUsage
+	}
+	return cmd.run(invocation{pos: pos, opts: opts, w: w, notes: notes})
+}
+
+// invocation is a parsed command line and where its output goes.
+type invocation struct {
+	pos      []string
+	opts     map[string]string
+	w, notes io.Writer
+}
+
+func dataShow(in invocation) error {
+	if in.opts["version"] == "" {
+		return errVersionRequired
+	}
+	var variants []string // stats and characters need no tree
+	if in.pos[2] == "node" {
+		variants = []string{in.opts["variant"]}
+	}
+	res, err := resolveVersions(in.notes, in.opts["root"], in.opts["game"], in.opts["version"])
+	if err != nil {
+		return err
+	}
+	d, err := read(res[0].Store, variants, in.opts["language"])
+	if err != nil {
+		return err
+	}
+	switch in.pos[2] {
+	case "node":
+		return showNode(in.w, d, in.opts["variant"], in.pos[3])
+	case "stat":
+		return showStat(in.w, d, in.pos[3])
+	case "character":
+		return showCharacter(in.w, d, in.pos[3])
 	}
 	return errUsage
+}
+
+func dataDiff(in invocation) error {
+	limit, err := strconv.Atoi(in.opts["limit"])
+	if err != nil || limit < 0 {
+		return fmt.Errorf("--limit %q: %w", in.opts["limit"], errLimit)
+	}
+	res, err := resolveVersions(in.notes, in.opts["root"], in.opts["game"], in.pos[2], in.pos[3])
+	if err != nil {
+		return err
+	}
+	sa, sb := res[0].Store, res[1].Store
+	a, err := read(sa, sa.Manifest().Trees(), in.opts["language"])
+	if err != nil {
+		return err
+	}
+	b, err := read(sb, sb.Manifest().Trees(), in.opts["language"])
+	if err != nil {
+		return err
+	}
+	return diff(in.w, a, b, limit)
+}
+
+func buildCheck(in invocation) error {
+	c, err := checkBuild(in.notes, in.opts["root"], in.pos[2])
+	if err != nil {
+		return err
+	}
+	p := &printer{w: in.w}
+	b := c.Build()
+	p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Store().Manifest().Version,
+		b.Variant, b.Class, cmp.Or(b.Ascendancy, "no ascendancy"), b.Level, len(b.Nodes))
+	return p.err
+}
+
+func buildResolve(in invocation) error {
+	c, err := checkBuild(in.w, in.opts["root"], in.pos[2])
+	if err != nil {
+		return err
+	}
+	r, err := resolve.Resolve(c)
+	if err != nil {
+		return fmt.Errorf("%s: %w", in.pos[2], err)
+	}
+	if err := r.Dump(in.w); err != nil {
+		return fmt.Errorf("dump: %w", err)
+	}
+	return nil
+}
+
+func semanticsCoverage(in invocation) error {
+	res, err := resolveVersions(in.notes, in.opts["root"], in.opts["game"], in.opts["version"])
+	if err != nil {
+		return err
+	}
+	return coverage(in.w, res[0].Store, in.opts["variant"])
 }
 
 // resolveVersions resolves versions of game among the datasets under root and notes on notes
@@ -324,20 +355,10 @@ func (t texter) lines(scope string, stats map[string]int32) []string {
 
 func showNode(w io.Writer, d *dataset.Dataset, variant, idArg string) error {
 	p := &printer{w: w}
-	id, err := strconv.ParseUint(idArg, 10, 32)
+	n, err := findNode(d, variant, idArg)
 	if err != nil {
-		return fmt.Errorf("node id %q: %w", idArg, err)
+		return err
 	}
-	ti := slices.IndexFunc(d.Trees, func(t dataset.Tree) bool { return t.Variant == variant })
-	if ti < 0 {
-		return fmt.Errorf("no %s tree in %s: %w", variant, d.Manifest.Version, errNotFound)
-	}
-	nodes := d.Trees[ti].Nodes
-	ni, ok := slices.BinarySearchFunc(nodes, uint32(id), func(n dataset.Node, id uint32) int { return int(n.ID) - int(id) })
-	if !ok {
-		return fmt.Errorf("no node %d in the %s %s tree: %w", id, d.Manifest.Version, variant, errNotFound)
-	}
-	n := nodes[ni]
 	t, err := newTexter(d)
 	if err != nil {
 		return err
@@ -367,6 +388,23 @@ func showNode(w io.Writer, d *dataset.Dataset, variant, idArg string) error {
 	}
 	p.printf("  neighbours: %s\n", strings.Join(nb, " "))
 	return p.err
+}
+
+func findNode(d *dataset.Dataset, variant, idArg string) (dataset.Node, error) {
+	id, err := strconv.ParseUint(idArg, 10, 32)
+	if err != nil {
+		return dataset.Node{}, fmt.Errorf("node id %q: %w", idArg, err)
+	}
+	ti := slices.IndexFunc(d.Trees, func(t dataset.Tree) bool { return t.Variant == variant })
+	if ti < 0 {
+		return dataset.Node{}, fmt.Errorf("no %s tree in %s: %w", variant, d.Manifest.Version, errNotFound)
+	}
+	nodes := d.Trees[ti].Nodes
+	ni, ok := slices.BinarySearchFunc(nodes, uint32(id), func(n dataset.Node, id uint32) int { return int(n.ID) - int(id) })
+	if !ok {
+		return dataset.Node{}, fmt.Errorf("no node %d in the %s %s tree: %w", id, d.Manifest.Version, variant, errNotFound)
+	}
+	return nodes[ni], nil
 }
 
 func showStat(w io.Writer, d *dataset.Dataset, id string) error {
@@ -433,30 +471,35 @@ func diff(w io.Writer, a, b *dataset.Dataset, limit int) error {
 		total := t.NodesCompared + len(t.Removed)
 		p.printf("tree %s: %d nodes added, %d removed, %d changed; node ids kept: %s; mastery effects %d added, %d removed\n",
 			t.Variant, len(t.Added), len(t.Removed), len(t.Changed), percent(t.NodesCompared, total), len(t.EffectsAdded), len(t.EffectsRemoved))
-		for i, n := range t.Changed {
-			if i == limit {
-				p.printf("  ... %d more\n", len(t.Changed)-limit)
-				break
-			}
-			p.printf("  %d %s [%s]\n", n.ID, tb.nodes[n.ID], strings.Join(n.Fields, ", "))
-			if n.StatsBefore == nil {
-				continue
-			}
-			before := ta.lines(treeScope, n.StatsBefore)
-			after := tb.lines(treeScope, n.StatsAfter)
-			for _, l := range before {
-				if !slices.Contains(after, l) {
-					p.printf("    - %s\n", l)
-				}
-			}
-			for _, l := range after {
-				if !slices.Contains(before, l) {
-					p.printf("    + %s\n", l)
-				}
-			}
-		}
+		printChangedNodes(p, t, ta, tb, limit)
 	}
 	return p.err
+}
+
+func printChangedNodes(p *printer, t dataset.TreeDiff, ta, tb texter, limit int) {
+	for i, n := range t.Changed {
+		if i == limit {
+			p.printf("  ... %d more\n", len(t.Changed)-limit)
+			return
+		}
+		p.printf("  %d %s [%s]\n", n.ID, tb.nodes[n.ID], strings.Join(n.Fields, ", "))
+		if n.StatsBefore != nil {
+			printStatChanges(p, ta.lines(treeScope, n.StatsBefore), tb.lines(treeScope, n.StatsAfter))
+		}
+	}
+}
+
+func printStatChanges(p *printer, before, after []string) {
+	for _, l := range before {
+		if !slices.Contains(after, l) {
+			p.printf("    - %s\n", l)
+		}
+	}
+	for _, l := range after {
+		if !slices.Contains(before, l) {
+			p.printf("    + %s\n", l)
+		}
+	}
 }
 
 // printer writes formatted output and keeps the first write error.
