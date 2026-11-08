@@ -181,7 +181,9 @@ const kitavaGame = "poe1"
 
 // kitavaQuests are the quests that end with defeating Kitava, in campaign order: The
 // Ravenous God (act 5) and An End to Hunger (act 10).
-var kitavaQuests = [...]string{"a5q6", "a10q3"}
+func kitavaQuests() []string {
+	return []string{"a5q6", "a10q3"}
+}
 
 // kitavaAffliction is the reward of each quest in kitavaQuests. Datasets have no quest
 // reward table, so it is held here. Source: the QuestStaticRewards rows of a5q6 and a10q3,
@@ -198,7 +200,7 @@ func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
 		return nil, fmt.Errorf("resolve: %w for %s", ErrNoRewards, game)
 	}
 	var out []Bundle
-	for _, q := range kitavaQuests[:kitavaDefeats(c)] {
+	for _, q := range kitavaQuests()[:kitavaDefeats(c)] {
 		out = append(out, Bundle{Actor: Player, Scope: Global, Source: QuestSource{ID: q}, Stats: kitavaAffliction()})
 	}
 	return out, nil

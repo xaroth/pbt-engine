@@ -18,10 +18,12 @@ import (
 const marauder = "Metadata/Characters/Str/Str"
 
 // statIDs are the stats of testDataset. Handles in it index into this list.
-var statIDs = []string{
-	"level", "life_per_level", "base_maximum_all_resistances_%", "additional_strength", "maximum_life_+%", "aura_damage_+%",
-	"base_strength", "base_dexterity", "base_intelligence", "base_maximum_life", "base_maximum_mana",
-	"base_resist_all_elements_%", "base_chaos_damage_resistance_%",
+func statIDs() []string {
+	return []string{
+		"level", "life_per_level", "base_maximum_all_resistances_%", "additional_strength", "maximum_life_+%", "aura_damage_+%",
+		"base_strength", "base_dexterity", "base_intelligence", "base_maximum_life", "base_maximum_mana",
+		"base_resist_all_elements_%", "base_chaos_damage_resistance_%",
+	}
 }
 
 func testDataset() *dataset.Dataset {
@@ -44,7 +46,7 @@ func testDataset() *dataset.Dataset {
 			},
 		}},
 	}
-	for _, id := range statIDs {
+	for _, id := range statIDs() {
 		d.Stats = append(d.Stats, dataset.Stat{ID: id})
 	}
 	return d
@@ -204,7 +206,7 @@ func TestResolveMissingStat(t *testing.T) {
 			t.Parallel()
 			d := testDataset()
 			// Swap the stat out for one no lookup uses, so handles in d stay valid.
-			d.Stats[slices.Index(statIDs, testCase.stat)].ID = "unused"
+			d.Stats[slices.Index(statIDs(), testCase.stat)].ID = "unused"
 			_, err := resolveBuild(t, open(t, d), testBuild(1, testCase.scenario))
 			if err == nil || !strings.Contains(err.Error(), "no stat "+testCase.stat) {
 				t.Errorf("got %v, want an error naming %s", err, testCase.stat)

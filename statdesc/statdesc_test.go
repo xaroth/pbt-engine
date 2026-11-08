@@ -10,7 +10,7 @@ import (
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
-var anyValue = statdesc.Limit{Min: math.MinInt32, Max: math.MaxInt32}
+func anyValue() statdesc.Limit { return statdesc.Limit{Min: math.MinInt32, Max: math.MaxInt32} }
 
 func atLeast(n int32) statdesc.Limit { return statdesc.Limit{Min: n, Max: math.MaxInt32} }
 func atMost(n int32) statdesc.Limit  { return statdesc.Limit{Min: math.MinInt32, Max: n} }
@@ -19,7 +19,7 @@ func atMost(n int32) statdesc.Limit  { return statdesc.Limit{Min: math.MinInt32,
 func one(stat, text string, handlers ...statdesc.Handler) statdesc.Description {
 	return statdesc.Description{
 		Stats:    []string{stat},
-		Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: text, Handlers: handlers}},
+		Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue()}, Text: text, Handlers: handlers}},
 	}
 }
 
@@ -36,7 +36,7 @@ func testSet(t *testing.T) *statdesc.Set {
 		{
 			Stats: []string{"min_fire", "max_fire"},
 			Variants: []statdesc.Variant{
-				{Limits: []statdesc.Limit{anyValue, anyValue}, Text: "Adds {0} to {1} Fire Damage"},
+				{Limits: []statdesc.Limit{anyValue(), anyValue()}, Text: "Adds {0} to {1} Fire Damage"},
 			},
 		},
 		{
@@ -152,7 +152,7 @@ func TestNewSetErrors(t *testing.T) {
 		{name: "parent cycle", scopes: []statdesc.Scope{{Name: "a", Parent: "b"}, {Name: "b", Parent: "a"}}},
 		{name: "no stats", scopes: []statdesc.Scope{{Name: "a", Descriptions: []statdesc.Description{{}}}}},
 		{name: "limit count", scopes: []statdesc.Scope{{Name: "a", Descriptions: []statdesc.Description{{
-			Stats: []string{"x", "y"}, Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}}},
+			Stats: []string{"x", "y"}, Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue()}}},
 		}}}}},
 		{name: "handler stat out of range", scopes: []statdesc.Scope{{Name: "a", Descriptions: []statdesc.Description{
 			one("x", "{0}", statdesc.Handler{Name: "negate", Stat: 1}),
