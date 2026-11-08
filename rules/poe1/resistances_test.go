@@ -84,6 +84,25 @@ func TestResistances(t *testing.T) {
 			},
 		},
 		{
+			// cold: -60 + 12 + half of fire's own 30; the 12 all elemental and the Kitava penalty
+			// reach cold once, through elemental resistance
+			name: "fire modifiers apply to cold and lightning at 50%",
+			extra: []resolve.StatValue{
+				{Stat: "base_fire_damage_resistance_%", Value: 30}, {Stat: "base_resist_all_elements_%", Value: 12},
+				{Stat: "modifiers_to_fire_resistance_also_apply_to_cold_lightning_resistance_at_%_value", Value: 50},
+			},
+			want: map[string]float64{"fire_resistance": -18, "cold_resistance": -33, "lightning_resistance": -33, "chaos_resistance": -60},
+		},
+		{
+			// the character's 75 is not a modifier to maximum fire resistance, the +3 is
+			name: "maximum fire modifiers apply to cold and lightning",
+			extra: []resolve.StatValue{
+				{Stat: "base_maximum_fire_damage_resistance_%", Value: 3},
+				{Stat: "modifiers_to_maximum_fire_resistance_apply_to_maximum_cold_and_lightning_resistance", Value: 1},
+			},
+			want: map[string]float64{"maximum_fire_resistance": 78, "maximum_cold_resistance": 78, "maximum_chaos_resistance": 75},
+		},
+		{
 			name:  "at least -200",
 			extra: []resolve.StatValue{{Stat: "base_fire_damage_resistance_%", Value: -300}},
 			want:  map[string]float64{"fire_resistance": -360, "fire_resistance_capped": -200},
