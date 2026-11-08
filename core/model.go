@@ -117,8 +117,13 @@ type Dimension struct {
 	Values []string
 }
 
-// Bit returns the bit of the value at index i.
-func (d Dimension) Bit(i int) Bit { return d.First + Bit(u16(i)) }
+// Bit returns the bit of the value at index i. It panics if i is outside d.Values.
+func (d Dimension) Bit(i int) Bit {
+	if i < 0 || i >= len(d.Values) {
+		panic("core: dimension value index out of range")
+	}
+	return d.First + Bit(u16(i))
+}
 
 // ModelBuilder registers stats and context dimensions. The zero value is ready to use.
 type ModelBuilder struct {
