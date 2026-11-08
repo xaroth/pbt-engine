@@ -56,6 +56,34 @@ func TestResistances(t *testing.T) {
 			want:  map[string]float64{"maximum_fire_resistance": 90},
 		},
 		{
+			// -60 + 20 doubled
+			name:  "chaos resistance doubled",
+			extra: []resolve.StatValue{{Stat: "base_chaos_damage_resistance_%", Value: 20}, {Stat: "chaos_damage_resistance_is_doubled", Value: 1}},
+			want:  map[string]float64{"chaos_resistance": -80, "chaos_resistance_capped": -80},
+		},
+		{
+			// one source doubles as two do
+			name: "chaos resistance doubled once",
+			extra: []resolve.StatValue{
+				{Stat: "base_chaos_damage_resistance_%", Value: 100}, {Stat: "chaos_damage_resistance_is_doubled", Value: 1},
+				{Stat: "chaos_damage_resistance_is_doubled", Value: 1},
+			},
+			want: map[string]float64{"chaos_resistance": 80},
+		},
+		{
+			// Melding of the Flesh: cold's 80% maximum caps fire and lightning too; chaos keeps 75
+			name: "capped by the highest maximum",
+			extra: []resolve.StatValue{
+				{Stat: "elemental_resistances_are_limited_by_highest_maximum_elemental_resistance", Value: 1},
+				{Stat: "base_maximum_cold_damage_resistance_%", Value: 5}, {Stat: "base_resist_all_elements_%", Value: 200},
+				{Stat: "base_chaos_damage_resistance_%", Value: 200},
+			},
+			want: map[string]float64{
+				"maximum_fire_resistance": 75, "effective_maximum_fire_resistance": 80, "fire_resistance_capped": 80,
+				"lightning_resistance_capped": 80, "chaos_resistance_capped": 75,
+			},
+		},
+		{
 			name:  "at least -200",
 			extra: []resolve.StatValue{{Stat: "base_fire_damage_resistance_%", Value: -300}},
 			want:  map[string]float64{"fire_resistance": -360, "fire_resistance_capped": -200},

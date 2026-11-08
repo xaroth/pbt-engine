@@ -24,19 +24,29 @@ func mustID(ids map[string]core.StatID, name string) core.StatID {
 	return id
 }
 
-// resistance is one damage type's resistance stats: the uncapped total, its maximum and the
-// capped sheet value.
+// resistance is one damage type's resistance stats: the uncapped total, its maximum, the
+// maximum that caps it and the capped sheet value.
 type resistance struct {
-	total, maximum, capped string
-	elemental              bool
+	total, maximum, effective, capped string
+	elemental                         bool
 }
 
 func resistances() []resistance {
 	return []resistance{
-		{total: statFireResistance, maximum: statMaximumFireResistance, capped: statFireResistanceCapped, elemental: true},
-		{total: statColdResistance, maximum: statMaximumColdResistance, capped: statColdResistanceCapped, elemental: true},
-		{total: statLightningResistance, maximum: statMaximumLightningResistance, capped: statLightningResistanceCapped, elemental: true},
-		{total: statChaosResistance, maximum: statMaximumChaosResistance, capped: statChaosResistanceCapped},
+		{
+			total: statFireResistance, maximum: statMaximumFireResistance, effective: statEffectiveMaximumFireResistance,
+			capped: statFireResistanceCapped, elemental: true,
+		},
+		{
+			total: statColdResistance, maximum: statMaximumColdResistance, effective: statEffectiveMaximumColdResistance,
+			capped: statColdResistanceCapped, elemental: true,
+		},
+		{
+			total: statLightningResistance, maximum: statMaximumLightningResistance, effective: statEffectiveMaximumLightningResistance,
+			capped: statLightningResistanceCapped, elemental: true,
+		},
+		// chaos has no effective maximum: "capped by your highest" is about elemental ones
+		{total: statChaosResistance, maximum: statMaximumChaosResistance, effective: statMaximumChaosResistance, capped: statChaosResistanceCapped},
 	}
 }
 
@@ -56,15 +66,18 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 	case statMaximumEnergyShield, statArmour, statEvasionRating:
 		def.Round, def.HasMin = core.RoundHalf, true
 	case statNoStrengthBonusToMaximumLife, statNoIntelligenceBonusToMaximumMana,
-		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield:
+		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield,
+		statChaosResistanceIsDoubled, statElementalMaximumResistancesAreHighest,
+		statLifeRegenerationIsNotApplied, statLifeRegenerationAppliesToEnergyShield:
 		def.Flag = true
 	}
 	return regenerationDef(resistanceDef(def, ids), ids)
 }
 
-// regeneration is one pool's regeneration stats.
+// regeneration is one pool's regeneration stats; any of the flag stats off sets it to 0.
 type regeneration struct {
 	total, flat, percent, rate, pool string
+	off                              []string
 }
 
 func regenerations() []regeneration {
@@ -72,6 +85,7 @@ func regenerations() []regeneration {
 		{
 			total: statLifeRegeneration, flat: statLifeRegeneratedPerSecond, percent: statPercentOfLifeRegeneratedPerSecond,
 			rate: statLifeRegenerationRate, pool: statMaximumLife,
+			off: []string{statLifeRegenerationIsNotApplied, statLifeRegenerationAppliesToEnergyShield},
 		},
 		{
 			total: statManaRegeneration, flat: statManaRegeneratedPerSecond, percent: statPercentOfManaRegeneratedPerSecond,
@@ -98,14 +112,43 @@ func regenerationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef 
 			continue
 		}
 		percent, pool := mustID(ids, rg.percent), mustID(ids, rg.pool)
+		off := make([]core.StatID, 0, len(rg.off))
+		for _, name := range rg.off {
+			off = append(off, mustID(ids, name))
+		}
 		def.Includes = []core.StatID{mustID(ids, rg.flat), mustID(ids, rg.rate)}
 		def.Round, def.Places = core.RoundHalf, regenerationPlaces
 		def.Formula = func(rd core.Reader, a core.Agg) float64 {
+			for _, f := range off {
+				if rd.Stat(f) != 0 {
+					return 0
+				}
+			}
 			base := a.Base + float64(rd.Stat(pool)*rd.Stat(percent))/percentScale
 			return base * (1 + a.Inc/percentScale) * a.More
 		}
 	}
+	if def.Name == statEnergyShieldRegeneration {
+		def.Round, def.Places = core.RoundHalf, regenerationPlaces
+		def.Formula = lifeRegenerationAsEnergyShield(ids)
+	}
 	return def
+}
+
+// lifeRegenerationAsEnergyShield is energy shield regeneration while "Life Regeneration is
+// applied to Energy Shield instead": the flat life regeneration plus the life regeneration
+// percentage of maximum energy shield. Life regeneration rate modifiers do not carry over, as
+// in PoB; the text does not say.
+func lifeRegenerationAsEnergyShield(ids map[string]core.StatID) core.Formula {
+	on := mustID(ids, statLifeRegenerationAppliesToEnergyShield)
+	flat, percent := mustID(ids, statLifeRegeneratedPerSecond), mustID(ids, statPercentOfLifeRegeneratedPerSecond)
+	pool := mustID(ids, statMaximumEnergyShield)
+	return func(rd core.Reader, _ core.Agg) float64 {
+		if rd.Stat(on) == 0 {
+			return 0
+		}
+		return rd.Stat(flat) + float64(rd.Stat(pool)*rd.Stat(percent))/percentScale
+	}
 }
 
 // resistanceDef completes def when it is one of a resistance's stats.
@@ -116,6 +159,8 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			def.Round = core.RoundTrunc
 			if r.elemental {
 				def.Includes = []core.StatID{mustID(ids, statElementalResistance)}
+			} else {
+				def.Formula = chaosResistance(mustID(ids, statChaosResistanceIsDoubled))
 			}
 		case r.maximum:
 			def.Round, def.HasMax, def.Max = core.RoundTrunc, true, maxResistanceCap
@@ -123,11 +168,44 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			if r.elemental {
 				def.Includes = append(def.Includes, mustID(ids, statMaximumElementalResistance))
 			}
+		case r.effective:
+			def.Formula = effectiveMaximum(mustID(ids, r.maximum), ids)
 		case r.capped:
-			total, maximum := mustID(ids, r.total), mustID(ids, r.maximum)
+			total, maximum := mustID(ids, r.total), mustID(ids, r.effective)
 			def.HasMin, def.Min = true, resistanceFloor
 			def.Formula = func(rd core.Reader, _ core.Agg) float64 { return min(rd.Stat(total), rd.Stat(maximum)) }
 		}
 	}
 	return def
+}
+
+// chaosResistance doubles the total once while doubled is set, as PoB does (a 100% more
+// multiplier limited to one); the game text does not say.
+func chaosResistance(doubled core.StatID) core.Formula {
+	return func(rd core.Reader, a core.Agg) float64 {
+		v := a.Default()
+		if rd.Stat(doubled) != 0 {
+			v *= 2
+		}
+		return v
+	}
+}
+
+// effectiveMaximum is an elemental resistance's own maximum, or the highest elemental maximum
+// while "capped by your highest Maximum Elemental Resistance" is set.
+func effectiveMaximum(own core.StatID, ids map[string]core.StatID) core.Formula {
+	highest := mustID(ids, statElementalMaximumResistancesAreHighest)
+	maxima := []core.StatID{
+		mustID(ids, statMaximumFireResistance), mustID(ids, statMaximumColdResistance), mustID(ids, statMaximumLightningResistance),
+	}
+	return func(rd core.Reader, _ core.Agg) float64 {
+		if rd.Stat(highest) == 0 {
+			return rd.Stat(own)
+		}
+		v := rd.Stat(maxima[0])
+		for _, m := range maxima[1:] {
+			v = max(v, rd.Stat(m))
+		}
+		return v
+	}
 }
