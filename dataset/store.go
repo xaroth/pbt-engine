@@ -140,6 +140,61 @@ func (s *Store) Text(language string) (*Text, error) {
 	return load()
 }
 
+// Dataset returns stats, characters, constants and the trees and languages o selects, in
+// manifest order. It fails when a selected tree or language is missing or a group fails to
+// load. Text names of nodes are checked when o selects every tree, names of ascendancies
+// against the selected trees. The Dataset shares its tables with s and every other caller, so
+// it is read-only; Read gives a Dataset the caller owns.
+func (s *Store) Dataset(o Options) (*Dataset, error) {
+	for _, variant := range o.Trees {
+		if _, ok := s.trees[variant]; !ok {
+			return nil, fmt.Errorf("dataset %s has no %s tree", s.manifest.Version, variant)
+		}
+	}
+	for _, lang := range o.Languages {
+		if _, ok := s.texts[lang]; !ok {
+			return nil, fmt.Errorf("dataset %s has no %s text", s.manifest.Version, lang)
+		}
+	}
+	d := &Dataset{Manifest: s.manifest}
+	var err error
+	if d.Stats, err = s.Stats(); err != nil {
+		return nil, err
+	}
+	if d.Characters, err = s.Characters(); err != nil {
+		return nil, err
+	}
+	if d.Constants, err = s.Constants(); err != nil {
+		return nil, err
+	}
+	allTrees := true
+	for _, variant := range s.manifest.Trees() {
+		if !slices.Contains(o.Trees, variant) {
+			allTrees = false
+			continue
+		}
+		t, err := s.Tree(variant)
+		if err != nil {
+			return nil, err
+		}
+		d.Trees = append(d.Trees, *t)
+	}
+	for _, lang := range s.manifest.Languages() {
+		if !slices.Contains(o.Languages, lang) {
+			continue
+		}
+		t, err := s.Text(lang)
+		if err != nil {
+			return nil, err
+		}
+		d.Texts = append(d.Texts, *t)
+	}
+	if err := validateNames(d.Texts, d.Trees, allTrees); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
 func (s *Store) loadStats() (statsGroup, error) {
 	return readGroup(s, statsFile, func(b []byte) (statsGroup, error) {
 		stats, err := decodeStats(b)
@@ -211,59 +266,4 @@ func (s *Store) loadText(language string) (*Text, error) {
 		return nil, err
 	}
 	return &t, nil
-}
-
-// Dataset returns stats, characters, constants and the trees and languages o selects, in
-// manifest order. It fails when a selected tree or language is missing or a group fails to
-// load. Text names of nodes are checked when o selects every tree, names of ascendancies
-// against the selected trees. The Dataset shares its tables with s and every other caller, so
-// it is read-only; Read gives a Dataset the caller owns.
-func (s *Store) Dataset(o Options) (*Dataset, error) {
-	for _, variant := range o.Trees {
-		if _, ok := s.trees[variant]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s tree", s.manifest.Version, variant)
-		}
-	}
-	for _, lang := range o.Languages {
-		if _, ok := s.texts[lang]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s text", s.manifest.Version, lang)
-		}
-	}
-	d := &Dataset{Manifest: s.manifest}
-	var err error
-	if d.Stats, err = s.Stats(); err != nil {
-		return nil, err
-	}
-	if d.Characters, err = s.Characters(); err != nil {
-		return nil, err
-	}
-	if d.Constants, err = s.Constants(); err != nil {
-		return nil, err
-	}
-	allTrees := true
-	for _, variant := range s.manifest.Trees() {
-		if !slices.Contains(o.Trees, variant) {
-			allTrees = false
-			continue
-		}
-		t, err := s.Tree(variant)
-		if err != nil {
-			return nil, err
-		}
-		d.Trees = append(d.Trees, *t)
-	}
-	for _, lang := range s.manifest.Languages() {
-		if !slices.Contains(o.Languages, lang) {
-			continue
-		}
-		t, err := s.Text(lang)
-		if err != nil {
-			return nil, err
-		}
-		d.Texts = append(d.Texts, *t)
-	}
-	if err := validateNames(d.Texts, d.Trees, allTrees); err != nil {
-		return nil, err
-	}
-	return d, nil
 }

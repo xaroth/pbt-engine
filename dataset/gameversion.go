@@ -51,10 +51,6 @@ func (v GameVersion) Compare(w GameVersion) int {
 	return slices.Compare(v.components(), w.components())
 }
 
-func (v GameVersion) len() int { return int(v.n) }
-
-func (v GameVersion) components() []uint16 { return v.parts[:v.n] }
-
 // HasPrefix reports whether p's components start v's. A version is a prefix of itself.
 func (v GameVersion) HasPrefix(p GameVersion) bool {
 	return v.n >= p.n && slices.Equal(v.parts[:p.n], p.components())
@@ -79,3 +75,7 @@ func (v GameVersion) String() string {
 	}
 	return b.String()
 }
+
+func (v GameVersion) len() int { return int(v.n) }
+
+func (v GameVersion) components() []uint16 { return v.parts[:v.n] }

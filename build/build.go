@@ -91,11 +91,6 @@ func Parse(data []byte) (*Build, error) {
 	return b, nil
 }
 
-func (b *Build) fillDefaults() {
-	b.Variant = cmp.Or(b.Variant, DefaultVariant)
-	b.Scenario.Campaign = cmp.Or(b.Scenario.Campaign, CampaignComplete)
-}
-
 // Encode writes b as an indented build file with Format and defaults set and nodes sorted.
 func (b *Build) Encode() ([]byte, error) {
 	c := *b
@@ -110,4 +105,9 @@ func (b *Build) Encode() ([]byte, error) {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+func (b *Build) fillDefaults() {
+	b.Variant = cmp.Or(b.Variant, DefaultVariant)
+	b.Scenario.Campaign = cmp.Or(b.Scenario.Campaign, CampaignComplete)
 }
