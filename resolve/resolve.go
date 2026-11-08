@@ -236,10 +236,6 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load constants: %w", err)
 	}
-	known := make(map[string]bool, len(stats))
-	for _, st := range stats {
-		known[st.ID] = true
-	}
 	r := &Resolved{Game: m.Game, Version: m.Version}
 
 	ch := c.Character()
@@ -248,16 +244,7 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		Bundle{Actor: Player, Scope: Global, Source: LevelSource{}, Stats: []StatValue{{Stat: LevelStat, Value: float64(b.Level)}}},
 	)
 	r.Bundles = append(r.Bundles, quests...)
-	// Only stats resolve names itself can be missing; node and template stats come from the
-	// dataset's stats.
-	var missing []string
-	for _, bd := range r.Bundles {
-		for _, sv := range bd.Stats {
-			if !known[sv.Stat] && !slices.Contains(missing, sv.Stat) {
-				missing = append(missing, sv.Stat)
-			}
-		}
-	}
+	missing := missingStats(r.Bundles, stats)
 
 	for _, n := range c.Nodes() {
 		r.Bundles = append(r.Bundles, nodeBundles(stats, n)...)
@@ -276,6 +263,24 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		r.Notes = append(r.Notes, fmt.Sprintf("bandits %s: quest rewards are not in the dataset yet", b.Scenario.Bandits))
 	}
 	return r, nil
+}
+
+// missingStats lists the stats of bundles absent from stats. Only stats resolve names itself
+// can be missing; node and template stats come from the dataset's stats.
+func missingStats(bundles []Bundle, stats []dataset.Stat) []string {
+	known := make(map[string]bool, len(stats))
+	for _, st := range stats {
+		known[st.ID] = true
+	}
+	var missing []string
+	for _, bd := range bundles {
+		for _, sv := range bd.Stats {
+			if !known[sv.Stat] && !slices.Contains(missing, sv.Stat) {
+				missing = append(missing, sv.Stat)
+			}
+		}
+	}
+	return missing
 }
 
 // NodeBundles returns the bundles of the passive node with id in the variant tree of s: its

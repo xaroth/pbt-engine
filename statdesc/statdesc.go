@@ -72,47 +72,76 @@ func NewSet(scopes []Scope) (*Set, error) {
 		if _, dup := s.scopes[sc.Name]; dup {
 			return nil, fmt.Errorf("scope %s defined twice: %w", sc.Name, ErrInvalid)
 		}
-		x := &scope{Scope: sc, index: map[string]int{}}
-		for i, d := range sc.Descriptions {
-			if len(d.Stats) == 0 {
-				return nil, fmt.Errorf("scope %s description %d: no stats: %w", sc.Name, i, ErrInvalid)
-			}
-			for _, v := range d.Variants {
-				if len(v.Limits) != len(d.Stats) {
-					return nil, fmt.Errorf("scope %s description %d: %d limits for %d stats: %w", sc.Name, i, len(v.Limits), len(d.Stats), ErrInvalid)
-				}
-				for _, h := range v.Handlers {
-					if h.Stat < 0 || h.Stat >= len(d.Stats) {
-						return nil, fmt.Errorf("scope %s description %d: handler %s stat %d out of range: %w", sc.Name, i, h.Name, h.Stat, ErrInvalid)
-					}
-				}
-			}
-			for _, st := range d.Stats {
-				x.index[st] = i // a later description of the same stat wins, as in game text
-			}
+		x, err := newScope(sc)
+		if err != nil {
+			return nil, err
 		}
 		s.scopes[sc.Name] = x
 	}
-	for _, x := range s.scopes {
+	if err := linkParents(s.scopes); err != nil {
+		return nil, err
+	}
+	if err := checkCycles(s.scopes); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func newScope(sc Scope) (*scope, error) {
+	x := &scope{Scope: sc, index: map[string]int{}}
+	for i, d := range sc.Descriptions {
+		if err := checkDescription(d); err != nil {
+			return nil, fmt.Errorf("scope %s description %d: %w", sc.Name, i, err)
+		}
+		for _, st := range d.Stats {
+			x.index[st] = i // a later description of the same stat wins, as in game text
+		}
+	}
+	return x, nil
+}
+
+func checkDescription(d Description) error {
+	if len(d.Stats) == 0 {
+		return fmt.Errorf("no stats: %w", ErrInvalid)
+	}
+	for _, v := range d.Variants {
+		if len(v.Limits) != len(d.Stats) {
+			return fmt.Errorf("%d limits for %d stats: %w", len(v.Limits), len(d.Stats), ErrInvalid)
+		}
+		for _, h := range v.Handlers {
+			if h.Stat < 0 || h.Stat >= len(d.Stats) {
+				return fmt.Errorf("handler %s stat %d out of range: %w", h.Name, h.Stat, ErrInvalid)
+			}
+		}
+	}
+	return nil
+}
+
+func linkParents(scopes map[string]*scope) error {
+	for _, x := range scopes {
 		if x.Parent == "" {
 			continue
 		}
-		p, ok := s.scopes[x.Parent]
+		p, ok := scopes[x.Parent]
 		if !ok {
-			return nil, fmt.Errorf("scope %s: parent %s not in set: %w", x.Name, x.Parent, ErrInvalid)
+			return fmt.Errorf("scope %s: parent %s not in set: %w", x.Name, x.Parent, ErrInvalid)
 		}
 		x.parent = p
 	}
-	for _, x := range s.scopes {
+	return nil
+}
+
+func checkCycles(scopes map[string]*scope) error {
+	for _, x := range scopes {
 		seen := map[*scope]bool{}
 		for p := x; p != nil; p = p.parent {
 			if seen[p] {
-				return nil, fmt.Errorf("scope %s: parent cycle: %w", x.Name, ErrInvalid)
+				return fmt.Errorf("scope %s: parent cycle: %w", x.Name, ErrInvalid)
 			}
 			seen[p] = true
 		}
 	}
-	return s, nil
+	return nil
 }
 
 // ErrUnknownHandler is returned for a handler Describe cannot apply.
@@ -131,37 +160,8 @@ func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error)
 	if !ok {
 		return nil, fmt.Errorf("unknown scope %s: %w", scopeName, ErrUnknownScope)
 	}
-	type pick struct {
-		depth, index int
-		sc           *scope
-	}
-	picked := map[pick]bool{}
-	for st, v := range stats {
-		if v == 0 {
-			continue
-		}
-		depth := 0
-		for sc := root; sc != nil; sc = sc.parent {
-			if i, ok := sc.index[st]; ok {
-				picked[pick{depth, i, sc}] = true
-				break
-			}
-			depth++
-		}
-	}
-	order := make([]pick, 0, len(picked))
-	for p := range picked {
-		order = append(order, p)
-	}
-	slices.SortFunc(order, func(a, b pick) int {
-		if a.depth != b.depth {
-			return cmp.Compare(b.depth, a.depth)
-		}
-		return cmp.Compare(a.index, b.index)
-	})
-
 	var out []Line
-	for _, p := range order {
+	for _, p := range picks(root, stats) {
 		d := p.sc.Descriptions[p.index]
 		line, ok, err := s.render(d, stats)
 		if err != nil {
@@ -201,6 +201,41 @@ func (s *Set) render(d Description, stats map[string]int32) (string, bool, error
 		return "", false, err
 	}
 	return text, true, nil
+}
+
+// pick is a description to render: its position in a scope, and how far up from the root.
+type pick struct {
+	depth, index int
+	sc           *scope
+}
+
+// picks returns the descriptions of the non-zero stats, parent scope first, then by position.
+func picks(root *scope, stats map[string]int32) []pick {
+	picked := map[pick]bool{}
+	for st, v := range stats {
+		if v == 0 {
+			continue
+		}
+		depth := 0
+		for sc := root; sc != nil; sc = sc.parent {
+			if i, ok := sc.index[st]; ok {
+				picked[pick{depth, i, sc}] = true
+				break
+			}
+			depth++
+		}
+	}
+	order := make([]pick, 0, len(picked))
+	for p := range picked {
+		order = append(order, p)
+	}
+	slices.SortFunc(order, func(a, b pick) int {
+		if a.depth != b.depth {
+			return cmp.Compare(b.depth, a.depth)
+		}
+		return cmp.Compare(a.index, b.index)
+	})
+	return order
 }
 
 func match(variants []Variant, vals []int32) (Variant, bool) {
@@ -252,53 +287,63 @@ func format(text string, nums []number) (string, error) {
 	var b strings.Builder
 	next := 0
 	for i := 0; i < len(text); i++ {
-		c := text[i]
-		switch c {
-		case '[':
-			end := strings.IndexByte(text[i:], ']')
-			if end < 0 {
-				return "", fmt.Errorf("unclosed [ in %q: %w", text, ErrBadTemplate)
-			}
-			tag := text[i+1 : i+end]
-			if bar := strings.LastIndexByte(tag, '|'); bar >= 0 {
-				tag = tag[bar+1:]
-			}
-			b.WriteString(tag)
-			i += end
-		case '{':
-			end := strings.IndexByte(text[i:], '}')
-			if end < 0 {
-				return "", fmt.Errorf("unclosed { in %q: %w", text, ErrBadTemplate)
-			}
-			spec := text[i+1 : i+end]
-			idx, flags, _ := strings.Cut(spec, ":")
-			n := next
-			if idx != "" {
-				var err error
-				if n, err = strconv.Atoi(idx); err != nil {
-					return "", fmt.Errorf("placeholder {%s} in %q: %w", spec, text, ErrBadTemplate)
-				}
-			}
-			next = n + 1
-			if n >= len(nums) {
-				return "", fmt.Errorf("placeholder {%s} has no stat in %q: %w", spec, text, ErrBadTemplate)
-			}
-			s := nums[n].String()
-			if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {
-				s = "+" + s
-			}
-			b.WriteString(s)
-			i += end
-		case '\\':
-			if i+1 < len(text) && text[i+1] == 'n' {
-				b.WriteByte('\n')
-				i++
-				continue
-			}
-			b.WriteByte(c)
+		var err error
+		switch c := text[i]; {
+		case c == '[':
+			i, err = writeTag(&b, text, i)
+		case c == '{':
+			i, next, err = writePlaceholder(&b, text, i, nums, next)
+		case c == '\\' && i+1 < len(text) && text[i+1] == 'n':
+			b.WriteByte('\n')
+			i++
 		default:
 			b.WriteByte(c)
 		}
+		if err != nil {
+			return "", err
+		}
 	}
 	return b.String(), nil
+}
+
+// writeTag writes the display text of the [tag|text] at text[i] and returns the index of its
+// closing bracket.
+func writeTag(b *strings.Builder, text string, i int) (int, error) {
+	end := strings.IndexByte(text[i:], ']')
+	if end < 0 {
+		return 0, fmt.Errorf("unclosed [ in %q: %w", text, ErrBadTemplate)
+	}
+	tag := text[i+1 : i+end]
+	if bar := strings.LastIndexByte(tag, '|'); bar >= 0 {
+		tag = tag[bar+1:]
+	}
+	b.WriteString(tag)
+	return i + end, nil
+}
+
+// writePlaceholder writes the number the {index:flags} at text[i] names, or nums[next] when it
+// names none. It returns the index of the closing brace and the next implicit index.
+func writePlaceholder(b *strings.Builder, text string, i int, nums []number, next int) (int, int, error) {
+	end := strings.IndexByte(text[i:], '}')
+	if end < 0 {
+		return 0, 0, fmt.Errorf("unclosed { in %q: %w", text, ErrBadTemplate)
+	}
+	spec := text[i+1 : i+end]
+	idx, flags, _ := strings.Cut(spec, ":")
+	n := next
+	if idx != "" {
+		var err error
+		if n, err = strconv.Atoi(idx); err != nil {
+			return 0, 0, fmt.Errorf("placeholder {%s} in %q: %w", spec, text, ErrBadTemplate)
+		}
+	}
+	if n >= len(nums) {
+		return 0, 0, fmt.Errorf("placeholder {%s} has no stat in %q: %w", spec, text, ErrBadTemplate)
+	}
+	s := nums[n].String()
+	if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {
+		s = "+" + s
+	}
+	b.WriteString(s)
+	return i + end, n + 1, nil
 }
