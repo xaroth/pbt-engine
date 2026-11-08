@@ -112,7 +112,8 @@ func run(args []string, w, notes io.Writer) error {
 		"build resolve":      {3, buildResolve},
 		"semantics coverage": {2, semanticsCoverage},
 	}
-	cmd, ok := commands[strings.Join(pos[:min(len(pos), 2)], " ")]
+	const commandWords = 2
+	cmd, ok := commands[strings.Join(pos[:min(len(pos), commandWords)], " ")]
 	if !ok || len(pos) != cmd.args {
 		return errUsage
 	}
