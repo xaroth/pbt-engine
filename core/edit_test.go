@@ -174,22 +174,7 @@ func newRandWorld(tb testing.TB, r *rand.Rand) *randWorld {
 		tb.Fatal(err)
 	}
 	for i := range w.nStat {
-		def := core.StatDef{Name: string(rune('a' + i)), Round: core.Rounding(r.IntN(4))}
-		switch {
-		case i < nFamily:
-			def.CycleFamily = 1
-			def.Round = core.RoundFloor
-		case i == flagStat:
-			def.Flag = true
-		case r.IntN(3) == 0:
-			if inc := core.StatID(flagStat + 1 + r.IntN(i-flagStat)); int(inc) != i {
-				def.Includes = []core.StatID{inc}
-			}
-		}
-		if i > flagStat && r.IntN(4) == 0 {
-			def.HasMax, def.Max = true, float64(50+r.IntN(200))
-		}
-		id := b.MustAddStat(def)
+		id := b.MustAddStat(randStatDef(r, i))
 		// Family formulas read the family (unconditional); others read any lower stat.
 		if i == 1 || (i > flagStat && r.IntN(3) == 0) {
 			in := core.StatID(r.IntN(i))
@@ -205,6 +190,25 @@ func newRandWorld(tb testing.TB, r *rand.Rand) *randWorld {
 	w.ctxs = []core.Mask{{}, core.MaskOf(dim.Bit(0), dim.Bit(2)), core.MaskOf(dim.Bit(1)), core.MaskOf(dim.Bit(1), dim.Bit(3))}
 	w.m = b.Build()
 	return w
+}
+
+func randStatDef(r *rand.Rand, i int) core.StatDef {
+	def := core.StatDef{Name: string(rune('a' + i)), Round: core.Rounding(r.IntN(4))}
+	switch {
+	case i < nFamily:
+		def.CycleFamily = 1
+		def.Round = core.RoundFloor
+	case i == flagStat:
+		def.Flag = true
+	case r.IntN(3) == 0:
+		if inc := core.StatID(flagStat + 1 + r.IntN(i-flagStat)); int(inc) != i {
+			def.Includes = []core.StatID{inc}
+		}
+	}
+	if i > flagStat && r.IntN(4) == 0 {
+		def.HasMax, def.Max = true, float64(50+r.IntN(200))
+	}
+	return def
 }
 
 func (w *randWorld) ref(r *rand.Rand, below int) core.Ref {
@@ -313,63 +317,86 @@ func TestIncrementalEqualsFresh(t *testing.T) {
 			t.Parallel()
 			r := rand.New(rand.NewPCG(seed, 7))
 			w := newRandWorld(t, r)
-			s := w.session(t)
-			var ids []core.ModID
+			e := &editRun{tb: t, w: w, s: w.session(t), r: r}
 			for range 40 {
-				ids = append(ids, add(t, s, w.mod(r)))
+				e.ids = append(e.ids, add(t, e.s, w.mod(r)))
 			}
-			s.Commit()
-			base := snapshot(t, s, false)
-			equalBits(t, -1, snapshot(t, fresh(t, w, s), true), base)
-			start := s.Mark()
+			e.s.Commit()
+			base := snapshot(t, e.s, false)
+			equalBits(t, -1, snapshot(t, fresh(t, w, e.s), true), base)
+			start := e.s.Mark()
 
-			var marks []core.Checkpoint
-			var snaps [][]uint64
-			committed := false
 			for step := range 60 {
-				switch k := r.IntN(20); {
-				case k < 6:
-					ids = append(ids, add(t, s, w.mod(r)))
-				case k < 10:
-					must(t, s.SetSourceEnabled(core.SourceID(r.IntN(nSources)), r.IntN(2) == 0))
-				case k < 12:
-					droppedOK(t, s.RemoveModifier(ids[r.IntN(len(ids))]))
-				case k < 14:
-					droppedOK(t, s.SetModifierValue(ids[r.IntN(len(ids))], float64(r.IntN(41)-5)))
-				case k < 16:
-					marks = append(marks, s.Mark())
-					snaps = append(snaps, snapshot(t, s, false))
-				case k < 19:
-					if len(marks) > 0 {
-						i := r.IntN(len(marks))
-						must(t, s.Revert(marks[i]))
-						equalBits(t, step, snapshot(t, s, false), snaps[i])
-						marks, snaps = marks[:i+1], snaps[:i+1]
-					}
-				default:
-					s.Commit()
-					committed = true
-					for _, cp := range marks {
-						if err := s.Revert(cp); !errors.Is(err, core.ErrStaleCheckpoint) {
-							t.Fatalf("step %d: revert after commit: got %v, want ErrStaleCheckpoint", step, err)
-						}
-					}
-					marks, snaps = nil, nil
-				}
+				e.apply(step)
 				for range 3 {
 					ctx := core.CtxID(r.IntN(len(w.ctxs)))
-					get(t, s, core.ActorID(r.IntN(w.nActor)), core.StatID(r.IntN(w.nStat)), ctx)
+					get(t, e.s, core.ActorID(r.IntN(w.nActor)), core.StatID(r.IntN(w.nStat)), ctx)
 				}
 				if step%5 == 4 {
-					equalBits(t, step, snapshot(t, s, step%2 == 0), snapshot(t, fresh(t, w, s), false))
+					equalBits(t, step, snapshot(t, e.s, step%2 == 0), snapshot(t, fresh(t, w, e.s), false))
 				}
 			}
-			if !committed {
-				must(t, s.Revert(start))
-				equalBits(t, 99, snapshot(t, s, true), base)
+			if !e.committed {
+				must(t, e.s.Revert(start))
+				equalBits(t, 99, snapshot(t, e.s, true), base)
 			}
 		})
 	}
+}
+
+// editRun is the state of one random edit sequence.
+type editRun struct {
+	tb        testing.TB
+	w         *randWorld
+	s         *core.Session
+	r         *rand.Rand
+	ids       []core.ModID
+	marks     []core.Checkpoint
+	snaps     [][]uint64
+	committed bool
+}
+
+// apply performs one random edit.
+func (e *editRun) apply(step int) {
+	t, s, r := e.tb, e.s, e.r
+	switch k := r.IntN(20); {
+	case k < 6:
+		e.ids = append(e.ids, add(t, s, e.w.mod(r)))
+	case k < 10:
+		must(t, s.SetSourceEnabled(core.SourceID(r.IntN(nSources)), r.IntN(2) == 0))
+	case k < 12:
+		droppedOK(t, s.RemoveModifier(e.ids[r.IntN(len(e.ids))]))
+	case k < 14:
+		droppedOK(t, s.SetModifierValue(e.ids[r.IntN(len(e.ids))], float64(r.IntN(41)-5)))
+	case k < 16:
+		e.marks = append(e.marks, s.Mark())
+		e.snaps = append(e.snaps, snapshot(t, s, false))
+	case k < 19:
+		e.revert(step)
+	default:
+		e.commit(step)
+	}
+}
+
+func (e *editRun) revert(step int) {
+	if len(e.marks) == 0 {
+		return
+	}
+	i := e.r.IntN(len(e.marks))
+	must(e.tb, e.s.Revert(e.marks[i]))
+	equalBits(e.tb, step, snapshot(e.tb, e.s, false), e.snaps[i])
+	e.marks, e.snaps = e.marks[:i+1], e.snaps[:i+1]
+}
+
+func (e *editRun) commit(step int) {
+	e.s.Commit()
+	e.committed = true
+	for _, cp := range e.marks {
+		if err := e.s.Revert(cp); !errors.Is(err, core.ErrStaleCheckpoint) {
+			e.tb.Fatalf("step %d: revert after commit: got %v, want ErrStaleCheckpoint", step, err)
+		}
+	}
+	e.marks, e.snaps = nil, nil
 }
 
 // droppedOK accepts ErrBadHandle: ids of modifiers dropped by Revert stay in the test's list.
