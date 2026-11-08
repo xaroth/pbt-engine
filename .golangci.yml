@@ -6,7 +6,6 @@ linters:
     - errorlint # prevents from including downstream errors as strings if predefined error is used for wrapping; goerr113 & wrapcheck seem to be enough for linting errors returned
     - exhaustruct # we consider it to be enforcing unnecessary boilerplate
     - exhaustruct_v5 # new iteration of exhaustruct; see above
-    - ireturn # interfaces return used to be ubiquitous in our code to to payload.Identifier boilerplate, stays for now but to be reconsidered
     - nlreturn # too opinionated; new line on return is good but there are cases when it makes no sense
     - nonamedreturns # too opinionated; named returns are great for documentation when it's unclear from the types alone what is returned
     - varnamelen # too opinionated; two letter variable names (like `tx`) are real good sometimes
@@ -19,6 +18,13 @@ linters:
       default-signifies-exhaustive: true
     funlen:
       ignore-comments: true
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - generic
     lll:
       line-length: 160
     nakedret:
