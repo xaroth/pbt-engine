@@ -95,18 +95,6 @@ func (r *Registry) Stores(game string) []*Store {
 	return out
 }
 
-func (r *Registry) game(game string) []entry {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	var out []entry
-	for _, e := range r.entries {
-		if e.game == game {
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
 // Match says how Resolve chose a version. The zero value is no match, as in a Resolution
 // returned with an error.
 type Match uint8
@@ -191,4 +179,16 @@ func (r *Registry) Resolve(game, version string) (Resolution, error) {
 		}
 	}
 	return res, fmt.Errorf("%w: %s %s", ErrNoVersion, game, version)
+}
+
+func (r *Registry) game(game string) []entry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []entry
+	for _, e := range r.entries {
+		if e.game == game {
+			out = append(out, e)
+		}
+	}
+	return out
 }

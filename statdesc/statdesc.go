@@ -219,14 +219,6 @@ type number struct {
 	set   bool // dp was set by a handler
 }
 
-func (n number) rounded() float64 {
-	if !n.set {
-		return n.v
-	}
-	p := math.Pow(10, float64(n.dp))
-	return math.Round(n.v*p) / p
-}
-
 func (n number) String() string {
 	v := n.rounded()
 	if n.set && n.fixed {
@@ -237,6 +229,14 @@ func (n number) String() string {
 	}
 	// Shortest float32 form drops float64 noise such as 0.30000000000000004.
 	return strconv.FormatFloat(v, 'f', -1, 32)
+}
+
+func (n number) rounded() float64 {
+	if !n.set {
+		return n.v
+	}
+	p := math.Pow(10, float64(n.dp))
+	return math.Round(n.v*p) / p
 }
 
 func format(text string, nums []number) (string, error) {

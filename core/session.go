@@ -144,6 +144,51 @@ func (s *Session) SourceEnabled(src SourceID) bool {
 	return int(src) < len(s.srcOff) && !s.srcOff[src]
 }
 
+// Get returns the value of a stat of an actor in a context.
+func (s *Session) Get(actor ActorID, stat StatID, ctx CtxID) (float64, error) {
+	return s.GetNode(Node{Actor: actor, Stat: stat, Ctx: ctx})
+}
+
+// GetNode returns the value of a node. If a formula panics, the session drops its cached
+// values and the panic continues.
+func (s *Session) GetNode(n Node) (float64, error) {
+	if err := s.checkNode(n); err != nil {
+		return 0, err
+	}
+	defer s.recoverEval()
+	v := s.get(s.nodeID(n))
+	if err := s.takeErr(); err != nil {
+		return 0, err
+	}
+	return v, nil
+}
+
+// Invalidate drops every cached value; the next reads recompute from scratch.
+func (s *Session) Invalidate() {
+	s.epoch++
+	if s.epoch == math.MaxUint32 {
+		for i := range s.blocks {
+			clear(s.blocks[i].recs)
+		}
+		s.epoch = 1
+	}
+}
+
+// Terms returns the modifiers matching a node with their scaled values, in evaluation order,
+// and the node's value.
+func (s *Session) Terms(n Node) ([]Term, float64, error) {
+	if _, err := s.GetNode(n); err != nil {
+		return nil, 0, err
+	}
+	defer s.recoverEval()
+	var terms []Term
+	v := s.eval(s.nodeID(n), nil, &terms)
+	if err := s.takeErr(); err != nil {
+		return nil, 0, err
+	}
+	return terms, v, nil
+}
+
 func (s *Session) nodeID(n Node) uint32 {
 	k := (int(n.Ctx)*s.nActors + int(n.Actor)) * 2
 	if n.Uncond {
@@ -180,25 +225,6 @@ func (s *Session) checkNode(n Node) error {
 	return nil
 }
 
-// Get returns the value of a stat of an actor in a context.
-func (s *Session) Get(actor ActorID, stat StatID, ctx CtxID) (float64, error) {
-	return s.GetNode(Node{Actor: actor, Stat: stat, Ctx: ctx})
-}
-
-// GetNode returns the value of a node. If a formula panics, the session drops its cached
-// values and the panic continues.
-func (s *Session) GetNode(n Node) (float64, error) {
-	if err := s.checkNode(n); err != nil {
-		return 0, err
-	}
-	defer s.recoverEval()
-	v := s.get(s.nodeID(n))
-	if err := s.takeErr(); err != nil {
-		return 0, err
-	}
-	return v, nil
-}
-
 func (s *Session) recoverEval() {
 	if p := recover(); p != nil {
 		s.abort()
@@ -222,30 +248,4 @@ func (s *Session) abort() {
 	s.stack = s.stack[:0]
 	s.err = nil
 	s.Invalidate()
-}
-
-// Invalidate drops every cached value; the next reads recompute from scratch.
-func (s *Session) Invalidate() {
-	s.epoch++
-	if s.epoch == math.MaxUint32 {
-		for i := range s.blocks {
-			clear(s.blocks[i].recs)
-		}
-		s.epoch = 1
-	}
-}
-
-// Terms returns the modifiers matching a node with their scaled values, in evaluation order,
-// and the node's value.
-func (s *Session) Terms(n Node) ([]Term, float64, error) {
-	if _, err := s.GetNode(n); err != nil {
-		return nil, 0, err
-	}
-	defer s.recoverEval()
-	var terms []Term
-	v := s.eval(s.nodeID(n), nil, &terms)
-	if err := s.takeErr(); err != nil {
-		return nil, 0, err
-	}
-	return terms, v, nil
 }
