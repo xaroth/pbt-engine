@@ -162,6 +162,7 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			def.Round = core.RoundTrunc
 			if r.elemental {
 				def.Includes = []core.StatID{mustID(ids, statElementalResistance)}
+				def.Shares = fireShare(def.Name, statFireResistance, statFireResistanceModifiersToColdAndLightning, ids)
 			} else {
 				def.Formula = chaosResistance(mustID(ids, statChaosResistanceIsDoubled))
 			}
@@ -170,6 +171,7 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			def.Includes = []core.StatID{mustID(ids, statMaximumAllResistances)}
 			if r.elemental {
 				def.Includes = append(def.Includes, mustID(ids, statMaximumElementalResistance))
+				def.Shares = fireShare(def.Name, statMaximumFireResistance, statMaximumFireResistanceModifiersToColdAndLightning, ids)
 			}
 		case r.effective:
 			def.Formula = effectiveMaximum(mustID(ids, r.maximum), ids)
@@ -180,6 +182,18 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		}
 	}
 	return def
+}
+
+// fireShare is the share cold and lightning stat name take of fire stat's own modifiers, at
+// the percentage rate holds: "Modifiers to Fire Resistance also apply to Cold and Lightning
+// Resistances at X% of their Value". Own modifiers only, so all-elemental modifiers, the
+// character's base maximum and the Kitava penalty are not shared, as in PoB
+// (CalcDefence.lua:529); unvalidated.
+func fireShare(name, fire, rate string, ids map[string]core.StatID) []core.Share {
+	if name == fire {
+		return nil
+	}
+	return []core.Share{{Stat: mustID(ids, fire), Rate: core.SelfRef(mustID(ids, rate))}}
 }
 
 // chaosResistance doubles the total once while doubled is set, as PoB does (a 100% more
