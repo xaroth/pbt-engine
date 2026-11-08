@@ -68,26 +68,30 @@ func sample() *dataset.Dataset {
 			},
 			{Variant: "ruthless"},
 		},
-		Texts: []dataset.Text{
-			{
-				Language: "en",
-				Descriptions: []statdesc.Scope{
-					{Name: "base", Descriptions: []statdesc.Description{
-						{Stats: []string{"level"}},
-						{Stats: []string{"life_per_level"}, Variants: []statdesc.Variant{{
-							Limits:   []statdesc.Limit{{Min: math.MinInt32, Max: -1}},
-							Text:     "{0} life",
-							Handlers: []statdesc.Handler{{Name: "negate"}},
-						}}},
-					}},
-					{Name: "child", Parent: "base"},
-				},
-				NodeNames:       []dataset.NodeName{{ID: 1, Name: "MARAUDER"}, {ID: 2, Name: "Strength"}},
-				CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
-				AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Juggernaut"}},
+		Texts: sampleTexts(),
+	}
+}
+
+func sampleTexts() []dataset.Text {
+	return []dataset.Text{
+		{
+			Language: "en",
+			Descriptions: []statdesc.Scope{
+				{Name: "base", Descriptions: []statdesc.Description{
+					{Stats: []string{"level"}},
+					{Stats: []string{"life_per_level"}, Variants: []statdesc.Variant{{
+						Limits:   []statdesc.Limit{{Min: math.MinInt32, Max: -1}},
+						Text:     "{0} life",
+						Handlers: []statdesc.Handler{{Name: "negate"}},
+					}}},
+				}},
+				{Name: "child", Parent: "base"},
 			},
-			{Language: "zh-hant"},
+			NodeNames:       []dataset.NodeName{{ID: 1, Name: "MARAUDER"}, {ID: 2, Name: "Strength"}},
+			CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
+			AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Juggernaut"}},
 		},
+		{Language: "zh-hant"},
 	}
 }
 

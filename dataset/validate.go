@@ -105,29 +105,40 @@ func validateTree(n int, chars []Character, t Tree) error {
 		ids[nd.ID] = true
 	}
 	for _, nd := range t.Nodes {
-		what := fmt.Sprintf("tree %s node %d", t.Variant, nd.ID)
-		if err := sortedStats(what, nd.Stats, n); err != nil {
+		if err := validateNode(n, ids, fmt.Sprintf("tree %s node %d", t.Variant, nd.ID), nd); err != nil {
 			return err
 		}
-		for _, b := range nd.Buffs {
-			if err := statsInRange(what+" buff", b, n); err != nil {
-				return err
-			}
-		}
-		for _, e := range nd.MasteryEffects {
-			if err := statsInRange(what+" mastery effect", e.Stats, n); err != nil {
-				return err
-			}
-		}
-		if !slices.IsSorted(nd.Neighbours) {
-			return fmt.Errorf("%s: neighbours not sorted: %w", what, ErrInvalid)
-		}
-		for _, nb := range nd.Neighbours {
-			if !ids[nb] {
-				return fmt.Errorf("%s: neighbour %d not in tree: %w", what, nb, ErrInvalid)
-			}
+	}
+	return validateTreeRefs(chars, ids, t)
+}
+
+func validateNode(n int, ids map[uint32]bool, what string, nd Node) error {
+	if err := sortedStats(what, nd.Stats, n); err != nil {
+		return err
+	}
+	for _, b := range nd.Buffs {
+		if err := statsInRange(what+" buff", b, n); err != nil {
+			return err
 		}
 	}
+	for _, e := range nd.MasteryEffects {
+		if err := statsInRange(what+" mastery effect", e.Stats, n); err != nil {
+			return err
+		}
+	}
+	if !slices.IsSorted(nd.Neighbours) {
+		return fmt.Errorf("%s: neighbours not sorted: %w", what, ErrInvalid)
+	}
+	for _, nb := range nd.Neighbours {
+		if !ids[nb] {
+			return fmt.Errorf("%s: neighbour %d not in tree: %w", what, nb, ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// validateTreeRefs checks what t's classes and jewel slots refer to.
+func validateTreeRefs(chars []Character, ids map[uint32]bool, t Tree) error {
 	for _, c := range t.Classes {
 		if !ids[c.StartNode] {
 			return fmt.Errorf("tree %s class %s: start node %d not in tree: %w", t.Variant, c.Character, c.StartNode, ErrInvalid)
@@ -166,13 +177,8 @@ func validateText(chars []Character, t Text) error {
 	if _, err := statdesc.NewSet(t.Descriptions); err != nil {
 		return fmt.Errorf("text %s descriptions: %w", t.Language, err)
 	}
-	for _, sc := range t.Descriptions {
-		for _, desc := range sc.Descriptions {
-			if len(desc.Stats) > maxDescriptionStats {
-				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most %d: %w",
-					t.Language, sc.Name, len(desc.Stats), maxDescriptionStats, ErrInvalid)
-			}
-		}
+	if err := checkDescriptionSizes(t); err != nil {
+		return err
 	}
 	for i, n := range t.NodeNames {
 		if i > 0 && t.NodeNames[i-1].ID >= n.ID {
@@ -187,41 +193,70 @@ func validateText(chars []Character, t Text) error {
 	return nil
 }
 
+func checkDescriptionSizes(t Text) error {
+	for _, sc := range t.Descriptions {
+		for _, desc := range sc.Descriptions {
+			if len(desc.Stats) > maxDescriptionStats {
+				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most %d: %w",
+					t.Language, sc.Name, len(desc.Stats), maxDescriptionStats, ErrInvalid)
+			}
+		}
+	}
+	return nil
+}
+
 // validateNames checks text names of ascendancies against the trees given, and names of nodes
 // only when allTrees says those are every tree of the dataset.
 func validateNames(texts []Text, trees []Tree, allTrees bool) error {
-	nodes := map[uint32]bool{}
-	ascendancies := map[string]bool{} // "<variant>/<id>"
-	variants := map[string]bool{}
-	for _, t := range trees {
-		variants[t.Variant] = true
-		for _, n := range t.Nodes {
-			nodes[n.ID] = true
-		}
-		for _, c := range t.Classes {
-			for _, a := range c.Ascendancies {
-				ascendancies[t.Variant+"/"+a.ID] = true
-			}
-		}
-		for _, a := range t.AlternateAscendancies {
-			ascendancies[t.Variant+"/"+a.ID] = true
-		}
-	}
+	names := collectTreeNames(trees)
 	for _, t := range texts {
 		if allTrees {
-			for _, n := range t.NodeNames {
-				if !nodes[n.ID] {
-					return fmt.Errorf("text %s: name for unknown node %d: %w", t.Language, n.ID, ErrInvalid)
-				}
+			if err := checkNodeNames(t, names.nodes); err != nil {
+				return err
 			}
 		}
 		for _, n := range t.AscendancyNames {
-			if !allTrees && !variants[n.Variant] {
+			if !allTrees && !names.variants[n.Variant] {
 				continue // tree not loaded
 			}
-			if !ascendancies[n.Variant+"/"+n.ID] {
+			if !names.ascendancies[n.Variant+"/"+n.ID] {
 				return fmt.Errorf("text %s: name for unknown ascendancy %s in tree %s: %w", t.Language, n.ID, n.Variant, ErrInvalid)
 			}
+		}
+	}
+	return nil
+}
+
+// treeNames is what text names can refer to.
+type treeNames struct {
+	nodes        map[uint32]bool
+	ascendancies map[string]bool // "<variant>/<id>"
+	variants     map[string]bool
+}
+
+func collectTreeNames(trees []Tree) treeNames {
+	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, variants: map[string]bool{}}
+	for _, t := range trees {
+		names.variants[t.Variant] = true
+		for _, n := range t.Nodes {
+			names.nodes[n.ID] = true
+		}
+		for _, c := range t.Classes {
+			for _, a := range c.Ascendancies {
+				names.ascendancies[t.Variant+"/"+a.ID] = true
+			}
+		}
+		for _, a := range t.AlternateAscendancies {
+			names.ascendancies[t.Variant+"/"+a.ID] = true
+		}
+	}
+	return names
+}
+
+func checkNodeNames(t Text, nodes map[uint32]bool) error {
+	for _, n := range t.NodeNames {
+		if !nodes[n.ID] {
+			return fmt.Errorf("text %s: name for unknown node %d: %w", t.Language, n.ID, ErrInvalid)
 		}
 	}
 	return nil

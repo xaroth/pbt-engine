@@ -53,17 +53,8 @@ func Open(fsys fs.FS) (*Store, error) {
 		texts:    map[string]func() (*Text, error){},
 	}
 	for _, f := range m.Files {
-		s.files[f.Name] = f
-		switch {
-		case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile:
-		case isGroup(f.Name, treePrefix):
-			variant := groupTag(f.Name, treePrefix)
-			s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
-		case isGroup(f.Name, textPrefix):
-			lang := groupTag(f.Name, textPrefix)
-			s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
-		default:
-			return nil, fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
+		if err := registerFile(s, f); err != nil {
+			return nil, err
 		}
 	}
 	for _, name := range []string{charactersFile, constantsFile, statsFile} {
@@ -146,15 +137,8 @@ func (s *Store) Text(language string) (*Text, error) {
 // against the selected trees. The Dataset shares its tables with s and every other caller, so
 // it is read-only; Read gives a Dataset the caller owns.
 func (s *Store) Dataset(o Options) (*Dataset, error) {
-	for _, variant := range o.Trees {
-		if _, ok := s.trees[variant]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
-		}
-	}
-	for _, lang := range o.Languages {
-		if _, ok := s.texts[lang]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, lang, ErrNotInDataset)
-		}
+	if err := checkOptions(s, o); err != nil {
+		return nil, err
 	}
 	d := &Dataset{Manifest: s.manifest}
 	var err error
@@ -167,6 +151,52 @@ func (s *Store) Dataset(o Options) (*Dataset, error) {
 	if d.Constants, err = s.Constants(); err != nil {
 		return nil, err
 	}
+	allTrees, err := loadTrees(s, d, o)
+	if err != nil {
+		return nil, err
+	}
+	if err := loadTexts(s, d, o); err != nil {
+		return nil, err
+	}
+	if err := validateNames(d.Texts, d.Trees, allTrees); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// registerFile records f and, for a tree or text file, how to load it.
+func registerFile(s *Store, f File) error {
+	s.files[f.Name] = f
+	switch {
+	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile:
+	case isGroup(f.Name, treePrefix):
+		variant := groupTag(f.Name, treePrefix)
+		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
+	case isGroup(f.Name, textPrefix):
+		lang := groupTag(f.Name, textPrefix)
+		s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
+	default:
+		return fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
+	}
+	return nil
+}
+
+func checkOptions(s *Store, o Options) error {
+	for _, variant := range o.Trees {
+		if _, ok := s.trees[variant]; !ok {
+			return fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
+		}
+	}
+	for _, lang := range o.Languages {
+		if _, ok := s.texts[lang]; !ok {
+			return fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, lang, ErrNotInDataset)
+		}
+	}
+	return nil
+}
+
+// loadTrees adds the selected trees to d and reports whether they are every tree of s.
+func loadTrees(s *Store, d *Dataset, o Options) (bool, error) {
 	allTrees := true
 	for _, variant := range s.manifest.Trees() {
 		if !slices.Contains(o.Trees, variant) {
@@ -175,24 +205,25 @@ func (s *Store) Dataset(o Options) (*Dataset, error) {
 		}
 		t, err := s.Tree(variant)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		d.Trees = append(d.Trees, *t)
 	}
+	return allTrees, nil
+}
+
+func loadTexts(s *Store, d *Dataset, o Options) error {
 	for _, lang := range s.manifest.Languages() {
 		if !slices.Contains(o.Languages, lang) {
 			continue
 		}
 		t, err := s.Text(lang)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		d.Texts = append(d.Texts, *t)
 	}
-	if err := validateNames(d.Texts, d.Trees, allTrees); err != nil {
-		return nil, err
-	}
-	return d, nil
+	return nil
 }
 
 func (s *Store) loadStats() (statsGroup, error) {
