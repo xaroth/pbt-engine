@@ -7,6 +7,14 @@ import "slices"
 
 // Engine stat names.
 const (
+	statChaosResistanceIsDoubled                 = "chaos_resistance_is_doubled"
+	statElementalMaximumResistancesAreHighest    = "elemental_maximum_resistances_are_highest"
+	statLifeRegenerationIsNotApplied             = "life_regeneration_is_not_applied"
+	statLifeRegenerationAppliesToEnergyShield    = "life_regeneration_applies_to_energy_shield"
+	statEffectiveMaximumFireResistance           = "effective_maximum_fire_resistance"
+	statEffectiveMaximumColdResistance           = "effective_maximum_cold_resistance"
+	statEffectiveMaximumLightningResistance      = "effective_maximum_lightning_resistance"
+	statEnergyShieldRegeneration                 = "energy_shield_regeneration"
 	statNoStrengthBonusToMaximumLife             = "no_strength_bonus_to_maximum_life"
 	statNoIntelligenceBonusToMaximumMana         = "no_intelligence_bonus_to_maximum_mana"
 	statNoDexterityBonusToEvasionRating          = "no_dexterity_bonus_to_evasion_rating"
@@ -52,7 +60,9 @@ const (
 // values the sheet shows. elemental_resistance and the maximum_ stats for all elemental and all
 // resistances hold modifiers to several resistances at once, which each resistance includes.
 //
-// The no_ stats are flags that turn off one inherent attribute bonus each.
+// The no_ stats are flags that turn off one inherent attribute bonus each; the _is_ and _are_
+// stats are flags of one-off mechanics. effective_maximum_ elemental resistances are the
+// maximums after "capped by your highest Maximum Elemental Resistance".
 //
 // Regeneration is per second: life_regenerated_per_second is a flat amount ("Regenerate 10 Life
 // per second"), percent_of_life_regenerated_per_second a share of maximum life ("Regenerate 1%
@@ -61,6 +71,10 @@ const (
 // mana.
 func engineStats() []string {
 	return []string{
+		statChaosResistanceIsDoubled,
+		statElementalMaximumResistancesAreHighest,
+		statLifeRegenerationIsNotApplied,
+		statLifeRegenerationAppliesToEnergyShield,
 		statNoStrengthBonusToMaximumLife,
 		statNoIntelligenceBonusToMaximumMana,
 		statNoDexterityBonusToEvasionRating,
@@ -91,29 +105,28 @@ func engineStats() []string {
 		statPercentOfLifeRegeneratedPerSecond,
 		statPercentOfManaRegeneratedPerSecond,
 		statStrength,
+		statEffectiveMaximumFireResistance,
+		statEffectiveMaximumColdResistance,
+		statEffectiveMaximumLightningResistance,
 		statFireResistanceCapped,
 		statColdResistanceCapped,
 		statLightningResistanceCapped,
 		statChaosResistanceCapped,
 		statLifeRegeneration,
 		statManaRegeneration,
+		statEnergyShieldRegeneration,
 	}
 }
 
 // ruleNames are the rules the table refers to for mechanics a modifier cannot express.
 func ruleNames() []string {
 	return []string{
-		// Maximum resistances and the caps they put on resistances.
-		"resistance_caps",
-		"chaos_resistance_doubled",
 		"convert_evasion_rating_to_armour",
 		"convert_life_to_energy_shield",
 		"energy_shield_from_spell_block_chance",
 		"fire_resistance_modifiers_also_apply",
 		// "Gain X% of a value as Extra Y": a share of one final value added to another.
 		"gain_as_extra",
-		// Whether and where life regeneration recovers.
-		"life_regeneration",
 	}
 }
 

@@ -36,6 +36,29 @@ func TestRegeneration(t *testing.T) {
 				{Stat: "keystone_eternal_youth", Value: 1},
 			},
 		},
+		{
+			name: "life regeneration not applied", stat: "life_regeneration", want: 0,
+			extra: []resolve.StatValue{
+				{Stat: "base_life_regeneration_rate_per_minute", Value: 600}, {Stat: "life_recovery_from_regeneration_is_not_applied", Value: 1},
+			},
+		},
+		{
+			name: "life regeneration to energy shield: none to life", stat: "life_regeneration", want: 0,
+			extra: []resolve.StatValue{
+				{Stat: "base_life_regeneration_rate_per_minute", Value: 600}, {Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
+			},
+		},
+		// 10 flat plus 2% of 200 energy shield (1% from intelligence: 202), without the 50% increased
+		// life regeneration rate: 10 + 4.04
+		{
+			name: "life regeneration to energy shield", stat: "energy_shield_regeneration", want: 14,
+			extra: []resolve.StatValue{
+				{Stat: "base_life_regeneration_rate_per_minute", Value: 600}, {Stat: "life_regeneration_rate_per_minute_%", Value: 120},
+				{Stat: "life_regeneration_rate_+%", Value: 50}, {Stat: "base_maximum_energy_shield", Value: 200},
+				{Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
+			},
+		},
+		{name: "no energy shield regeneration", stat: "energy_shield_regeneration", want: 0},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
