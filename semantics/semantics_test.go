@@ -27,7 +27,12 @@ func (vocabulary) IsEngineStat(name string) bool {
 	}, name)
 }
 
-func (vocabulary) IsRule(name string) bool { return name == "gain_as_extra" }
+func (vocabulary) RuleParams(name string) ([]string, bool) {
+	if name == "gain_as_extra" {
+		return []string{"from", "to"}, true
+	}
+	return nil, false
+}
 
 func readFixture(t *testing.T) string {
 	t.Helper()
@@ -85,7 +90,7 @@ func TestLoad(t *testing.T) {
 		{Stat: "life_regeneration_rate_per_minute_%", Scope: resolve.Buff, Status: semantics.Unknown,
 			Sources: []semantics.Source{desc("You and nearby Allies Regenerate {0}% of Life per second", "per_minute_to_per_second")},
 			Reason:  semantics.Reason{Kind: semantics.Condition, Text: "near the node's aura"}},
-		{Stat: "mana_%_to_add_as_energy_shield", Scope: resolve.Global, Status: semantics.Unknown, Rule: "gain_as_extra",
+		{Stat: "mana_%_to_add_as_energy_shield", Scope: resolve.Global, Status: semantics.Unknown, Rule: "gain_as_extra", RuleFactor: semantics.Ratio{Num: 1, Den: 1},
 			Sources: []semantics.Source{statID}, Reason: semantics.Reason{Kind: semantics.Rule, Text: "adds a share of maximum mana as energy shield"}},
 		{Stat: "maximum_all_resistances_%", Scope: resolve.Global, Status: semantics.Authored,
 			Mods: []semantics.Mod{{Stat: "maximum_fire_resistance", Op: core.OpBase, Factor: one}, {Stat: "maximum_cold_resistance", Op: core.OpBase, Factor: one}},
@@ -130,7 +135,20 @@ func TestLoadRejects(t *testing.T) {
 		{"unknown status", entries(`{"stat": "a", "scope": "global", "status": "guessed", "sources": [{"kind": "stat-id"}]}`), `unknown status "guessed"`},
 		{"bad version", unknown(`"from": "3.x", ` + reason), `version "3.x"`},
 		{"empty range", unknown(`"from": "3.29", "until": "3.29", ` + reason), "not before until"},
-		{"authored without mods", authored(`"omitted": "o"`), "authored without mods"},
+		{"authored without mods", authored(`"omitted": "o"`), "authored without mods or rule"},
+		{"params without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "params": {"from": "life"}`), "params without a rule"},
+		{"rule factor without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "ruleFactor": "100"`), "rule factor without a rule"},
+		{"zero rule factor", authored(`"rule": "gain_as_extra", "params": {"from": "life", "to": "armour"}, "ruleFactor": "0"`), "rule factor 0"},
+		{"bad rule factor", authored(`"rule": "gain_as_extra", "params": {"from": "life", "to": "armour"}, "ruleFactor": "x"`), `rule factor "x"`},
+		{"authored rule without params", authored(`"rule": "gain_as_extra"`), "params [], rule gain_as_extra takes [from to]"},
+		{"missing param", authored(`"rule": "gain_as_extra", "params": {"from": "life"}`), "params [from], rule gain_as_extra takes [from to]"},
+		{"extra param", authored(`"rule": "gain_as_extra", "params": {"from": "life", "to": "armour", "at": "life"}`), "params [at from to]"},
+		{"param not a stat", authored(`"rule": "gain_as_extra", "params": {"from": "life", "to": "armor"}`), `params to: unknown engine stat "armor"`},
+		{
+			"unknown rule entry with partial params",
+			unknown(`"rule": "gain_as_extra", "params": {"from": "life"}, "reason": {"kind": "rule", "text": "r"}`),
+			"params [from]",
+		},
 		{"authored with a reason", authored(`"mods": [{"stat": "life", "op": "base"}], ` + reason), "authored with a reason"},
 		{"unknown with mods", unknown(`"mods": [{"stat": "life", "op": "base"}], ` + reason), "unknown with mods"},
 		{"unknown without reason", unknown(`"rule": "gain_as_extra"`), "unknown needs a reason"},
@@ -502,5 +520,27 @@ func TestCoverRuleLine(t *testing.T) {
 	const want = "unknown mana_%_to_add_as_energy_shield global, uses 1: rule gain_as_extra: adds a share of maximum mana as energy shield\n"
 	if !strings.Contains(out.String(), want) {
 		t.Errorf("WriteText missing %q:\n%s", want, out.String())
+	}
+}
+
+func TestLoadRuleParams(t *testing.T) {
+	t.Parallel()
+	tb, err := semantics.Load([]byte(entries(
+		`{"stat": "a", "scope": "global", "status": "authored", "rule": "gain_as_extra", "params": {"from": "life", "to": "armour"}, `+
+			`"ruleFactor": "100", "sources": [{"kind": "stat-id"}]}`,
+		`{"stat": "b", "scope": "global", "status": "unknown", "rule": "gain_as_extra", "reason": {"kind": "rule", "text": "r"}, "sources": [{"kind": "stat-id"}]}`,
+	)), vocabulary{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]string{{"from": "life", "to": "armour"}, nil}
+	factors := []semantics.Ratio{{Num: 100, Den: 1}, {Num: 1, Den: 1}}
+	for i, e := range tb.Entries {
+		if diff := cmp.Diff(want[i], e.Params); diff != "" {
+			t.Errorf("entry %s params (-want +got):\n%s", e.Stat, diff)
+		}
+		if e.RuleFactor != factors[i] {
+			t.Errorf("entry %s rule factor: got %v, want %v", e.Stat, e.RuleFactor, factors[i])
+		}
 	}
 }
