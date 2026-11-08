@@ -2,7 +2,7 @@
 
 A headless build simulation engine for Path of Exile. It takes a build and a game version and returns the numbers a player cares about, each with an explanation of where it came from.
 
-Status: early. Datasets (the game data the engine reads) can be written, read and inspected. The evaluator (`core`: stats, modifiers, contexts, actors, lazy incremental evaluation with revert) exists; no game rules yet.
+Status: early. Datasets (the game data the engine reads) can be written, read and inspected. The evaluator (`core`: stats, modifiers, contexts, actors, lazy incremental evaluation with revert) and the character sheet rules for a build without items (`rules/poe1`) exist.
 
 ## Datasets
 
@@ -35,6 +35,10 @@ What a game stat id means in engine terms is authored by us from game data: stat
 
 The Path of Exile 1 table (`semantics/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `semantics/poe1/testdata` for review. `pbt semantics coverage --version 3.29 --root datasets` lists the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
 
+## Rules
+
+`rules/poe1` computes the character sheet of a resolved build: `Open(resolved, table)` turns each bundle stat into engine modifiers through the semantics table, adds the rules' own (attribute bonuses, conversions, resistance caps) and returns a `Sheet`. `Sheet.Output` reads the named outputs of `Outputs()`, the catalogue consumers render from: attributes, life, mana, energy shield, armour, evasion rating, resistances with their maximums and uncapped totals, and regeneration per second. Stats the table cannot apply are listed in `Sheet.Notes`, not errors. Where neither game text nor game data states a formula detail, such as rounding, it follows Path of Building as a starting point and is marked unvalidated.
+
 ## Develop
 
 Requires Go 1.27.
@@ -44,6 +48,7 @@ go build ./...
 go test ./...
 golangci-lint run
 go test ./core -run '^$' -bench .   # benchmarks
+PBT_DATASETS=datasets go test ./rules/poe1   # also compute sheets on real datasets
 PBT_DATASETS=datasets go test ./semantics/poe1   # also check the table against real datasets
 PBT_DATASETS=datasets go test ./semantics/poe1 -update   # rewrite its fixtures and golden lists
 ```
