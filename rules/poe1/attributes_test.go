@@ -8,7 +8,8 @@ import (
 
 // marauder returns the bundles of a Marauder at level with extra stats on one node, from the
 // 3.29.3.3 Characters row and Character.ot: 32 strength, 14 dexterity, 14 intelligence, 38
-// life plus 12 per level, 34 mana plus 6 per level, 15 evasion rating.
+// life plus 12 per level, 34 mana plus 6 per level, 15 evasion rating, 1.75% of mana
+// regenerated per second (105 per minute).
 func marauder(level float64, extra ...resolve.StatValue) []resolve.Bundle {
 	return []resolve.Bundle{
 		bundle(resolve.CharacterSource{ID: "Metadata/Characters/Str/Str"}, resolve.Global,
@@ -20,6 +21,7 @@ func marauder(level float64, extra ...resolve.StatValue) []resolve.Bundle {
 			resolve.StatValue{Stat: "life_per_level", Value: 12},
 			resolve.StatValue{Stat: "mana_per_level", Value: 6},
 			resolve.StatValue{Stat: "base_evasion_rating", Value: 15},
+			resolve.StatValue{Stat: "mana_regeneration_rate_per_minute_%", Value: 105},
 		),
 		bundle(resolve.LevelSource{}, resolve.Global, resolve.StatValue{Stat: "level", Value: level}),
 		bundle(resolve.NodeSource{ID: 1}, resolve.Global, extra...),

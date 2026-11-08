@@ -7,6 +7,8 @@ import "slices"
 
 // Engine stat names.
 const (
+	statLifeRegeneration                  = "life_regeneration"
+	statManaRegeneration                  = "mana_regeneration"
 	statElementalResistance               = "elemental_resistance"
 	statMaximumElementalResistance        = "maximum_elemental_resistance"
 	statMaximumAllResistances             = "maximum_all_resistances"
@@ -49,7 +51,8 @@ const (
 // Regeneration is per second: life_regenerated_per_second is a flat amount ("Regenerate 10 Life
 // per second"), percent_of_life_regenerated_per_second a share of maximum life ("Regenerate 1%
 // of Life per second"), and life_regeneration_rate holds the increases and more multipliers of
-// the "Life Regeneration rate"; the same for mana.
+// the "Life Regeneration rate"; life_regeneration is the total the sheet shows. The same for
+// mana.
 func engineStats() []string {
 	return []string{
 		statElementalResistance,
@@ -82,6 +85,8 @@ func engineStats() []string {
 		statColdResistanceCapped,
 		statLightningResistanceCapped,
 		statChaosResistanceCapped,
+		statLifeRegeneration,
+		statManaRegeneration,
 	}
 }
 

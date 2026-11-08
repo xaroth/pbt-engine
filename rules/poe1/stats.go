@@ -56,7 +56,53 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 	case statMaximumEnergyShield, statArmour, statEvasionRating:
 		def.Round, def.HasMin = core.RoundHalf, true
 	}
-	return resistanceDef(def, ids)
+	return regenerationDef(resistanceDef(def, ids), ids)
+}
+
+// regeneration is one pool's regeneration stats.
+type regeneration struct {
+	total, flat, percent, rate, pool string
+}
+
+func regenerations() []regeneration {
+	return []regeneration{
+		{
+			total: statLifeRegeneration, flat: statLifeRegeneratedPerSecond, percent: statPercentOfLifeRegeneratedPerSecond,
+			rate: statLifeRegenerationRate, pool: statMaximumLife,
+		},
+		{
+			total: statManaRegeneration, flat: statManaRegeneratedPerSecond, percent: statPercentOfManaRegeneratedPerSecond,
+			rate: statManaRegenerationRate, pool: statMaximumMana,
+		},
+	}
+}
+
+const (
+	// regenerationPlaces is the decimal places regeneration per second keeps.
+	regenerationPlaces = 1
+	// percentScale turns a percentage into a fraction.
+	percentScale = 100
+)
+
+// regenerationDef completes def when it is a pool's total regeneration: the flat amount plus
+// the percentage of the pool, then the regeneration rate's increases and more multipliers,
+// rounded half up to one decimal place. The order and rounding follow PoB (CalcDefence.lua);
+// the increases scaling both parts is the game text's "Regeneration rate", the rest is
+// unvalidated.
+func regenerationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
+	for _, rg := range regenerations() {
+		if def.Name != rg.total {
+			continue
+		}
+		percent, pool := mustID(ids, rg.percent), mustID(ids, rg.pool)
+		def.Includes = []core.StatID{mustID(ids, rg.flat), mustID(ids, rg.rate)}
+		def.Round, def.Places = core.RoundHalf, regenerationPlaces
+		def.Formula = func(rd core.Reader, a core.Agg) float64 {
+			base := a.Base + float64(rd.Stat(pool)*rd.Stat(percent))/percentScale
+			return base * (1 + a.Inc/percentScale) * a.More
+		}
+	}
+	return def
 }
 
 // resistanceDef completes def when it is one of a resistance's stats.
