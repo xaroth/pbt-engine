@@ -59,6 +59,10 @@ type StatDef struct {
 	// Includes lists stats whose modifiers also apply to this stat
 	// (fire resistance includes elemental resistance).
 	Includes []StatID
+	// Shares lists stats whose own modifiers also apply to this stat at a rate read when the
+	// node is evaluated ("modifiers to fire resistance also apply to cold resistance at 50% of
+	// their value"). Only the shared stat's own modifiers count, not those of its Includes.
+	Shares []Share
 	// Flag stats are 1 when any OpFlag modifier matches, else 0, unless a formula says otherwise.
 	Flag bool
 	// CycleFamily groups stats whose conditions and scales read each other in cycles
@@ -70,6 +74,14 @@ type StatDef struct {
 	CycleFamily uint8
 	// Formula replaces the default aggregation; nil uses Agg.Default (or the flag rule).
 	Formula Formula
+}
+
+// Share applies another stat's modifiers to a stat. Rate is a percentage: its base, increased
+// and more modifiers apply at Rate percent of their value; its overrides and flags do not
+// apply. A Rate of 0 adds nothing.
+type Share struct {
+	Stat StatID
+	Rate Ref
 }
 
 // Bit is one value of a context dimension.
@@ -134,7 +146,8 @@ type ModelBuilder struct {
 	bitNames map[string]Bit // "dimension.value"
 }
 
-// AddStat registers a stat. Names are unique; includes must name stats registered earlier.
+// AddStat registers a stat. Names are unique; includes and shares, with their rates, must
+// name stats registered earlier.
 func (b *ModelBuilder) AddStat(def StatDef) (StatID, error) {
 	if _, dup := b.byName[def.Name]; dup {
 		return 0, fmt.Errorf("%w: stat %q", ErrDuplicateName, def.Name)
@@ -146,15 +159,14 @@ func (b *ModelBuilder) AddStat(def StatDef) (StatID, error) {
 		return 0, fmt.Errorf("%w: stat %q: places %d, want 0 to %d", ErrOutOfRange, def.Name, def.Places, maxPlaces)
 	}
 	id := StatID(u32(len(b.stats)))
-	for _, inc := range def.Includes {
-		if inc >= id {
-			return 0, fmt.Errorf("%w: stat %q includes stat %d", ErrBadHandle, def.Name, inc)
-		}
+	if err := def.checkEarlier(id); err != nil {
+		return 0, err
 	}
 	if b.byName == nil {
 		b.byName = map[string]StatID{}
 	}
 	def.Includes = slices.Clone(def.Includes)
+	def.Shares = slices.Clone(def.Shares)
 	b.stats = append(b.stats, def)
 	b.byName[def.Name] = id
 	return id, nil
@@ -167,6 +179,22 @@ func (b *ModelBuilder) MustAddStat(def StatDef) StatID {
 		panic(err)
 	}
 	return id
+}
+
+// checkEarlier checks that the stats d includes and shares, with their rates, are registered
+// before id.
+func (d *StatDef) checkEarlier(id StatID) error {
+	for _, inc := range d.Includes {
+		if inc >= id {
+			return fmt.Errorf("%w: stat %q includes stat %d", ErrBadHandle, d.Name, inc)
+		}
+	}
+	for _, sh := range d.Shares {
+		if sh.Stat >= id || sh.Rate.Stat >= id {
+			return fmt.Errorf("%w: stat %q shares stat %d at the rate of stat %d", ErrBadHandle, d.Name, sh.Stat, sh.Rate.Stat)
+		}
+	}
+	return nil
 }
 
 // SetFormula sets the formula of a registered stat, so formulas may read stats registered
@@ -238,6 +266,7 @@ func (m *Model) StatDef(id StatID) (StatDef, bool) {
 	}
 	def := m.stats[id]
 	def.Includes = slices.Clone(def.Includes)
+	def.Shares = slices.Clone(def.Shares)
 	return def, true
 }
 
