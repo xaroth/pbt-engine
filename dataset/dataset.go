@@ -18,6 +18,17 @@ import (
 	"strings"
 )
 
+// Errors returned when reading datasets; match them with errors.Is.
+var (
+	ErrFormat = errors.New("dataset format")
+	// ErrInvalid marks dataset content that fails decoding, validation or integrity checks.
+	ErrInvalid      = errors.New("invalid dataset")
+	ErrNotInDataset = errors.New("not in dataset")
+	ErrDuplicate    = errors.New("added twice")
+	ErrBadVersion   = errors.New("invalid game version")
+	errMalformed    = fmt.Errorf("malformed: %w", ErrInvalid)
+)
+
 // FormatVersion is the dataset format written by this package. Read rejects other versions.
 const FormatVersion = 1
 
@@ -62,7 +73,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	m.Files = nil
 	for _, g := range groups {
 		if err := os.WriteFile(filepath.Join(dir, g.name), g.b, 0o644); err != nil {
-			return Manifest{}, err
+			return Manifest{}, fmt.Errorf("write %s: %w", g.name, err)
 		}
 		sum := sha256.Sum256(g.b)
 		m.Files = append(m.Files, File{Name: g.name, Size: len(g.b), SHA256: hex.EncodeToString(sum[:])})
@@ -70,10 +81,10 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	m.ID = m.contentID()
 	mb, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return Manifest{}, err
+		return Manifest{}, fmt.Errorf("encode manifest: %w", err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, ManifestName), append(mb, '\n'), 0o644); err != nil {
-		return Manifest{}, err
+		return Manifest{}, fmt.Errorf("write manifest: %w", err)
 	}
 	return m, nil
 }
@@ -93,25 +104,25 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	var m Manifest
 	mb, err := fs.ReadFile(fsys, ManifestName)
 	if err != nil {
-		return m, err
+		return m, fmt.Errorf("read manifest: %w", err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(mb))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&m); err != nil {
-		return m, fmt.Errorf("%s: %w", ManifestName, err)
+		return m, fmt.Errorf("%s: %w: %w", ManifestName, err, ErrInvalid)
 	}
 	if m.Format != FormatVersion {
-		return m, fmt.Errorf("dataset format %d, want %d", m.Format, FormatVersion)
+		return m, fmt.Errorf("%w %d, want %d", ErrFormat, m.Format, FormatVersion)
 	}
 	seen := map[string]bool{}
 	for _, f := range m.Files {
 		if seen[f.Name] {
-			return m, fmt.Errorf("%s: file %s listed twice", ManifestName, f.Name)
+			return m, fmt.Errorf("%s: file %s listed twice: %w", ManifestName, f.Name, ErrInvalid)
 		}
 		seen[f.Name] = true
 	}
 	if m.ID != m.contentID() {
-		return m, fmt.Errorf("%s: id does not match game, version and files", ManifestName)
+		return m, fmt.Errorf("%s: id does not match game, version and files: %w", ManifestName, ErrInvalid)
 	}
 	return m, nil
 }
@@ -160,10 +171,10 @@ func Read(fsys fs.FS, o Options) (*Dataset, error) {
 func decodeSafely(decode func([]byte) error, b []byte) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("malformed: %v", r)
+			err = fmt.Errorf("%w: %v", errMalformed, r)
 		}
 	}()
 	return decode(b)
 }
 
-var errIdentifier = errors.New("wrong file identifier")
+var errIdentifier = fmt.Errorf("wrong file identifier: %w", ErrInvalid)

@@ -320,11 +320,11 @@ func TestMemoisation(t *testing.T) {
 		{"no edit", func(*core.Session, core.StatID, core.StatID) error { return nil }, 72, 1},
 		{"unrelated stat", func(s *core.Session, _, dex core.StatID) error {
 			_, err := s.AddModifier(core.Modifier{Stat: dex, Op: core.OpBase, Value: 5, Source: 4})
-			return err
+			return wrap(t, "add modifier", err)
 		}, 72, 1},
 		{"read stat, same rounded value", func(s *core.Session, str, _ core.StatID) error {
 			_, err := s.AddModifier(core.Modifier{Stat: str, Op: core.OpBase, Value: 0.4, Source: 4})
-			return err
+			return wrap(t, "add modifier", err)
 		}, 72, 1},
 		{"read stat changes", func(s *core.Session, _, _ core.StatID) error {
 			return s.SetSourceEnabled(2, false)
@@ -487,11 +487,11 @@ func TestFormulaPanic(t *testing.T) {
 	}{
 		{"Get", func(s *core.Session, x core.StatID) error {
 			_, err := s.Get(0, x, core.GlobalCtx)
-			return err
+			return wrap(t, "get", err)
 		}},
 		{"Terms", func(s *core.Session, x core.StatID) error {
 			_, _, err := s.Terms(core.Node{Stat: x})
-			return err
+			return wrap(t, "terms", err)
 		}},
 	}
 	for _, testCase := range testCases {

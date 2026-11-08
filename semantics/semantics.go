@@ -20,6 +20,33 @@ import (
 	"github.com/xaroth/pbt-engine/resolve"
 )
 
+// Details of ErrInvalid; each is part of the error text.
+var (
+	errUnknown        = errors.New("unknown")
+	errTemplateText   = errors.New("object-template text")
+	errFactor         = errors.New("factor")
+	errNotSorted      = errors.New("not sorted by stat and scope")
+	errOverlap        = errors.New("versions overlap")
+	errNoStat         = errors.New("no stat")
+	errNotBeforeUntil = errors.New("not before until")
+	errReasonNoText   = errors.New("reason without text")
+	errNoSources      = errors.New("no sources")
+	errAuthoredNoMods = errors.New("authored without mods")
+	errAuthoredReason = errors.New("authored with a reason")
+	errUnknownReason  = errors.New("unknown needs a reason other than")
+	errUnknownRule    = errors.New("unknown names a rule exactly when its reason is rule")
+	errDisplayReason  = errors.New("display-only needs reason")
+	errDisplayRule    = errors.New("display-only with a rule")
+	errWithMods       = errors.New("with mods")
+	errOnlyAuthored   = errors.New("with unvalidated or omitted; only authored entries have them")
+	errStepPositive   = errors.New("want > 0")
+	errStatIDRefText  = errors.New("stat-id with ref or text")
+	errWithoutRef     = errors.New("without ref")
+	errWithoutText    = errors.New("without text")
+	errWithHandlers   = errors.New("with handlers")
+	errWithText       = errors.New("with text")
+)
+
 // Format is the table file format Load reads.
 const Format = 1
 
@@ -128,7 +155,7 @@ func parseName[T ~uint8](names []string, s, what string) (T, error) {
 	if i := slices.Index(names, s); i > 0 {
 		return T(i), nil
 	}
-	return 0, fmt.Errorf("unknown %s %q", what, s)
+	return 0, fmt.Errorf("%w %s %q", errUnknown, what, s)
 }
 
 // Source is a game source of an entry.
@@ -144,7 +171,7 @@ func templateLine(text string) (stat string, value int32, err error) {
 	stat, v, ok := strings.Cut(text, " = ")
 	n, perr := strconv.ParseInt(v, 10, 32)
 	if !ok || stat == "" || perr != nil {
-		return "", 0, fmt.Errorf("object-template text %q: want \"stat = value\"", text)
+		return "", 0, fmt.Errorf("%w %q: want \"stat = value\"", errTemplateText, text)
 	}
 	return stat, int32(n), nil
 }
@@ -170,7 +197,7 @@ func parseRatio(s string) (Ratio, error) {
 	n, err1 := strconv.ParseInt(num, 10, 32)
 	d, err2 := strconv.ParseInt(den, 10, 32)
 	if err1 != nil || err2 != nil || d <= 0 {
-		return Ratio{}, fmt.Errorf("factor %q: want n or n/d with d > 0", s)
+		return Ratio{}, fmt.Errorf("%w %q: want n or n/d with d > 0", errFactor, s)
 	}
 	return Ratio{int32(n), int32(d)}, nil
 }
@@ -331,11 +358,11 @@ func checkOrder(prev, e *Entry) error {
 	c := cmp.Or(cmp.Compare(prev.Stat, e.Stat), cmp.Compare(prev.Scope, e.Scope))
 	switch {
 	case c > 0:
-		return errors.New("not sorted by stat and scope")
+		return errNotSorted
 	case c < 0:
 		return nil
 	case e.From.IsZero() || prev.Until.IsZero() || prev.Until.Compare(e.From) > 0:
-		return fmt.Errorf("versions overlap %s", prev.String())
+		return fmt.Errorf("%w %s", errOverlap, prev.String())
 	}
 	return nil
 }
@@ -346,7 +373,7 @@ func parseScope(name string) (resolve.Scope, error) {
 			return s, nil
 		}
 	}
-	return 0, fmt.Errorf("unknown scope %q", name)
+	return 0, fmt.Errorf("%w scope %q", errUnknown, name)
 }
 
 func parseOp(name string) (core.Op, error) {
@@ -355,19 +382,23 @@ func parseOp(name string) (core.Op, error) {
 			return o, nil
 		}
 	}
-	return 0, fmt.Errorf("unknown op %q", name)
+	return 0, fmt.Errorf("%w op %q", errUnknown, name)
 }
 
 func parseBound(s string) (dataset.GameVersion, error) {
 	if s == "" {
 		return dataset.GameVersion{}, nil
 	}
-	return dataset.ParseGameVersion(s)
+	v, err := dataset.ParseGameVersion(s)
+	if err != nil {
+		return dataset.GameVersion{}, fmt.Errorf("game version: %w", err)
+	}
+	return v, nil
 }
 
 func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 	if f.Stat == "" {
-		return Entry{}, errors.New("no stat")
+		return Entry{}, errNoStat
 	}
 	e := Entry{Stat: f.Stat, Rule: f.Rule, Unvalidated: f.Unvalidated, Omitted: f.Omitted}
 	var err error
@@ -384,14 +415,14 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 		return Entry{}, err
 	}
 	if !e.From.IsZero() && !e.Until.IsZero() && e.From.Compare(e.Until) >= 0 {
-		return Entry{}, fmt.Errorf("from %s not before until %s", e.From, e.Until)
+		return Entry{}, fmt.Errorf("from %s %w %s", e.From, errNotBeforeUntil, e.Until)
 	}
 	if f.Reason != nil {
 		if e.Reason.Kind, err = parseName[ReasonKind](reasonKindNames[:], f.Reason.Kind, "reason kind"); err != nil {
 			return Entry{}, err
 		}
 		if f.Reason.Text == "" {
-			return Entry{}, errors.New("reason without text")
+			return Entry{}, errReasonNoText
 		}
 		e.Reason.Text = f.Reason.Text
 	}
@@ -399,7 +430,7 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 		return Entry{}, err
 	}
 	if e.Rule != "" && !vocab.IsRule(e.Rule) {
-		return Entry{}, fmt.Errorf("unknown rule %q", e.Rule)
+		return Entry{}, fmt.Errorf("%w rule %q", errUnknown, e.Rule)
 	}
 	for i := range f.Mods {
 		m, err := parseMod(&f.Mods[i], vocab)
@@ -409,7 +440,7 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 		e.Mods = append(e.Mods, m)
 	}
 	if len(f.Sources) == 0 {
-		return Entry{}, errors.New("no sources")
+		return Entry{}, errNoSources
 	}
 	for i := range f.Sources {
 		s, err := parseSource(&f.Sources[i])
@@ -427,38 +458,38 @@ func checkStatus(e *Entry, mods int) error {
 	case Authored:
 		switch {
 		case mods == 0:
-			return errors.New("authored without mods")
+			return errAuthoredNoMods
 		case e.Reason.Kind != 0:
-			return errors.New("authored with a reason")
+			return errAuthoredReason
 		}
 		return nil
 	case Unknown:
 		switch {
 		case e.Reason.Kind == 0 || e.Reason.Kind == Display:
-			return fmt.Errorf("unknown needs a reason other than %s", Display)
+			return fmt.Errorf("%w %s", errUnknownReason, Display)
 		case (e.Reason.Kind == Rule) != (e.Rule != ""):
-			return errors.New("unknown names a rule exactly when its reason is rule")
+			return errUnknownRule
 		}
 	case DisplayOnly:
 		switch {
 		case e.Reason.Kind != Display:
-			return fmt.Errorf("display-only needs reason %s", Display)
+			return fmt.Errorf("%w %s", errDisplayReason, Display)
 		case e.Rule != "":
-			return errors.New("display-only with a rule")
+			return errDisplayRule
 		}
 	}
 	switch {
 	case mods > 0:
-		return fmt.Errorf("%s with mods", e.Status)
+		return fmt.Errorf("%s %w", e.Status, errWithMods)
 	case e.Unvalidated != "" || e.Omitted != "":
-		return fmt.Errorf("%s with unvalidated or omitted; only authored entries have them", e.Status)
+		return fmt.Errorf("%s %w", e.Status, errOnlyAuthored)
 	}
 	return nil
 }
 
 func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 	if !vocab.IsEngineStat(f.Stat) {
-		return Mod{}, fmt.Errorf("unknown engine stat %q", f.Stat)
+		return Mod{}, fmt.Errorf("%w engine stat %q", errUnknown, f.Stat)
 	}
 	op, err := parseOp(f.Op)
 	if err != nil {
@@ -469,15 +500,15 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 		return Mod{}, err
 	}
 	if factor.Num == 0 && op != core.OpOverride {
-		return Mod{}, fmt.Errorf("factor %s on %s; only override may set a value of 0", factor, op)
+		return Mod{}, fmt.Errorf("%w %s on %s; only override may set a value of 0", errFactor, factor, op)
 	}
 	m := Mod{Stat: f.Stat, Op: op, Factor: factor}
 	if f.Per != nil {
 		if !vocab.IsEngineStat(f.Per.Stat) {
-			return Mod{}, fmt.Errorf("per: unknown engine stat %q", f.Per.Stat)
+			return Mod{}, fmt.Errorf("per: %w engine stat %q", errUnknown, f.Per.Stat)
 		}
 		if f.Per.Step <= 0 {
-			return Mod{}, fmt.Errorf("per %s: step %d, want > 0", f.Per.Stat, f.Per.Step)
+			return Mod{}, fmt.Errorf("per %s: step %d, %w", f.Per.Stat, f.Per.Step, errStepPositive)
 		}
 		m.Per = &Per{Stat: f.Per.Stat, Step: f.Per.Step}
 	}
@@ -492,15 +523,15 @@ func parseSource(f *fileSource) (Source, error) {
 	s := Source{Kind: kind, Ref: f.Ref, Text: f.Text, Handlers: f.Handlers}
 	switch {
 	case s.Kind == StatID && (s.Ref != "" || s.Text != ""):
-		return Source{}, errors.New("stat-id with ref or text")
+		return Source{}, errStatIDRefText
 	case s.Kind != StatID && s.Ref == "":
-		return Source{}, fmt.Errorf("%s without ref", s.Kind)
+		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithoutRef)
 	case s.Kind == Description && s.Text == "":
-		return Source{}, fmt.Errorf("%s without text", s.Kind)
+		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithoutText)
 	case s.Kind != Description && len(s.Handlers) > 0:
-		return Source{}, fmt.Errorf("%s with handlers", s.Kind)
+		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithHandlers)
 	case s.Kind == GameData && s.Text != "":
-		return Source{}, fmt.Errorf("%s with text", s.Kind)
+		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithText)
 	}
 	if s.Kind == ObjectTemplate {
 		if _, _, err := templateLine(s.Text); err != nil {

@@ -34,6 +34,16 @@ import (
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
+var (
+	errUnknownOption   = errors.New("unknown option")
+	errNeedsValue      = errors.New("needs a value")
+	errVersionRequired = errors.New("--version is required")
+	errLimit           = errors.New("want a number >= 0")
+	errUsage           = errors.New(usage)
+	errNoSemantics     = errors.New("no semantics table for")
+	errNotFound        = errors.New("not found")
+)
+
 const usage = `usage:
   pbt data show node <id> --version <v> [--variant standard]
   pbt data show stat <id> --version <v>
@@ -70,11 +80,11 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 		}
 		name, val, hasVal := strings.Cut(strings.TrimLeft(a, "-"), "=")
 		if _, ok := known[name]; !ok {
-			return nil, nil, fmt.Errorf("unknown option %s", a)
+			return nil, nil, fmt.Errorf("%w %s", errUnknownOption, a)
 		}
 		if !hasVal {
 			if i+1 >= len(args) {
-				return nil, nil, fmt.Errorf("option %s needs a value", a)
+				return nil, nil, fmt.Errorf("option %s %w", a, errNeedsValue)
 			}
 			i++
 			val = args[i]
@@ -95,7 +105,7 @@ func run(args []string, w, notes io.Writer) error {
 	switch {
 	case len(pos) == 4 && pos[0] == "data" && pos[1] == "show":
 		if opts["version"] == "" {
-			return errors.New("--version is required")
+			return errVersionRequired
 		}
 		var variants []string // stats and characters need no tree
 		if pos[2] == "node" {
@@ -120,7 +130,7 @@ func run(args []string, w, notes io.Writer) error {
 	case len(pos) == 4 && pos[0] == "data" && pos[1] == "diff":
 		limit, err := strconv.Atoi(opts["limit"])
 		if err != nil || limit < 0 {
-			return fmt.Errorf("--limit %q: want a number >= 0", opts["limit"])
+			return fmt.Errorf("--limit %q: %w", opts["limit"], errLimit)
 		}
 		res, err := resolveVersions(notes, opts["root"], opts["game"], pos[2], pos[3])
 		if err != nil {
@@ -155,7 +165,10 @@ func run(args []string, w, notes io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", pos[2], err)
 		}
-		return r.Dump(w)
+		if err := r.Dump(w); err != nil {
+			return fmt.Errorf("dump: %w", err)
+		}
+		return nil
 	case len(pos) == 2 && pos[0] == "semantics" && pos[1] == "coverage":
 		res, err := resolveVersions(notes, opts["root"], opts["game"], opts["version"])
 		if err != nil {
@@ -163,7 +176,7 @@ func run(args []string, w, notes io.Writer) error {
 		}
 		return coverage(w, res[0].Store, opts["variant"])
 	}
-	return errors.New(usage)
+	return errUsage
 }
 
 // resolveVersions resolves versions of game among the datasets under root and notes on notes
@@ -171,7 +184,7 @@ func run(args []string, w, notes io.Writer) error {
 func resolveVersions(notes io.Writer, root, game string, versions ...string) ([]dataset.Resolution, error) {
 	reg, err := dataset.OpenRoot(os.DirFS(root))
 	if reg == nil {
-		return nil, err
+		return nil, fmt.Errorf("open datasets: %w", err)
 	}
 	p := &printer{w: notes}
 	if err != nil {
@@ -183,7 +196,7 @@ func resolveVersions(notes io.Writer, root, game string, versions ...string) ([]
 	for _, version := range versions {
 		res, err := reg.Resolve(game, version)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("resolve version: %w", err)
 		}
 		out = append(out, res)
 	}
@@ -206,21 +219,24 @@ func resolveVersions(notes io.Writer, root, game string, versions ...string) ([]
 // character sheet.
 func coverage(w io.Writer, s *dataset.Store, variant string) error {
 	if g := s.Manifest().Game; g != "poe1" {
-		return fmt.Errorf("no semantics table for %s", g)
+		return fmt.Errorf("%w %s", errNoSemantics, g)
 	}
 	t, err := poe1.Load()
 	if err != nil {
-		return err
+		return fmt.Errorf("load semantics: %w", err)
 	}
 	feeds, err := poe1.FeedsSheet(s)
 	if err != nil {
-		return err
+		return fmt.Errorf("sheet stats: %w", err)
 	}
 	c, err := semantics.Cover(s, variant, t, feeds)
 	if err != nil {
-		return err
+		return fmt.Errorf("coverage: %w", err)
 	}
-	return c.WriteText(w)
+	if err := c.WriteText(w); err != nil {
+		return fmt.Errorf("write coverage: %w", err)
+	}
+	return nil
 }
 
 // read reads the given tree variants and the text of one language from s.
@@ -237,7 +253,7 @@ func read(s *dataset.Store, variants []string, language string) (*dataset.Datase
 func checkBuild(notes io.Writer, root, path string) (*build.Checked, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read build: %w", err)
 	}
 	b, err := build.Parse(data)
 	if err != nil {
@@ -269,7 +285,10 @@ func newTexter(d *dataset.Dataset) (texter, error) {
 	for _, n := range text.NodeNames {
 		nodes[n.ID] = n.Name
 	}
-	return texter{d, text, set, nodes}, err
+	if err != nil {
+		return texter{d, text, set, nodes}, fmt.Errorf("description set: %w", err)
+	}
+	return texter{d, text, set, nodes}, nil
 }
 
 func (t texter) characterName(id string) string {
@@ -311,12 +330,12 @@ func showNode(w io.Writer, d *dataset.Dataset, variant, idArg string) error {
 	}
 	ti := slices.IndexFunc(d.Trees, func(t dataset.Tree) bool { return t.Variant == variant })
 	if ti < 0 {
-		return fmt.Errorf("no %s tree in %s", variant, d.Manifest.Version)
+		return fmt.Errorf("no %s tree in %s: %w", variant, d.Manifest.Version, errNotFound)
 	}
 	nodes := d.Trees[ti].Nodes
 	ni, ok := slices.BinarySearchFunc(nodes, uint32(id), func(n dataset.Node, id uint32) int { return int(n.ID) - int(id) })
 	if !ok {
-		return fmt.Errorf("no node %d in the %s %s tree", id, d.Manifest.Version, variant)
+		return fmt.Errorf("no node %d in the %s %s tree: %w", id, d.Manifest.Version, variant, errNotFound)
 	}
 	n := nodes[ni]
 	t, err := newTexter(d)
@@ -354,7 +373,7 @@ func showStat(w io.Writer, d *dataset.Dataset, id string) error {
 	p := &printer{w: w}
 	i := slices.IndexFunc(d.Stats, func(s dataset.Stat) bool { return s.ID == id })
 	if i < 0 {
-		return fmt.Errorf("no stat %s in %s", id, d.Manifest.Version)
+		return fmt.Errorf("no stat %s in %s: %w", id, d.Manifest.Version, errNotFound)
 	}
 	p.printf("%s (handle %d of %d)\n", id, i, len(d.Stats))
 	return p.err
@@ -368,7 +387,7 @@ func showCharacter(w io.Writer, d *dataset.Dataset, name string) error {
 	}
 	i := slices.IndexFunc(d.Characters, func(c dataset.Character) bool { return strings.EqualFold(t.characterName(c.ID), name) })
 	if i < 0 {
-		return fmt.Errorf("no character %s in %s", name, d.Manifest.Version)
+		return fmt.Errorf("no character %s in %s: %w", name, d.Manifest.Version, errNotFound)
 	}
 	c := d.Characters[i]
 	p.printf("%s (%s)\n  strength %d, dexterity %d, intelligence %d\n  base life %d, base mana %d\n",

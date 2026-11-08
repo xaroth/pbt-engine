@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -219,7 +220,7 @@ func TestCheckProblems(t *testing.T) {
 			for _, p := range ce.Problems {
 				got = append(got, problem{p.Kind, p.Node})
 			}
-			if diff := cmp.Diff(testCase.want, got, cmp.Comparer(func(a, b error) bool { return a == b })); diff != "" {
+			if diff := cmp.Diff(testCase.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("problems (-want +got):\n%s", diff)
 			}
 			if !errors.Is(err, testCase.want[0].Kind) {
