@@ -8,20 +8,32 @@ import (
 )
 
 // attributeBonus is an inherent bonus of an attribute: the constant's Value per Per points of
-// the attribute, in whole steps.
+// the attribute, in whole steps, unless flag stat off is set.
 type attributeBonus struct {
-	constant, attribute, target string
-	op                          core.Op
+	constant, attribute, target, off string
+	op                               core.Op
 }
 
 // attributeBonuses are the inherent bonuses on the sheet. The constants' notes say each is
 // rounded down; a core Scale counts whole steps, which is that.
 func attributeBonuses() []attributeBonus {
 	return []attributeBonus{
-		{constant: "life_per_strength", attribute: statStrength, target: statMaximumLife, op: core.OpBase},
-		{constant: "mana_per_intelligence", attribute: statIntelligence, target: statMaximumMana, op: core.OpBase},
-		{constant: "evasion_rating_+%_per_dexterity", attribute: statDexterity, target: statEvasionRating, op: core.OpInc},
-		{constant: "energy_shield_+%_per_intelligence", attribute: statIntelligence, target: statMaximumEnergyShield, op: core.OpInc},
+		{
+			constant: "life_per_strength", attribute: statStrength, target: statMaximumLife, op: core.OpBase,
+			off: statNoStrengthBonusToMaximumLife,
+		},
+		{
+			constant: "mana_per_intelligence", attribute: statIntelligence, target: statMaximumMana, op: core.OpBase,
+			off: statNoIntelligenceBonusToMaximumMana,
+		},
+		{
+			constant: "evasion_rating_+%_per_dexterity", attribute: statDexterity, target: statEvasionRating, op: core.OpInc,
+			off: statNoDexterityBonusToEvasionRating,
+		},
+		{
+			constant: "energy_shield_+%_per_intelligence", attribute: statIntelligence, target: statMaximumEnergyShield, op: core.OpInc,
+			off: statNoIntelligenceBonusToMaximumEnergyShield,
+		},
 	}
 }
 
@@ -36,6 +48,7 @@ func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
 		mod := core.Modifier{
 			Stat: sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src,
 			Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[b.attribute]), Step: float64(c.Per)}},
+			Conds:  []core.Cond{{Ref: core.SelfRef(sh.stats[b.off]), Cmp: core.CmpEQ}},
 		}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return fmt.Errorf("sheet: %s: %w", b.constant, err)
