@@ -90,7 +90,7 @@ func (s *Session) AddModifier(m Modifier) (ModID, error) {
 	if err := s.checkModifier(&m); err != nil {
 		return ModID{}, err
 	}
-	slot := uint32(len(s.mStat))
+	slot := u32(len(s.mStat))
 	s.mStat = append(s.mStat, m.Stat)
 	s.mActor = append(s.mActor, m.Actor)
 	s.mOp = append(s.mOp, m.Op)
@@ -99,14 +99,14 @@ func (s *Session) AddModifier(m Modifier) (ModID, error) {
 	s.mAlive = append(s.mAlive, true)
 	pred := int32(-1)
 	if len(m.Pred.Req) > 0 || !m.Pred.Excl.IsZero() {
-		pred = int32(len(s.preds))
+		pred = i32(len(s.preds))
 		s.preds = append(s.preds, Predicate{Req: slices.Clone(m.Pred.Req), Excl: m.Pred.Excl})
 	}
 	s.mPred = append(s.mPred, pred)
 	s.conds = append(s.conds, m.Conds...)
-	s.mCond = append(s.mCond, uint32(len(s.conds)))
+	s.mCond = append(s.mCond, u32(len(s.conds)))
 	s.scales = append(s.scales, m.Scales...)
-	s.mScale = append(s.mScale, uint32(len(s.scales)))
+	s.mScale = append(s.mScale, u32(len(s.scales)))
 	if int(slot) == len(s.slotGen) {
 		s.slotGen = append(s.slotGen, 1)
 	}
@@ -201,7 +201,7 @@ func (s *Session) Modifier(id ModID) (m Modifier, removed bool, err error) {
 // included, in the order they were added.
 func (s *Session) Modifiers() iter.Seq[ModID] {
 	return func(yield func(ModID) bool) {
-		for mi := range uint32(len(s.mStat)) {
+		for mi := range u32(len(s.mStat)) {
 			if !yield(s.modID(mi)) {
 				return
 			}

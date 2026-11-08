@@ -91,3 +91,27 @@ func TestBuildCopies(t *testing.T) {
 	add(t, s, core.Modifier{Stat: x, Value: 2})
 	want(t, s, x, 2)
 }
+
+func TestDimensionBitOutOfRange(t *testing.T) {
+	t.Parallel()
+	d := core.Dimension{Values: []string{"a", "b"}}
+	tests := []struct {
+		name string
+		i    int
+	}{
+		{"negative", -1},
+		{"past the values", 2},
+		{"past uint16", 1 << 16},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			defer func() {
+				if recover() == nil {
+					t.Errorf("Bit(%d): got no panic, want one", tt.i)
+				}
+			}()
+			d.Bit(tt.i)
+		})
+	}
+}

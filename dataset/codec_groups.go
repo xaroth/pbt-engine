@@ -45,7 +45,7 @@ func encodeScopes(b *flatbuffers.Builder, scopes []statdesc.Scope) flatbuffers.U
 					name := b.CreateSharedString(h.Name)
 					fb.HandlerStart(b)
 					fb.HandlerAddName(b, name)
-					fb.HandlerAddStat(b, byte(h.Stat))
+					fb.HandlerAddStat(b, byte(h.Stat)) //nolint:gosec // validate bounds h.Stat by a description's at most 256 stats
 					hOffs[hi] = fb.HandlerEnd(b)
 				}
 				handlers := tableVector(b, fb.VariantStartHandlersVector, hOffs)

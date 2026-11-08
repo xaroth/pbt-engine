@@ -77,14 +77,14 @@ func (Vocabulary) IsRule(name string) bool { return slices.Contains(sheetRules()
 
 // Description files the passive tree's stats render with, by resolve scope.
 const (
-	passiveDescriptions = "Metadata/StatDescriptions/passive_skill_stat_descriptions.txt"
-	auraDescriptions    = "Metadata/StatDescriptions/passive_skill_aura_stat_descriptions.txt"
+	treeDescriptions = "Metadata/StatDescriptions/passive_skill_stat_descriptions.txt"
+	auraDescriptions = "Metadata/StatDescriptions/passive_skill_aura_stat_descriptions.txt"
 )
 
 // DescriptionFiles returns the description file the passive tree renders each resolve scope
 // with, for semantics.Table.Check.
 func DescriptionFiles() map[resolve.Scope]string {
-	return map[resolve.Scope]string{resolve.Global: passiveDescriptions, resolve.Buff: auraDescriptions}
+	return map[resolve.Scope]string{resolve.Global: treeDescriptions, resolve.Buff: auraDescriptions}
 }
 
 // rule is a named pattern FeedsSheet decides with. Each has its own test case.
@@ -96,8 +96,8 @@ type rule struct {
 func newRules(pairs ...string) []rule {
 	const pairSize = 2
 	out := make([]rule, 0, len(pairs)/pairSize)
-	for i := 0; i < len(pairs); i += pairSize {
-		out = append(out, rule{pairs[i], regexp.MustCompile(pairs[i+1])})
+	for pair := range slices.Chunk(pairs, pairSize) {
+		out = append(out, rule{pair[0], regexp.MustCompile(pair[1])})
 	}
 	return out
 }

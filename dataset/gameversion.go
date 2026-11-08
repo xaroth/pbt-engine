@@ -41,8 +41,8 @@ func ParseGameVersion(s string) (GameVersion, error) {
 			return GameVersion{}, fmt.Errorf("version %q: component %d above %d: %w", s, n, math.MaxUint16, ErrBadVersion)
 		}
 		v.parts[i] = uint16(n)
+		v.n++
 	}
-	v.n = uint8(len(parts))
 	return v, nil
 }
 
