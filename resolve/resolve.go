@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 
@@ -119,8 +120,10 @@ type Constant struct {
 // buffs).
 type Resolved struct {
 	Game, Version string
-	Bundles       []Bundle
-	Constants     []Constant
+	// Capabilities are the dataset's rule versions; rules pick formulas by them.
+	Capabilities dataset.Capabilities
+	Bundles      []Bundle
+	Constants    []Constant
 	// Notes lists build fields that were not resolved, with the reason.
 	Notes []string
 }
@@ -236,7 +239,7 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load constants: %w", err)
 	}
-	r := &Resolved{Game: m.Game, Version: m.Version}
+	r := &Resolved{Game: m.Game, Version: m.Version, Capabilities: maps.Clone(m.Capabilities)}
 
 	ch := c.Character()
 	r.Bundles = append(r.Bundles,
@@ -352,6 +355,9 @@ func statValues(stats []dataset.Stat, svs []dataset.StatValue) []StatValue {
 func (r *Resolved) Dump(w io.Writer) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "dataset %s %s\n", r.Game, r.Version)
+	for _, name := range slices.Sorted(maps.Keys(r.Capabilities)) {
+		fmt.Fprintf(&b, "capability %s = %d\n", name, r.Capabilities[name])
+	}
 	for _, c := range r.Constants {
 		status := "unvalidated"
 		if c.Validated {

@@ -127,6 +127,23 @@ bundle player buff node 7
 	}
 }
 
+func TestResolveCapabilities(t *testing.T) {
+	t.Parallel()
+	d := testDataset()
+	d.Manifest.Capabilities = dataset.Capabilities{"life-from-strength": 2, "armour": 3}
+	r, err := resolveBuild(t, open(t, d), testBuild(1, build.Scenario{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.Capabilities.Version("armour"); got != 3 {
+		t.Errorf("armour version: got %d, want 3", got)
+	}
+	want := "dataset poe1 3.29.3.3\ncapability armour = 3\ncapability life-from-strength = 2\nconstant "
+	if got := dump(t, r); !strings.HasPrefix(got, want) {
+		t.Errorf("dump: got\n%s\nwant prefix\n%s", got, want)
+	}
+}
+
 func TestResolveSources(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
