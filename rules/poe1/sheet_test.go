@@ -118,7 +118,8 @@ func TestOpenNotes(t *testing.T) {
 func TestOpenRuleMissing(t *testing.T) {
 	t.Parallel()
 	tb, err := semantics.Load([]byte(`{"format": 1, "game": "poe1", "entries": [
-		{"stat": "x", "scope": "global", "status": "authored", "rule": "gain_as_extra", "mods": [{"stat":"armour","op":"base"}], "sources": [{"kind":"stat-id"}]}
+		{"stat": "x", "scope": "global", "status": "authored", "rule": "gain_as_extra",
+			"params": {"from": "maximum_life", "to": "strength"}, "mods": [{"stat":"armour","op":"base"}], "sources": [{"kind":"stat-id"}]}
 	]}`), rules.Vocabulary{})
 	if err != nil {
 		t.Fatal(err)

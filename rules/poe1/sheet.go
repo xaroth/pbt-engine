@@ -135,6 +135,7 @@ func model() (*core.Model, map[string]core.StatID) {
 	for _, name := range engineStats() {
 		stats[name] = b.MustAddStat(statDef(name, stats))
 	}
+	addTransferStats(&b, stats)
 	return b.Build(), stats
 }
 
@@ -146,12 +147,17 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 	src := sh.session.NewSource()
 	for _, sv := range bd.Stats {
 		e, ok := t.Lookup(sv.Stat, bd.Scope, v)
+		ruled := false
 		if ok && e.Status == semantics.Authored {
 			if err := sh.addMods(e, sv.Value, src); err != nil {
 				return err
 			}
+			var err error
+			if ruled, err = sh.applyRule(e, sv.Value, src); err != nil {
+				return err
+			}
 		}
-		if kind, text := noteFor(e, ok); kind != 0 {
+		if kind, text := noteFor(e, ok, ruled); kind != 0 {
 			sh.Notes = append(sh.Notes, Note{Kind: kind, Source: bd.Source, Scope: bd.Scope, Stat: sv.Stat, Text: text})
 		}
 	}
@@ -159,8 +165,9 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 }
 
 // noteFor returns the note for a stat whose lookup gave e and ok, or kind 0 when the entry
-// applies in full. Display-only entries need no note: other stats carry their effect.
-func noteFor(e *semantics.Entry, ok bool) (NoteKind, string) {
+// applies in full; ruled says these rules applied the entry's rule. Display-only entries need
+// no note: other stats carry their effect.
+func noteFor(e *semantics.Entry, ok, ruled bool) (NoteKind, string) {
 	switch {
 	case !ok:
 		return NoEntry, ""
@@ -168,7 +175,7 @@ func noteFor(e *semantics.Entry, ok bool) (NoteKind, string) {
 		return NotApplied, e.Reason.String()
 	case e.Status != semantics.Authored:
 		return 0, ""
-	case e.Rule != "":
+	case e.Rule != "" && !ruled:
 		return RuleMissing, e.Rule
 	case e.Omitted != "":
 		return Partial, e.Omitted
