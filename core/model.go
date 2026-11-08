@@ -255,6 +255,7 @@ func (d *StatDef) finish(r float64) float64 {
 		if d.Places != 0 {
 			x = float64(r * p)
 		}
+		//exhaustive:ignore // RoundNone is excluded by the enclosing if
 		switch d.Round {
 		case RoundHalf:
 			x = math.Floor(x + 0.5)

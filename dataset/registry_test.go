@@ -87,8 +87,9 @@ func TestResolve(t *testing.T) {
 		})
 	}
 
-	var names []string
-	for _, s := range r.Stores("poe1") {
+	stores := r.Stores("poe1")
+	names := make([]string, 0, len(stores))
+	for _, s := range stores {
 		names = append(names, s.Manifest().Version)
 	}
 	if diff := gocmp.Diff([]string{"3.28.0.16", "3.29.1.0", "3.29.3", "3.29.3.3", "3.29.10.1"}, names); diff != "" {

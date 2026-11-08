@@ -158,7 +158,7 @@ func TestCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var ids []uint32
+	ids := make([]uint32, 0, len(c.Nodes()))
 	for _, n := range c.Nodes() {
 		ids = append(ids, n.ID)
 	}
@@ -215,7 +215,7 @@ func TestCheckProblems(t *testing.T) {
 			if !ok {
 				t.Fatalf("got %v, want a *CheckError", err)
 			}
-			var got []problem
+			got := make([]problem, 0, len(ce.Problems))
 			for _, p := range ce.Problems {
 				got = append(got, problem{p.Kind, p.Node})
 			}

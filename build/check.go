@@ -13,7 +13,7 @@ import (
 // MaxLevel is the highest character level.
 const MaxLevel = 100
 
-// Kinds of Problem. Check returns a *CheckError, and errors.Is matches each of its problems'
+// Kinds of ProblemError. Check returns a *CheckError, and errors.Is matches each of its problems'
 // kinds.
 var (
 	ErrGame                = errors.New("game differs from the dataset")
@@ -29,8 +29,8 @@ var (
 	ErrNodeOtherClassStart = errors.New("node is another class's start")
 )
 
-// Problem is one way a build does not fit a dataset.
-type Problem struct {
+// ProblemError is one way a build does not fit a dataset.
+type ProblemError struct {
 	// Kind is one of the Err values above.
 	Kind error
 	// Node is the node id of the node kinds, else 0.
@@ -38,13 +38,13 @@ type Problem struct {
 	detail string
 }
 
-func (p *Problem) Error() string { return p.Kind.Error() + ": " + p.detail }
+func (p *ProblemError) Error() string { return p.Kind.Error() + ": " + p.detail }
 
-func (p *Problem) Unwrap() error { return p.Kind }
+func (p *ProblemError) Unwrap() error { return p.Kind }
 
 // CheckError lists every problem Check found.
 type CheckError struct {
-	Problems []*Problem
+	Problems []*ProblemError
 }
 
 func (e *CheckError) Error() string {
@@ -79,9 +79,9 @@ type Checked struct {
 // *CheckError listing every problem, or the error of a dataset group that fails to load.
 // Tree connectivity, the point budget and mastery choices are not checked.
 func Check(b *Build, s *dataset.Store) (*Checked, error) {
-	var problems []*Problem
+	var problems []*ProblemError
 	fail := func(kind error, node uint32, format string, args ...any) {
-		problems = append(problems, &Problem{Kind: kind, Node: node, detail: fmt.Sprintf(format, args...)})
+		problems = append(problems, &ProblemError{Kind: kind, Node: node, detail: fmt.Sprintf(format, args...)})
 	}
 	stop := func() (*Checked, error) { return nil, &CheckError{problems} }
 

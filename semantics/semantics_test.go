@@ -140,18 +140,30 @@ func TestLoadRejects(t *testing.T) {
 		{"rule reason without rule", unknown(`"reason": {"kind": "rule", "text": "r"}`), "names a rule exactly when"},
 		{"rule without rule reason", unknown(`"rule": "gain_as_extra", ` + reason), "names a rule exactly when"},
 		{"unknown rule", unknown(`"rule": "conversion", "reason": {"kind": "rule", "text": "r"}`), `unknown rule "conversion"`},
-		{"display-only reason", entries(`{"stat": "a", "scope": "global", "status": "display-only", ` + reason + `, "sources": [{"kind": "stat-id"}]}`), "display-only needs reason display"},
+		{
+			"display-only reason",
+			entries(`{"stat": "a", "scope": "global", "status": "display-only", ` + reason + `, "sources": [{"kind": "stat-id"}]}`),
+			"display-only needs reason display",
+		},
 		{"unknown marked unvalidated", unknown(`"unvalidated": "u", ` + reason), "only authored entries"},
 		{"unknown with omitted", unknown(`"omitted": "o", ` + reason), "only authored entries"},
 		{"unknown engine stat", authored(`"mods": [{"stat": "lifes", "op": "base"}]`), `unknown engine stat "lifes"`},
 		{"unknown op", authored(`"mods": [{"stat": "life", "op": "add"}]`), `unknown op "add"`},
 		{"zero factor on base", authored(`"mods": [{"stat": "life", "op": "base", "factor": "0/60"}]`), "only override may set a value of 0"},
-		{"override of 0 is valid", authored(`"mods": [{"stat": "life", "op": "override", "factor": "0"}, {"stat": "life", "op": "base", "factor": "x"}]`), `mod 1: factor "x"`},
+		{
+			"override of 0 is valid",
+			authored(`"mods": [{"stat": "life", "op": "override", "factor": "0"}, {"stat": "life", "op": "base", "factor": "x"}]`),
+			`mod 1: factor "x"`,
+		},
 		{"bad factor", authored(`"mods": [{"stat": "life", "op": "base", "factor": "1/-60"}]`), `factor "1/-60"`},
 		{"unknown per stat", authored(`"mods": [{"stat": "life", "op": "base", "per": {"stat": "str", "step": 2}}]`), `per: unknown engine stat "str"`},
 		{"zero step", authored(`"mods": [{"stat": "life", "op": "base", "per": {"stat": "strength"}}]`), "step 0"},
 		{"no sources", entries(`{"stat": "a", "scope": "global", "status": "unknown", ` + reason + `}`), "no sources"},
-		{"unknown source kind", entries(`{"stat": "a", "scope": "global", "status": "unknown", ` + reason + `, "sources": [{"kind": "guess"}]}`), `unknown kind "guess"`},
+		{
+			"unknown source kind",
+			entries(`{"stat": "a", "scope": "global", "status": "unknown", ` + reason + `, "sources": [{"kind": "guess"}]}`),
+			`unknown kind "guess"`,
+		},
 		{"description without text", unknown(reason + `, "sources": [{"kind": "description", "ref": "f"}]`), "description without text"},
 		{"game data without ref", unknown(reason + `, "sources": [{"kind": "game-data"}]`), "game-data without ref"},
 		{"game data with text", unknown(reason + `, "sources": [{"kind": "game-data", "ref": "Characters.BaseMaxLife", "text": "38"}]`), "game-data with text"},
@@ -370,7 +382,12 @@ func TestCheck(t *testing.T) {
 		// The global regen entry before 3.29 quotes other handlers; removed_stat is missing.
 		{"3.28", fixture, testDataset("3.28.0.16"), []error{mismatch, mismatch, semantics.ErrUnknownStat}},
 		{"template value differs", fixture, otherTemplate, []error{mismatch, mismatch}},
-		{"column carries another stat", strings.Replace(fixture, "Characters.BaseMaxLife", "Characters.BaseMaxMana", 1), testDataset("3.29.3.3"), []error{mismatch, mismatch}},
+		{
+			"column carries another stat",
+			strings.Replace(fixture, "Characters.BaseMaxLife", "Characters.BaseMaxMana", 1),
+			testDataset("3.29.3.3"),
+			[]error{mismatch, mismatch},
+		},
 		{"no text", fixture, noText, slices.Repeat([]error{semantics.ErrTextNotChecked}, 5)},
 		{"other game", fixture, otherGame, []error{semantics.ErrOtherGame}},
 	}
@@ -413,7 +430,7 @@ func TestCover(t *testing.T) {
 		Feeds  bool
 		Status semantics.Status
 	}
-	var got []row
+	got := make([]row, 0, len(c.Stats))
 	for _, u := range c.Stats {
 		r := row{u.Stat, u.Scope, u.Uses, u.Feeds, 0}
 		if u.Entry != nil {

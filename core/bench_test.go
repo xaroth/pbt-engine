@@ -20,6 +20,7 @@ type sheetWorld struct {
 }
 
 func newSheetWorld(b *testing.B) *sheetWorld {
+	b.Helper()
 	w := &sheetWorld{nSrc: 2400}
 	var mb core.ModelBuilder
 	str := mb.MustAddStat(core.StatDef{Name: "str", CycleFamily: 1, Round: core.RoundFloor})
@@ -38,15 +39,17 @@ func newSheetWorld(b *testing.B) *sheetWorld {
 	eva := pool("evasion", dex, 5)
 	arm := mb.MustAddStat(core.StatDef{Name: "armour", Round: core.RoundHalf})
 	ele := mb.MustAddStat(core.StatDef{Name: "ele_res"})
-	var res []core.StatID
-	for _, n := range []string{"fire", "cold", "lightning"} {
+	elements := []string{"fire", "cold", "lightning"}
+	res := make([]core.StatID, 0, len(elements))
+	for _, n := range elements {
 		res = append(res, mb.MustAddStat(core.StatDef{Name: n + "_res", Includes: []core.StatID{ele}, HasMax: true, Max: 75}))
 	}
 	regen := mb.MustAddStat(core.StatDef{Name: "life_regen", Round: core.RoundHalf, Places: 1})
 	setFormula(b, &mb, regen, func(r core.Reader, a core.Agg) float64 { return r.Stat(w.life) * a.Base / 100 })
 	low := mb.MustAddStat(core.StatDef{Name: "low_life", Flag: true})
-	var filler []core.StatID
-	for i := range 60 {
+	const nFiller = 60
+	filler := make([]core.StatID, 0, nFiller)
+	for i := range nFiller {
 		filler = append(filler, mb.MustAddStat(core.StatDef{Name: "filler" + string(rune('a'+i/26)) + string(rune('a'+i%26))}))
 	}
 	w.outputs = append([]core.StatID{str, dex, in, w.life, mana, es, eva, arm, regen}, res...)
@@ -86,6 +89,7 @@ func newSheetWorld(b *testing.B) *sheetWorld {
 }
 
 func (w *sheetWorld) session(b *testing.B) *core.Session {
+	b.Helper()
 	s, err := core.NewSession(w.m, 2)
 	if err != nil {
 		b.Fatal(err)
@@ -103,6 +107,7 @@ func (w *sheetWorld) session(b *testing.B) *core.Session {
 }
 
 func (w *sheetWorld) sheet(b *testing.B, s *core.Session) {
+	b.Helper()
 	for _, o := range w.outputs {
 		if _, err := s.Get(0, o, core.GlobalCtx); err != nil {
 			b.Fatal(err)

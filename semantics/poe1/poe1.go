@@ -14,9 +14,9 @@
 package poe1
 
 import (
-	_ "embed"
-
 	"github.com/xaroth/pbt-engine/semantics"
+
+	_ "embed"
 )
 
 //go:embed table.json
