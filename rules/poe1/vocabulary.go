@@ -5,6 +5,33 @@ package poe1
 
 import "slices"
 
+// Engine stat names.
+const (
+	statArmour                            = "armour"
+	statChaosResistance                   = "chaos_resistance"
+	statColdResistance                    = "cold_resistance"
+	statDexterity                         = "dexterity"
+	statEvasionRating                     = "evasion_rating"
+	statFireResistance                    = "fire_resistance"
+	statIntelligence                      = "intelligence"
+	statLevel                             = "level"
+	statLifeRegeneratedPerSecond          = "life_regenerated_per_second"
+	statLifeRegenerationRate              = "life_regeneration_rate"
+	statLightningResistance               = "lightning_resistance"
+	statManaRegeneratedPerSecond          = "mana_regenerated_per_second"
+	statManaRegenerationRate              = "mana_regeneration_rate"
+	statMaximumChaosResistance            = "maximum_chaos_resistance"
+	statMaximumColdResistance             = "maximum_cold_resistance"
+	statMaximumEnergyShield               = "maximum_energy_shield"
+	statMaximumFireResistance             = "maximum_fire_resistance"
+	statMaximumLife                       = "maximum_life"
+	statMaximumLightningResistance        = "maximum_lightning_resistance"
+	statMaximumMana                       = "maximum_mana"
+	statPercentOfLifeRegeneratedPerSecond = "percent_of_life_regenerated_per_second"
+	statPercentOfManaRegeneratedPerSecond = "percent_of_mana_regenerated_per_second"
+	statStrength                          = "strength"
+)
+
 // engineStats are the engine stats of the character sheet, named after the game's words.
 // Resistances are uncapped values; the maximum_ stats are their caps. Regeneration is per
 // second: life_regenerated_per_second is a flat amount ("Regenerate 10 Life per second"),
@@ -13,29 +40,29 @@ import "slices"
 // "Life Regeneration rate"; the same for mana.
 func engineStats() []string {
 	return []string{
-		"armour",
-		"chaos_resistance",
-		"cold_resistance",
-		"dexterity",
-		"evasion_rating",
-		"fire_resistance",
-		"intelligence",
-		"level",
-		"life_regenerated_per_second",
-		"life_regeneration_rate",
-		"lightning_resistance",
-		"mana_regenerated_per_second",
-		"mana_regeneration_rate",
-		"maximum_chaos_resistance",
-		"maximum_cold_resistance",
-		"maximum_energy_shield",
-		"maximum_fire_resistance",
-		"maximum_life",
-		"maximum_lightning_resistance",
-		"maximum_mana",
-		"percent_of_life_regenerated_per_second",
-		"percent_of_mana_regenerated_per_second",
-		"strength",
+		statArmour,
+		statChaosResistance,
+		statColdResistance,
+		statDexterity,
+		statEvasionRating,
+		statFireResistance,
+		statIntelligence,
+		statLevel,
+		statLifeRegeneratedPerSecond,
+		statLifeRegenerationRate,
+		statLightningResistance,
+		statManaRegeneratedPerSecond,
+		statManaRegenerationRate,
+		statMaximumChaosResistance,
+		statMaximumColdResistance,
+		statMaximumEnergyShield,
+		statMaximumFireResistance,
+		statMaximumLife,
+		statMaximumLightningResistance,
+		statMaximumMana,
+		statPercentOfLifeRegeneratedPerSecond,
+		statPercentOfManaRegeneratedPerSecond,
+		statStrength,
 	}
 }
 

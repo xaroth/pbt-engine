@@ -22,8 +22,18 @@ func table(t *testing.T) *semantics.Table {
 	return tb
 }
 
+// constants are the dataset constants the rules read, as in 3.29.3.3.
+func constants() []resolve.Constant {
+	return []resolve.Constant{
+		{ID: "life_per_strength", Value: 1, Per: 2},
+		{ID: "mana_per_intelligence", Value: 1, Per: 2},
+		{ID: "evasion_rating_+%_per_dexterity", Value: 1, Per: 5},
+		{ID: "energy_shield_+%_per_intelligence", Value: 1, Per: 10},
+	}
+}
+
 func resolved(bundles ...resolve.Bundle) *resolve.Resolved {
-	return &resolve.Resolved{Game: "poe1", Version: "3.29.3.3", Bundles: bundles}
+	return &resolve.Resolved{Game: "poe1", Version: "3.29.3.3", Bundles: bundles, Constants: constants()}
 }
 
 func bundle(src resolve.Source, scope resolve.Scope, stats ...resolve.StatValue) resolve.Bundle {
@@ -64,8 +74,9 @@ func TestOpenSumsModifiers(t *testing.T) {
 		stat string
 		want float64
 	}{
-		// 38 base plus 12 per level at level 10, then 10% increased; no attribute bonus yet.
-		{stat: "maximum_life", want: (38 + 12*10) * (1 + 10/100.0)},
+		// 38 base, 12 per level at level 10 and 16 from 32 strength, then 10% increased:
+		// 191.4 rounds to 191.
+		{stat: "maximum_life", want: 191},
 		{stat: "strength", want: 32},
 		// a node's aura scope applies to the player; per minute to per second
 		{stat: "percent_of_life_regenerated_per_second", want: 1},
@@ -112,7 +123,8 @@ func TestOpenRuleMissing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sh, err := rules.Open(resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, resolve.StatValue{Stat: "x", Value: 5})), tb)
+	r := resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, resolve.StatValue{Stat: "x", Value: 5}))
+	sh, err := rules.Open(r, tb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,6 +149,11 @@ func TestOpenErrors(t *testing.T) {
 		{
 			name: "other actor", is: rules.ErrActor,
 			r: resolved(resolve.Bundle{Actor: resolve.Player + 1, Source: resolve.LevelSource{}}),
+		},
+		{name: "missing constant", is: rules.ErrConstant, r: &resolve.Resolved{Game: "poe1", Version: "3.29"}},
+		{
+			name: "malformed constant", is: rules.ErrConstant,
+			r: &resolve.Resolved{Game: "poe1", Version: "3.29", Constants: []resolve.Constant{{ID: "life_per_strength", Value: 1}}},
 		},
 		{
 			name: "unsupported capability", is: dataset.ErrUnsupported,
