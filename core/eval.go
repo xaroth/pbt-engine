@@ -130,10 +130,10 @@ func (s *Session) read(deps *[]uint32, ref Ref, fam uint8, actor ActorID, ctx Ct
 	}
 	n := Node{Actor: actor, Stat: ref.Stat, Ctx: ctx}
 	if ref.Actor != Self {
-		n.Actor = ActorID(ref.Actor)
+		n.Actor = ActorID(ref.Actor) //nolint:gosec // checkRef above rejected values outside ActorID
 	}
 	if ref.Ctx != Self {
-		n.Ctx = CtxID(ref.Ctx)
+		n.Ctx = CtxID(ref.Ctx) //nolint:gosec // checkRef above rejected values outside CtxID
 	}
 	n.Uncond = fam != 0 && s.m.stats[n.Stat].CycleFamily == fam
 	id := s.nodeID(n)

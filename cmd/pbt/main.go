@@ -56,8 +56,8 @@ options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
 const (
-	passiveScope = "Metadata/StatDescriptions/passive_skill_stat_descriptions.txt"
-	auraScope    = "Metadata/StatDescriptions/passive_skill_aura_stat_descriptions.txt"
+	treeScope = "Metadata/StatDescriptions/passive_skill_stat_descriptions.txt"
+	auraScope = "Metadata/StatDescriptions/passive_skill_aura_stat_descriptions.txt"
 )
 
 func main() {
@@ -347,7 +347,7 @@ func showNode(w io.Writer, d *dataset.Dataset, variant, idArg string) error {
 		kind += ", " + t.ascendancyName(variant, n.Ascendancy)
 	}
 	p.printf("%d %s (%s)\n", n.ID, t.nodes[n.ID], kind)
-	for _, l := range t.lines(passiveScope, d.StatMap(n.Stats)) {
+	for _, l := range t.lines(treeScope, d.StatMap(n.Stats)) {
 		p.printf("  %s\n", l)
 	}
 	for _, b := range n.Buffs {
@@ -359,7 +359,7 @@ func showNode(w io.Writer, d *dataset.Dataset, variant, idArg string) error {
 		p.printf("  grants %d passive skill points\n", n.SkillPoints)
 	}
 	for _, e := range n.MasteryEffects {
-		p.printf("  mastery effect %d: %s\n", e.ID, strings.Join(t.lines(passiveScope, d.StatMap(e.Stats)), " / "))
+		p.printf("  mastery effect %d: %s\n", e.ID, strings.Join(t.lines(treeScope, d.StatMap(e.Stats)), " / "))
 	}
 	var nb []string
 	for _, x := range n.Neighbours {
@@ -442,8 +442,8 @@ func diff(w io.Writer, a, b *dataset.Dataset, limit int) error {
 			if n.StatsBefore == nil {
 				continue
 			}
-			before := ta.lines(passiveScope, n.StatsBefore)
-			after := tb.lines(passiveScope, n.StatsAfter)
+			before := ta.lines(treeScope, n.StatsBefore)
+			after := tb.lines(treeScope, n.StatsAfter)
 			for _, l := range before {
 				if !slices.Contains(after, l) {
 					p.printf("    - %s\n", l)

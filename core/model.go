@@ -118,7 +118,7 @@ type Dimension struct {
 }
 
 // Bit returns the bit of the value at index i.
-func (d Dimension) Bit(i int) Bit { return d.First + Bit(i) }
+func (d Dimension) Bit(i int) Bit { return d.First + Bit(u16(i)) }
 
 // ModelBuilder registers stats and context dimensions. The zero value is ready to use.
 type ModelBuilder struct {
@@ -140,7 +140,7 @@ func (b *ModelBuilder) AddStat(def StatDef) (StatID, error) {
 	if def.Places < 0 || def.Places > maxPlaces {
 		return 0, fmt.Errorf("%w: stat %q: places %d, want 0 to %d", ErrOutOfRange, def.Name, def.Places, maxPlaces)
 	}
-	id := StatID(len(b.stats))
+	id := StatID(u32(len(b.stats)))
 	for _, inc := range def.Includes {
 		if inc >= id {
 			return 0, fmt.Errorf("%w: stat %q includes stat %d", ErrBadHandle, def.Name, inc)
@@ -182,7 +182,7 @@ func (b *ModelBuilder) AddDimension(name string, values ...string) (Dimension, e
 	if b.dimNames[name] {
 		return Dimension{}, fmt.Errorf("%w: dimension %q", ErrDuplicateName, name)
 	}
-	d := Dimension{Name: name, First: Bit(b.nBits), Values: slices.Clone(values)}
+	d := Dimension{Name: name, First: Bit(u16(b.nBits)), Values: slices.Clone(values)}
 	keys := map[string]Bit{}
 	for i, v := range values {
 		key := name + "." + v

@@ -32,11 +32,11 @@ func testDataset(version string, strength int32) *dataset.Dataset {
 			CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
 			AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Ancestral Commander"}},
 			Descriptions: []statdesc.Scope{
-				{Name: auraScope, Parent: passiveScope, Descriptions: []statdesc.Description{{
+				{Name: auraScope, Parent: treeScope, Descriptions: []statdesc.Description{{
 					Stats:    []string{"aura_damage_+%"},
 					Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "Nearby Allies deal {0}% increased Damage"}},
 				}}},
-				{Name: passiveScope, Descriptions: []statdesc.Description{{
+				{Name: treeScope, Descriptions: []statdesc.Description{{
 					Stats:    []string{"base_strength"},
 					Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "{0:+d} to Strength\\nline two"}},
 				}}},
