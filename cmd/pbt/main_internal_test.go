@@ -176,7 +176,7 @@ func TestRunSkipsBadDataset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b = bytes.Replace(b, []byte(`"format": 4`), []byte(`"format": 3`), 1)
+	b = bytes.Replace(b, []byte(`"format": 1`), []byte(`"format": 2`), 1)
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestRunSkipsBadDataset(t *testing.T) {
 		t.Fatalf("run: %v", err)
 	}
 	wantLines(t, "stdout", out.String(), []string{"aura_damage_+% (handle 1 of 2)"})
-	wantLines(t, "stderr", notes.String(), []string{"pbt: skipped " + root + "/3.28: dataset format 3, want 4"})
+	wantLines(t, "stderr", notes.String(), []string{"pbt: skipped " + root + "/3.28: dataset format 2, want 1"})
 }
 
 func TestRunErrors(t *testing.T) {
