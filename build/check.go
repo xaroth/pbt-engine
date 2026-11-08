@@ -79,24 +79,19 @@ type Checked struct {
 // *CheckError listing every problem, or the error of a dataset group that fails to load.
 // Tree connectivity, the point budget and mastery choices are not checked.
 func Check(b *Build, s *dataset.Store) (*Checked, error) {
-	var problems []*ProblemError
-	fail := func(kind error, node uint32, format string, args ...any) {
-		problems = append(problems, &ProblemError{Kind: kind, Node: node, detail: fmt.Sprintf(format, args...)})
-	}
-	stop := func() (*Checked, error) { return nil, &CheckError{problems} }
-
+	var ps problems
 	m := s.Manifest()
 	if b.Game != m.Game {
-		fail(ErrGame, 0, "build %q, dataset %q", b.Game, m.Game)
-		return stop()
+		ps.addf(ErrGame, 0, "build %q, dataset %q", b.Game, m.Game)
+		return nil, ps.err()
 	}
 	c := &Checked{build: *b, store: s}
 	c.build.fillDefaults()
 	c.build.Nodes = slices.Sorted(slices.Values(b.Nodes))
 	variant := c.build.Variant
 	if !slices.Contains(m.Trees(), variant) {
-		fail(ErrVariant, 0, "%s in %s", variant, m.Version)
-		return stop()
+		ps.addf(ErrVariant, 0, "%s in %s", variant, m.Version)
+		return nil, ps.err()
 	}
 	tree, err := s.Tree(variant)
 	if err != nil {
@@ -108,58 +103,85 @@ func Check(b *Build, s *dataset.Store) (*Checked, error) {
 	}
 	c.tree = tree
 
-	if i := slices.IndexFunc(tree.Classes, func(cl dataset.Class) bool { return cl.Character == b.Class }); i >= 0 {
-		c.class = &tree.Classes[i]
+	ps.checkClass(c, b, chars)
+	ps.checkScenario(c, b)
+	ps.checkNodes(c, b)
+	if len(ps) > 0 {
+		return nil, ps.err()
+	}
+	return c, nil
+}
+
+// problems collects what Check finds.
+type problems []*ProblemError
+
+func (ps *problems) addf(kind error, node uint32, format string, args ...any) {
+	*ps = append(*ps, &ProblemError{Kind: kind, Node: node, detail: fmt.Sprintf(format, args...)})
+}
+
+func (ps *problems) err() error { return &CheckError{*ps} }
+
+// checkClass sets c's class and character and checks the ascendancy.
+func (ps *problems) checkClass(c *Checked, b *Build, chars []dataset.Character) {
+	if i := slices.IndexFunc(c.tree.Classes, func(cl dataset.Class) bool { return cl.Character == b.Class }); i >= 0 {
+		c.class = &c.tree.Classes[i]
 	}
 	if i := slices.IndexFunc(chars, func(ch dataset.Character) bool { return ch.ID == b.Class }); i >= 0 {
 		c.character = &chars[i]
 	}
 	if c.class == nil || c.character == nil {
-		fail(ErrClass, 0, "%q", b.Class)
+		ps.addf(ErrClass, 0, "%q", b.Class)
 	}
 	if b.Ascendancy != "" && c.class != nil &&
 		!slices.ContainsFunc(c.class.Ascendancies, func(a dataset.Ascendancy) bool { return a.ID == b.Ascendancy }) {
-		fail(ErrAscendancy, 0, "%q, class %s", b.Ascendancy, b.Class)
+		ps.addf(ErrAscendancy, 0, "%q, class %s", b.Ascendancy, b.Class)
 	}
+}
+
+func (ps *problems) checkScenario(c *Checked, b *Build) {
 	if b.Level < 1 || b.Level > MaxLevel {
-		fail(ErrLevel, 0, "%d, want 1 to %d", b.Level, MaxLevel)
+		ps.addf(ErrLevel, 0, "%d, want 1 to %d", b.Level, MaxLevel)
 	}
 	switch c.build.Scenario.Campaign {
 	case CampaignComplete, CampaignActs6To10, CampaignActs1To5:
 	default:
-		fail(ErrCampaign, 0, "%q, want %s, %s or %s", b.Scenario.Campaign, CampaignComplete, CampaignActs6To10, CampaignActs1To5)
+		ps.addf(ErrCampaign, 0, "%q, want %s, %s or %s", b.Scenario.Campaign, CampaignComplete, CampaignActs6To10, CampaignActs1To5)
 	}
 	switch b.Scenario.Bandits {
 	case BanditsNotCompleted, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak:
 	default:
-		fail(ErrBandits, 0, "%q, want %s, %s, %s, %s or empty (quest not completed)",
+		ps.addf(ErrBandits, 0, "%q, want %s, %s, %s, %s or empty (quest not completed)",
 			b.Scenario.Bandits, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak)
 	}
+}
 
+func (ps *problems) checkNodes(c *Checked, b *Build) {
 	for i, id := range c.build.Nodes {
 		if i > 0 && c.build.Nodes[i-1] == id {
-			fail(ErrNodeRepeated, id, "node %d", id)
+			ps.addf(ErrNodeRepeated, id, "node %d", id)
 			continue
 		}
-		j, ok := slices.BinarySearchFunc(tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
+		j, ok := slices.BinarySearchFunc(c.tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
 		if !ok {
-			fail(ErrNodeUnknown, id, "node %d", id)
+			ps.addf(ErrNodeUnknown, id, "node %d", id)
 			continue
 		}
-		n := &tree.Nodes[j]
-		switch {
-		case n.Ascendancy != "" && n.Ascendancy != b.Ascendancy:
-			fail(ErrNodeAscendancy, id, "node %d of %s", id, n.Ascendancy)
-		case n.Kind == dataset.ClassStart && (c.class == nil || n.ID != c.class.StartNode):
-			fail(ErrNodeOtherClassStart, id, "node %d", id)
-		default:
+		if n := &c.tree.Nodes[j]; ps.nodeAllowed(n, c, b) {
 			c.nodes = append(c.nodes, n)
 		}
 	}
-	if len(problems) > 0 {
-		return stop()
+}
+
+func (ps *problems) nodeAllowed(n *dataset.Node, c *Checked, b *Build) bool {
+	switch {
+	case n.Ascendancy != "" && n.Ascendancy != b.Ascendancy:
+		ps.addf(ErrNodeAscendancy, n.ID, "node %d of %s", n.ID, n.Ascendancy)
+		return false
+	case n.Kind == dataset.ClassStart && (c.class == nil || n.ID != c.class.StartNode):
+		ps.addf(ErrNodeOtherClassStart, n.ID, "node %d", n.ID)
+		return false
 	}
-	return c, nil
+	return true
 }
 
 // Build returns a copy of the build as checked: defaults filled in, nodes sorted.
