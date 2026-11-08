@@ -12,6 +12,12 @@ import (
 	"slices"
 )
 
+// Errors Parse returns; match them with errors.Is.
+var (
+	ErrTrailingData = errors.New("build: data after the build")
+	ErrFormat       = errors.New("build: format")
+)
+
 // Format is the build file format written by Encode. Parse rejects other formats.
 const Format = 1
 
@@ -82,10 +88,10 @@ func Parse(data []byte) (*Build, error) {
 	}
 	// More would accept a trailing } or ].
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return nil, errors.New("build: data after the build")
+		return nil, ErrTrailingData
 	}
 	if b.Format != Format {
-		return nil, fmt.Errorf("build: format %d, want %d", b.Format, Format)
+		return nil, fmt.Errorf("%w %d, want %d", ErrFormat, b.Format, Format)
 	}
 	b.fillDefaults()
 	return b, nil
@@ -102,7 +108,7 @@ func (b *Build) Encode() ([]byte, error) {
 	}
 	out, err := json.MarshalIndent(&c, "", "  ")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build: encode: %w", err)
 	}
 	return append(out, '\n'), nil
 }

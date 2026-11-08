@@ -17,11 +17,11 @@ func TestRevert(t *testing.T) {
 	}{
 		{"add", func(s *core.Session, _ []core.ModID) error {
 			_, err := s.AddModifier(core.Modifier{Stat: life, Op: core.OpMore, Value: 100, Source: 5})
-			return err
+			return wrap(t, "add modifier", err)
 		}, 143},
 		{"add to an empty stat", func(s *core.Session, _ []core.ModID) error {
 			_, err := s.AddModifier(core.Modifier{Stat: dex, Op: core.OpBase, Value: 5, Source: 4})
-			return err
+			return wrap(t, "add modifier", err)
 		}, 72},
 		{"remove", func(s *core.Session, ids []core.ModID) error { return s.RemoveModifier(ids[2]) }, 66},
 		{"value", func(s *core.Session, ids []core.ModID) error { return s.SetModifierValue(ids[3], 20) }, 78},
@@ -186,7 +186,10 @@ func TestRevertedModifierID(t *testing.T) {
 	}{
 		{"remove", func(s *core.Session, id core.ModID) error { return s.RemoveModifier(id) }},
 		{"value", func(s *core.Session, id core.ModID) error { return s.SetModifierValue(id, 3) }},
-		{"modifier", func(s *core.Session, id core.ModID) error { _, _, err := s.Modifier(id); return err }},
+		{"modifier", func(s *core.Session, id core.ModID) error {
+			_, _, err := s.Modifier(id)
+			return wrap(t, "modifier", err)
+		}},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

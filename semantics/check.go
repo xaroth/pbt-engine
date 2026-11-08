@@ -39,11 +39,11 @@ func (t *Table) Check(s *dataset.Store, files map[resolve.Scope]string) error {
 	}
 	stats, err := s.Stats()
 	if err != nil {
-		return err
+		return fmt.Errorf("semantics: load stats: %w", err)
 	}
 	chars, err := s.Characters()
 	if err != nil {
-		return err
+		return fmt.Errorf("semantics: load characters: %w", err)
 	}
 	known := make(map[string]bool, len(stats))
 	for _, st := range stats {
@@ -52,7 +52,7 @@ func (t *Table) Check(s *dataset.Store, files map[resolve.Scope]string) error {
 	var text *dataset.Text
 	if slices.Contains(m.Languages(), sourceLanguage) {
 		if text, err = s.Text(sourceLanguage); err != nil {
-			return err
+			return fmt.Errorf("semantics: load text: %w", err)
 		}
 	}
 	var errs []error

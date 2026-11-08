@@ -27,15 +27,15 @@ func ParseGameVersion(s string) (GameVersion, error) {
 	var v GameVersion
 	parts := strings.Split(s, ".")
 	if len(parts) > maxVersionParts {
-		return GameVersion{}, fmt.Errorf("version %q: more than %d components", s, maxVersionParts)
+		return GameVersion{}, fmt.Errorf("version %q: more than %d components: %w", s, maxVersionParts, ErrBadVersion)
 	}
 	for i, p := range parts {
 		n, err := strconv.Atoi(p)
 		if err != nil || n < 0 || p != strconv.Itoa(n) {
-			return GameVersion{}, fmt.Errorf("version %q: want numbers separated by dots", s)
+			return GameVersion{}, fmt.Errorf("version %q: want numbers separated by dots: %w", s, ErrBadVersion)
 		}
 		if n > math.MaxUint16 {
-			return GameVersion{}, fmt.Errorf("version %q: component %d above %d", s, n, math.MaxUint16)
+			return GameVersion{}, fmt.Errorf("version %q: component %d above %d: %w", s, n, math.MaxUint16, ErrBadVersion)
 		}
 		v.parts[i] = uint16(n)
 	}

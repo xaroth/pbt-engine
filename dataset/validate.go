@@ -42,17 +42,17 @@ func (d *Dataset) validate(allTrees bool) error {
 }
 
 func errVariant(v string) error {
-	return fmt.Errorf("tree variant %q: want a tag of a-z, 0-9 and -, used once", v)
+	return fmt.Errorf("tree variant %q: want a tag of a-z, 0-9 and -, used once: %w", v, ErrInvalid)
 }
 
 func errLanguage(l string) error {
-	return fmt.Errorf("text language %q: want a tag of a-z, 0-9 and -, used once", l)
+	return fmt.Errorf("text language %q: want a tag of a-z, 0-9 and -, used once: %w", l, ErrInvalid)
 }
 
 func statsInRange(what string, svs []StatValue, n int) error {
 	for _, sv := range svs {
 		if int(sv.Stat) >= n {
-			return fmt.Errorf("%s: stat %d out of range (%d stats)", what, sv.Stat, n)
+			return fmt.Errorf("%s: stat %d out of range (%d stats): %w", what, sv.Stat, n, ErrInvalid)
 		}
 	}
 	return nil
@@ -61,7 +61,7 @@ func statsInRange(what string, svs []StatValue, n int) error {
 func sortedStats(what string, svs []StatValue, n int) error {
 	for i := 1; i < len(svs); i++ {
 		if svs[i-1].Stat >= svs[i].Stat {
-			return fmt.Errorf("%s: stats not sorted or repeated", what)
+			return fmt.Errorf("%s: stats not sorted or repeated: %w", what, ErrInvalid)
 		}
 	}
 	return statsInRange(what, svs, n)
@@ -80,7 +80,7 @@ func validateCharacters(n int, chars []Character) error {
 func validateConstants(cs []Constant) error {
 	for _, c := range cs {
 		if c.Per == 0 {
-			return fmt.Errorf("constant %s: per is 0", c.ID)
+			return fmt.Errorf("constant %s: per is 0: %w", c.ID, ErrInvalid)
 		}
 	}
 	return nil
@@ -92,12 +92,12 @@ func validateTree(n int, chars []Character, t Tree) error {
 		return errVariant(t.Variant)
 	}
 	if !slices.IsSortedFunc(t.Nodes, func(a, b Node) int { return cmp.Compare(a.ID, b.ID) }) {
-		return fmt.Errorf("tree %s: nodes not sorted", t.Variant)
+		return fmt.Errorf("tree %s: nodes not sorted: %w", t.Variant, ErrInvalid)
 	}
 	ids := make(map[uint32]bool, len(t.Nodes))
 	for _, nd := range t.Nodes {
 		if ids[nd.ID] {
-			return fmt.Errorf("tree %s: node %d repeated", t.Variant, nd.ID)
+			return fmt.Errorf("tree %s: node %d repeated: %w", t.Variant, nd.ID, ErrInvalid)
 		}
 		ids[nd.ID] = true
 	}
@@ -117,25 +117,25 @@ func validateTree(n int, chars []Character, t Tree) error {
 			}
 		}
 		if !slices.IsSorted(nd.Neighbours) {
-			return fmt.Errorf("%s: neighbours not sorted", what)
+			return fmt.Errorf("%s: neighbours not sorted: %w", what, ErrInvalid)
 		}
 		for _, nb := range nd.Neighbours {
 			if !ids[nb] {
-				return fmt.Errorf("%s: neighbour %d not in tree", what, nb)
+				return fmt.Errorf("%s: neighbour %d not in tree: %w", what, nb, ErrInvalid)
 			}
 		}
 	}
 	for _, c := range t.Classes {
 		if !ids[c.StartNode] {
-			return fmt.Errorf("tree %s class %s: start node %d not in tree", t.Variant, c.Character, c.StartNode)
+			return fmt.Errorf("tree %s class %s: start node %d not in tree: %w", t.Variant, c.Character, c.StartNode, ErrInvalid)
 		}
 		if !slices.ContainsFunc(chars, func(ch Character) bool { return ch.ID == c.Character }) {
-			return fmt.Errorf("tree %s: class character %s not in characters", t.Variant, c.Character)
+			return fmt.Errorf("tree %s: class character %s not in characters: %w", t.Variant, c.Character, ErrInvalid)
 		}
 	}
 	for _, j := range t.JewelSlots {
 		if !ids[j] {
-			return fmt.Errorf("tree %s: jewel slot %d not in tree", t.Variant, j)
+			return fmt.Errorf("tree %s: jewel slot %d not in tree: %w", t.Variant, j, ErrInvalid)
 		}
 	}
 	return nil
@@ -166,18 +166,18 @@ func validateText(chars []Character, t Text) error {
 	for _, sc := range t.Descriptions {
 		for _, desc := range sc.Descriptions {
 			if len(desc.Stats) > 256 {
-				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most 256", t.Language, sc.Name, len(desc.Stats))
+				return fmt.Errorf("text %s scope %s: %d stats in one description, the file holds at most 256: %w", t.Language, sc.Name, len(desc.Stats), ErrInvalid)
 			}
 		}
 	}
 	for i, n := range t.NodeNames {
 		if i > 0 && t.NodeNames[i-1].ID >= n.ID {
-			return fmt.Errorf("text %s: node names not sorted or repeated", t.Language)
+			return fmt.Errorf("text %s: node names not sorted or repeated: %w", t.Language, ErrInvalid)
 		}
 	}
 	for _, n := range t.CharacterNames {
 		if !slices.ContainsFunc(chars, func(c Character) bool { return c.ID == n.ID }) {
-			return fmt.Errorf("text %s: name for unknown character %s", t.Language, n.ID)
+			return fmt.Errorf("text %s: name for unknown character %s: %w", t.Language, n.ID, ErrInvalid)
 		}
 	}
 	return nil
@@ -207,7 +207,7 @@ func validateNames(texts []Text, trees []Tree, allTrees bool) error {
 		if allTrees {
 			for _, n := range t.NodeNames {
 				if !nodes[n.ID] {
-					return fmt.Errorf("text %s: name for unknown node %d", t.Language, n.ID)
+					return fmt.Errorf("text %s: name for unknown node %d: %w", t.Language, n.ID, ErrInvalid)
 				}
 			}
 		}
@@ -216,7 +216,7 @@ func validateNames(texts []Text, trees []Tree, allTrees bool) error {
 				continue // tree not loaded
 			}
 			if !ascendancies[n.Variant+"/"+n.ID] {
-				return fmt.Errorf("text %s: name for unknown ascendancy %s in tree %s", t.Language, n.ID, n.Variant)
+				return fmt.Errorf("text %s: name for unknown ascendancy %s in tree %s: %w", t.Language, n.ID, n.Variant, ErrInvalid)
 			}
 		}
 	}

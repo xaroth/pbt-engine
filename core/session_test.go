@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 
@@ -150,16 +151,22 @@ func TestBadHandles(t *testing.T) {
 		name string
 		call func(s *core.Session) error
 	}{
-		{"get actor", func(s *core.Session) error { _, err := s.Get(1, x, core.GlobalCtx); return err }},
-		{"get stat", func(s *core.Session) error { _, err := s.Get(0, 5, core.GlobalCtx); return err }},
-		{"get context", func(s *core.Session) error { _, err := s.Get(0, x, 3); return err }},
-		{"terms", func(s *core.Session) error { _, _, err := s.Terms(core.Node{Stat: 5}); return err }},
-		{"formula read actor", func(s *core.Session) error { _, err := s.Get(0, readActor, core.GlobalCtx); return err }},
-		{"formula read actor past ActorID", func(s *core.Session) error { _, err := s.Get(0, readWideActor, core.GlobalCtx); return err }},
-		{"formula read context past CtxID", func(s *core.Session) error { _, err := s.Get(0, readWideCtx, core.GlobalCtx); return err }},
+		{"get actor", func(s *core.Session) error { _, err := s.Get(1, x, core.GlobalCtx); return wrap(t, "get", err) }},
+		{"get stat", func(s *core.Session) error { _, err := s.Get(0, 5, core.GlobalCtx); return wrap(t, "get", err) }},
+		{"get context", func(s *core.Session) error { _, err := s.Get(0, x, 3); return wrap(t, "get", err) }},
+		{"terms", func(s *core.Session) error { _, _, err := s.Terms(core.Node{Stat: 5}); return wrap(t, "terms", err) }},
+		{"formula read actor", func(s *core.Session) error { _, err := s.Get(0, readActor, core.GlobalCtx); return wrap(t, "get", err) }},
+		{"formula read actor past ActorID", func(s *core.Session) error {
+			_, err := s.Get(0, readWideActor, core.GlobalCtx)
+			return wrap(t, "get", err)
+		}},
+		{"formula read context past CtxID", func(s *core.Session) error {
+			_, err := s.Get(0, readWideCtx, core.GlobalCtx)
+			return wrap(t, "get", err)
+		}},
 		{"remove zero id", func(s *core.Session) error { return s.RemoveModifier(core.ModID{}) }},
 		{"value zero id", func(s *core.Session) error { return s.SetModifierValue(core.ModID{}, 1) }},
-		{"modifier zero id", func(s *core.Session) error { _, _, err := s.Modifier(core.ModID{}); return err }},
+		{"modifier zero id", func(s *core.Session) error { _, _, err := s.Modifier(core.ModID{}); return wrap(t, "modifier", err) }},
 		{"source", func(s *core.Session) error { return s.SetSourceEnabled(nSources, false) }},
 	}
 	for _, testCase := range testCases {
@@ -186,4 +193,13 @@ func TestConcurrentSessions(t *testing.T) {
 			want(t, s, life, 10)
 		})
 	}
+}
+
+// wrap adds context to err and keeps nil as nil.
+func wrap(tb testing.TB, what string, err error) error {
+	tb.Helper()
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }

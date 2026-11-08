@@ -1,6 +1,7 @@
 package dataset_test
 
 import (
+	"fmt"
 	"maps"
 	"sync"
 	"testing"
@@ -83,8 +84,8 @@ func TestStoreMissingGroup(t *testing.T) {
 		name, want string
 		get        func() error
 	}{
-		{name: "tree", want: "has no atlas tree", get: func() error { _, err := s.Tree("atlas"); return err }},
-		{name: "text", want: "has no fr text", get: func() error { _, err := s.Text("fr"); return err }},
+		{name: "tree", want: "has no atlas tree", get: func() error { _, err := s.Tree("atlas"); return wrap(t, "tree", err) }},
+		{name: "text", want: "has no fr text", get: func() error { _, err := s.Text("fr"); return wrap(t, "text", err) }},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -121,4 +122,13 @@ func TestStoreConcurrentUse(t *testing.T) {
 	if diff := gocmp.Diff(&want.Trees[0], got[0]); diff != "" {
 		t.Errorf("Tree (-want +got):\n%s", diff)
 	}
+}
+
+// wrap adds context to err and keeps nil as nil.
+func wrap(tb testing.TB, what string, err error) error {
+	tb.Helper()
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }
