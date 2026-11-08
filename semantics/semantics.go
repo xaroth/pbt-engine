@@ -403,6 +403,29 @@ func parseBound(s string) (dataset.GameVersion, error) {
 }
 
 func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
+	e, err := parseEntryHeader(f)
+	if err != nil {
+		return Entry{}, err
+	}
+	if err := parseReason(&e, f); err != nil {
+		return Entry{}, err
+	}
+	if err := checkStatus(&e, len(f.Mods)); err != nil {
+		return Entry{}, err
+	}
+	if e.Rule != "" && !vocab.IsRule(e.Rule) {
+		return Entry{}, fmt.Errorf("%w rule %q", errUnknown, e.Rule)
+	}
+	if err := parseMods(&e, f, vocab); err != nil {
+		return Entry{}, err
+	}
+	if err := parseSources(&e, f); err != nil {
+		return Entry{}, err
+	}
+	return e, nil
+}
+
+func parseEntryHeader(f *fileEntry) (Entry, error) {
 	if f.Stat == "" {
 		return Entry{}, errNoStat
 	}
@@ -423,72 +446,98 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 	if !e.From.IsZero() && !e.Until.IsZero() && e.From.Compare(e.Until) >= 0 {
 		return Entry{}, fmt.Errorf("from %s %w %s", e.From, errNotBeforeUntil, e.Until)
 	}
-	if f.Reason != nil {
-		if e.Reason.Kind, err = parseName[ReasonKind](reasonKindNames(), f.Reason.Kind, "reason kind"); err != nil {
-			return Entry{}, err
-		}
-		if f.Reason.Text == "" {
-			return Entry{}, errReasonNoText
-		}
-		e.Reason.Text = f.Reason.Text
+	return e, nil
+}
+
+func parseReason(e *Entry, f *fileEntry) error {
+	if f.Reason == nil {
+		return nil
 	}
-	if err := checkStatus(&e, len(f.Mods)); err != nil {
-		return Entry{}, err
+	var err error
+	if e.Reason.Kind, err = parseName[ReasonKind](reasonKindNames(), f.Reason.Kind, "reason kind"); err != nil {
+		return err
 	}
-	if e.Rule != "" && !vocab.IsRule(e.Rule) {
-		return Entry{}, fmt.Errorf("%w rule %q", errUnknown, e.Rule)
+	if f.Reason.Text == "" {
+		return errReasonNoText
 	}
+	e.Reason.Text = f.Reason.Text
+	return nil
+}
+
+func parseMods(e *Entry, f *fileEntry, vocab Vocabulary) error {
 	for i := range f.Mods {
 		m, err := parseMod(&f.Mods[i], vocab)
 		if err != nil {
-			return Entry{}, fmt.Errorf("mod %d: %w", i, err)
+			return fmt.Errorf("mod %d: %w", i, err)
 		}
 		e.Mods = append(e.Mods, m)
 	}
+	return nil
+}
+
+func parseSources(e *Entry, f *fileEntry) error {
 	if len(f.Sources) == 0 {
-		return Entry{}, errNoSources
+		return errNoSources
 	}
 	for i := range f.Sources {
 		s, err := parseSource(&f.Sources[i])
 		if err != nil {
-			return Entry{}, fmt.Errorf("source %d: %w", i, err)
+			return fmt.Errorf("source %d: %w", i, err)
 		}
 		e.Sources = append(e.Sources, s)
 	}
-	return e, nil
+	return nil
 }
 
 // checkStatus checks the fields that depend on e's status.
 func checkStatus(e *Entry, mods int) error {
+	var err error
 	switch e.Status {
 	case Authored:
-		switch {
-		case mods == 0:
-			return errAuthoredNoMods
-		case e.Reason.Kind != 0:
-			return errAuthoredReason
-		}
-		return nil
+		return checkAuthored(e, mods)
 	case Unknown:
-		switch {
-		case e.Reason.Kind == 0 || e.Reason.Kind == Display:
-			return fmt.Errorf("%w %s", errUnknownReason, Display)
-		case (e.Reason.Kind == Rule) != (e.Rule != ""):
-			return errUnknownRule
-		}
+		err = checkUnknown(e)
 	case DisplayOnly:
-		switch {
-		case e.Reason.Kind != Display:
-			return fmt.Errorf("%w %s", errDisplayReason, Display)
-		case e.Rule != "":
-			return errDisplayRule
-		}
+		err = checkDisplayOnly(e)
+	}
+	if err != nil {
+		return err
 	}
 	switch {
 	case mods > 0:
 		return fmt.Errorf("%s %w", e.Status, errWithMods)
 	case e.Unvalidated != "" || e.Omitted != "":
 		return fmt.Errorf("%s %w", e.Status, errOnlyAuthored)
+	}
+	return nil
+}
+
+func checkAuthored(e *Entry, mods int) error {
+	switch {
+	case mods == 0:
+		return errAuthoredNoMods
+	case e.Reason.Kind != 0:
+		return errAuthoredReason
+	}
+	return nil
+}
+
+func checkUnknown(e *Entry) error {
+	switch {
+	case e.Reason.Kind == 0 || e.Reason.Kind == Display:
+		return fmt.Errorf("%w %s", errUnknownReason, Display)
+	case (e.Reason.Kind == Rule) != (e.Rule != ""):
+		return errUnknownRule
+	}
+	return nil
+}
+
+func checkDisplayOnly(e *Entry) error {
+	switch {
+	case e.Reason.Kind != Display:
+		return fmt.Errorf("%w %s", errDisplayReason, Display)
+	case e.Rule != "":
+		return errDisplayRule
 	}
 	return nil
 }
@@ -527,17 +576,11 @@ func parseSource(f *fileSource) (Source, error) {
 		return Source{}, err
 	}
 	s := Source{Kind: kind, Ref: f.Ref, Text: f.Text, Handlers: f.Handlers}
-	switch {
-	case s.Kind == StatID && (s.Ref != "" || s.Text != ""):
-		return Source{}, errStatIDRefText
-	case s.Kind != StatID && s.Ref == "":
-		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithoutRef)
-	case s.Kind == Description && s.Text == "":
-		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithoutText)
-	case s.Kind != Description && len(s.Handlers) > 0:
-		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithHandlers)
-	case s.Kind == GameData && s.Text != "":
-		return Source{}, fmt.Errorf("%s %w", s.Kind, errWithText)
+	if err := checkSourceRef(&s); err != nil {
+		return Source{}, err
+	}
+	if err := checkSourceText(&s); err != nil {
+		return Source{}, err
 	}
 	if s.Kind == ObjectTemplate {
 		if _, _, err := templateLine(s.Text); err != nil {
@@ -545,4 +588,26 @@ func parseSource(f *fileSource) (Source, error) {
 		}
 	}
 	return s, nil
+}
+
+func checkSourceRef(s *Source) error {
+	switch {
+	case s.Kind == StatID && (s.Ref != "" || s.Text != ""):
+		return errStatIDRefText
+	case s.Kind != StatID && s.Ref == "":
+		return fmt.Errorf("%s %w", s.Kind, errWithoutRef)
+	}
+	return nil
+}
+
+func checkSourceText(s *Source) error {
+	switch {
+	case s.Kind == Description && s.Text == "":
+		return fmt.Errorf("%s %w", s.Kind, errWithoutText)
+	case s.Kind != Description && len(s.Handlers) > 0:
+		return fmt.Errorf("%s %w", s.Kind, errWithHandlers)
+	case s.Kind == GameData && s.Text != "":
+		return fmt.Errorf("%s %w", s.Kind, errWithText)
+	}
+	return nil
 }

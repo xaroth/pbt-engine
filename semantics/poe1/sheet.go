@@ -300,6 +300,11 @@ func (t *sheetText) judge(stat string, scope resolve.Scope) judgement {
 	if r, ok := firstMatch(t.rules.notSheetByID, stat); ok {
 		return excludedBy("not a sheet value, by id: " + r.name)
 	}
+	return t.judgeLines(lines)
+}
+
+// judgeLines finds the first line that reads as a sheet value and is not excluded.
+func (t *sheetText) judgeLines(lines []string) judgement {
 	var j judgement
 	for _, line := range lines {
 		if _, ok := firstMatch(t.rules.sheetLines, line); !ok {
