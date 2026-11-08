@@ -537,12 +537,34 @@ func newSheetWorld(b *testing.B) *sheetWorld {
 	b.Helper()
 	w := &sheetWorld{nSrc: 2400}
 	var mb core.ModelBuilder
+	st := w.addStats(b, &mb)
+	r := rand.New(rand.NewPCG(1, 2))
+	for src := range w.nSrc {
+		for range 1 + r.IntN(2) {
+			w.mods = append(w.mods, st.randMod(r, src))
+		}
+	}
+	for _, a := range st.attrs { // class base
+		w.mods = append(w.mods, core.Modifier{Stat: a, Op: core.OpBase, Value: 20, Source: core.SourceID(w.nSrc)})
+	}
+	w.m = mb.Build()
+	return w
+}
+
+// sheetStats are the stats random modifiers of a sheetWorld target.
+type sheetStats struct {
+	attrs, targets, filler []core.StatID
+	low                    core.StatID
+}
+
+func (w *sheetWorld) addStats(b *testing.B, mb *core.ModelBuilder) sheetStats {
+	b.Helper()
 	str := mb.MustAddStat(core.StatDef{Name: "str", CycleFamily: 1, Round: core.RoundFloor})
 	dex := mb.MustAddStat(core.StatDef{Name: "dex", CycleFamily: 1, Round: core.RoundFloor})
 	in := mb.MustAddStat(core.StatDef{Name: "int", CycleFamily: 1, Round: core.RoundFloor})
 	pool := func(name string, attr core.StatID, div float64) core.StatID {
 		id := mb.MustAddStat(core.StatDef{Name: name, Round: core.RoundHalf})
-		setFormula(b, &mb, id, func(r core.Reader, a core.Agg) float64 {
+		setFormula(b, mb, id, func(r core.Reader, a core.Agg) float64 {
 			return (a.Base + math.Floor(r.Stat(attr)/div)) * (1 + a.Inc/100) * a.More
 		})
 		return id
@@ -559,7 +581,7 @@ func newSheetWorld(b *testing.B) *sheetWorld {
 		res = append(res, mb.MustAddStat(core.StatDef{Name: n + "_res", Includes: []core.StatID{ele}, HasMax: true, Max: 75}))
 	}
 	regen := mb.MustAddStat(core.StatDef{Name: "life_regen", Round: core.RoundHalf, Places: 1})
-	setFormula(b, &mb, regen, func(r core.Reader, a core.Agg) float64 { return r.Stat(w.life) * a.Base / 100 })
+	setFormula(b, mb, regen, func(r core.Reader, a core.Agg) float64 { return r.Stat(w.life) * a.Base / 100 })
 	low := mb.MustAddStat(core.StatDef{Name: "low_life", Flag: true})
 	const nFiller = 60
 	filler := make([]core.StatID, 0, nFiller)
@@ -567,39 +589,35 @@ func newSheetWorld(b *testing.B) *sheetWorld {
 		filler = append(filler, mb.MustAddStat(core.StatDef{Name: "filler" + string(rune('a'+i/26)) + string(rune('a'+i%26))}))
 	}
 	w.outputs = append([]core.StatID{str, dex, in, w.life, mana, es, eva, arm, regen}, res...)
+	return sheetStats{
+		attrs:   []core.StatID{str, dex, in},
+		targets: append([]core.StatID{w.life, mana, es, eva, arm, ele, regen}, res...),
+		filler:  filler,
+		low:     low,
+	}
+}
 
-	r := rand.New(rand.NewPCG(1, 2))
-	attrs := []core.StatID{str, dex, in}
-	targets := append([]core.StatID{w.life, mana, es, eva, arm, ele, regen}, res...)
-	for src := range w.nSrc {
-		for range 1 + r.IntN(2) {
-			mod := core.Modifier{Source: core.SourceID(src), Value: float64(5 + r.IntN(20))}
-			switch k := r.IntN(10); {
-			case k < 3:
-				mod.Stat = attrs[r.IntN(3)]
-				mod.Value = 10
-			case k < 7:
-				mod.Stat = targets[r.IntN(len(targets))]
-				mod.Op = core.Op(r.IntN(2))
-			default:
-				mod.Stat = filler[r.IntN(len(filler))]
-				mod.Op = core.Op(r.IntN(3))
-			}
-			if r.IntN(10) == 0 {
-				if r.IntN(2) == 0 {
-					mod.Conds = []core.Cond{{Ref: core.SelfRef(low), Cmp: core.CmpGE, Threshold: 1}}
-				} else {
-					mod.Scales = []core.Scale{{Ref: core.SelfRef(attrs[r.IntN(3)]), Step: 10, Cap: 5, HasCap: true}}
-				}
-			}
-			w.mods = append(w.mods, mod)
+func (st sheetStats) randMod(r *rand.Rand, src int) core.Modifier {
+	mod := core.Modifier{Source: core.SourceID(src), Value: float64(5 + r.IntN(20))}
+	switch k := r.IntN(10); {
+	case k < 3:
+		mod.Stat = st.attrs[r.IntN(3)]
+		mod.Value = 10
+	case k < 7:
+		mod.Stat = st.targets[r.IntN(len(st.targets))]
+		mod.Op = core.Op(r.IntN(2))
+	default:
+		mod.Stat = st.filler[r.IntN(len(st.filler))]
+		mod.Op = core.Op(r.IntN(3))
+	}
+	if r.IntN(10) == 0 {
+		if r.IntN(2) == 0 {
+			mod.Conds = []core.Cond{{Ref: core.SelfRef(st.low), Cmp: core.CmpGE, Threshold: 1}}
+		} else {
+			mod.Scales = []core.Scale{{Ref: core.SelfRef(st.attrs[r.IntN(3)]), Step: 10, Cap: 5, HasCap: true}}
 		}
 	}
-	for _, a := range attrs { // class base
-		w.mods = append(w.mods, core.Modifier{Stat: a, Op: core.OpBase, Value: 20, Source: core.SourceID(w.nSrc)})
-	}
-	w.m = mb.Build()
-	return w
+	return mod
 }
 
 func (w *sheetWorld) session(b *testing.B) *core.Session {
