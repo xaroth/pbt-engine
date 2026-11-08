@@ -60,8 +60,8 @@ func TestAttributes(t *testing.T) {
 			name: "life rounds half up", stat: "maximum_life", want: 83,
 			bundles: marauder(1, resolve.StatValue{Stat: "maximum_life_+%", Value: 25}),
 		},
-		// 15 base evasion with floor(14 / 5) = 2% increased; evasion rounding comes later
-		{name: "evasion from dexterity", bundles: marauder(1), stat: "evasion_rating", want: 15 * 1.02},
+		// 15 base evasion with floor(14 / 5) = 2% increased: 15.3 rounds to 15
+		{name: "evasion from dexterity", bundles: marauder(1), stat: "evasion_rating", want: 15},
 		// 100 energy shield with floor(14 / 10) = 1% increased
 		{
 			name: "energy shield from intelligence", stat: "maximum_energy_shield", want: 101,
