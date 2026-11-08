@@ -23,9 +23,10 @@ func Excluded(s *dataset.Store) (func(stat string, scope resolve.Scope) (why, li
 // Rules returns every rule FeedsSheet decides with, keyed "group: name".
 func Rules() map[string]*regexp.Regexp {
 	out := map[string]*regexp.Regexp{}
+	p := newPatterns()
 	for group, rules := range map[string][]rule{
-		"feeds by id": feedsByID, "not theirs by id": notTheirsByID, "not sheet by id": notSheetByID,
-		"sheet line": sheetLines, "not their line": notTheirLines, "not sheet line": notSheetLines,
+		"feeds by id": p.feedsByID, "not theirs by id": p.notTheirsByID, "not sheet by id": p.notSheetByID,
+		"sheet line": p.sheetLines, "not their line": p.notTheirLines, "not sheet line": p.notSheetLines,
 	} {
 		for _, r := range rules {
 			out[group+": "+r.name] = r.re

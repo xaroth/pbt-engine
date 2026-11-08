@@ -254,9 +254,11 @@ func TestRatioApply(t *testing.T) {
 }
 
 // statIDs are the stats of testDataset; its handles index this list.
-var statIDs = []string{
-	"level", "base_maximum_life", "life_regeneration_rate_per_minute_%", "X_to_armour_per_2_strength", "unmapped_stat",
-	"maximum_all_resistances_%", "keystone_blood_magic", "mana_%_to_add_as_energy_shield",
+func statIDs() []string {
+	return []string{
+		"level", "base_maximum_life", "life_regeneration_rate_per_minute_%", "X_to_armour_per_2_strength", "unmapped_stat",
+		"maximum_all_resistances_%", "keystone_blood_magic", "mana_%_to_add_as_energy_shield",
+	}
 }
 
 // testDataset has the stats and English descriptions the fixture table refers to, a tree and
@@ -291,7 +293,7 @@ func testDataset(version string) *dataset.Dataset {
 			},
 		}}}},
 	}
-	for _, id := range statIDs {
+	for _, id := range statIDs() {
 		d.Stats = append(d.Stats, dataset.Stat{ID: id})
 	}
 	return d
@@ -311,7 +313,9 @@ func open(t *testing.T, d *dataset.Dataset) *dataset.Store {
 }
 
 // oneFile renders every scope from the one description file of testDataset.
-var oneFile = map[resolve.Scope]string{resolve.Global: descriptions, resolve.Buff: descriptions}
+func oneFile() map[resolve.Scope]string {
+	return map[resolve.Scope]string{resolve.Global: descriptions, resolve.Buff: descriptions}
+}
 
 func TestCheckScopeFiles(t *testing.T) {
 	t.Parallel()
@@ -394,7 +398,7 @@ func TestCheck(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			err := load(t, testCase.table).Check(open(t, testCase.d), oneFile)
+			err := load(t, testCase.table).Check(open(t, testCase.d), oneFile())
 			var got []error
 			if j, ok := err.(interface{ Unwrap() []error }); ok {
 				got = j.Unwrap()

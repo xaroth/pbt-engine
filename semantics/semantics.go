@@ -74,9 +74,11 @@ const (
 	DisplayOnly
 )
 
-var statusNames = [...]string{Authored: "authored", Unknown: "unknown", DisplayOnly: "display-only"}
+func statusNames() []string {
+	return []string{Authored: "authored", Unknown: "unknown", DisplayOnly: "display-only"}
+}
 
-func (s Status) String() string { return name(statusNames[:], int(s), "status?") }
+func (s Status) String() string { return name(statusNames(), int(s), "status?") }
 
 // ReasonKind classifies why an entry is Unknown or DisplayOnly.
 type ReasonKind uint8
@@ -107,12 +109,14 @@ const (
 	Display
 )
 
-var reasonKindNames = [...]string{
-	Condition: "condition", Items: "items", Charges: "charges", Reservation: "reservation", Scale: "scale",
-	Context: "context", Event: "event", Rule: "rule", Unestablished: "unestablished", Display: "display",
+func reasonKindNames() []string {
+	return []string{
+		Condition: "condition", Items: "items", Charges: "charges", Reservation: "reservation", Scale: "scale",
+		Context: "context", Event: "event", Rule: "rule", Unestablished: "unestablished", Display: "display",
+	}
 }
 
-func (k ReasonKind) String() string { return name(reasonKindNames[:], int(k), "reason?") }
+func (k ReasonKind) String() string { return name(reasonKindNames(), int(k), "reason?") }
 
 // Reason says why an entry is Unknown or DisplayOnly.
 type Reason struct {
@@ -140,9 +144,11 @@ const (
 	StatID
 )
 
-var sourceKindNames = [...]string{Description: "description", ObjectTemplate: "object-template", GameData: "game-data", StatID: "stat-id"}
+func sourceKindNames() []string {
+	return []string{Description: "description", ObjectTemplate: "object-template", GameData: "game-data", StatID: "stat-id"}
+}
 
-func (k SourceKind) String() string { return name(sourceKindNames[:], int(k), "source?") }
+func (k SourceKind) String() string { return name(sourceKindNames(), int(k), "source?") }
 
 func name(names []string, i int, unknown string) string {
 	if i > 0 && i < len(names) {
@@ -405,7 +411,7 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 	if e.Scope, err = parseScope(f.Scope); err != nil {
 		return Entry{}, err
 	}
-	if e.Status, err = parseName[Status](statusNames[:], f.Status, "status"); err != nil {
+	if e.Status, err = parseName[Status](statusNames(), f.Status, "status"); err != nil {
 		return Entry{}, err
 	}
 	if e.From, err = parseBound(f.From); err != nil {
@@ -418,7 +424,7 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 		return Entry{}, fmt.Errorf("from %s %w %s", e.From, errNotBeforeUntil, e.Until)
 	}
 	if f.Reason != nil {
-		if e.Reason.Kind, err = parseName[ReasonKind](reasonKindNames[:], f.Reason.Kind, "reason kind"); err != nil {
+		if e.Reason.Kind, err = parseName[ReasonKind](reasonKindNames(), f.Reason.Kind, "reason kind"); err != nil {
 			return Entry{}, err
 		}
 		if f.Reason.Text == "" {
@@ -516,7 +522,7 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 }
 
 func parseSource(f *fileSource) (Source, error) {
-	kind, err := parseName[SourceKind](sourceKindNames[:], f.Kind, "kind")
+	kind, err := parseName[SourceKind](sourceKindNames(), f.Kind, "kind")
 	if err != nil {
 		return Source{}, err
 	}

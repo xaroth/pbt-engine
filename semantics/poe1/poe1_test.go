@@ -19,10 +19,13 @@ import (
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
+//nolint:gochecknoglobals // the testing package parses flags before any test runs, so the flag must exist at package init
 var update = flag.Bool("update", false, "rewrite the golden files of excluded stats and the fixture datasets from $PBT_DATASETS")
 
 // versions are the real datasets the tests read from $PBT_DATASETS.
-var versions = []string{"3.28.0.16", "3.29.3.3"}
+func versions() []string {
+	return []string{"3.28.0.16", "3.29.3.3"}
+}
 
 // openReal opens a real dataset under $PBT_DATASETS, a directory with one dataset per
 // version, and skips the test when the variable is not set.
@@ -74,7 +77,7 @@ func checkTable(t *testing.T, s *dataset.Store) {
 
 func TestTableAgainstDatasets(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			checkTable(t, openReal(t, version))
@@ -86,7 +89,7 @@ func TestTableAgainstDatasets(t *testing.T) {
 // $PBT_DATASETS. TestFixtures keeps the fixtures in step with the real datasets.
 func TestTableAgainstFixtures(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			s, err := dataset.Open(os.DirFS(filepath.Join("testdata", "fixture", version)))
@@ -110,7 +113,7 @@ func TestFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			d := fixture(t, tbl, openReal(t, version))
@@ -290,7 +293,7 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 // a change to the exclusions shows in review. Rewrite the files with -update.
 func TestExcluded(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			s := openReal(t, version)

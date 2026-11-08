@@ -54,7 +54,8 @@ type Handler struct {
 
 // Set holds scopes by name.
 type Set struct {
-	scopes map[string]*scope
+	scopes   map[string]*scope
+	handlers map[string]func(number) number
 }
 
 type scope struct {
@@ -66,7 +67,7 @@ type scope struct {
 
 // NewSet indexes scopes. Every parent must be in scopes.
 func NewSet(scopes []Scope) (*Set, error) {
-	s := &Set{scopes: make(map[string]*scope, len(scopes))}
+	s := &Set{scopes: make(map[string]*scope, len(scopes)), handlers: handlers()}
 	for _, sc := range scopes {
 		if _, dup := s.scopes[sc.Name]; dup {
 			return nil, fmt.Errorf("scope %s defined twice: %w", sc.Name, ErrInvalid)
@@ -162,7 +163,7 @@ func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error)
 	var out []Line
 	for _, p := range order {
 		d := p.sc.Descriptions[p.index]
-		line, ok, err := render(d, stats)
+		line, ok, err := s.render(d, stats)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", strings.Join(d.Stats, " "), err)
 		}
@@ -173,7 +174,7 @@ func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error)
 	return out, nil
 }
 
-func render(d Description, stats map[string]int32) (string, bool, error) {
+func (s *Set) render(d Description, stats map[string]int32) (string, bool, error) {
 	vals := make([]int32, len(d.Stats))
 	for i, st := range d.Stats {
 		vals[i] = stats[st]
@@ -187,7 +188,7 @@ func render(d Description, stats map[string]int32) (string, bool, error) {
 		nums[i] = number{v: float64(x)}
 	}
 	for _, h := range v.Handlers {
-		f, ok := handlers[h.Name]
+		f, ok := s.handlers[h.Name]
 		if !ok {
 			return "", false, fmt.Errorf("%w %s", ErrUnknownHandler, h.Name)
 		}

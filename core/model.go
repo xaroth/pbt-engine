@@ -134,8 +134,8 @@ func (b *ModelBuilder) AddStat(def StatDef) (StatID, error) {
 	if def.Round > RoundTrunc {
 		return 0, fmt.Errorf("%w: stat %q: rounding %d", ErrOutOfRange, def.Name, def.Round)
 	}
-	if def.Places < 0 || int(def.Places) >= len(pow10) {
-		return 0, fmt.Errorf("%w: stat %q: places %d, want 0 to %d", ErrOutOfRange, def.Name, def.Places, len(pow10)-1)
+	if def.Places < 0 || def.Places > maxPlaces {
+		return 0, fmt.Errorf("%w: stat %q: places %d, want 0 to %d", ErrOutOfRange, def.Name, def.Places, maxPlaces)
 	}
 	id := StatID(len(b.stats))
 	for _, inc := range def.Includes {
@@ -250,7 +250,7 @@ func (d *StatDef) finish(r float64) float64 {
 		r = fmin(r, d.Max)
 	}
 	if d.Round != RoundNone {
-		p := pow10[d.Places]
+		p := math.Pow10(int(d.Places))
 		x := r
 		if d.Places != 0 {
 			x = float64(r * p)
@@ -272,7 +272,8 @@ func (d *StatDef) finish(r float64) float64 {
 	return r + 0.0 // normalise -0
 }
 
-var pow10 = [16]float64{1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15}
+// maxPlaces is the most decimal places a stat can round to.
+const maxPlaces = 15
 
 // fmin and fmax pick the first argument on ties, so signed zeros are deterministic.
 func fmin(a, b float64) float64 {
