@@ -11,6 +11,13 @@ import (
 	"strings"
 )
 
+// Errors NewSet and Describe return; match them with errors.Is.
+var (
+	ErrInvalid      = errors.New("invalid description set")
+	ErrUnknownScope = errors.New("unknown description scope")
+	ErrBadTemplate  = errors.New("bad description text")
+)
+
 // Scope is one stat description file. Lookups fall through to Parent when a stat is not
 // described here.
 type Scope struct {
@@ -62,20 +69,20 @@ func NewSet(scopes []Scope) (*Set, error) {
 	s := &Set{scopes: make(map[string]*scope, len(scopes))}
 	for _, sc := range scopes {
 		if _, dup := s.scopes[sc.Name]; dup {
-			return nil, fmt.Errorf("scope %s defined twice", sc.Name)
+			return nil, fmt.Errorf("scope %s defined twice: %w", sc.Name, ErrInvalid)
 		}
 		x := &scope{Scope: sc, index: map[string]int{}}
 		for i, d := range sc.Descriptions {
 			if len(d.Stats) == 0 {
-				return nil, fmt.Errorf("scope %s description %d: no stats", sc.Name, i)
+				return nil, fmt.Errorf("scope %s description %d: no stats: %w", sc.Name, i, ErrInvalid)
 			}
 			for _, v := range d.Variants {
 				if len(v.Limits) != len(d.Stats) {
-					return nil, fmt.Errorf("scope %s description %d: %d limits for %d stats", sc.Name, i, len(v.Limits), len(d.Stats))
+					return nil, fmt.Errorf("scope %s description %d: %d limits for %d stats: %w", sc.Name, i, len(v.Limits), len(d.Stats), ErrInvalid)
 				}
 				for _, h := range v.Handlers {
 					if h.Stat < 0 || h.Stat >= len(d.Stats) {
-						return nil, fmt.Errorf("scope %s description %d: handler %s stat %d out of range", sc.Name, i, h.Name, h.Stat)
+						return nil, fmt.Errorf("scope %s description %d: handler %s stat %d out of range: %w", sc.Name, i, h.Name, h.Stat, ErrInvalid)
 					}
 				}
 			}
@@ -91,7 +98,7 @@ func NewSet(scopes []Scope) (*Set, error) {
 		}
 		p, ok := s.scopes[x.Parent]
 		if !ok {
-			return nil, fmt.Errorf("scope %s: parent %s not in set", x.Name, x.Parent)
+			return nil, fmt.Errorf("scope %s: parent %s not in set: %w", x.Name, x.Parent, ErrInvalid)
 		}
 		x.parent = p
 	}
@@ -99,7 +106,7 @@ func NewSet(scopes []Scope) (*Set, error) {
 		seen := map[*scope]bool{}
 		for p := x; p != nil; p = p.parent {
 			if seen[p] {
-				return nil, fmt.Errorf("scope %s: parent cycle", x.Name)
+				return nil, fmt.Errorf("scope %s: parent cycle: %w", x.Name, ErrInvalid)
 			}
 			seen[p] = true
 		}
@@ -121,7 +128,7 @@ type Line struct {
 func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error) {
 	root, ok := s.scopes[scopeName]
 	if !ok {
-		return nil, fmt.Errorf("unknown scope %s", scopeName)
+		return nil, fmt.Errorf("unknown scope %s: %w", scopeName, ErrUnknownScope)
 	}
 	type pick struct {
 		depth, index int
@@ -249,7 +256,7 @@ func format(text string, nums []number) (string, error) {
 		case '[':
 			end := strings.IndexByte(text[i:], ']')
 			if end < 0 {
-				return "", fmt.Errorf("unclosed [ in %q", text)
+				return "", fmt.Errorf("unclosed [ in %q: %w", text, ErrBadTemplate)
 			}
 			tag := text[i+1 : i+end]
 			if bar := strings.LastIndexByte(tag, '|'); bar >= 0 {
@@ -260,7 +267,7 @@ func format(text string, nums []number) (string, error) {
 		case '{':
 			end := strings.IndexByte(text[i:], '}')
 			if end < 0 {
-				return "", fmt.Errorf("unclosed { in %q", text)
+				return "", fmt.Errorf("unclosed { in %q: %w", text, ErrBadTemplate)
 			}
 			spec := text[i+1 : i+end]
 			idx, flags, _ := strings.Cut(spec, ":")
@@ -268,12 +275,12 @@ func format(text string, nums []number) (string, error) {
 			if idx != "" {
 				var err error
 				if n, err = strconv.Atoi(idx); err != nil {
-					return "", fmt.Errorf("placeholder {%s} in %q", spec, text)
+					return "", fmt.Errorf("placeholder {%s} in %q: %w", spec, text, ErrBadTemplate)
 				}
 			}
 			next = n + 1
 			if n >= len(nums) {
-				return "", fmt.Errorf("placeholder {%s} has no stat in %q", spec, text)
+				return "", fmt.Errorf("placeholder {%s} has no stat in %q: %w", spec, text, ErrBadTemplate)
 			}
 			s := nums[n].String()
 			if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {

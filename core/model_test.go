@@ -16,41 +16,41 @@ func TestModelBuilderErrors(t *testing.T) {
 	}{
 		{"duplicate stat", func(b *core.ModelBuilder) error {
 			_, err := b.AddStat(core.StatDef{Name: "x"})
-			return err
+			return wrap(t, "add stat", err)
 		}, core.ErrDuplicateName},
 		{"unknown include", func(b *core.ModelBuilder) error {
 			_, err := b.AddStat(core.StatDef{Name: "y", Includes: []core.StatID{7}})
-			return err
+			return wrap(t, "add stat", err)
 		}, core.ErrBadHandle},
 		{"places", func(b *core.ModelBuilder) error {
 			_, err := b.AddStat(core.StatDef{Name: "y", Places: 16})
-			return err
+			return wrap(t, "add stat", err)
 		}, core.ErrOutOfRange},
 		{"rounding", func(b *core.ModelBuilder) error {
 			_, err := b.AddStat(core.StatDef{Name: "y", Round: 9})
-			return err
+			return wrap(t, "add stat", err)
 		}, core.ErrOutOfRange},
 		{"formula of unknown stat", func(b *core.ModelBuilder) error {
 			return b.SetFormula(7, func(core.Reader, core.Agg) float64 { return 0 })
 		}, core.ErrBadHandle},
 		{"duplicate dimension", func(b *core.ModelBuilder) error {
 			_, err := b.AddDimension("d", "b")
-			return err
+			return wrap(t, "add dimension", err)
 		}, core.ErrDuplicateName},
 		{"duplicate dimension value", func(b *core.ModelBuilder) error {
 			_, err := b.AddDimension("e", "a", "a")
-			return err
+			return wrap(t, "add dimension", err)
 		}, core.ErrDuplicateName},
 		{"dimension value name taken", func(b *core.ModelBuilder) error {
 			if _, err := b.AddDimension("p.q", "r"); err != nil {
-				return err
+				return wrap(t, "add dimension", err)
 			}
 			_, err := b.AddDimension("p", "q.r")
-			return err
+			return wrap(t, "add dimension", err)
 		}, core.ErrDuplicateName},
 		{"too many bits", func(b *core.ModelBuilder) error {
 			_, err := b.AddDimension("big", make([]string, core.MaxBits)...)
-			return err
+			return wrap(t, "add dimension", err)
 		}, core.ErrOutOfRange},
 	}
 	for _, testCase := range testCases {

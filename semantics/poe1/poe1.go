@@ -14,6 +14,8 @@
 package poe1
 
 import (
+	"fmt"
+
 	"github.com/xaroth/pbt-engine/semantics"
 
 	_ "embed"
@@ -24,5 +26,9 @@ var table []byte
 
 // Load parses the edition's table against the sheet's Vocabulary.
 func Load() (*semantics.Table, error) {
-	return semantics.Load(table, Vocabulary{})
+	t, err := semantics.Load(table, Vocabulary{})
+	if err != nil {
+		return nil, fmt.Errorf("poe1: %w", err)
+	}
+	return t, nil
 }

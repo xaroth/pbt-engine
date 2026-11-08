@@ -1,6 +1,8 @@
 package resolve_test
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -71,7 +73,8 @@ func resolveBuild(t *testing.T, s *dataset.Store, b *build.Build) (*resolve.Reso
 	if err != nil {
 		t.Fatal(err)
 	}
-	return resolve.Resolve(c)
+	r, err := resolve.Resolve(c)
+	return r, wrap(t, "checked build", err)
 }
 
 func dump(t *testing.T, r *resolve.Resolved) string {
@@ -269,8 +272,8 @@ func TestResolveOtherGame(t *testing.T) {
 	b := testBuild(1, build.Scenario{Campaign: build.CampaignActs1To5})
 	b.Game = "poe2"
 	_, err := resolveBuild(t, open(t, d), b)
-	if want := "resolve: campaign quest rewards of poe2 are not known"; err == nil || err.Error() != want {
-		t.Errorf("got %v, want %q", err, want)
+	if !errors.Is(err, resolve.ErrNoRewards) || !strings.Contains(err.Error(), "poe2") {
+		t.Errorf("got %v, want ErrNoRewards naming poe2", err)
 	}
 }
 
@@ -314,19 +317,19 @@ func TestBundlePartsErrors(t *testing.T) {
 	}{
 		{"unknown character", "resolve: dataset 3.29.3.3 has no character x", func() error {
 			_, err := resolve.CharacterStats(s, "x")
-			return err
+			return wrap(t, "character stats", err)
 		}},
 		{"unknown mastery effect", "resolve: node 9 has no mastery effect 2", func() error {
 			_, err := resolve.MasteryEffectBundle(s, "standard", 9, 2)
-			return err
+			return wrap(t, "mastery effect bundle", err)
 		}},
 		{"mastery effect of unknown node", "has no node 5 in the standard tree", func() error {
 			_, err := resolve.MasteryEffectBundle(s, "standard", 5, 1)
-			return err
+			return wrap(t, "mastery effect bundle", err)
 		}},
-		{"campaign of another game", "resolve: campaign quest rewards of poe2 are not known", func() error {
+		{"campaign of another game", "resolve: no campaign quest rewards known for poe2", func() error {
 			_, err := resolve.CampaignBundles("poe2", build.CampaignActs1To5)
-			return err
+			return wrap(t, "campaign bundles", err)
 		}},
 	}
 	for _, testCase := range testCases {
@@ -337,4 +340,13 @@ func TestBundlePartsErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+// wrap adds context to err and keeps nil as nil.
+func wrap(tb testing.TB, what string, err error) error {
+	tb.Helper()
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }

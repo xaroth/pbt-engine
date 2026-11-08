@@ -56,11 +56,11 @@ func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, s
 	}
 	chars, err := s.Characters()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("semantics: load characters: %w", err)
 	}
 	tree, err := s.Tree(variant)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("semantics: load tree: %w", err)
 	}
 	type key struct {
 		stat  string
@@ -74,19 +74,19 @@ func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, s
 	}
 	bundles, err := resolve.CampaignBundles(m.Game, build.CampaignComplete)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("semantics: campaign bundles: %w", err)
 	}
 	for i := range tree.Nodes {
 		n := &tree.Nodes[i]
 		nb, err := resolve.NodeBundles(s, variant, n.ID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("semantics: node bundles: %w", err)
 		}
 		bundles = append(bundles, nb...)
 		for _, me := range n.MasteryEffects {
 			b, err := resolve.MasteryEffectBundle(s, variant, n.ID, me.ID)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("semantics: mastery bundle: %w", err)
 			}
 			bundles = append(bundles, b)
 		}
@@ -94,7 +94,7 @@ func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, s
 	for i := range chars {
 		cs, err := resolve.CharacterStats(s, chars[i].ID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("semantics: character stats: %w", err)
 		}
 		add(resolve.Global, cs)
 		add(resolve.Global, []resolve.StatValue{{Stat: resolve.LevelStat}})
@@ -180,6 +180,8 @@ func (c *Coverage) WriteText(w io.Writer) error {
 			}
 		}
 	}
-	_, err := io.WriteString(w, b.String())
-	return err
+	if _, err := io.WriteString(w, b.String()); err != nil {
+		return fmt.Errorf("semantics: write: %w", err)
+	}
+	return nil
 }

@@ -63,12 +63,12 @@ func Open(fsys fs.FS) (*Store, error) {
 			lang := groupTag(f.Name, textPrefix)
 			s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
 		default:
-			return nil, fmt.Errorf("%s: unknown file %s", ManifestName, f.Name)
+			return nil, fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
 		}
 	}
 	for _, name := range []string{charactersFile, constantsFile, statsFile} {
 		if _, ok := s.files[name]; !ok {
-			return nil, fmt.Errorf("%s: missing file %s", ManifestName, name)
+			return nil, fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
 		}
 	}
 	s.stats = sync.OnceValues(s.loadStats)
@@ -91,11 +91,11 @@ func readGroup[T any](s *Store, name string, decode func([]byte) (T, error)) (T,
 	f := s.files[name]
 	b, err := fs.ReadFile(s.fsys, name)
 	if err != nil {
-		return out, err
+		return out, fmt.Errorf("read %s: %w", name, err)
 	}
 	sum := sha256.Sum256(b)
 	if len(b) != f.Size || hex.EncodeToString(sum[:]) != f.SHA256 {
-		return out, fmt.Errorf("%s: size or sha256 differs from %s", name, ManifestName)
+		return out, fmt.Errorf("%s: size or sha256 differs from %s: %w", name, ManifestName, ErrInvalid)
 	}
 	err = decodeSafely(func(b []byte) (err error) { out, err = decode(b); return err }, b)
 	if err != nil {
@@ -124,7 +124,7 @@ func (s *Store) Constants() ([]Constant, error) { return s.constants() }
 func (s *Store) Tree(variant string) (*Tree, error) {
 	load, ok := s.trees[variant]
 	if !ok {
-		return nil, fmt.Errorf("dataset %s has no %s tree", s.manifest.Version, variant)
+		return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
 	}
 	return load()
 }
@@ -135,7 +135,7 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {
-		return nil, fmt.Errorf("dataset %s has no %s text", s.manifest.Version, language)
+		return nil, fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, language, ErrNotInDataset)
 	}
 	return load()
 }
@@ -148,12 +148,12 @@ func (s *Store) Text(language string) (*Text, error) {
 func (s *Store) Dataset(o Options) (*Dataset, error) {
 	for _, variant := range o.Trees {
 		if _, ok := s.trees[variant]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s tree", s.manifest.Version, variant)
+			return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
 		}
 	}
 	for _, lang := range o.Languages {
 		if _, ok := s.texts[lang]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s text", s.manifest.Version, lang)
+			return nil, fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, lang, ErrNotInDataset)
 		}
 	}
 	d := &Dataset{Manifest: s.manifest}
@@ -241,7 +241,7 @@ func (s *Store) loadTree(variant string) (*Tree, error) {
 		return nil, err
 	}
 	if t.Variant != variant {
-		return nil, fmt.Errorf("%s: holds tree variant %q", name, t.Variant)
+		return nil, fmt.Errorf("%s: holds tree variant %q: %w", name, t.Variant, ErrInvalid)
 	}
 	if err := validateTree(len(st.stats), chars, t); err != nil {
 		return nil, err
@@ -260,7 +260,7 @@ func (s *Store) loadText(language string) (*Text, error) {
 		return nil, err
 	}
 	if t.Language != language {
-		return nil, fmt.Errorf("%s: holds text language %q", name, t.Language)
+		return nil, fmt.Errorf("%s: holds text language %q: %w", name, t.Language, ErrInvalid)
 	}
 	if err := validateText(chars, t); err != nil {
 		return nil, err

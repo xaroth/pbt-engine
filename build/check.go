@@ -100,11 +100,11 @@ func Check(b *Build, s *dataset.Store) (*Checked, error) {
 	}
 	tree, err := s.Tree(variant)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build: load tree: %w", err)
 	}
 	chars, err := s.Characters()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build: load characters: %w", err)
 	}
 	c.tree = tree
 

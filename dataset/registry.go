@@ -37,7 +37,7 @@ func compareEntries(a, b entry) int {
 func OpenRoot(root fs.FS) (*Registry, error) {
 	ents, err := fs.ReadDir(root, ".")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read root: %w", err)
 	}
 	r := &Registry{}
 	var skipped []error
@@ -47,7 +47,7 @@ func OpenRoot(root fs.FS) (*Registry, error) {
 		}
 		sub, err := fs.Sub(root, e.Name())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("open %s: %w", e.Name(), err)
 		}
 		if _, err := fs.Stat(sub, ManifestName); errors.Is(err, fs.ErrNotExist) {
 			continue
@@ -69,7 +69,7 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 	}
 	m := s.Manifest()
 	if m.Game == "" {
-		return nil, fmt.Errorf("%s: game is required", ManifestName)
+		return nil, fmt.Errorf("%s: game is required: %w", ManifestName, ErrInvalid)
 	}
 	parsed, err := ParseGameVersion(m.Version)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 	defer r.mu.Unlock()
 	i, found := slices.BinarySearchFunc(r.entries, e, compareEntries)
 	if found {
-		return nil, fmt.Errorf("dataset %s %s added twice", m.Game, m.Version)
+		return nil, fmt.Errorf("dataset %s %s %w", m.Game, m.Version, ErrDuplicate)
 	}
 	r.entries = slices.Insert(r.entries, i, e)
 	return s, nil

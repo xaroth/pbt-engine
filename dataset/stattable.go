@@ -52,10 +52,10 @@ func statIndex(stats []Stat) (map[string]uint32, error) {
 	out := make(map[string]uint32, len(stats))
 	for i, s := range stats {
 		if s.ID == "" {
-			return nil, fmt.Errorf("stat %d: empty id", i)
+			return nil, fmt.Errorf("stat %d: empty id: %w", i, ErrInvalid)
 		}
 		if _, ok := out[s.ID]; ok {
-			return nil, fmt.Errorf("stat %s repeated", s.ID)
+			return nil, fmt.Errorf("stat %s repeated: %w", s.ID, ErrInvalid)
 		}
 		out[s.ID] = uint32(i)
 	}
@@ -70,12 +70,12 @@ func handles(index map[string]uint32, n int, id func(int) []byte) ([]uint32, err
 	for i := range out {
 		s := string(id(i))
 		if i > 0 && s <= prev {
-			return nil, fmt.Errorf("stat ids not sorted and unique at %q", s)
+			return nil, fmt.Errorf("stat ids not sorted and unique at %q: %w", s, ErrInvalid)
 		}
 		prev = s
 		h, ok := index[s]
 		if !ok {
-			return nil, fmt.Errorf("unknown stat %q", s)
+			return nil, fmt.Errorf("unknown stat %q: %w", s, ErrInvalid)
 		}
 		out[i] = h
 	}
@@ -94,7 +94,7 @@ func fromLocal(src statValueSource, h []uint32, sorted bool) ([]StatValue, error
 	for i := range out {
 		src.Stats(&sv, i)
 		if int(sv.Stat()) >= len(h) {
-			return nil, fmt.Errorf("stat %d out of range (%d ids)", sv.Stat(), len(h))
+			return nil, fmt.Errorf("stat %d out of range (%d ids): %w", sv.Stat(), len(h), ErrInvalid)
 		}
 		out[i] = StatValue{Stat: h[sv.Stat()], Value: sv.Value()}
 	}

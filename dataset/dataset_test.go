@@ -439,7 +439,7 @@ func TestReadErrors(t *testing.T) {
 		fsys       fstest.MapFS
 	}{
 		{name: "no manifest", want: "open manifest.json", is: fs.ErrNotExist, fsys: fstest.MapFS{}},
-		{name: "manifest not json", want: "manifest.json: unexpected EOF", fsys: fstest.MapFS{dataset.ManifestName: {Data: []byte("{")}}},
+		{name: "manifest not json", want: "manifest.json: unexpected EOF", is: dataset.ErrInvalid, fsys: fstest.MapFS{dataset.ManifestName: {Data: []byte("{")}}},
 		{name: "unknown manifest field", want: `unknown field "extra"`, fsys: edit(func(m map[string]any) { m["extra"] = 1 })},
 		{name: "other format", want: "dataset format 2, want 1", fsys: edit(func(m map[string]any) { m["format"] = dataset.FormatVersion + 1 })},
 		{name: "unknown file", want: "unknown file x.fb", fsys: edit(func(m map[string]any) { files(m)[0].(map[string]any)["name"] = "x.fb" })},
@@ -450,8 +450,8 @@ func TestReadErrors(t *testing.T) {
 			return f
 		}()},
 		{name: "hash differs", want: "stats.fb: size or sha256 differs", fsys: edit(func(m map[string]any) { files(m)[0].(map[string]any)["sha256"] = "00" })},
-		{name: "wrong identifier", want: "stats.fb: wrong file identifier", fsys: replace(0, charsBytes)},
-		{name: "truncated", want: "characters.fb: malformed", fsys: replace(1, charsBytes[:len(charsBytes)/2])},
+		{name: "wrong identifier", want: "stats.fb: wrong file identifier", is: dataset.ErrInvalid, fsys: replace(0, charsBytes)},
+		{name: "truncated", want: "characters.fb: malformed", is: dataset.ErrInvalid, fsys: replace(1, charsBytes[:len(charsBytes)/2])},
 		{name: "stats too few for characters", want: `characters.fb: unknown stat "base_maximum_all_resistances_%"`, fsys: replace(0, oneStatBytes)},
 		{
 			name: "stat ids unsorted", want: `characters.fb: stat ids not sorted and unique at "level"`,

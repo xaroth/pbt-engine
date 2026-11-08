@@ -6,6 +6,7 @@ package resolve
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -14,6 +15,9 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 )
+
+// ErrNoRewards is returned for a game whose campaign quest rewards are not known.
+var ErrNoRewards = errors.New("no campaign quest rewards known")
 
 // Actor owns a bundle's stats.
 type Actor uint8
@@ -149,15 +153,15 @@ const LevelStat = "level"
 func CharacterStats(s *dataset.Store, id string) ([]StatValue, error) {
 	stats, err := s.Stats()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	chars, err := s.Characters()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load characters: %w", err)
 	}
 	i := slices.IndexFunc(chars, func(c dataset.Character) bool { return c.ID == id })
 	if i < 0 {
-		return nil, fmt.Errorf("resolve: dataset %s has no character %s", s.Manifest().Version, id)
+		return nil, fmt.Errorf("resolve: dataset %s has no character %s: %w", s.Manifest().Version, id, dataset.ErrNotInDataset)
 	}
 	return characterStats(stats, &chars[i]), nil
 }
@@ -191,7 +195,7 @@ func kitavaAffliction() []StatValue {
 // in campaign order. It fails for a game other than poe1, whose rewards are not known.
 func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
 	if game != kitavaGame {
-		return nil, fmt.Errorf("resolve: campaign quest rewards of %s are not known", game)
+		return nil, fmt.Errorf("resolve: %w for %s", ErrNoRewards, game)
 	}
 	var out []Bundle
 	for _, q := range kitavaQuests[:kitavaDefeats(c)] {
@@ -224,11 +228,11 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 	}
 	stats, err := s.Stats()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	consts, err := s.Constants()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load constants: %w", err)
 	}
 	known := make(map[string]bool, len(stats))
 	for _, st := range stats {
@@ -260,7 +264,7 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		}
 	}
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("resolve: dataset %s has no stat %s", m.Version, strings.Join(missing, ", "))
+		return nil, fmt.Errorf("resolve: dataset %s has no stat %s: %w", m.Version, strings.Join(missing, ", "), dataset.ErrNotInDataset)
 	}
 
 	for _, k := range consts {
@@ -294,7 +298,7 @@ func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (B
 	}
 	i := slices.IndexFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect })
 	if i < 0 {
-		return Bundle{}, fmt.Errorf("resolve: node %d has no mastery effect %d", id, effect)
+		return Bundle{}, fmt.Errorf("resolve: node %d has no mastery effect %d: %w", id, effect, dataset.ErrNotInDataset)
 	}
 	return Bundle{Actor: Player, Scope: Global, Source: NodeSource{ID: id}, Stats: statValues(stats, n.MasteryEffects[i].Stats)}, nil
 }
@@ -303,15 +307,15 @@ func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (B
 func node(s *dataset.Store, variant string, id uint32) ([]dataset.Stat, *dataset.Node, error) {
 	stats, err := s.Stats()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	tree, err := s.Tree(variant)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("resolve: load tree: %w", err)
 	}
 	i, ok := slices.BinarySearchFunc(tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
 	if !ok {
-		return nil, nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree", s.Manifest().Version, id, variant)
+		return nil, nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree: %w", s.Manifest().Version, id, variant, dataset.ErrNotInDataset)
 	}
 	return stats, &tree.Nodes[i], nil
 }
@@ -357,6 +361,8 @@ func (r *Resolved) Dump(w io.Writer) error {
 	for _, n := range r.Notes {
 		fmt.Fprintf(&b, "note %s\n", n)
 	}
-	_, err := io.WriteString(w, b.String())
-	return err
+	if _, err := io.WriteString(w, b.String()); err != nil {
+		return fmt.Errorf("resolve: write: %w", err)
+	}
+	return nil
 }
