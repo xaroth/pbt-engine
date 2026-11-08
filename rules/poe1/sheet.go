@@ -133,7 +133,7 @@ func model() (*core.Model, map[string]core.StatID) {
 	var b core.ModelBuilder
 	stats := map[string]core.StatID{}
 	for _, name := range engineStats() {
-		stats[name] = b.MustAddStat(statDef(name))
+		stats[name] = b.MustAddStat(statDef(name, stats))
 	}
 	return b.Build(), stats
 }
