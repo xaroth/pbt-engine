@@ -92,7 +92,7 @@ func sample() *dataset.Dataset {
 }
 
 func variants(d *dataset.Dataset) []string {
-	var out []string
+	out := make([]string, 0, len(d.Trees))
 	for _, t := range d.Trees {
 		out = append(out, t.Variant)
 	}
@@ -104,7 +104,7 @@ func all(d *dataset.Dataset) dataset.Options {
 }
 
 func languages(d *dataset.Dataset) []string {
-	var out []string
+	out := make([]string, 0, len(d.Texts))
 	for _, t := range d.Texts {
 		out = append(out, t.Language)
 	}
@@ -292,7 +292,10 @@ func TestWriteErrors(t *testing.T) {
 		{name: "repeated node", want: "node 1 repeated", change: func(d *dataset.Dataset) { d.Trees[0].Nodes[1].ID = 1 }},
 		{name: "node stat out of range", want: "node 2: stat 9 out of range", change: func(d *dataset.Dataset) { d.Trees[0].Nodes[1].Stats[0].Stat = 9 }},
 		{name: "buff stat out of range", want: "node 2 buff: stat 9 out of range", change: func(d *dataset.Dataset) { d.Trees[0].Nodes[1].Buffs[0][0].Stat = 9 }},
-		{name: "mastery stat out of range", want: "node 2 mastery effect: stat 9 out of range", change: func(d *dataset.Dataset) { d.Trees[0].Nodes[1].MasteryEffects[0].Stats[0].Stat = 9 }},
+		{
+			name: "mastery stat out of range", want: "node 2 mastery effect: stat 9 out of range",
+			change: func(d *dataset.Dataset) { d.Trees[0].Nodes[1].MasteryEffects[0].Stats[0].Stat = 9 },
+		},
 		{name: "unknown neighbour", want: "neighbour 5 not in tree", change: func(d *dataset.Dataset) { d.Trees[0].Nodes[0].Neighbours = []uint32{5} }},
 		{name: "unsorted neighbours", want: "neighbours not sorted", change: func(d *dataset.Dataset) { d.Trees[0].Nodes[0].Neighbours = []uint32{2, 1} }},
 		{name: "unknown start node", want: "start node 5 not in tree", change: func(d *dataset.Dataset) { d.Trees[0].Classes[0].StartNode = 5 }},
@@ -320,7 +323,10 @@ func TestWriteErrors(t *testing.T) {
 		}},
 		{name: "name for unknown node", want: "name for unknown node 9", change: func(d *dataset.Dataset) { d.Texts[0].NodeNames[1].ID = 9 }},
 		{name: "name for unknown character", want: "name for unknown character x", change: func(d *dataset.Dataset) { d.Texts[0].CharacterNames[0].ID = "x" }},
-		{name: "name for unknown ascendancy", want: "name for unknown ascendancy Juggernaut in tree ruthless", change: func(d *dataset.Dataset) { d.Texts[0].AscendancyNames[0].Variant = "ruthless" }},
+		{
+			name: "name for unknown ascendancy", want: "name for unknown ascendancy Juggernaut in tree ruthless",
+			change: func(d *dataset.Dataset) { d.Texts[0].AscendancyNames[0].Variant = "ruthless" },
+		},
 	}
 	for _, testCase := range treeCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -438,14 +444,27 @@ func TestReadErrors(t *testing.T) {
 		{name: "other format", want: "dataset format 5, want 4", fsys: edit(func(m map[string]any) { m["format"] = dataset.FormatVersion + 1 })},
 		{name: "unknown file", want: "unknown file x.fb", fsys: edit(func(m map[string]any) { files(m)[0].(map[string]any)["name"] = "x.fb" })},
 		{name: "missing group", want: "missing file characters.fb", fsys: edit(func(m map[string]any) { m["files"] = files(m)[:1] })},
-		{name: "file absent", want: "open stats.fb", is: fs.ErrNotExist, fsys: func() fstest.MapFS { f := edit(func(map[string]any) {}); delete(f, "stats.fb"); return f }()},
+		{name: "file absent", want: "open stats.fb", is: fs.ErrNotExist, fsys: func() fstest.MapFS {
+			f := edit(func(map[string]any) {})
+			delete(f, "stats.fb")
+			return f
+		}()},
 		{name: "hash differs", want: "stats.fb: size or sha256 differs", fsys: edit(func(m map[string]any) { files(m)[0].(map[string]any)["sha256"] = "00" })},
 		{name: "wrong identifier", want: "stats.fb: wrong file identifier", fsys: replace(0, charsBytes)},
 		{name: "truncated", want: "characters.fb: malformed", fsys: replace(1, charsBytes[:len(charsBytes)/2])},
 		{name: "stats too few for characters", want: `characters.fb: unknown stat "base_maximum_all_resistances_%"`, fsys: replace(0, oneStatBytes)},
-		{name: "stat ids unsorted", want: `characters.fb: stat ids not sorted and unique at "level"`, fsys: replace(1, charactersFile([]string{"life_per_level", "level"}, []uint32{0}))},
-		{name: "stat id repeated", want: `characters.fb: stat ids not sorted and unique at "level"`, fsys: replace(1, charactersFile([]string{"level", "level"}, []uint32{0, 1}))},
-		{name: "stat index out of range", want: "characters.fb: character Metadata/Characters/Str/Str: stat 2 out of range (2 ids)", fsys: replace(1, charactersFile([]string{"level", "life_per_level"}, []uint32{2}))},
+		{
+			name: "stat ids unsorted", want: `characters.fb: stat ids not sorted and unique at "level"`,
+			fsys: replace(1, charactersFile([]string{"life_per_level", "level"}, []uint32{0})),
+		},
+		{
+			name: "stat id repeated", want: `characters.fb: stat ids not sorted and unique at "level"`,
+			fsys: replace(1, charactersFile([]string{"level", "level"}, []uint32{0, 1})),
+		},
+		{
+			name: "stat index out of range", want: "characters.fb: character Metadata/Characters/Str/Str: stat 2 out of range (2 ids)",
+			fsys: replace(1, charactersFile([]string{"level", "life_per_level"}, []uint32{2})),
+		},
 		{name: "id differs", want: "id does not match", fsys: edit(func(m map[string]any) { m["id"] = "00" })},
 		{name: "file listed twice", want: "file stats.fb listed twice", fsys: edit(func(m map[string]any) { m["files"] = append(files(m), files(m)[0]) })},
 		{name: "truncated tree", want: "tree-standard.fb: malformed", fsys: replace(3, good["tree-standard.fb"].Data[:40])},

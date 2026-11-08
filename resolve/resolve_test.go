@@ -90,6 +90,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	//nolint:dupword // a level bundle header followed by its level stat
 	want := `dataset poe1 3.29.3.3
 constant life_per_strength = 1 per 2 (unvalidated)
 bundle player global character Metadata/Characters/Str/Str
@@ -128,7 +129,7 @@ func TestResolveSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got []resolve.Source
+	got := make([]resolve.Source, 0, len(r.Bundles))
 	for _, b := range r.Bundles {
 		got = append(got, b.Source)
 	}
@@ -291,7 +292,10 @@ func TestBundleParts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantEffect := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9}, Stats: []resolve.StatValue{{"maximum_life_+%", 10}}}
+	wantEffect := resolve.Bundle{
+		Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9},
+		Stats: []resolve.StatValue{{"maximum_life_+%", 10}},
+	}
 	if diff := cmp.Diff(wantEffect, effect); diff != "" {
 		t.Errorf("MasteryEffectBundle (-want +got):\n%s", diff)
 	}

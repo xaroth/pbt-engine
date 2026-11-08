@@ -88,8 +88,9 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 
 // Stores returns the datasets of a game, oldest version first.
 func (r *Registry) Stores(game string) []*Store {
-	var out []*Store
-	for _, e := range r.game(game) {
+	entries := r.game(game)
+	out := make([]*Store, 0, len(entries))
+	for _, e := range entries {
 		out = append(out, e.store)
 	}
 	return out

@@ -52,6 +52,7 @@ type Set struct {
 
 type scope struct {
 	Scope
+
 	parent *scope
 	index  map[string]int
 }

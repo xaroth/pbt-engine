@@ -90,7 +90,10 @@ func TestDescribe(t *testing.T) {
 		{name: "later duplicate wins", scope: "parent", stats: map[string]int32{"dup": 1}, want: []string{"second"}},
 		{name: "unknown stat", scope: "parent", stats: map[string]int32{"nope": 1}, want: nil},
 		{name: "child overrides parent", scope: "child", stats: map[string]int32{"hidden": 1}, want: []string{"child text"}},
-		{name: "parent lines first", scope: "child", stats: map[string]int32{"range": 3, "strength": 1}, want: []string{"+1 to Strength", "+0.3 metres to Melee Strike Range"}},
+		{
+			name: "parent lines first", scope: "child", stats: map[string]int32{"range": 3, "strength": 1},
+			want: []string{"+1 to Strength", "+0.3 metres to Melee Strike Range"},
+		},
 		{name: "fixed decimals", scope: "child", stats: map[string]int32{"regen": 60}, want: []string{"Regenerate 1.00% of Life per second"}},
 		{name: "decimals if required", scope: "child", stats: map[string]int32{"regen_short": 90}, want: []string{"Regenerate 1.5% of Life per second"}},
 		{name: "newline", scope: "child", stats: map[string]int32{"cooldown": 1500}, want: []string{"1.5 second Cooldown\nCan be used once"}},

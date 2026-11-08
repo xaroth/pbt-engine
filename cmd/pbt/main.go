@@ -86,7 +86,9 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 
 // run writes results to w and notes about how they were found to notes.
 func run(args []string, w, notes io.Writer) error {
-	pos, opts, err := parseArgs(args, map[string]string{"version": "", "variant": build.DefaultVariant, "root": "datasets", "limit": "20", "language": "en", "game": "poe1"})
+	pos, opts, err := parseArgs(args, map[string]string{
+		"version": "", "variant": build.DefaultVariant, "root": "datasets", "limit": "20", "language": "en", "game": "poe1",
+	})
 	if err != nil {
 		return err
 	}
@@ -187,6 +189,7 @@ func resolveVersions(notes io.Writer, root, game string, versions ...string) ([]
 	}
 	for _, res := range out {
 		name := res.Store.Manifest().Version
+		//exhaustive:ignore // an exact match needs no note
 		switch res.Match {
 		case dataset.MatchNewest:
 			p.printf("(%s %s resolves to %s)\n", game, res.Requested, name)

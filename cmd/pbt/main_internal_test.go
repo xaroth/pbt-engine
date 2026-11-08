@@ -308,11 +308,13 @@ func TestBuildResolve(t *testing.T) {
 	if _, err := dataset.Write(dir, d); err != nil {
 		t.Fatal(err)
 	}
-	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,"nodes":[1,12345],"scenario":{"campaign":"acts-1-5"}}`)
+	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,
+		"nodes":[1,12345],"scenario":{"campaign":"acts-1-5"}}`)
 	var out, notes strings.Builder
 	if err := run([]string{"build", "resolve", path, "--root", root}, &out, &notes); err != nil {
 		t.Fatal(err)
 	}
+	//nolint:dupword // a level bundle header followed by its level stat
 	want := `dataset poe1 3.29
 bundle player global character Metadata/Characters/Str/Str
   base_strength = 32

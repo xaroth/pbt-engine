@@ -202,6 +202,7 @@ func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
 
 func kitavaDefeats(c build.Campaign) int {
 	switch c {
+	case build.CampaignActs1To5:
 	case build.CampaignActs6To10:
 		return 1
 	case build.CampaignComplete:
@@ -283,7 +284,7 @@ func NodeBundles(s *dataset.Store, variant string, id uint32) ([]Bundle, error) 
 	return nodeBundles(stats, n), nil
 }
 
-// MasteryEffectBundle returns the bundle mastery effect effect of the node with id in the
+// MasteryEffectBundle returns the bundle that the mastery effect numbered effect of the node with id in the
 // variant tree of s gives once chosen: its stats in global scope, from the node. It fails when
 // the tree or stats fail to load or the node has no such effect.
 func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (Bundle, error) {
