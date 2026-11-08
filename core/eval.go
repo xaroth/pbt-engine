@@ -278,7 +278,7 @@ func aggregate(agg *Agg, op Op, v float64) {
 // total returns a node's value from its aggregate, before the stat's clamp and rounding.
 func (s *Session) total(def *StatDef, agg Agg, n Node, deps *[]uint32) float64 {
 	switch {
-	case agg.HasOverride:
+	case agg.HasOverride && (def.Formula == nil || !def.FormulaSeesOverride):
 		return agg.Override
 	case def.Formula != nil:
 		return def.Formula(Reader{s: s, deps: deps, actor: n.Actor, ctx: n.Ctx, fam: def.CycleFamily}, agg)

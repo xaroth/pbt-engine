@@ -45,7 +45,8 @@ func (a Agg) Default() float64 {
 }
 
 // Formula computes a node's value before clamping and rounding. It is not called when an
-// override matched. Reads through r are recorded as dependencies of the node.
+// override matched, unless the stat sets FormulaSeesOverride. Reads through r are recorded as
+// dependencies of the node.
 type Formula func(r Reader, a Agg) float64
 
 // StatDef describes an engine stat.
@@ -74,6 +75,10 @@ type StatDef struct {
 	CycleFamily uint8
 	// Formula replaces the default aggregation; nil uses Agg.Default (or the flag rule).
 	Formula Formula
+	// FormulaSeesOverride runs Formula even when an override matched; the formula reads
+	// Agg.HasOverride and Agg.Override and decides. Without it an override replaces the
+	// formula. It has no effect without a Formula.
+	FormulaSeesOverride bool
 }
 
 // Share applies another stat's modifiers to a stat. Rate is a percentage: its base, increased
