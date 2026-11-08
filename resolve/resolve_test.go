@@ -135,7 +135,7 @@ func TestResolveCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := r.Capabilities.Version("armour"); got != 3 {
+	if got := r.Capabilities["armour"]; got != 3 {
 		t.Errorf("armour version: got %d, want 3", got)
 	}
 	want := "dataset poe1 3.29.3.3\ncapability armour = 3\ncapability life-from-strength = 2\nconstant "

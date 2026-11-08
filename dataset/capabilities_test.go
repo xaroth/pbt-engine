@@ -9,20 +9,34 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-func TestCapabilitiesVersion(t *testing.T) {
+func TestCheckedVersion(t *testing.T) {
 	t.Parallel()
-	c := dataset.Capabilities{"armour": 3}
+	c, err := dataset.Capabilities{"armour": 3}.Check(map[string]int{"armour": 3, "life-from-strength": 1})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for name, want := range map[string]int{"armour": 3, "life-from-strength": 1} {
 		if got := c.Version(name); got != want {
 			t.Errorf("Version(%q): got %d, want %d", name, got, want)
 		}
 	}
-	if got := dataset.Capabilities(nil).Version("armour"); got != 1 {
-		t.Errorf("nil Version: got %d, want 1", got)
-	}
 }
 
-func TestCapabilitiesSupported(t *testing.T) {
+func TestCheckedVersionUnknownName(t *testing.T) {
+	t.Parallel()
+	c, err := dataset.Capabilities(nil).Check(map[string]int{"armour": 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Version of a name not given to Check: no panic")
+		}
+	}()
+	c.Version("armor")
+}
+
+func TestCapabilitiesCheck(t *testing.T) {
 	t.Parallel()
 	known := map[string]int{"armour": 2, "evasion": 1}
 	testCases := []struct {
@@ -42,7 +56,7 @@ func TestCapabilitiesSupported(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			err := testCase.c.Supported(known)
+			_, err := testCase.c.Check(known)
 			if testCase.want == "" {
 				if err != nil {
 					t.Errorf("got %v, want nil", err)
