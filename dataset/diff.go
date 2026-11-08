@@ -57,7 +57,14 @@ type NodeDiff struct {
 func Compare(a, b *Dataset) Diff {
 	var d Diff
 	d.StatsAdded, d.StatsRemoved = setDiff(statIDs(a), statIDs(b))
+	compareCharacters(&d, a, b)
+	compareConstants(&d, a, b)
+	compareTextGroups(&d, a, b)
+	compareTreeGroups(&d, a, b)
+	return d
+}
 
+func compareCharacters(d *Diff, a, b *Dataset) {
 	ac, bc := byKey(a.Characters, func(c Character) string { return c.ID }), byKey(b.Characters, func(c Character) string { return c.ID })
 	for _, id := range sortedUnion(ac, bc) {
 		x, inA := ac[id]
@@ -66,7 +73,9 @@ func Compare(a, b *Dataset) Diff {
 			d.CharactersChanged = append(d.CharactersChanged, id)
 		}
 	}
+}
 
+func compareConstants(d *Diff, a, b *Dataset) {
 	ak, bk := byKey(a.Constants, func(c Constant) string { return c.ID }), byKey(b.Constants, func(c Constant) string { return c.ID })
 	d.ConstantsAdded, d.ConstantsRemoved = setDiff(keys(ak), keys(bk))
 	for _, id := range sortedUnion(ak, bk) {
@@ -76,7 +85,9 @@ func Compare(a, b *Dataset) Diff {
 			d.ConstantsChanged = append(d.ConstantsChanged, id)
 		}
 	}
+}
 
+func compareTextGroups(d *Diff, a, b *Dataset) {
 	ax, bx := byKey(a.Texts, func(t Text) string { return t.Language }), byKey(b.Texts, func(t Text) string { return t.Language })
 	d.LanguagesAdded, d.LanguagesRemoved = setDiff(keys(ax), keys(bx))
 	for _, lang := range sortedUnion(ax, bx) {
@@ -86,7 +97,9 @@ func Compare(a, b *Dataset) Diff {
 			d.Texts = append(d.Texts, compareTexts(x, y))
 		}
 	}
+}
 
+func compareTreeGroups(d *Diff, a, b *Dataset) {
 	at, bt := byKey(a.Trees, func(t Tree) string { return t.Variant }), byKey(b.Trees, func(t Tree) string { return t.Variant })
 	d.TreeVariantsAdded, d.TreeVariantsRemoved = setDiff(keys(at), keys(bt))
 	for _, v := range sortedUnion(at, bt) {
@@ -96,7 +109,6 @@ func Compare(a, b *Dataset) Diff {
 			d.Trees = append(d.Trees, compareTrees(a, b, x, y))
 		}
 	}
-	return d
 }
 
 func compareTrees(a, b *Dataset, x, y Tree) TreeDiff {
@@ -104,18 +116,7 @@ func compareTrees(a, b *Dataset, x, y Tree) TreeDiff {
 	xn := byKey(x.Nodes, func(n Node) uint32 { return n.ID })
 	yn := byKey(y.Nodes, func(n Node) uint32 { return n.ID })
 	td.Added, td.Removed = setDiff(keys(xn), keys(yn))
-	xe, ye := map[uint32]bool{}, map[uint32]bool{}
-	for _, n := range x.Nodes {
-		for _, e := range n.MasteryEffects {
-			xe[e.ID] = true
-		}
-	}
-	for _, n := range y.Nodes {
-		for _, e := range n.MasteryEffects {
-			ye[e.ID] = true
-		}
-	}
-	td.EffectsAdded, td.EffectsRemoved = setDiff(keys(xe), keys(ye))
+	td.EffectsAdded, td.EffectsRemoved = setDiff(keys(effectIDs(x)), keys(effectIDs(y)))
 	for _, id := range sortedUnion(xn, yn) {
 		p, inX := xn[id]
 		q, inY := yn[id]
@@ -123,31 +124,45 @@ func compareTrees(a, b *Dataset, x, y Tree) TreeDiff {
 			continue
 		}
 		td.NodesCompared++
-		nd := NodeDiff{ID: id}
-		add := func(changed bool, field string) {
-			if changed {
-				nd.Fields = append(nd.Fields, field)
-			}
+		if nd := compareNode(a, b, p, q); len(nd.Fields) > 0 {
+			td.Changed = append(td.Changed, nd)
 		}
-		before, after := statMap(a, p.Stats), statMap(b, q.Stats)
-		add(p.Kind != q.Kind, "kind")
-		add(p.Ascendancy != q.Ascendancy, "ascendancy")
-		add(!maps.Equal(before, after), "stats")
-		add(!slices.EqualFunc(p.Buffs, q.Buffs, func(s, t []StatValue) bool { return maps.Equal(statMap(a, s), statMap(b, t)) }), "buffs")
-		add(p.SkillPoints != q.SkillPoints, "skill_points")
-		add(!slices.EqualFunc(p.MasteryEffects, q.MasteryEffects, func(s, t MasteryEffect) bool {
-			return s.ID == t.ID && maps.Equal(statMap(a, s.Stats), statMap(b, t.Stats))
-		}), "mastery_effects")
-		add(!slices.Equal(p.Neighbours, q.Neighbours), "neighbours")
-		if len(nd.Fields) == 0 {
-			continue
-		}
-		if !maps.Equal(before, after) {
-			nd.StatsBefore, nd.StatsAfter = before, after
-		}
-		td.Changed = append(td.Changed, nd)
 	}
 	return td
+}
+
+func effectIDs(t Tree) map[uint32]bool {
+	ids := map[uint32]bool{}
+	for _, n := range t.Nodes {
+		for _, e := range n.MasteryEffects {
+			ids[e.ID] = true
+		}
+	}
+	return ids
+}
+
+// compareNode returns the fields that differ between p and q.
+func compareNode(a, b *Dataset, p, q Node) NodeDiff {
+	nd := NodeDiff{ID: p.ID}
+	add := func(changed bool, field string) {
+		if changed {
+			nd.Fields = append(nd.Fields, field)
+		}
+	}
+	before, after := statMap(a, p.Stats), statMap(b, q.Stats)
+	add(p.Kind != q.Kind, "kind")
+	add(p.Ascendancy != q.Ascendancy, "ascendancy")
+	add(!maps.Equal(before, after), "stats")
+	add(!slices.EqualFunc(p.Buffs, q.Buffs, func(s, t []StatValue) bool { return maps.Equal(statMap(a, s), statMap(b, t)) }), "buffs")
+	add(p.SkillPoints != q.SkillPoints, "skill_points")
+	add(!slices.EqualFunc(p.MasteryEffects, q.MasteryEffects, func(s, t MasteryEffect) bool {
+		return s.ID == t.ID && maps.Equal(statMap(a, s.Stats), statMap(b, t.Stats))
+	}), "mastery_effects")
+	add(!slices.Equal(p.Neighbours, q.Neighbours), "neighbours")
+	if !maps.Equal(before, after) {
+		nd.StatsBefore, nd.StatsAfter = before, after
+	}
+	return nd
 }
 
 func compareTexts(x, y Text) TextDiff {

@@ -146,40 +146,52 @@ func (r *Registry) Resolve(game, version string) (Resolution, error) {
 	if err != nil {
 		return res, err
 	}
+	if matchVersion(&res, es, want) || matchPatch(&res, es, want) {
+		return res, nil
+	}
+	return res, fmt.Errorf("%w: %s %s", ErrNoVersion, game, version)
+}
+
+// matchVersion sets res to an exact match of want, else the newest version with prefix want.
+func matchVersion(res *Resolution, es []entry, want GameVersion) bool {
 	for _, e := range slices.Backward(es) {
 		switch {
 		case e.version.Compare(want) == 0:
 			res.Store, res.Match = e.store, MatchExact
-			return res, nil
+			return true
 		case e.version.HasPrefix(want):
 			if res.Store == nil {
 				res.Store, res.Match = e.store, MatchNewest
 			}
 		}
 	}
-	if res.Store != nil {
-		return res, nil
+	return res.Store != nil
+}
+
+// matchPatch sets res to the newest patch of want's league before want, else the newest patch
+// of the league.
+func matchPatch(res *Resolution, es []entry, want GameVersion) bool {
+	if want.len() <= leagueParts {
+		return false
 	}
-	if want.len() > leagueParts {
-		var later *Store
-		for _, e := range slices.Backward(es) {
-			if e.version.len() <= leagueParts || e.version.League().Compare(want.League()) != 0 {
-				continue
-			}
-			if e.version.Compare(want) < 0 {
-				res.Store, res.Match = e.store, MatchEarlierPatch
-				return res, nil
-			}
-			if later == nil {
-				later = e.store
-			}
+	var later *Store
+	for _, e := range slices.Backward(es) {
+		if e.version.len() <= leagueParts || e.version.League().Compare(want.League()) != 0 {
+			continue
 		}
-		if later != nil {
-			res.Store, res.Match = later, MatchLaterPatch
-			return res, nil
+		if e.version.Compare(want) < 0 {
+			res.Store, res.Match = e.store, MatchEarlierPatch
+			return true
+		}
+		if later == nil {
+			later = e.store
 		}
 	}
-	return res, fmt.Errorf("%w: %s %s", ErrNoVersion, game, version)
+	if later == nil {
+		return false
+	}
+	res.Store, res.Match = later, MatchLaterPatch
+	return true
 }
 
 func (r *Registry) game(game string) []entry {
