@@ -19,7 +19,7 @@ import (
 )
 
 // FormatVersion is the dataset format written by this package. Read rejects other versions.
-const FormatVersion = 4
+const FormatVersion = 1
 
 // ManifestName is the manifest's file name inside a dataset directory.
 const ManifestName = "manifest.json"

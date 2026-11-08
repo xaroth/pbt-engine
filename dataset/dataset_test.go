@@ -441,7 +441,7 @@ func TestReadErrors(t *testing.T) {
 		{name: "no manifest", want: "open manifest.json", is: fs.ErrNotExist, fsys: fstest.MapFS{}},
 		{name: "manifest not json", want: "manifest.json: unexpected EOF", fsys: fstest.MapFS{dataset.ManifestName: {Data: []byte("{")}}},
 		{name: "unknown manifest field", want: `unknown field "extra"`, fsys: edit(func(m map[string]any) { m["extra"] = 1 })},
-		{name: "other format", want: "dataset format 5, want 4", fsys: edit(func(m map[string]any) { m["format"] = dataset.FormatVersion + 1 })},
+		{name: "other format", want: "dataset format 2, want 1", fsys: edit(func(m map[string]any) { m["format"] = dataset.FormatVersion + 1 })},
 		{name: "unknown file", want: "unknown file x.fb", fsys: edit(func(m map[string]any) { files(m)[0].(map[string]any)["name"] = "x.fb" })},
 		{name: "missing group", want: "missing file characters.fb", fsys: edit(func(m map[string]any) { m["files"] = files(m)[:1] })},
 		{name: "file absent", want: "open stats.fb", is: fs.ErrNotExist, fsys: func() fstest.MapFS {

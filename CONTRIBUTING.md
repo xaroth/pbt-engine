@@ -15,7 +15,7 @@
 
 ## Dataset format
 
-`dataset/schema/*.fbs` is the dataset schema. After changing it, run `go generate ./dataset` with `flatc` 25.12.19 on `PATH` (the version must match the `github.com/google/flatbuffers` module) and commit the generated `dataset/internal/fb`. A change that older datasets cannot read bumps `dataset.FormatVersion`.
+`dataset/schema/*.fbs` is the dataset schema. After changing it, run `go generate ./dataset` with `flatc` 25.12.19 on `PATH` (the version must match the `github.com/google/flatbuffers` module) and commit the generated `dataset/internal/fb`. `dataset.FormatVersion` stays at 1 until the first release. After that, a change that older datasets cannot read bumps it.
 
 ## Licence
 
