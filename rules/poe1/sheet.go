@@ -17,6 +17,8 @@ const Game = "poe1"
 var (
 	ErrOtherGame   = errors.New("build is for another game")
 	ErrUnknownStat = errors.New("unknown engine stat")
+	// ErrConstant marks a constant the rules need that the dataset lacks or holds malformed.
+	ErrConstant = errors.New("missing or malformed constant")
 	// ErrActor marks a bundle for an actor the sheet does not model yet.
 	ErrActor = errors.New("actor not supported")
 )
@@ -81,9 +83,10 @@ type Sheet struct {
 }
 
 // Open builds the sheet of r: each bundle stat goes through t to engine modifiers, one source
-// per bundle. Stats t cannot apply become notes, not errors. It fails when r is for another
-// game, its version does not parse, its dataset needs a rule version these rules do not
-// implement, or a bundle is for an actor other than the player.
+// per bundle, then the rules add theirs, such as the attribute bonuses from r's constants.
+// Stats t cannot apply become notes, not errors. It fails when r is for another game, its
+// version does not parse, its dataset needs a rule version these rules do not implement, a
+// bundle is for an actor other than the player, or a constant is missing.
 func Open(r *resolve.Resolved, t *semantics.Table) (*Sheet, error) {
 	if r.Game != Game || t.Game != Game {
 		return nil, fmt.Errorf("%w: build %s, table %s, rules %s", ErrOtherGame, r.Game, t.Game, Game)
@@ -106,6 +109,9 @@ func Open(r *resolve.Resolved, t *semantics.Table) (*Sheet, error) {
 			return nil, err
 		}
 	}
+	if err := sh.addAttributeBonuses(r.Constants); err != nil {
+		return nil, err
+	}
 	s.Commit()
 	return sh, nil
 }
@@ -127,7 +133,7 @@ func model() (*core.Model, map[string]core.StatID) {
 	var b core.ModelBuilder
 	stats := map[string]core.StatID{}
 	for _, name := range engineStats() {
-		stats[name] = b.MustAddStat(core.StatDef{Name: name})
+		stats[name] = b.MustAddStat(statDef(name))
 	}
 	return b.Build(), stats
 }
