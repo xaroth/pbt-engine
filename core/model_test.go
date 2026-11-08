@@ -22,6 +22,14 @@ func TestModelBuilderErrors(t *testing.T) {
 			_, err := b.AddStat(core.StatDef{Name: "y", Includes: []core.StatID{7}})
 			return wrap(t, "add stat", err)
 		}, core.ErrBadHandle},
+		{"unknown shared stat", func(b *core.ModelBuilder) error {
+			_, err := b.AddStat(core.StatDef{Name: "y", Shares: []core.Share{{Stat: 7, Rate: core.SelfRef(0)}}})
+			return wrap(t, "add stat", err)
+		}, core.ErrBadHandle},
+		{"unknown share rate", func(b *core.ModelBuilder) error {
+			_, err := b.AddStat(core.StatDef{Name: "y", Shares: []core.Share{{Stat: 0, Rate: core.SelfRef(7)}}})
+			return wrap(t, "add stat", err)
+		}, core.ErrBadHandle},
 		{"places", func(b *core.ModelBuilder) error {
 			_, err := b.AddStat(core.StatDef{Name: "y", Places: 16})
 			return wrap(t, "add stat", err)

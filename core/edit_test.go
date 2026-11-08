@@ -208,6 +208,12 @@ func randStatDef(r *rand.Rand, i int) core.StatDef {
 	if i > flagStat && r.IntN(4) == 0 {
 		def.HasMax, def.Max = true, float64(50+r.IntN(200))
 	}
+	if i > flagStat+1 && r.IntN(3) == 0 {
+		def.Shares = []core.Share{{
+			Stat: core.StatID(flagStat + 1 + r.IntN(i-flagStat-1)),
+			Rate: core.SelfRef(core.StatID(r.IntN(i))),
+		}}
+	}
 	return def
 }
 

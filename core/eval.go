@@ -43,8 +43,14 @@ func (s *Session) changedSince(id uint32, r *rec) bool {
 	if s.stamp[int(n.Stat)*s.nActors+a] > r.verified {
 		return true
 	}
-	for _, t := range s.m.stats[n.Stat].Includes {
+	def := &s.m.stats[n.Stat]
+	for _, t := range def.Includes {
 		if s.stamp[int(t)*s.nActors+a] > r.verified {
+			return true
+		}
+	}
+	for i := range def.Shares {
+		if s.stamp[int(def.Shares[i].Stat)*s.nActors+a] > r.verified {
 			return true
 		}
 	}
@@ -157,7 +163,38 @@ func (s *Session) eval(id uint32, deps *[]uint32, terms *[]Term) float64 {
 		}
 		s.sumStat(&agg, t, n, &mask, deps, terms)
 	}
+	for i := range def.Shares {
+		sh := &def.Shares[i]
+		if rate := s.read(deps, sh.Rate, def.CycleFamily, n.Actor, n.Ctx) / percent; rate != 0 {
+			s.sumShare(&agg, sh.Stat, rate, n, &mask, deps, terms)
+		}
+	}
 	return def.finish(s.total(def, agg, n, deps))
+}
+
+// sumShare adds to agg the base, increased and more modifiers of stat t that apply to node n,
+// at rate times their value. It is sumStat's loop apart, so sumStat stays small enough to
+// inline its checks.
+func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask, deps *[]uint32, terms *[]Term) {
+	fam := s.m.stats[t].CycleFamily
+	for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
+		op := s.mOp[mi]
+		if op == OpOverride || op == OpFlag || !s.modApplies(mi, n, mask) {
+			continue
+		}
+		v := s.mValue[mi]
+		if !s.modPlain(mi) {
+			var ok bool
+			if v, ok = s.modValue(mi, n, fam, deps); !ok {
+				continue
+			}
+		}
+		v = float64(v * rate)
+		aggregate(agg, op, v)
+		if terms != nil {
+			*terms = append(*terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v})
+		}
+	}
 }
 
 // sumStat adds to agg the modifiers of stat t that apply to node n.
@@ -181,7 +218,13 @@ func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32
 	}
 }
 
-// The three checks below run per modifier and are small enough for the compiler to inline.
+// The checks below run per modifier and are small enough for the compiler to inline.
+
+// modApplies reports whether modifier mi is live, matches mask and, for an unconditional node,
+// is plain.
+func (s *Session) modApplies(mi uint32, n Node, mask *Mask) bool {
+	return s.modLive(mi) && s.predHolds(mi, mask) && (!n.Uncond || s.modPlain(mi))
+}
 
 func (s *Session) modLive(mi uint32) bool { return s.mAlive[mi] && !s.srcOff[s.mSource[mi]] }
 
