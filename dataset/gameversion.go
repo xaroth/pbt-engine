@@ -12,6 +12,9 @@ import (
 // after the major version, as in 3.29.3.3.
 const maxVersionParts = 4
 
+// leagueParts is how many leading components of a version name its league.
+const leagueParts = 2
+
 // GameVersion is a game version of numbers separated by dots, such as 3.29.3.3. Versions
 // order component by component, and a prefix orders before its extensions: 3.29 < 3.29.0.0 <
 // 3.29.3.3. The zero value is no version and orders before every other. GameVersions compare
@@ -59,7 +62,7 @@ func (v GameVersion) HasPrefix(p GameVersion) bool {
 // League returns the first two components, which name a league, such as 3.29. A version
 // with fewer components is its own league.
 func (v GameVersion) League() GameVersion {
-	l := GameVersion{n: min(2, v.n)}
+	l := GameVersion{n: min(leagueParts, v.n)}
 	copy(l.parts[:l.n], v.parts[:l.n])
 	return l
 }

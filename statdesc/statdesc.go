@@ -244,7 +244,7 @@ func (n number) rounded() float64 {
 	if !n.set {
 		return n.v
 	}
-	p := math.Pow(10, float64(n.dp))
+	p := math.Pow10(n.dp)
 	return math.Round(n.v*p) / p
 }
 

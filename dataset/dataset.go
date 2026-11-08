@@ -44,6 +44,9 @@ const (
 	fbSuffix       = ".fb"
 )
 
+// filePerm is world-readable because datasets are published files.
+const filePerm = 0o644
+
 // Write writes d into dir as a dataset and returns the manifest it wrote. Format, ID and Files
 // are filled in; the other manifest fields come from d.Manifest.
 func Write(dir string, d *Dataset) (Manifest, error) {
@@ -72,7 +75,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	m.Format = FormatVersion
 	m.Files = nil
 	for _, g := range groups {
-		if err := os.WriteFile(filepath.Join(dir, g.name), g.b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, g.name), g.b, filePerm); err != nil {
 			return Manifest{}, fmt.Errorf("write %s: %w", g.name, err)
 		}
 		sum := sha256.Sum256(g.b)
@@ -83,7 +86,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, fmt.Errorf("encode manifest: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ManifestName), append(mb, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ManifestName), append(mb, '\n'), filePerm); err != nil {
 		return Manifest{}, fmt.Errorf("write manifest: %w", err)
 	}
 	return m, nil

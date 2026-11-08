@@ -5,6 +5,9 @@ import (
 	"math"
 )
 
+// blockKinds counts a block of each actor and context: conditional and unconditional.
+const blockKinds = 2
+
 // Node addresses a value: a stat of an actor in a context. Uncond nodes are the unconditional
 // values used by the CycleFamily rule.
 type Node struct {
@@ -111,7 +114,7 @@ func (s *Session) InternContext(mask Mask) CtxID {
 	id := CtxID(len(s.masks))
 	s.masks = append(s.masks, mask)
 	s.ctxIdx[mask] = id
-	for range 2 * s.nActors {
+	for range blockKinds * s.nActors {
 		s.blockIdx = append(s.blockIdx, -1)
 	}
 	return id
@@ -190,7 +193,7 @@ func (s *Session) Terms(n Node) ([]Term, float64, error) {
 }
 
 func (s *Session) nodeID(n Node) uint32 {
-	k := (int(n.Ctx)*s.nActors + int(n.Actor)) * 2
+	k := (int(n.Ctx)*s.nActors + int(n.Actor)) * blockKinds
 	if n.Uncond {
 		k++
 	}

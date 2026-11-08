@@ -160,10 +160,10 @@ func (r *Registry) Resolve(game, version string) (Resolution, error) {
 	if res.Store != nil {
 		return res, nil
 	}
-	if want.len() > 2 {
+	if want.len() > leagueParts {
 		var later *Store
 		for _, e := range slices.Backward(es) {
-			if e.version.len() <= 2 || e.version.League().Compare(want.League()) != 0 {
+			if e.version.len() <= leagueParts || e.version.League().Compare(want.League()) != 0 {
 				continue
 			}
 			if e.version.Compare(want) < 0 {

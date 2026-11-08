@@ -2,6 +2,8 @@ package statdesc
 
 // handlers maps handler names to value transforms. A nil entry changes nothing; it marks
 // handlers that only affect reminder text or tooling.
+//
+//nolint:mnd // each handler name states its factor, so a named constant would only repeat it
 func handlers() map[string]func(number) number {
 	return map[string]func(number) number{
 		"canonical_line": nil,
