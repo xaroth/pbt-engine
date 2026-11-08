@@ -54,9 +54,11 @@ type Manifest struct {
 	Format  int    `json:"format"`
 	Game    string `json:"game"`
 	Version string `json:"version"`
-	// ID is a hash of Game, Version and the file hashes. Datasets rebuilt with different content
-	// keep their version but get a new ID.
+	// ID is a hash of Game, Version, Capabilities and the file hashes. Datasets rebuilt with
+	// different content keep their version but get a new ID.
 	ID string `json:"id"`
+	// Capabilities are the rule versions the dataset needs; see Capabilities.
+	Capabilities Capabilities `json:"capabilities,omitempty"`
 	// Source records where the data came from, such as the game build and schema revision.
 	Source map[string]string `json:"source"`
 	Files  []File            `json:"files"`

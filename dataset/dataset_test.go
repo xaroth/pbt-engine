@@ -469,6 +469,10 @@ func TestReadErrors(t *testing.T) {
 			name: "stat index out of range", want: "characters.fb: character Metadata/Characters/Str/Str: stat 2 out of range (2 ids)",
 			fsys: replace(1, charactersFile([]string{"level", "life_per_level"}, []uint32{2})),
 		},
+		{
+			name: "capability at default version", want: `capability "armour": version 1`, is: dataset.ErrInvalid,
+			fsys: edit(func(m map[string]any) { m["capabilities"] = map[string]any{"armour": 1} }),
+		},
 		{name: "id differs", want: "id does not match", fsys: edit(func(m map[string]any) { m["id"] = "00" })},
 		{name: "file listed twice", want: "file stats.fb listed twice", fsys: edit(func(m map[string]any) { m["files"] = append(files(m), files(m)[0]) })},
 		{name: "truncated tree", want: "tree-standard.fb: malformed", fsys: replace(3, good["tree-standard.fb"].Data[:40])},

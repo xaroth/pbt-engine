@@ -26,7 +26,9 @@ var (
 	ErrNotInDataset = errors.New("not in dataset")
 	ErrDuplicate    = errors.New("added twice")
 	ErrBadVersion   = errors.New("invalid game version")
-	errMalformed    = fmt.Errorf("malformed: %w", ErrInvalid)
+	// ErrUnsupported marks capabilities the caller's rules do not implement.
+	ErrUnsupported = errors.New("unsupported capabilities")
+	errMalformed   = fmt.Errorf("malformed: %w", ErrInvalid)
 )
 
 // FormatVersion is the dataset format written by this package. Read rejects other versions.
@@ -54,6 +56,9 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 		return Manifest{}, err
 	}
 	if err := d.validate(true); err != nil {
+		return Manifest{}, err
+	}
+	if err := d.Manifest.Capabilities.validate(); err != nil {
 		return Manifest{}, err
 	}
 	type group struct {
@@ -102,7 +107,7 @@ type Options struct {
 }
 
 // ReadManifest reads the manifest of the dataset in fsys. It fails when the format version
-// differs, a file is listed twice, or the id does not match the files.
+// differs, a capability is malformed, a file is listed twice, or the id does not match.
 func ReadManifest(fsys fs.FS) (Manifest, error) {
 	var m Manifest
 	mb, err := fs.ReadFile(fsys, ManifestName)
@@ -117,6 +122,9 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	if m.Format != FormatVersion {
 		return m, fmt.Errorf("%w %d, want %d", ErrFormat, m.Format, FormatVersion)
 	}
+	if err := m.Capabilities.validate(); err != nil {
+		return m, err
+	}
 	seen := map[string]bool{}
 	for _, f := range m.Files {
 		if seen[f.Name] {
@@ -125,16 +133,18 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 		seen[f.Name] = true
 	}
 	if m.ID != m.contentID() {
-		return m, fmt.Errorf("%s: id does not match game, version and files: %w", ManifestName, ErrInvalid)
+		return m, fmt.Errorf("%s: id does not match game, version, capabilities and files: %w", ManifestName, ErrInvalid)
 	}
 	return m, nil
 }
 
-// contentID hashes the game, version and file hashes, so datasets with the same version but
-// different content get different ids.
+// contentID hashes the game, version, capabilities and file hashes, so datasets with the same
+// version but different content or rules get different ids. Capabilities add input only when
+// present, so a dataset without any is identified by game, version and files alone.
 func (m Manifest) contentID() string {
 	var s strings.Builder
 	s.WriteString(m.Game + "\n" + m.Version + "\n")
+	s.WriteString(m.Capabilities.idLines())
 	for _, f := range slices.SortedFunc(slices.Values(m.Files), func(a, b File) int { return strings.Compare(a.Name, b.Name) }) {
 		s.WriteString(f.Name + " " + f.SHA256 + "\n")
 	}
