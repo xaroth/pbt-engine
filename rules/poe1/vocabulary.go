@@ -115,5 +115,8 @@ type Vocabulary struct{}
 // IsEngineStat reports whether name is an engine stat of the character sheet.
 func (Vocabulary) IsEngineStat(name string) bool { return slices.Contains(engineStats(), name) }
 
-// IsRule reports whether name is a rule of the character sheet.
-func (Vocabulary) IsRule(name string) bool { return slices.Contains(ruleNames(), name) }
+// RuleParams returns the parameters of rule name of the character sheet, and false for an
+// unknown rule. No rule takes parameters yet.
+func (Vocabulary) RuleParams(name string) ([]string, bool) {
+	return nil, slices.Contains(ruleNames(), name)
+}

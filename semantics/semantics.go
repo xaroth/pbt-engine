@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -31,7 +32,8 @@ var (
 	errNotBeforeUntil = errors.New("not before until")
 	errReasonNoText   = errors.New("reason without text")
 	errNoSources      = errors.New("no sources")
-	errAuthoredNoMods = errors.New("authored without mods")
+	errAuthoredNoMods = errors.New("authored without mods or rule")
+	errParams         = errors.New("params")
 	errAuthoredReason = errors.New("authored with a reason")
 	errUnknownReason  = errors.New("unknown needs a reason other than")
 	errUnknownRule    = errors.New("unknown names a rule exactly when its reason is rule")
@@ -54,10 +56,11 @@ const Format = 1
 var ErrInvalid = errors.New("invalid semantics table")
 
 // Vocabulary names what a table may refer to: the engine stats and rules the rules code
-// defines.
+// defines. RuleParams returns the parameters a rule takes, each naming an engine stat, and false
+// for an unknown rule.
 type Vocabulary interface {
 	IsEngineStat(name string) bool
-	IsRule(name string) bool
+	RuleParams(name string) (params []string, ok bool)
 }
 
 // Status says how far the meaning of a stat is known.
@@ -237,9 +240,18 @@ type Entry struct {
 	// Mods are set only when Status is Authored.
 	Mods []Mod
 	// Rule names the rules code that carries the effect, on an Authored entry or an Unknown
-	// one whose Reason is Rule.
-	Rule    string
-	Sources []Source
+	// one whose Reason is Rule. The rule reads the stat's value.
+	Rule string
+	// Params are the rule's arguments, parameter name to engine stat, such as "from":
+	// "maximum_life" and "to": "armour" for "Gain X% of Maximum Life as Extra Armour". An
+	// Authored entry with a rule sets every parameter the rule takes; an Unknown one may leave
+	// them out.
+	Params map[string]string
+	// RuleFactor turns the stat's value into the value the rule reads, as Mod.Factor does for
+	// a modifier: Iron Reflexes is a stat of value 1 that converts 100%. 1/1 when the entry
+	// sets none, zero when it has no rule.
+	RuleFactor Ratio
+	Sources    []Source
 	// Reason is set when Status is Unknown or DisplayOnly.
 	Reason Reason
 	// Unvalidated, on an Authored entry, says what its sources do not establish and what
@@ -288,17 +300,19 @@ type fileTable struct {
 }
 
 type fileEntry struct {
-	Stat        string       `json:"stat"`
-	Scope       string       `json:"scope"`
-	From        string       `json:"from"`
-	Until       string       `json:"until"`
-	Status      string       `json:"status"`
-	Mods        []fileMod    `json:"mods"`
-	Rule        string       `json:"rule"`
-	Sources     []fileSource `json:"sources"`
-	Reason      *fileReason  `json:"reason"`
-	Unvalidated string       `json:"unvalidated"`
-	Omitted     string       `json:"omitted"`
+	Stat        string            `json:"stat"`
+	Scope       string            `json:"scope"`
+	From        string            `json:"from"`
+	Until       string            `json:"until"`
+	Status      string            `json:"status"`
+	Mods        []fileMod         `json:"mods"`
+	Rule        string            `json:"rule"`
+	Params      map[string]string `json:"params"`
+	RuleFactor  string            `json:"ruleFactor"`
+	Sources     []fileSource      `json:"sources"`
+	Reason      *fileReason       `json:"reason"`
+	Unvalidated string            `json:"unvalidated"`
+	Omitted     string            `json:"omitted"`
 }
 
 type fileReason struct {
@@ -413,8 +427,8 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 	if err := checkStatus(&e, len(f.Mods)); err != nil {
 		return Entry{}, err
 	}
-	if e.Rule != "" && !vocab.IsRule(e.Rule) {
-		return Entry{}, fmt.Errorf("%w rule %q", errUnknown, e.Rule)
+	if err := parseRule(&e, f, vocab); err != nil {
+		return Entry{}, err
 	}
 	if err := parseMods(&e, f, vocab); err != nil {
 		return Entry{}, err
@@ -423,6 +437,62 @@ func parseEntry(f *fileEntry, vocab Vocabulary) (Entry, error) {
 		return Entry{}, err
 	}
 	return e, nil
+}
+
+// parseRule checks the entry's rule, rule factor and params against vocab: params name engine
+// stats, only with a rule; an authored entry sets every parameter the rule takes, an unknown one
+// all or none. The rule factor is a non-zero ratio, only with a rule.
+func parseRule(e *Entry, f *fileEntry, vocab Vocabulary) error {
+	if e.Rule == "" {
+		switch {
+		case len(f.Params) > 0:
+			return fmt.Errorf("%w without a rule", errParams)
+		case f.RuleFactor != "":
+			return fmt.Errorf("rule %w without a rule", errFactor)
+		}
+		return nil
+	}
+	var err error
+	if e.RuleFactor, err = parseRuleFactor(f.RuleFactor); err != nil {
+		return err
+	}
+	want, ok := vocab.RuleParams(e.Rule)
+	if !ok {
+		return fmt.Errorf("%w rule %q", errUnknown, e.Rule)
+	}
+	if len(f.Params) == 0 && e.Status != Authored {
+		return nil
+	}
+	if err := checkParams(e.Rule, f.Params, want, vocab); err != nil {
+		return err
+	}
+	e.Params = maps.Clone(f.Params)
+	return nil
+}
+
+// checkParams checks that params sets exactly the parameters want, each to an engine stat.
+func checkParams(rule string, params map[string]string, want []string, vocab Vocabulary) error {
+	got, want := slices.Sorted(maps.Keys(params)), slices.Sorted(slices.Values(want))
+	if !slices.Equal(got, want) {
+		return fmt.Errorf("%w %v, rule %s takes %v", errParams, got, rule, want)
+	}
+	for _, k := range got {
+		if !vocab.IsEngineStat(params[k]) {
+			return fmt.Errorf("%w %s: %w engine stat %q", errParams, k, errUnknown, params[k])
+		}
+	}
+	return nil
+}
+
+func parseRuleFactor(s string) (Ratio, error) {
+	r, err := parseRatio(s)
+	switch {
+	case err != nil:
+		return Ratio{}, fmt.Errorf("rule %w", err)
+	case r.Num == 0:
+		return Ratio{}, fmt.Errorf("rule %w 0", errFactor)
+	}
+	return r, nil
 }
 
 func parseEntryHeader(f *fileEntry) (Entry, error) {
@@ -514,7 +584,7 @@ func checkStatus(e *Entry, mods int) error {
 
 func checkAuthored(e *Entry, mods int) error {
 	switch {
-	case mods == 0:
+	case mods == 0 && e.Rule == "":
 		return errAuthoredNoMods
 	case e.Reason.Kind != 0:
 		return errAuthoredReason
