@@ -37,7 +37,7 @@ func compareEntries(a, b entry) int {
 func OpenRoot(root fs.FS) (*Registry, error) {
 	ents, err := fs.ReadDir(root, ".")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read root: %w", err)
 	}
 	r := &Registry{}
 	var skipped []error
@@ -47,7 +47,7 @@ func OpenRoot(root fs.FS) (*Registry, error) {
 		}
 		sub, err := fs.Sub(root, e.Name())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("open %s: %w", e.Name(), err)
 		}
 		if _, err := fs.Stat(sub, ManifestName); errors.Is(err, fs.ErrNotExist) {
 			continue
@@ -69,7 +69,7 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 	}
 	m := s.Manifest()
 	if m.Game == "" {
-		return nil, fmt.Errorf("%s: game is required", ManifestName)
+		return nil, fmt.Errorf("%s: game is required: %w", ManifestName, ErrInvalid)
 	}
 	parsed, err := ParseGameVersion(m.Version)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 	defer r.mu.Unlock()
 	i, found := slices.BinarySearchFunc(r.entries, e, compareEntries)
 	if found {
-		return nil, fmt.Errorf("dataset %s %s added twice", m.Game, m.Version)
+		return nil, fmt.Errorf("dataset %s %s %w", m.Game, m.Version, ErrDuplicate)
 	}
 	r.entries = slices.Insert(r.entries, i, e)
 	return s, nil
@@ -88,21 +88,10 @@ func (r *Registry) Add(fsys fs.FS) (*Store, error) {
 
 // Stores returns the datasets of a game, oldest version first.
 func (r *Registry) Stores(game string) []*Store {
-	var out []*Store
-	for _, e := range r.game(game) {
+	entries := r.game(game)
+	out := make([]*Store, 0, len(entries))
+	for _, e := range entries {
 		out = append(out, e.store)
-	}
-	return out
-}
-
-func (r *Registry) game(game string) []entry {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	var out []entry
-	for _, e := range r.entries {
-		if e.game == game {
-			out = append(out, e)
-		}
 	}
 	return out
 }
@@ -157,38 +146,62 @@ func (r *Registry) Resolve(game, version string) (Resolution, error) {
 	if err != nil {
 		return res, err
 	}
+	if matchVersion(&res, es, want) || matchPatch(&res, es, want) {
+		return res, nil
+	}
+	return res, fmt.Errorf("%w: %s %s", ErrNoVersion, game, version)
+}
+
+// matchVersion sets res to an exact match of want, else the newest version with prefix want.
+func matchVersion(res *Resolution, es []entry, want GameVersion) bool {
 	for _, e := range slices.Backward(es) {
 		switch {
 		case e.version.Compare(want) == 0:
 			res.Store, res.Match = e.store, MatchExact
-			return res, nil
+			return true
 		case e.version.HasPrefix(want):
 			if res.Store == nil {
 				res.Store, res.Match = e.store, MatchNewest
 			}
 		}
 	}
-	if res.Store != nil {
-		return res, nil
+	return res.Store != nil
+}
+
+// matchPatch sets res to the newest patch of want's league before want, else the newest patch
+// of the league.
+func matchPatch(res *Resolution, es []entry, want GameVersion) bool {
+	if want.len() <= leagueParts {
+		return false
 	}
-	if want.len() > 2 {
-		var later *Store
-		for _, e := range slices.Backward(es) {
-			if e.version.len() <= 2 || e.version.League().Compare(want.League()) != 0 {
-				continue
-			}
-			if e.version.Compare(want) < 0 {
-				res.Store, res.Match = e.store, MatchEarlierPatch
-				return res, nil
-			}
-			if later == nil {
-				later = e.store
-			}
+	var later *Store
+	for _, e := range slices.Backward(es) {
+		if e.version.len() <= leagueParts || e.version.League().Compare(want.League()) != 0 {
+			continue
 		}
-		if later != nil {
-			res.Store, res.Match = later, MatchLaterPatch
-			return res, nil
+		if e.version.Compare(want) < 0 {
+			res.Store, res.Match = e.store, MatchEarlierPatch
+			return true
+		}
+		if later == nil {
+			later = e.store
 		}
 	}
-	return res, fmt.Errorf("%w: %s %s", ErrNoVersion, game, version)
+	if later == nil {
+		return false
+	}
+	res.Store, res.Match = later, MatchLaterPatch
+	return true
+}
+
+func (r *Registry) game(game string) []entry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []entry
+	for _, e := range r.entries {
+		if e.game == game {
+			out = append(out, e)
+		}
+	}
+	return out
 }

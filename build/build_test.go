@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -158,7 +159,7 @@ func TestCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var ids []uint32
+	ids := make([]uint32, 0, len(c.Nodes()))
 	for _, n := range c.Nodes() {
 		ids = append(ids, n.ID)
 	}
@@ -215,11 +216,11 @@ func TestCheckProblems(t *testing.T) {
 			if !ok {
 				t.Fatalf("got %v, want a *CheckError", err)
 			}
-			var got []problem
+			got := make([]problem, 0, len(ce.Problems))
 			for _, p := range ce.Problems {
 				got = append(got, problem{p.Kind, p.Node})
 			}
-			if diff := cmp.Diff(testCase.want, got, cmp.Comparer(func(a, b error) bool { return a == b })); diff != "" {
+			if diff := cmp.Diff(testCase.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("problems (-want +got):\n%s", diff)
 			}
 			if !errors.Is(err, testCase.want[0].Kind) {

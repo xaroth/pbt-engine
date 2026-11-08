@@ -6,6 +6,7 @@ package resolve
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -14,6 +15,9 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 )
+
+// ErrNoRewards is returned for a game whose campaign quest rewards are not known.
+var ErrNoRewards = errors.New("no campaign quest rewards known")
 
 // Actor owns a bundle's stats.
 type Actor uint8
@@ -149,15 +153,15 @@ const LevelStat = "level"
 func CharacterStats(s *dataset.Store, id string) ([]StatValue, error) {
 	stats, err := s.Stats()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	chars, err := s.Characters()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load characters: %w", err)
 	}
 	i := slices.IndexFunc(chars, func(c dataset.Character) bool { return c.ID == id })
 	if i < 0 {
-		return nil, fmt.Errorf("resolve: dataset %s has no character %s", s.Manifest().Version, id)
+		return nil, fmt.Errorf("resolve: dataset %s has no character %s: %w", s.Manifest().Version, id, dataset.ErrNotInDataset)
 	}
 	return characterStats(stats, &chars[i]), nil
 }
@@ -177,7 +181,9 @@ const kitavaGame = "poe1"
 
 // kitavaQuests are the quests that end with defeating Kitava, in campaign order: The
 // Ravenous God (act 5) and An End to Hunger (act 10).
-var kitavaQuests = [...]string{"a5q6", "a10q3"}
+func kitavaQuests() []string {
+	return []string{"a5q6", "a10q3"}
+}
 
 // kitavaAffliction is the reward of each quest in kitavaQuests. Datasets have no quest
 // reward table, so it is held here. Source: the QuestStaticRewards rows of a5q6 and a10q3,
@@ -191,10 +197,10 @@ func kitavaAffliction() []StatValue {
 // in campaign order. It fails for a game other than poe1, whose rewards are not known.
 func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
 	if game != kitavaGame {
-		return nil, fmt.Errorf("resolve: campaign quest rewards of %s are not known", game)
+		return nil, fmt.Errorf("resolve: %w for %s", ErrNoRewards, game)
 	}
 	var out []Bundle
-	for _, q := range kitavaQuests[:kitavaDefeats(c)] {
+	for _, q := range kitavaQuests()[:kitavaDefeats(c)] {
 		out = append(out, Bundle{Actor: Player, Scope: Global, Source: QuestSource{ID: q}, Stats: kitavaAffliction()})
 	}
 	return out, nil
@@ -202,10 +208,11 @@ func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
 
 func kitavaDefeats(c build.Campaign) int {
 	switch c {
+	case build.CampaignActs1To5:
 	case build.CampaignActs6To10:
 		return 1
 	case build.CampaignComplete:
-		return 2
+		return len(kitavaQuests())
 	}
 	return 0
 }
@@ -223,15 +230,11 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 	}
 	stats, err := s.Stats()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	consts, err := s.Constants()
 	if err != nil {
-		return nil, err
-	}
-	known := make(map[string]bool, len(stats))
-	for _, st := range stats {
-		known[st.ID] = true
+		return nil, fmt.Errorf("resolve: load constants: %w", err)
 	}
 	r := &Resolved{Game: m.Game, Version: m.Version}
 
@@ -241,16 +244,7 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		Bundle{Actor: Player, Scope: Global, Source: LevelSource{}, Stats: []StatValue{{Stat: LevelStat, Value: float64(b.Level)}}},
 	)
 	r.Bundles = append(r.Bundles, quests...)
-	// Only stats resolve names itself can be missing; node and template stats come from the
-	// dataset's stats.
-	var missing []string
-	for _, bd := range r.Bundles {
-		for _, sv := range bd.Stats {
-			if !known[sv.Stat] && !slices.Contains(missing, sv.Stat) {
-				missing = append(missing, sv.Stat)
-			}
-		}
-	}
+	missing := missingStats(r.Bundles, stats)
 
 	for _, n := range c.Nodes() {
 		r.Bundles = append(r.Bundles, nodeBundles(stats, n)...)
@@ -259,7 +253,7 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		}
 	}
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("resolve: dataset %s has no stat %s", m.Version, strings.Join(missing, ", "))
+		return nil, fmt.Errorf("resolve: dataset %s has no stat %s: %w", m.Version, strings.Join(missing, ", "), dataset.ErrNotInDataset)
 	}
 
 	for _, k := range consts {
@@ -269,6 +263,24 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		r.Notes = append(r.Notes, fmt.Sprintf("bandits %s: quest rewards are not in the dataset yet", b.Scenario.Bandits))
 	}
 	return r, nil
+}
+
+// missingStats lists the stats of bundles absent from stats. Only stats resolve names itself
+// can be missing; node and template stats come from the dataset's stats.
+func missingStats(bundles []Bundle, stats []dataset.Stat) []string {
+	known := make(map[string]bool, len(stats))
+	for _, st := range stats {
+		known[st.ID] = true
+	}
+	var missing []string
+	for _, bd := range bundles {
+		for _, sv := range bd.Stats {
+			if !known[sv.Stat] && !slices.Contains(missing, sv.Stat) {
+				missing = append(missing, sv.Stat)
+			}
+		}
+	}
+	return missing
 }
 
 // NodeBundles returns the bundles of the passive node with id in the variant tree of s: its
@@ -283,7 +295,7 @@ func NodeBundles(s *dataset.Store, variant string, id uint32) ([]Bundle, error) 
 	return nodeBundles(stats, n), nil
 }
 
-// MasteryEffectBundle returns the bundle mastery effect effect of the node with id in the
+// MasteryEffectBundle returns the bundle that the mastery effect numbered effect of the node with id in the
 // variant tree of s gives once chosen: its stats in global scope, from the node. It fails when
 // the tree or stats fail to load or the node has no such effect.
 func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (Bundle, error) {
@@ -293,7 +305,7 @@ func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (B
 	}
 	i := slices.IndexFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect })
 	if i < 0 {
-		return Bundle{}, fmt.Errorf("resolve: node %d has no mastery effect %d", id, effect)
+		return Bundle{}, fmt.Errorf("resolve: node %d has no mastery effect %d: %w", id, effect, dataset.ErrNotInDataset)
 	}
 	return Bundle{Actor: Player, Scope: Global, Source: NodeSource{ID: id}, Stats: statValues(stats, n.MasteryEffects[i].Stats)}, nil
 }
@@ -302,15 +314,15 @@ func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (B
 func node(s *dataset.Store, variant string, id uint32) ([]dataset.Stat, *dataset.Node, error) {
 	stats, err := s.Stats()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	tree, err := s.Tree(variant)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("resolve: load tree: %w", err)
 	}
 	i, ok := slices.BinarySearchFunc(tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
 	if !ok {
-		return nil, nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree", s.Manifest().Version, id, variant)
+		return nil, nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree: %w", s.Manifest().Version, id, variant, dataset.ErrNotInDataset)
 	}
 	return stats, &tree.Nodes[i], nil
 }
@@ -356,6 +368,8 @@ func (r *Resolved) Dump(w io.Writer) error {
 	for _, n := range r.Notes {
 		fmt.Fprintf(&b, "note %s\n", n)
 	}
-	_, err := io.WriteString(w, b.String())
-	return err
+	if _, err := io.WriteString(w, b.String()); err != nil {
+		return fmt.Errorf("resolve: write: %w", err)
+	}
+	return nil
 }

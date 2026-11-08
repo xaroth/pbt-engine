@@ -32,11 +32,11 @@ func testDataset(version string, strength int32) *dataset.Dataset {
 			CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
 			AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Ancestral Commander"}},
 			Descriptions: []statdesc.Scope{
-				{Name: auraScope, Parent: passiveScope, Descriptions: []statdesc.Description{{
+				{Name: auraScope, Parent: treeScope, Descriptions: []statdesc.Description{{
 					Stats:    []string{"aura_damage_+%"},
 					Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "Nearby Allies deal {0}% increased Damage"}},
 				}}},
-				{Name: passiveScope, Descriptions: []statdesc.Description{{
+				{Name: treeScope, Descriptions: []statdesc.Description{{
 					Stats:    []string{"base_strength"},
 					Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: "{0:+d} to Strength\\nline two"}},
 				}}},
@@ -176,7 +176,7 @@ func TestRunSkipsBadDataset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b = bytes.Replace(b, []byte(`"format": 4`), []byte(`"format": 3`), 1)
+	b = bytes.Replace(b, []byte(`"format": 1`), []byte(`"format": 2`), 1)
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestRunSkipsBadDataset(t *testing.T) {
 		t.Fatalf("run: %v", err)
 	}
 	wantLines(t, "stdout", out.String(), []string{"aura_damage_+% (handle 1 of 2)"})
-	wantLines(t, "stderr", notes.String(), []string{"pbt: skipped " + root + "/3.28: dataset format 3, want 4"})
+	wantLines(t, "stderr", notes.String(), []string{"pbt: skipped " + root + "/3.28: dataset format 2, want 1"})
 }
 
 func TestRunErrors(t *testing.T) {
@@ -308,11 +308,13 @@ func TestBuildResolve(t *testing.T) {
 	if _, err := dataset.Write(dir, d); err != nil {
 		t.Fatal(err)
 	}
-	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,"nodes":[1,12345],"scenario":{"campaign":"acts-1-5"}}`)
+	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,
+		"nodes":[1,12345],"scenario":{"campaign":"acts-1-5"}}`)
 	var out, notes strings.Builder
 	if err := run([]string{"build", "resolve", path, "--root", root}, &out, &notes); err != nil {
 		t.Fatal(err)
 	}
+	//nolint:dupword // a level bundle header followed by its level stat
 	want := `dataset poe1 3.29
 bundle player global character Metadata/Characters/Str/Str
   base_strength = 32

@@ -3,6 +3,7 @@ package core_test
 import (
 	"errors"
 	"math"
+	"math/rand/v2"
 	"strings"
 	"testing"
 
@@ -10,70 +11,6 @@ import (
 
 	"github.com/xaroth/pbt-engine/core"
 )
-
-// nSources is the number of sources every test session starts with, so modifiers can name
-// sources 0 to nSources-1 directly.
-const nSources = 10
-
-func newSession(tb testing.TB, m *core.Model, actors int) *core.Session {
-	tb.Helper()
-	s, err := core.NewSession(m, actors)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	for range nSources {
-		s.NewSource()
-	}
-	return s
-}
-
-func add(tb testing.TB, s *core.Session, m core.Modifier) core.ModID {
-	tb.Helper()
-	id, err := s.AddModifier(m)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	return id
-}
-
-func addAll(tb testing.TB, s *core.Session, mods []core.Modifier) []core.ModID {
-	tb.Helper()
-	ids := make([]core.ModID, len(mods))
-	for i, m := range mods {
-		ids[i] = add(tb, s, m)
-	}
-	return ids
-}
-
-func get(tb testing.TB, s *core.Session, actor core.ActorID, stat core.StatID, ctx core.CtxID) float64 {
-	tb.Helper()
-	v, err := s.Get(actor, stat, ctx)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	return v
-}
-
-// want compares bits, so -0 fails against 0.
-func want(tb testing.TB, s *core.Session, stat core.StatID, exp float64) {
-	tb.Helper()
-	if v := get(tb, s, 0, stat, core.GlobalCtx); math.Float64bits(v) != math.Float64bits(exp) {
-		def, _ := s.Model().StatDef(stat)
-		tb.Errorf("%s: got %v, want %v", def.Name, v, exp)
-	}
-}
-
-func must(tb testing.TB, err error) {
-	tb.Helper()
-	if err != nil {
-		tb.Fatal(err)
-	}
-}
-
-func setFormula(tb testing.TB, b *core.ModelBuilder, id core.StatID, f core.Formula) {
-	tb.Helper()
-	must(tb, b.SetFormula(id, f))
-}
 
 // increased100 is 100 with pct percent increased, computed at run time as the evaluator does;
 // a constant expression would be exact.
@@ -207,102 +144,6 @@ func TestClampAndRounding(t *testing.T) {
 	}
 }
 
-func TestModelBuilderErrors(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		name string
-		add  func(b *core.ModelBuilder) error
-		want error
-	}{
-		{"duplicate stat", func(b *core.ModelBuilder) error {
-			_, err := b.AddStat(core.StatDef{Name: "x"})
-			return err
-		}, core.ErrDuplicateName},
-		{"unknown include", func(b *core.ModelBuilder) error {
-			_, err := b.AddStat(core.StatDef{Name: "y", Includes: []core.StatID{7}})
-			return err
-		}, core.ErrBadHandle},
-		{"places", func(b *core.ModelBuilder) error {
-			_, err := b.AddStat(core.StatDef{Name: "y", Places: 16})
-			return err
-		}, core.ErrOutOfRange},
-		{"rounding", func(b *core.ModelBuilder) error {
-			_, err := b.AddStat(core.StatDef{Name: "y", Round: 9})
-			return err
-		}, core.ErrOutOfRange},
-		{"formula of unknown stat", func(b *core.ModelBuilder) error {
-			return b.SetFormula(7, func(core.Reader, core.Agg) float64 { return 0 })
-		}, core.ErrBadHandle},
-		{"duplicate dimension", func(b *core.ModelBuilder) error {
-			_, err := b.AddDimension("d", "b")
-			return err
-		}, core.ErrDuplicateName},
-		{"duplicate dimension value", func(b *core.ModelBuilder) error {
-			_, err := b.AddDimension("e", "a", "a")
-			return err
-		}, core.ErrDuplicateName},
-		{"dimension value name taken", func(b *core.ModelBuilder) error {
-			if _, err := b.AddDimension("p.q", "r"); err != nil {
-				return err
-			}
-			_, err := b.AddDimension("p", "q.r")
-			return err
-		}, core.ErrDuplicateName},
-		{"too many bits", func(b *core.ModelBuilder) error {
-			_, err := b.AddDimension("big", make([]string, core.MaxBits)...)
-			return err
-		}, core.ErrOutOfRange},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			var b core.ModelBuilder
-			b.MustAddStat(core.StatDef{Name: "x"})
-			if _, err := b.AddDimension("d", "a"); err != nil {
-				t.Fatal(err)
-			}
-			if err := testCase.add(&b); !errors.Is(err, testCase.want) {
-				t.Errorf("got %v, want %v", err, testCase.want)
-			}
-		})
-	}
-}
-
-func TestBuildCopies(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	x := b.MustAddStat(core.StatDef{Name: "x"})
-	m := b.Build()
-	b.MustAddStat(core.StatDef{Name: "y"})
-	setFormula(t, &b, x, func(core.Reader, core.Agg) float64 { return 9 })
-	if _, err := b.AddDimension("d", "a"); err != nil {
-		t.Fatal(err)
-	}
-	if n := m.NumStats(); n != 1 {
-		t.Errorf("NumStats: got %d, want 1", n)
-	}
-	if _, ok := m.Stat("y"); ok {
-		t.Error("Stat(y): got found, want not found")
-	}
-	if _, ok := m.Bit("d.a"); ok {
-		t.Error("Bit(d.a): got found, want not found")
-	}
-	s := newSession(t, m, 1)
-	add(t, s, core.Modifier{Stat: x, Value: 2})
-	want(t, s, x, 2)
-}
-
-func TestNewSessionErrors(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	m := b.Build()
-	for _, actors := range []int{0, math.MaxUint16 + 1} {
-		if _, err := core.NewSession(m, actors); !errors.Is(err, core.ErrOutOfRange) {
-			t.Errorf("%d actors: got %v, want ErrOutOfRange", actors, err)
-		}
-	}
-}
-
 func TestContexts(t *testing.T) {
 	t.Parallel()
 	var b core.ModelBuilder
@@ -336,25 +177,6 @@ func TestContexts(t *testing.T) {
 		{name: "cold attack", mods: mods, ctx: core.MaskOf(cold, attack), want: map[core.StatID]float64{dmg: 50}},
 		{name: "physical attack", mods: mods, ctx: core.MaskOf(phys, attack), want: map[core.StatID]float64{dmg: 20}},
 	})
-}
-
-func TestInternContext(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	s := newSession(t, b.Build(), 1)
-	a := s.InternContext(core.MaskOf(1, 5))
-	if got := s.InternContext(core.MaskOf(5, 1)); got != a {
-		t.Errorf("same mask: got %d, want %d", got, a)
-	}
-	if got := s.InternContext(core.Mask{}); got != core.GlobalCtx {
-		t.Errorf("empty mask: got %d, want GlobalCtx", got)
-	}
-	if mask, ok := s.ContextMask(a); !ok || mask != core.MaskOf(1, 5) {
-		t.Errorf("ContextMask: got %v, %v, want the interned mask, true", mask, ok)
-	}
-	if n := s.NumContexts(); n != 2 {
-		t.Errorf("NumContexts: got %d, want 2", n)
-	}
 }
 
 func TestConditions(t *testing.T) {
@@ -469,88 +291,6 @@ func TestScaling(t *testing.T) {
 	})
 }
 
-func TestTerms(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	str := b.MustAddStat(core.StatDef{Name: "str"})
-	dmg := b.MustAddStat(core.StatDef{Name: "damage", Round: core.RoundFloor})
-	s := newSession(t, b.Build(), 1)
-	ids := addAll(t, s, []core.Modifier{
-		{Stat: str, Op: core.OpBase, Value: 25, Source: 0},
-		{Stat: dmg, Op: core.OpInc, Value: 3, Source: 5, Scales: []core.Scale{{Ref: core.SelfRef(str), Step: 10}}},
-		{Stat: dmg, Op: core.OpBase, Value: 10.5, Source: 2},
-		{Stat: dmg, Op: core.OpMore, Value: 50, Source: 7, Conds: []core.Cond{{Ref: core.SelfRef(str), Cmp: core.CmpGT, Threshold: 30}}},
-	})
-	terms, v, err := s.Terms(core.Node{Stat: dmg})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantTerms := []core.Term{
-		{Mod: ids[2], Source: 2, Op: core.OpBase, Value: 10.5},
-		{Mod: ids[1], Source: 5, Op: core.OpInc, Value: 6},
-	}
-	if diff := cmp.Diff(wantTerms, terms, cmp.Comparer(func(a, b core.ModID) bool { return a == b })); diff != "" {
-		t.Errorf("terms (-want +got):\n%s", diff)
-	}
-	if v != 11 {
-		t.Errorf("value: got %v, want 11", v)
-	}
-}
-
-func TestEdits(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	life := b.MustAddStat(core.StatDef{Name: "life"})
-	str := b.MustAddStat(core.StatDef{Name: "str"})
-	lowLife := b.MustAddStat(core.StatDef{Name: "low_life", Flag: true})
-	m := b.Build()
-	mods := []core.Modifier{
-		{Stat: life, Op: core.OpBase, Value: 100, Source: 1},
-		{Stat: life, Op: core.OpOverride, Value: 7, Source: 8},
-		{Stat: life, Op: core.OpOverride, Value: 1, Source: 9},
-		{Stat: str, Op: core.OpBase, Value: 55, Source: 2},
-		{Stat: life, Op: core.OpInc, Value: 1, Source: 3, Scales: []core.Scale{{Ref: core.SelfRef(str), Step: 10}}},
-		{Stat: lowLife, Op: core.OpFlag, Source: 4},
-		{Stat: life, Op: core.OpInc, Value: 20, Source: 5, Conds: []core.Cond{{Ref: core.SelfRef(lowLife), Cmp: core.CmpGE, Threshold: 1}}},
-	}
-	const override7, override1, strBase, lowLifeFlag = 1, 2, 3, 5
-	testCases := []struct {
-		name string
-		edit func(s *core.Session, ids []core.ModID) error
-		want float64
-	}{
-		{"no edit", func(*core.Session, []core.ModID) error { return nil }, 1},
-		{"remove the winning override", func(s *core.Session, ids []core.ModID) error {
-			return s.RemoveModifier(ids[override1])
-		}, 7},
-		{"remove twice", func(s *core.Session, ids []core.ModID) error {
-			return errors.Join(s.RemoveModifier(ids[override1]), s.RemoveModifier(ids[override1]))
-		}, 7},
-		{"disable the override sources", func(s *core.Session, _ []core.ModID) error {
-			return errors.Join(s.SetSourceEnabled(8, false), s.SetSourceEnabled(9, false))
-		}, increased100(5 + 20)},
-		{"disable and enable a source", func(s *core.Session, _ []core.ModID) error {
-			return errors.Join(s.SetSourceEnabled(9, false), s.SetSourceEnabled(9, true))
-		}, 1},
-		{"change a scaled stat", func(s *core.Session, ids []core.ModID) error {
-			return errors.Join(s.SetSourceEnabled(8, false), s.SetSourceEnabled(9, false), s.SetModifierValue(ids[strBase], 20))
-		}, increased100(2 + 20)},
-		{"remove a condition's input", func(s *core.Session, ids []core.ModID) error {
-			return errors.Join(s.RemoveModifier(ids[override1]), s.RemoveModifier(ids[override7]), s.RemoveModifier(ids[lowLifeFlag]))
-		}, increased100(5)},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			s := newSession(t, m, 1)
-			ids := addAll(t, s, mods)
-			want(t, s, life, 1)
-			must(t, testCase.edit(s, ids))
-			want(t, s, life, testCase.want)
-		})
-	}
-}
-
 // attrModel has strength and dexterity in one CycleFamily, plus a life formula reading
 // strength. calls, when not nil, counts life formula calls.
 func attrModel(tb testing.TB, calls *int) (m *core.Model, str, dex, life core.StatID) {
@@ -580,11 +320,11 @@ func TestMemoisation(t *testing.T) {
 		{"no edit", func(*core.Session, core.StatID, core.StatID) error { return nil }, 72, 1},
 		{"unrelated stat", func(s *core.Session, _, dex core.StatID) error {
 			_, err := s.AddModifier(core.Modifier{Stat: dex, Op: core.OpBase, Value: 5, Source: 4})
-			return err
+			return wrap(t, "add modifier", err)
 		}, 72, 1},
 		{"read stat, same rounded value", func(s *core.Session, str, _ core.StatID) error {
 			_, err := s.AddModifier(core.Modifier{Stat: str, Op: core.OpBase, Value: 0.4, Source: 4})
-			return err
+			return wrap(t, "add modifier", err)
 		}, 72, 1},
 		{"read stat changes", func(s *core.Session, _, _ core.StatID) error {
 			return s.SetSourceEnabled(2, false)
@@ -747,11 +487,11 @@ func TestFormulaPanic(t *testing.T) {
 	}{
 		{"Get", func(s *core.Session, x core.StatID) error {
 			_, err := s.Get(0, x, core.GlobalCtx)
-			return err
+			return wrap(t, "get", err)
 		}},
 		{"Terms", func(s *core.Session, x core.StatID) error {
 			_, _, err := s.Terms(core.Node{Stat: x})
-			return err
+			return wrap(t, "terms", err)
 		}},
 	}
 	for _, testCase := range testCases {
@@ -782,143 +522,172 @@ func TestFormulaPanic(t *testing.T) {
 	}
 }
 
-func TestAddModifierErrors(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	x := b.MustAddStat(core.StatDef{Name: "x"})
-	m := b.Build()
-	testCases := []struct {
-		name string
-		mod  core.Modifier
-		want error
-	}{
-		{"stat", core.Modifier{Stat: 9}, core.ErrBadHandle},
-		{"actor", core.Modifier{Stat: x, Actor: 1}, core.ErrBadHandle},
-		{"source", core.Modifier{Stat: x, Source: nSources}, core.ErrBadHandle},
-		{"op", core.Modifier{Stat: x, Op: 99}, core.ErrOutOfRange},
-		{"condition actor", core.Modifier{Stat: x, Conds: []core.Cond{{Ref: core.Ref{Actor: 4, Stat: x, Ctx: core.Self}}}}, core.ErrBadHandle},
-		{"condition stat", core.Modifier{Stat: x, Conds: []core.Cond{{Ref: core.SelfRef(9)}}}, core.ErrBadHandle},
-		{"condition context", core.Modifier{Stat: x, Conds: []core.Cond{{Ref: core.Ref{Actor: core.Self, Stat: x, Ctx: 3}}}}, core.ErrBadHandle},
-		{"scale step", core.Modifier{Stat: x, Scales: []core.Scale{{Ref: core.SelfRef(x)}}}, core.ErrOutOfRange},
-		{"scale ref", core.Modifier{Stat: x, Scales: []core.Scale{{Ref: core.SelfRef(9), Step: 1}}}, core.ErrBadHandle},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			s := newSession(t, m, 1)
-			if _, err := s.AddModifier(testCase.mod); !errors.Is(err, testCase.want) {
-				t.Errorf("got %v, want %v", err, testCase.want)
-			}
-		})
-	}
+// sheetWorld approximates a character sheet over a full passive tree: 2400 sources with
+// 1 or 2 modifiers each over attributes, pools, defences and filler stats, a tenth of them
+// conditional or scaled.
+type sheetWorld struct {
+	m       *core.Model
+	mods    []core.Modifier
+	outputs []core.StatID
+	life    core.StatID
+	nSrc    int
 }
 
-func TestBadHandles(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	x := b.MustAddStat(core.StatDef{Name: "x"})
-	badRead := func(name string, ref core.Ref) core.StatID {
-		id := b.MustAddStat(core.StatDef{Name: name})
-		setFormula(t, &b, id, func(r core.Reader, _ core.Agg) float64 { return r.Read(ref) })
+func newSheetWorld(b *testing.B) *sheetWorld {
+	b.Helper()
+	w := &sheetWorld{nSrc: 2400}
+	var mb core.ModelBuilder
+	st := w.addStats(b, &mb)
+	r := rand.New(rand.NewPCG(1, 2))
+	for src := range w.nSrc {
+		for range 1 + r.IntN(2) {
+			w.mods = append(w.mods, st.randMod(r, src))
+		}
+	}
+	for _, a := range st.attrs { // class base
+		w.mods = append(w.mods, core.Modifier{Stat: a, Op: core.OpBase, Value: 20, Source: core.SourceID(w.nSrc)})
+	}
+	w.m = mb.Build()
+	return w
+}
+
+// sheetStats are the stats random modifiers of a sheetWorld target.
+type sheetStats struct {
+	attrs, targets, filler []core.StatID
+	low                    core.StatID
+}
+
+func (w *sheetWorld) addStats(b *testing.B, mb *core.ModelBuilder) sheetStats {
+	b.Helper()
+	str := mb.MustAddStat(core.StatDef{Name: "str", CycleFamily: 1, Round: core.RoundFloor})
+	dex := mb.MustAddStat(core.StatDef{Name: "dex", CycleFamily: 1, Round: core.RoundFloor})
+	in := mb.MustAddStat(core.StatDef{Name: "int", CycleFamily: 1, Round: core.RoundFloor})
+	pool := func(name string, attr core.StatID, div float64) core.StatID {
+		id := mb.MustAddStat(core.StatDef{Name: name, Round: core.RoundHalf})
+		setFormula(b, mb, id, func(r core.Reader, a core.Agg) float64 {
+			return (a.Base + math.Floor(r.Stat(attr)/div)) * (1 + a.Inc/100) * a.More
+		})
 		return id
 	}
-	readActor := badRead("read_actor", core.Ref{Actor: 3, Stat: x, Ctx: core.Self})
-	// Past the range of ActorID and CtxID, these would convert to actor 0 and the global context.
-	readWideActor := badRead("read_wide_actor", core.Ref{Actor: 1 << 16, Stat: x, Ctx: core.Self})
-	readWideCtx := badRead("read_wide_ctx", core.Ref{Actor: core.Self, Stat: x, Ctx: 1 << 32})
-	m := b.Build()
-	testCases := []struct {
-		name string
-		call func(s *core.Session) error
-	}{
-		{"get actor", func(s *core.Session) error { _, err := s.Get(1, x, core.GlobalCtx); return err }},
-		{"get stat", func(s *core.Session) error { _, err := s.Get(0, 5, core.GlobalCtx); return err }},
-		{"get context", func(s *core.Session) error { _, err := s.Get(0, x, 3); return err }},
-		{"terms", func(s *core.Session) error { _, _, err := s.Terms(core.Node{Stat: 5}); return err }},
-		{"formula read actor", func(s *core.Session) error { _, err := s.Get(0, readActor, core.GlobalCtx); return err }},
-		{"formula read actor past ActorID", func(s *core.Session) error { _, err := s.Get(0, readWideActor, core.GlobalCtx); return err }},
-		{"formula read context past CtxID", func(s *core.Session) error { _, err := s.Get(0, readWideCtx, core.GlobalCtx); return err }},
-		{"remove zero id", func(s *core.Session) error { return s.RemoveModifier(core.ModID{}) }},
-		{"value zero id", func(s *core.Session) error { return s.SetModifierValue(core.ModID{}, 1) }},
-		{"modifier zero id", func(s *core.Session) error { _, _, err := s.Modifier(core.ModID{}); return err }},
-		{"source", func(s *core.Session) error { return s.SetSourceEnabled(nSources, false) }},
+	w.life = pool("life", str, 2)
+	mana := pool("mana", in, 2)
+	es := pool("es", in, 10)
+	eva := pool("evasion", dex, 5)
+	arm := mb.MustAddStat(core.StatDef{Name: "armour", Round: core.RoundHalf})
+	ele := mb.MustAddStat(core.StatDef{Name: "ele_res"})
+	elements := []string{"fire", "cold", "lightning"}
+	res := make([]core.StatID, 0, len(elements))
+	for _, n := range elements {
+		res = append(res, mb.MustAddStat(core.StatDef{Name: n + "_res", Includes: []core.StatID{ele}, HasMax: true, Max: 75}))
 	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			s := newSession(t, m, 1)
-			add(t, s, core.Modifier{Stat: x, Value: 2})
-			if err := testCase.call(s); !errors.Is(err, core.ErrBadHandle) {
-				t.Errorf("got %v, want ErrBadHandle", err)
-			}
-			want(t, s, x, 2)
-		})
+	regen := mb.MustAddStat(core.StatDef{Name: "life_regen", Round: core.RoundHalf, Places: 1})
+	setFormula(b, mb, regen, func(r core.Reader, a core.Agg) float64 { return r.Stat(w.life) * a.Base / 100 })
+	low := mb.MustAddStat(core.StatDef{Name: "low_life", Flag: true})
+	const nFiller = 60
+	filler := make([]core.StatID, 0, nFiller)
+	for i := range nFiller {
+		filler = append(filler, mb.MustAddStat(core.StatDef{Name: "filler" + string(rune('a'+i/26)) + string(rune('a'+i%26))}))
+	}
+	w.outputs = append([]core.StatID{str, dex, in, w.life, mana, es, eva, arm, regen}, res...)
+	return sheetStats{
+		attrs:   []core.StatID{str, dex, in},
+		targets: append([]core.StatID{w.life, mana, es, eva, arm, ele, regen}, res...),
+		filler:  filler,
+		low:     low,
 	}
 }
 
-func TestModifierCopy(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	x := b.MustAddStat(core.StatDef{Name: "x"})
-	y := b.MustAddStat(core.StatDef{Name: "y"})
-	m := b.Build()
-	testCases := []struct {
-		name   string
-		mutate func(m *core.Modifier)
-	}{
-		{"condition", func(m *core.Modifier) { m.Conds[0].Threshold = 5 }},
-		{"scale", func(m *core.Modifier) { m.Scales[0].Step = 100 }},
-		{"predicate", func(m *core.Modifier) { m.Pred.Req[0] = core.MaskOf(1) }},
+func (st sheetStats) randMod(r *rand.Rand, src int) core.Modifier {
+	mod := core.Modifier{Source: core.SourceID(src), Value: float64(5 + r.IntN(20))}
+	switch k := r.IntN(10); {
+	case k < 3:
+		mod.Stat = st.attrs[r.IntN(3)]
+		mod.Value = 10
+	case k < 7:
+		mod.Stat = st.targets[r.IntN(len(st.targets))]
+		mod.Op = core.Op(r.IntN(2))
+	default:
+		mod.Stat = st.filler[r.IntN(len(st.filler))]
+		mod.Op = core.Op(r.IntN(3))
 	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			s := newSession(t, m, 1)
-			add(t, s, core.Modifier{Stat: y, Value: 4})
-			id := add(t, s, core.Modifier{Stat: x, Value: 1,
-				Conds:  []core.Cond{{Ref: core.SelfRef(y), Cmp: core.CmpGE, Threshold: 0}},
-				Scales: []core.Scale{{Ref: core.SelfRef(y), Step: 1}},
-				Pred:   core.Predicate{Req: []core.Mask{core.MaskOf(2)}, Excl: core.MaskOf(3)}})
-			got, removed, err := s.Modifier(id)
-			if err != nil || removed {
-				t.Fatalf("Modifier: got removed %v, %v, want false, nil", removed, err)
-			}
-			testCase.mutate(&got)
-			again, _, err := s.Modifier(id)
-			must(t, err)
-			if diff := cmp.Diff(again, got); diff == "" {
-				t.Error("mutating the copy changed the stored modifier")
-			}
-		})
+	if r.IntN(10) == 0 {
+		if r.IntN(2) == 0 {
+			mod.Conds = []core.Cond{{Ref: core.SelfRef(st.low), Cmp: core.CmpGE, Threshold: 1}}
+		} else {
+			mod.Scales = []core.Scale{{Ref: core.SelfRef(st.attrs[r.IntN(3)]), Step: 10, Cap: 5, HasCap: true}}
+		}
+	}
+	return mod
+}
+
+func (w *sheetWorld) session(b *testing.B) *core.Session {
+	b.Helper()
+	s, err := core.NewSession(w.m, 2)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for range w.nSrc + 1 {
+		s.NewSource()
+	}
+	for _, m := range w.mods {
+		if _, err := s.AddModifier(m); err != nil {
+			b.Fatal(err)
+		}
+	}
+	s.Commit()
+	return s
+}
+
+func (w *sheetWorld) sheet(b *testing.B, s *core.Session) {
+	b.Helper()
+	for _, o := range w.outputs {
+		if _, err := s.Get(0, o, core.GlobalCtx); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-func TestCounterWraparound(t *testing.T) {
-	t.Parallel()
-	m, str, _, life := attrModel(t, nil)
-	s := newSession(t, m, 1)
-	add(t, s, core.Modifier{Stat: life, Op: core.OpBase, Value: 50, Source: 0})
-	add(t, s, core.Modifier{Stat: str, Op: core.OpBase, Value: 20, Source: 1})
-	want(t, s, life, 60)
-	core.NearWrap(s)
-	for range 4 {
-		must(t, s.SetSourceEnabled(1, false))
-		want(t, s, life, 50)
-		must(t, s.SetSourceEnabled(1, true))
-		want(t, s, life, 60)
+func BenchmarkAssemble(b *testing.B) {
+	w := newSheetWorld(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		w.session(b)
+	}
+	b.ReportMetric(float64(len(w.mods)), "mods")
+}
+
+func BenchmarkSheetCold(b *testing.B) {
+	w := newSheetWorld(b)
+	s := w.session(b)
+	w.sheet(b, s)
+	b.ReportAllocs()
+	for b.Loop() {
 		s.Invalidate()
+		w.sheet(b, s)
 	}
 }
 
-func TestConcurrentSessions(t *testing.T) {
-	t.Parallel()
-	m, str, _, life := attrModel(t, nil)
-	for range 4 {
-		t.Run("", func(t *testing.T) {
-			t.Parallel()
-			s := newSession(t, m, 1)
-			add(t, s, core.Modifier{Stat: str, Op: core.OpBase, Value: 20})
-			want(t, s, life, 10)
-		})
+// BenchmarkNodePower disables each source in turn, reads life and reverts, as node power does.
+func BenchmarkNodePower(b *testing.B) {
+	w := newSheetWorld(b)
+	s := w.session(b)
+	w.sheet(b, s)
+	b.ReportAllocs()
+	whatIfs := 0
+	for b.Loop() {
+		for src := range core.SourceID(w.nSrc) {
+			cp := s.Mark()
+			if err := s.SetSourceEnabled(src, false); err != nil {
+				b.Fatal(err)
+			}
+			if _, err := s.Get(0, w.life, core.GlobalCtx); err != nil {
+				b.Fatal(err)
+			}
+			if err := s.Revert(cp); err != nil {
+				b.Fatal(err)
+			}
+			whatIfs++
+		}
 	}
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(whatIfs), "ns/whatif")
 }

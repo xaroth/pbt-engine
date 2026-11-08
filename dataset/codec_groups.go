@@ -33,39 +33,7 @@ func encodeScopes(b *flatbuffers.Builder, scopes []statdesc.Scope) flatbuffers.U
 	for si, sc := range scopes {
 		descOffs := make([]flatbuffers.UOffsetT, len(sc.Descriptions))
 		for di, d := range sc.Descriptions {
-			statOffs := make([]flatbuffers.UOffsetT, len(d.Stats))
-			for i, st := range d.Stats {
-				statOffs[i] = b.CreateSharedString(st)
-			}
-			varOffs := make([]flatbuffers.UOffsetT, len(d.Variants))
-			for vi, v := range d.Variants {
-				text := b.CreateString(v.Text)
-				hOffs := make([]flatbuffers.UOffsetT, len(v.Handlers))
-				for hi, h := range v.Handlers {
-					name := b.CreateSharedString(h.Name)
-					fb.HandlerStart(b)
-					fb.HandlerAddName(b, name)
-					fb.HandlerAddStat(b, byte(h.Stat))
-					hOffs[hi] = fb.HandlerEnd(b)
-				}
-				handlers := tableVector(b, fb.VariantStartHandlersVector, hOffs)
-				fb.VariantStartLimitsVector(b, len(v.Limits))
-				for _, l := range slices.Backward(v.Limits) {
-					fb.CreateLimit(b, l.Min, l.Max, l.Not)
-				}
-				limits := b.EndVector(len(v.Limits))
-				fb.VariantStart(b)
-				fb.VariantAddLimits(b, limits)
-				fb.VariantAddText(b, text)
-				fb.VariantAddHandlers(b, handlers)
-				varOffs[vi] = fb.VariantEnd(b)
-			}
-			stats := tableVector(b, fb.DescriptionStartStatsVector, statOffs)
-			variants := tableVector(b, fb.DescriptionStartVariantsVector, varOffs)
-			fb.DescriptionStart(b)
-			fb.DescriptionAddStats(b, stats)
-			fb.DescriptionAddVariants(b, variants)
-			descOffs[di] = fb.DescriptionEnd(b)
+			descOffs[di] = encodeDescription(b, d)
 		}
 		name := b.CreateString(sc.Name)
 		parent := b.CreateString(sc.Parent)
@@ -77,6 +45,46 @@ func encodeScopes(b *flatbuffers.Builder, scopes []statdesc.Scope) flatbuffers.U
 		scopeOffs[si] = fb.ScopeEnd(b)
 	}
 	return tableVector(b, fb.TextStartScopesVector, scopeOffs)
+}
+
+func encodeDescription(b *flatbuffers.Builder, d statdesc.Description) flatbuffers.UOffsetT {
+	statOffs := make([]flatbuffers.UOffsetT, len(d.Stats))
+	for i, st := range d.Stats {
+		statOffs[i] = b.CreateSharedString(st)
+	}
+	varOffs := make([]flatbuffers.UOffsetT, len(d.Variants))
+	for vi, v := range d.Variants {
+		varOffs[vi] = encodeVariant(b, v)
+	}
+	stats := tableVector(b, fb.DescriptionStartStatsVector, statOffs)
+	variants := tableVector(b, fb.DescriptionStartVariantsVector, varOffs)
+	fb.DescriptionStart(b)
+	fb.DescriptionAddStats(b, stats)
+	fb.DescriptionAddVariants(b, variants)
+	return fb.DescriptionEnd(b)
+}
+
+func encodeVariant(b *flatbuffers.Builder, v statdesc.Variant) flatbuffers.UOffsetT {
+	text := b.CreateString(v.Text)
+	hOffs := make([]flatbuffers.UOffsetT, len(v.Handlers))
+	for hi, h := range v.Handlers {
+		name := b.CreateSharedString(h.Name)
+		fb.HandlerStart(b)
+		fb.HandlerAddName(b, name)
+		fb.HandlerAddStat(b, byte(h.Stat)) //nolint:gosec // validate bounds h.Stat by a description's at most 256 stats
+		hOffs[hi] = fb.HandlerEnd(b)
+	}
+	handlers := tableVector(b, fb.VariantStartHandlersVector, hOffs)
+	fb.VariantStartLimitsVector(b, len(v.Limits))
+	for _, l := range slices.Backward(v.Limits) {
+		fb.CreateLimit(b, l.Min, l.Max, l.Not)
+	}
+	limits := b.EndVector(len(v.Limits))
+	fb.VariantStart(b)
+	fb.VariantAddLimits(b, limits)
+	fb.VariantAddText(b, text)
+	fb.VariantAddHandlers(b, handlers)
+	return fb.VariantEnd(b)
 }
 
 func encodeText(t Text) []byte {
@@ -236,49 +244,10 @@ func ascendancyVector(b *flatbuffers.Builder, start startFunc, as []Ascendancy) 
 
 func encodeTree(all []Stat, t Tree) []byte {
 	b := flatbuffers.NewBuilder(0)
-	var lists [][]StatValue
-	for _, n := range t.Nodes {
-		lists = append(lists, n.Stats)
-		lists = append(lists, n.Buffs...)
-		for _, e := range n.MasteryEffects {
-			lists = append(lists, e.Stats)
-		}
-	}
-	st := newStatTable(all, lists...)
+	st := newStatTable(all, treeStatLists(t)...)
 	nodeOffs := make([]flatbuffers.UOffsetT, len(t.Nodes))
 	for i, n := range t.Nodes {
-		asc := b.CreateSharedString(n.Ascendancy)
-		stats := statValueVector(b, fb.NodeStartStatsVector, st.toLocal(n.Stats, true))
-		buffOffs := make([]flatbuffers.UOffsetT, len(n.Buffs))
-		for bi, bf := range n.Buffs {
-			svs := statValueVector(b, fb.BuffStartStatsVector, st.toLocal(bf, false))
-			fb.BuffStart(b)
-			fb.BuffAddStats(b, svs)
-			buffOffs[bi] = fb.BuffEnd(b)
-		}
-		buffs := tableVector(b, fb.NodeStartBuffsVector, buffOffs)
-		effOffs := make([]flatbuffers.UOffsetT, len(n.MasteryEffects))
-		for ei, e := range n.MasteryEffects {
-			svs := statValueVector(b, fb.MasteryEffectStartStatsVector, st.toLocal(e.Stats, false))
-			fb.MasteryEffectStart(b)
-			fb.MasteryEffectAddId(b, e.ID)
-			fb.MasteryEffectAddStats(b, svs)
-			effOffs[ei] = fb.MasteryEffectEnd(b)
-		}
-		effects := tableVector(b, fb.NodeStartMasteryEffectsVector, effOffs)
-		neighbours := uint32Vector(b, fb.NodeStartNeighboursVector, n.Neighbours)
-		fb.NodeStart(b)
-		fb.NodeAddId(b, n.ID)
-		fb.NodeAddKind(b, fb.NodeKind(n.Kind))
-		fb.NodeAddAscendancy(b, asc)
-		fb.NodeAddStats(b, stats)
-		fb.NodeAddBuffs(b, buffs)
-		fb.NodeAddSkillPoints(b, n.SkillPoints)
-		fb.NodeAddMasteryEffects(b, effects)
-		fb.NodeAddNeighbours(b, neighbours)
-		fb.NodeAddMultipleChoice(b, n.MultipleChoice)
-		fb.NodeAddMultipleChoiceOption(b, n.MultipleChoiceOption)
-		nodeOffs[i] = fb.NodeEnd(b)
+		nodeOffs[i] = encodeNode(b, st, n)
 	}
 	nodes := tableVector(b, fb.TreeStartNodesVector, nodeOffs)
 	classOffs := make([]flatbuffers.UOffsetT, len(t.Classes))
@@ -310,6 +279,53 @@ func encodeTree(all []Stat, t Tree) []byte {
 	fb.TreeAddStatIds(b, ids)
 	fb.FinishTreeBuffer(b, fb.TreeEnd(b))
 	return b.FinishedBytes()
+}
+
+func treeStatLists(t Tree) [][]StatValue {
+	var lists [][]StatValue
+	for _, n := range t.Nodes {
+		lists = append(lists, n.Stats)
+		lists = append(lists, n.Buffs...)
+		for _, e := range n.MasteryEffects {
+			lists = append(lists, e.Stats)
+		}
+	}
+	return lists
+}
+
+func encodeNode(b *flatbuffers.Builder, st statTable, n Node) flatbuffers.UOffsetT {
+	asc := b.CreateSharedString(n.Ascendancy)
+	stats := statValueVector(b, fb.NodeStartStatsVector, st.toLocal(n.Stats, true))
+	buffOffs := make([]flatbuffers.UOffsetT, len(n.Buffs))
+	for bi, bf := range n.Buffs {
+		svs := statValueVector(b, fb.BuffStartStatsVector, st.toLocal(bf, false))
+		fb.BuffStart(b)
+		fb.BuffAddStats(b, svs)
+		buffOffs[bi] = fb.BuffEnd(b)
+	}
+	buffs := tableVector(b, fb.NodeStartBuffsVector, buffOffs)
+	effOffs := make([]flatbuffers.UOffsetT, len(n.MasteryEffects))
+	for ei, e := range n.MasteryEffects {
+		svs := statValueVector(b, fb.MasteryEffectStartStatsVector, st.toLocal(e.Stats, false))
+		fb.MasteryEffectStart(b)
+		fb.MasteryEffectAddId(b, e.ID)
+		fb.MasteryEffectAddStats(b, svs)
+		effOffs[ei] = fb.MasteryEffectEnd(b)
+	}
+	effects := tableVector(b, fb.NodeStartMasteryEffectsVector, effOffs)
+	neighbours := uint32Vector(b, fb.NodeStartNeighboursVector, n.Neighbours)
+	fb.NodeStart(b)
+	fb.NodeAddId(b, n.ID)
+	fb.NodeAddKind(b, fb.NodeKind(n.Kind))
+	fb.NodeAddAscendancy(b, asc)
+	fb.NodeAddStats(b, stats)
+	fb.NodeAddBuffs(b, buffs)
+	fb.NodeAddSkillPoints(b, n.SkillPoints)
+	fb.NodeAddMasteryEffects(b, effects)
+	fb.NodeAddNeighbours(b, neighbours)
+	fb.NodeAddMultipleChoice(b, n.MultipleChoice)
+	fb.NodeAddMultipleChoiceOption(b, n.MultipleChoiceOption)
+	return fb.NodeEnd(b)
 }
 
 type statValueSource interface {
@@ -360,47 +376,53 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 		})
 	}
 	var n fb.Node
-	var bf fb.Buff
-	var e fb.MasteryEffect
 	t.Nodes = make([]Node, root.NodesLength())
 	for i := range t.Nodes {
 		root.Nodes(&n, i)
-		stats, err := fromLocal(&n, h, true)
-		if err != nil {
-			return Tree{}, fmt.Errorf("node %d: %w", n.Id(), err)
+		if t.Nodes[i], err = decodeNode(&n, h); err != nil {
+			return Tree{}, err
 		}
-		node := Node{
-			ID:                   n.Id(),
-			Kind:                 NodeKind(n.Kind()),
-			Ascendancy:           string(n.Ascendancy()),
-			Stats:                stats,
-			SkillPoints:          n.SkillPoints(),
-			MultipleChoice:       n.MultipleChoice(),
-			MultipleChoiceOption: n.MultipleChoiceOption(),
-		}
-		for j := range n.BuffsLength() {
-			n.Buffs(&bf, j)
-			buff, err := fromLocal(&bf, h, false)
-			if err != nil {
-				return Tree{}, fmt.Errorf("node %d buff %d: %w", n.Id(), j, err)
-			}
-			node.Buffs = append(node.Buffs, buff)
-		}
-		for j := range n.MasteryEffectsLength() {
-			n.MasteryEffects(&e, j)
-			effect, err := fromLocal(&e, h, false)
-			if err != nil {
-				return Tree{}, fmt.Errorf("node %d mastery effect %d: %w", n.Id(), e.Id(), err)
-			}
-			node.MasteryEffects = append(node.MasteryEffects, MasteryEffect{ID: e.Id(), Stats: effect})
-		}
-		for j := range n.NeighboursLength() {
-			node.Neighbours = append(node.Neighbours, n.Neighbours(j))
-		}
-		t.Nodes[i] = node
 	}
 	for j := range root.JewelSlotsLength() {
 		t.JewelSlots = append(t.JewelSlots, root.JewelSlots(j))
 	}
 	return t, nil
+}
+
+func decodeNode(n *fb.Node, h []uint32) (Node, error) {
+	stats, err := fromLocal(n, h, true)
+	if err != nil {
+		return Node{}, fmt.Errorf("node %d: %w", n.Id(), err)
+	}
+	node := Node{
+		ID:                   n.Id(),
+		Kind:                 NodeKind(n.Kind()),
+		Ascendancy:           string(n.Ascendancy()),
+		Stats:                stats,
+		SkillPoints:          n.SkillPoints(),
+		MultipleChoice:       n.MultipleChoice(),
+		MultipleChoiceOption: n.MultipleChoiceOption(),
+	}
+	var bf fb.Buff
+	for j := range n.BuffsLength() {
+		n.Buffs(&bf, j)
+		buff, err := fromLocal(&bf, h, false)
+		if err != nil {
+			return Node{}, fmt.Errorf("node %d buff %d: %w", n.Id(), j, err)
+		}
+		node.Buffs = append(node.Buffs, buff)
+	}
+	var e fb.MasteryEffect
+	for j := range n.MasteryEffectsLength() {
+		n.MasteryEffects(&e, j)
+		effect, err := fromLocal(&e, h, false)
+		if err != nil {
+			return Node{}, fmt.Errorf("node %d mastery effect %d: %w", n.Id(), e.Id(), err)
+		}
+		node.MasteryEffects = append(node.MasteryEffects, MasteryEffect{ID: e.Id(), Stats: effect})
+	}
+	for j := range n.NeighboursLength() {
+		node.Neighbours = append(node.Neighbours, n.Neighbours(j))
+	}
+	return node, nil
 }

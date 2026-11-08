@@ -11,6 +11,13 @@ import (
 	"strings"
 )
 
+// Errors NewSet and Describe return; match them with errors.Is.
+var (
+	ErrInvalid      = errors.New("invalid description set")
+	ErrUnknownScope = errors.New("unknown description scope")
+	ErrBadTemplate  = errors.New("bad description text")
+)
+
 // Scope is one stat description file. Lookups fall through to Parent when a stat is not
 // described here.
 type Scope struct {
@@ -47,63 +54,94 @@ type Handler struct {
 
 // Set holds scopes by name.
 type Set struct {
-	scopes map[string]*scope
+	scopes   map[string]*scope
+	handlers map[string]func(number) number
 }
 
 type scope struct {
 	Scope
+
 	parent *scope
 	index  map[string]int
 }
 
 // NewSet indexes scopes. Every parent must be in scopes.
 func NewSet(scopes []Scope) (*Set, error) {
-	s := &Set{scopes: make(map[string]*scope, len(scopes))}
+	s := &Set{scopes: make(map[string]*scope, len(scopes)), handlers: handlers()}
 	for _, sc := range scopes {
 		if _, dup := s.scopes[sc.Name]; dup {
-			return nil, fmt.Errorf("scope %s defined twice", sc.Name)
+			return nil, fmt.Errorf("scope %s defined twice: %w", sc.Name, ErrInvalid)
 		}
-		x := &scope{Scope: sc, index: map[string]int{}}
-		for i, d := range sc.Descriptions {
-			if len(d.Stats) == 0 {
-				return nil, fmt.Errorf("scope %s description %d: no stats", sc.Name, i)
-			}
-			for _, v := range d.Variants {
-				if len(v.Limits) != len(d.Stats) {
-					return nil, fmt.Errorf("scope %s description %d: %d limits for %d stats", sc.Name, i, len(v.Limits), len(d.Stats))
-				}
-				for _, h := range v.Handlers {
-					if h.Stat < 0 || h.Stat >= len(d.Stats) {
-						return nil, fmt.Errorf("scope %s description %d: handler %s stat %d out of range", sc.Name, i, h.Name, h.Stat)
-					}
-				}
-			}
-			for _, st := range d.Stats {
-				x.index[st] = i // a later description of the same stat wins, as in game text
-			}
+		x, err := newScope(sc)
+		if err != nil {
+			return nil, err
 		}
 		s.scopes[sc.Name] = x
 	}
-	for _, x := range s.scopes {
+	if err := linkParents(s.scopes); err != nil {
+		return nil, err
+	}
+	if err := checkCycles(s.scopes); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func newScope(sc Scope) (*scope, error) {
+	x := &scope{Scope: sc, index: map[string]int{}}
+	for i, d := range sc.Descriptions {
+		if err := checkDescription(d); err != nil {
+			return nil, fmt.Errorf("scope %s description %d: %w", sc.Name, i, err)
+		}
+		for _, st := range d.Stats {
+			x.index[st] = i // a later description of the same stat wins, as in game text
+		}
+	}
+	return x, nil
+}
+
+func checkDescription(d Description) error {
+	if len(d.Stats) == 0 {
+		return fmt.Errorf("no stats: %w", ErrInvalid)
+	}
+	for _, v := range d.Variants {
+		if len(v.Limits) != len(d.Stats) {
+			return fmt.Errorf("%d limits for %d stats: %w", len(v.Limits), len(d.Stats), ErrInvalid)
+		}
+		for _, h := range v.Handlers {
+			if h.Stat < 0 || h.Stat >= len(d.Stats) {
+				return fmt.Errorf("handler %s stat %d out of range: %w", h.Name, h.Stat, ErrInvalid)
+			}
+		}
+	}
+	return nil
+}
+
+func linkParents(scopes map[string]*scope) error {
+	for _, x := range scopes {
 		if x.Parent == "" {
 			continue
 		}
-		p, ok := s.scopes[x.Parent]
+		p, ok := scopes[x.Parent]
 		if !ok {
-			return nil, fmt.Errorf("scope %s: parent %s not in set", x.Name, x.Parent)
+			return fmt.Errorf("scope %s: parent %s not in set: %w", x.Name, x.Parent, ErrInvalid)
 		}
 		x.parent = p
 	}
-	for _, x := range s.scopes {
+	return nil
+}
+
+func checkCycles(scopes map[string]*scope) error {
+	for _, x := range scopes {
 		seen := map[*scope]bool{}
 		for p := x; p != nil; p = p.parent {
 			if seen[p] {
-				return nil, fmt.Errorf("scope %s: parent cycle", x.Name)
+				return fmt.Errorf("scope %s: parent cycle: %w", x.Name, ErrInvalid)
 			}
 			seen[p] = true
 		}
 	}
-	return s, nil
+	return nil
 }
 
 // ErrUnknownHandler is returned for a handler Describe cannot apply.
@@ -120,12 +158,59 @@ type Line struct {
 func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error) {
 	root, ok := s.scopes[scopeName]
 	if !ok {
-		return nil, fmt.Errorf("unknown scope %s", scopeName)
+		return nil, fmt.Errorf("unknown scope %s: %w", scopeName, ErrUnknownScope)
 	}
-	type pick struct {
-		depth, index int
-		sc           *scope
+	var out []Line
+	for _, p := range picks(root, stats) {
+		d := p.sc.Descriptions[p.index]
+		line, ok, err := s.render(d, stats)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", strings.Join(d.Stats, " "), err)
+		}
+		if ok {
+			out = append(out, Line{Text: line, Stats: d.Stats})
+		}
 	}
+	return out, nil
+}
+
+func (s *Set) render(d Description, stats map[string]int32) (string, bool, error) {
+	vals := make([]int32, len(d.Stats))
+	for i, st := range d.Stats {
+		vals[i] = stats[st]
+	}
+	v, ok := match(d.Variants, vals)
+	if !ok {
+		return "", false, nil
+	}
+	nums := make([]number, len(vals))
+	for i, x := range vals {
+		nums[i] = number{v: float64(x)}
+	}
+	for _, h := range v.Handlers {
+		f, ok := s.handlers[h.Name]
+		if !ok {
+			return "", false, fmt.Errorf("%w %s", ErrUnknownHandler, h.Name)
+		}
+		if f != nil {
+			nums[h.Stat] = f(nums[h.Stat])
+		}
+	}
+	text, err := format(v.Text, nums)
+	if err != nil {
+		return "", false, err
+	}
+	return text, true, nil
+}
+
+// pick is a description to render: its position in a scope, and how far up from the root.
+type pick struct {
+	depth, index int
+	sc           *scope
+}
+
+// picks returns the descriptions of the non-zero stats, parent scope first, then by position.
+func picks(root *scope, stats map[string]int32) []pick {
 	picked := map[pick]bool{}
 	for st, v := range stats {
 		if v == 0 {
@@ -150,48 +235,7 @@ func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error)
 		}
 		return cmp.Compare(a.index, b.index)
 	})
-
-	var out []Line
-	for _, p := range order {
-		d := p.sc.Descriptions[p.index]
-		line, ok, err := render(d, stats)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", strings.Join(d.Stats, " "), err)
-		}
-		if ok {
-			out = append(out, Line{Text: line, Stats: d.Stats})
-		}
-	}
-	return out, nil
-}
-
-func render(d Description, stats map[string]int32) (string, bool, error) {
-	vals := make([]int32, len(d.Stats))
-	for i, st := range d.Stats {
-		vals[i] = stats[st]
-	}
-	v, ok := match(d.Variants, vals)
-	if !ok {
-		return "", false, nil
-	}
-	nums := make([]number, len(vals))
-	for i, x := range vals {
-		nums[i] = number{v: float64(x)}
-	}
-	for _, h := range v.Handlers {
-		f, ok := handlers[h.Name]
-		if !ok {
-			return "", false, fmt.Errorf("%w %s", ErrUnknownHandler, h.Name)
-		}
-		if f != nil {
-			nums[h.Stat] = f(nums[h.Stat])
-		}
-	}
-	text, err := format(v.Text, nums)
-	if err != nil {
-		return "", false, err
-	}
-	return text, true, nil
+	return order
 }
 
 func match(variants []Variant, vals []int32) (Variant, bool) {
@@ -219,14 +263,6 @@ type number struct {
 	set   bool // dp was set by a handler
 }
 
-func (n number) rounded() float64 {
-	if !n.set {
-		return n.v
-	}
-	p := math.Pow(10, float64(n.dp))
-	return math.Round(n.v*p) / p
-}
-
 func (n number) String() string {
 	v := n.rounded()
 	if n.set && n.fixed {
@@ -239,57 +275,75 @@ func (n number) String() string {
 	return strconv.FormatFloat(v, 'f', -1, 32)
 }
 
+func (n number) rounded() float64 {
+	if !n.set {
+		return n.v
+	}
+	p := math.Pow10(n.dp)
+	return math.Round(n.v*p) / p
+}
+
 func format(text string, nums []number) (string, error) {
 	var b strings.Builder
 	next := 0
 	for i := 0; i < len(text); i++ {
-		c := text[i]
-		switch c {
-		case '[':
-			end := strings.IndexByte(text[i:], ']')
-			if end < 0 {
-				return "", fmt.Errorf("unclosed [ in %q", text)
-			}
-			tag := text[i+1 : i+end]
-			if bar := strings.LastIndexByte(tag, '|'); bar >= 0 {
-				tag = tag[bar+1:]
-			}
-			b.WriteString(tag)
-			i += end
-		case '{':
-			end := strings.IndexByte(text[i:], '}')
-			if end < 0 {
-				return "", fmt.Errorf("unclosed { in %q", text)
-			}
-			spec := text[i+1 : i+end]
-			idx, flags, _ := strings.Cut(spec, ":")
-			n := next
-			if idx != "" {
-				var err error
-				if n, err = strconv.Atoi(idx); err != nil {
-					return "", fmt.Errorf("placeholder {%s} in %q", spec, text)
-				}
-			}
-			next = n + 1
-			if n >= len(nums) {
-				return "", fmt.Errorf("placeholder {%s} has no stat in %q", spec, text)
-			}
-			s := nums[n].String()
-			if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {
-				s = "+" + s
-			}
-			b.WriteString(s)
-			i += end
-		case '\\':
-			if i+1 < len(text) && text[i+1] == 'n' {
-				b.WriteByte('\n')
-				i++
-				continue
-			}
-			b.WriteByte(c)
+		var err error
+		switch c := text[i]; {
+		case c == '[':
+			i, err = writeTag(&b, text, i)
+		case c == '{':
+			i, next, err = writePlaceholder(&b, text, i, nums, next)
+		case c == '\\' && i+1 < len(text) && text[i+1] == 'n':
+			b.WriteByte('\n')
+			i++
 		default:
 			b.WriteByte(c)
 		}
+		if err != nil {
+			return "", err
+		}
 	}
 	return b.String(), nil
+}
+
+// writeTag writes the display text of the [tag|text] at text[i] and returns the index of its
+// closing bracket.
+func writeTag(b *strings.Builder, text string, i int) (int, error) {
+	end := strings.IndexByte(text[i:], ']')
+	if end < 0 {
+		return 0, fmt.Errorf("unclosed [ in %q: %w", text, ErrBadTemplate)
+	}
+	tag := text[i+1 : i+end]
+	if bar := strings.LastIndexByte(tag, '|'); bar >= 0 {
+		tag = tag[bar+1:]
+	}
+	b.WriteString(tag)
+	return i + end, nil
+}
+
+// writePlaceholder writes the number the {index:flags} at text[i] names, or nums[next] when it
+// names none. It returns the index of the closing brace and the next implicit index.
+func writePlaceholder(b *strings.Builder, text string, i int, nums []number, next int) (int, int, error) {
+	end := strings.IndexByte(text[i:], '}')
+	if end < 0 {
+		return 0, 0, fmt.Errorf("unclosed { in %q: %w", text, ErrBadTemplate)
+	}
+	spec := text[i+1 : i+end]
+	idx, flags, _ := strings.Cut(spec, ":")
+	n := next
+	if idx != "" {
+		var err error
+		if n, err = strconv.Atoi(idx); err != nil {
+			return 0, 0, fmt.Errorf("placeholder {%s} in %q: %w", spec, text, ErrBadTemplate)
+		}
+	}
+	if n >= len(nums) {
+		return 0, 0, fmt.Errorf("placeholder {%s} has no stat in %q: %w", spec, text, ErrBadTemplate)
+	}
+	s := nums[n].String()
+	if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {
+		s = "+" + s
+	}
+	b.WriteString(s)
+	return i + end, n + 1, nil
 }

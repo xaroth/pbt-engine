@@ -1,6 +1,8 @@
 package resolve_test
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -16,10 +18,12 @@ import (
 const marauder = "Metadata/Characters/Str/Str"
 
 // statIDs are the stats of testDataset. Handles in it index into this list.
-var statIDs = []string{
-	"level", "life_per_level", "base_maximum_all_resistances_%", "additional_strength", "maximum_life_+%", "aura_damage_+%",
-	"base_strength", "base_dexterity", "base_intelligence", "base_maximum_life", "base_maximum_mana",
-	"base_resist_all_elements_%", "base_chaos_damage_resistance_%",
+func statIDs() []string {
+	return []string{
+		"level", "life_per_level", "base_maximum_all_resistances_%", "additional_strength", "maximum_life_+%", "aura_damage_+%",
+		"base_strength", "base_dexterity", "base_intelligence", "base_maximum_life", "base_maximum_mana",
+		"base_resist_all_elements_%", "base_chaos_damage_resistance_%",
+	}
 }
 
 func testDataset() *dataset.Dataset {
@@ -42,7 +46,7 @@ func testDataset() *dataset.Dataset {
 			},
 		}},
 	}
-	for _, id := range statIDs {
+	for _, id := range statIDs() {
 		d.Stats = append(d.Stats, dataset.Stat{ID: id})
 	}
 	return d
@@ -71,7 +75,8 @@ func resolveBuild(t *testing.T, s *dataset.Store, b *build.Build) (*resolve.Reso
 	if err != nil {
 		t.Fatal(err)
 	}
-	return resolve.Resolve(c)
+	r, err := resolve.Resolve(c)
+	return r, wrap(t, "checked build", err)
 }
 
 func dump(t *testing.T, r *resolve.Resolved) string {
@@ -90,6 +95,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	//nolint:dupword // a level bundle header followed by its level stat
 	want := `dataset poe1 3.29.3.3
 constant life_per_strength = 1 per 2 (unvalidated)
 bundle player global character Metadata/Characters/Str/Str
@@ -128,7 +134,7 @@ func TestResolveSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got []resolve.Source
+	got := make([]resolve.Source, 0, len(r.Bundles))
 	for _, b := range r.Bundles {
 		got = append(got, b.Source)
 	}
@@ -200,7 +206,7 @@ func TestResolveMissingStat(t *testing.T) {
 			t.Parallel()
 			d := testDataset()
 			// Swap the stat out for one no lookup uses, so handles in d stay valid.
-			d.Stats[slices.Index(statIDs, testCase.stat)].ID = "unused"
+			d.Stats[slices.Index(statIDs(), testCase.stat)].ID = "unused"
 			_, err := resolveBuild(t, open(t, d), testBuild(1, testCase.scenario))
 			if err == nil || !strings.Contains(err.Error(), "no stat "+testCase.stat) {
 				t.Errorf("got %v, want an error naming %s", err, testCase.stat)
@@ -268,8 +274,8 @@ func TestResolveOtherGame(t *testing.T) {
 	b := testBuild(1, build.Scenario{Campaign: build.CampaignActs1To5})
 	b.Game = "poe2"
 	_, err := resolveBuild(t, open(t, d), b)
-	if want := "resolve: campaign quest rewards of poe2 are not known"; err == nil || err.Error() != want {
-		t.Errorf("got %v, want %q", err, want)
+	if !errors.Is(err, resolve.ErrNoRewards) || !strings.Contains(err.Error(), "poe2") {
+		t.Errorf("got %v, want ErrNoRewards naming poe2", err)
 	}
 }
 
@@ -291,7 +297,10 @@ func TestBundleParts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantEffect := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9}, Stats: []resolve.StatValue{{"maximum_life_+%", 10}}}
+	wantEffect := resolve.Bundle{
+		Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9},
+		Stats: []resolve.StatValue{{"maximum_life_+%", 10}},
+	}
 	if diff := cmp.Diff(wantEffect, effect); diff != "" {
 		t.Errorf("MasteryEffectBundle (-want +got):\n%s", diff)
 	}
@@ -310,19 +319,19 @@ func TestBundlePartsErrors(t *testing.T) {
 	}{
 		{"unknown character", "resolve: dataset 3.29.3.3 has no character x", func() error {
 			_, err := resolve.CharacterStats(s, "x")
-			return err
+			return wrap(t, "character stats", err)
 		}},
 		{"unknown mastery effect", "resolve: node 9 has no mastery effect 2", func() error {
 			_, err := resolve.MasteryEffectBundle(s, "standard", 9, 2)
-			return err
+			return wrap(t, "mastery effect bundle", err)
 		}},
 		{"mastery effect of unknown node", "has no node 5 in the standard tree", func() error {
 			_, err := resolve.MasteryEffectBundle(s, "standard", 5, 1)
-			return err
+			return wrap(t, "mastery effect bundle", err)
 		}},
-		{"campaign of another game", "resolve: campaign quest rewards of poe2 are not known", func() error {
+		{"campaign of another game", "resolve: no campaign quest rewards known for poe2", func() error {
 			_, err := resolve.CampaignBundles("poe2", build.CampaignActs1To5)
-			return err
+			return wrap(t, "campaign bundles", err)
 		}},
 	}
 	for _, testCase := range testCases {
@@ -333,4 +342,13 @@ func TestBundlePartsErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+// wrap adds context to err and keeps nil as nil.
+func wrap(tb testing.TB, what string, err error) error {
+	tb.Helper()
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }

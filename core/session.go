@@ -5,6 +5,9 @@ import (
 	"math"
 )
 
+// blockKinds counts a block of each actor and context: conditional and unconditional.
+const blockKinds = 2
+
 // Node addresses a value: a stat of an actor in a context. Uncond nodes are the unconditional
 // values used by the CycleFamily rule.
 type Node struct {
@@ -33,9 +36,10 @@ type block struct {
 // journalled from the first Mark until Commit, so Revert can undo them. A Session
 // is not safe for concurrent use; sessions over the same Model are independent.
 type Session struct {
-	m       *Model
-	nActors int
-	nStats  int
+	m         *Model
+	nActors   int
+	nStats    int
+	blockSize uint32 // nStats, for node id arithmetic
 
 	masks  []Mask
 	ctxIdx map[Mask]CtxID
@@ -63,7 +67,7 @@ type Session struct {
 	epoch uint32
 
 	blocks   []block
-	blockIdx []int32 // [(ctx*nActors+actor)*2+uncond] -> index into blocks, -1 if absent
+	blockIdx []uint32 // [(ctx*nActors+actor)*2+uncond] -> index into blocks + 1, 0 if absent
 	stack    []uint32
 	err      error
 
@@ -79,14 +83,15 @@ func NewSession(m *Model, actors int) (*Session, error) {
 		return nil, fmt.Errorf("%w: %d actors, want 1 to %d", ErrOutOfRange, actors, math.MaxUint16)
 	}
 	s := &Session{
-		m:       m,
-		nActors: actors,
-		nStats:  len(m.stats),
-		ctxIdx:  map[Mask]CtxID{},
-		rev:     1,
-		epoch:   1,
-		mCond:   []uint32{0},
-		mScale:  []uint32{0},
+		m:         m,
+		nActors:   actors,
+		nStats:    len(m.stats),
+		blockSize: u32(len(m.stats)),
+		ctxIdx:    map[Mask]CtxID{},
+		rev:       1,
+		epoch:     1,
+		mCond:     []uint32{0},
+		mScale:    []uint32{0},
 
 		journalGen: 1,
 	}
@@ -108,11 +113,11 @@ func (s *Session) InternContext(mask Mask) CtxID {
 	if id, ok := s.ctxIdx[mask]; ok {
 		return id
 	}
-	id := CtxID(len(s.masks))
+	id := CtxID(u32(len(s.masks)))
 	s.masks = append(s.masks, mask)
 	s.ctxIdx[mask] = id
-	for range 2 * s.nActors {
-		s.blockIdx = append(s.blockIdx, -1)
+	for range blockKinds * s.nActors {
+		s.blockIdx = append(s.blockIdx, 0)
 	}
 	return id
 }
@@ -133,7 +138,7 @@ func (s *Session) NumContexts() int { return len(s.masks) }
 func (s *Session) NewSource() SourceID {
 	s.srcOff = append(s.srcOff, false)
 	s.srcMods = append(s.srcMods, nil)
-	return SourceID(len(s.srcOff) - 1)
+	return SourceID(u32(len(s.srcOff) - 1))
 }
 
 // NumSources returns the number of sources created.
@@ -142,42 +147,6 @@ func (s *Session) NumSources() int { return len(s.srcOff) }
 // SourceEnabled reports whether a source's modifiers apply; false for an unknown source.
 func (s *Session) SourceEnabled(src SourceID) bool {
 	return int(src) < len(s.srcOff) && !s.srcOff[src]
-}
-
-func (s *Session) nodeID(n Node) uint32 {
-	k := (int(n.Ctx)*s.nActors + int(n.Actor)) * 2
-	if n.Uncond {
-		k++
-	}
-	b := s.blockIdx[k]
-	if b < 0 {
-		b = int32(len(s.blocks))
-		s.blocks = append(s.blocks, block{actor: n.Actor, ctx: n.Ctx, uncond: n.Uncond, recs: make([]rec, s.nStats)})
-		s.blockIdx[k] = b
-	}
-	return uint32(b)*uint32(s.nStats) + uint32(n.Stat)
-}
-
-func (s *Session) node(id uint32) Node {
-	b := &s.blocks[id/uint32(s.nStats)]
-	return Node{Actor: b.actor, Stat: StatID(id % uint32(s.nStats)), Ctx: b.ctx, Uncond: b.uncond}
-}
-
-func (s *Session) rec(id uint32) *rec {
-	return &s.blocks[id/uint32(s.nStats)].recs[id%uint32(s.nStats)]
-}
-
-func (s *Session) checkNode(n Node) error {
-	if int(n.Actor) >= s.nActors {
-		return fmt.Errorf("%w: actor %d", ErrBadHandle, n.Actor)
-	}
-	if int(n.Stat) >= s.nStats {
-		return fmt.Errorf("%w: stat %d", ErrBadHandle, n.Stat)
-	}
-	if int(n.Ctx) >= len(s.masks) {
-		return fmt.Errorf("%w: context %d", ErrBadHandle, n.Ctx)
-	}
-	return nil
 }
 
 // Get returns the value of a stat of an actor in a context.
@@ -197,31 +166,6 @@ func (s *Session) GetNode(n Node) (float64, error) {
 		return 0, err
 	}
 	return v, nil
-}
-
-func (s *Session) recoverEval() {
-	if p := recover(); p != nil {
-		s.abort()
-		panic(p)
-	}
-}
-
-func (s *Session) takeErr() error {
-	err := s.err
-	if err != nil {
-		s.abort()
-	}
-	return err
-}
-
-// abort resets evaluation state after an error or panic; partial results are discarded.
-func (s *Session) abort() {
-	for _, id := range s.stack {
-		s.rec(id).busy = false
-	}
-	s.stack = s.stack[:0]
-	s.err = nil
-	s.Invalidate()
 }
 
 // Invalidate drops every cached value; the next reads recompute from scratch.
@@ -248,4 +192,65 @@ func (s *Session) Terms(n Node) ([]Term, float64, error) {
 		return nil, 0, err
 	}
 	return terms, v, nil
+}
+
+func (s *Session) nodeID(n Node) uint32 {
+	k := (int(n.Ctx)*s.nActors + int(n.Actor)) * blockKinds
+	if n.Uncond {
+		k++
+	}
+	b := s.blockIdx[k]
+	if b == 0 {
+		b = u32(len(s.blocks) + 1)
+		s.blocks = append(s.blocks, block{actor: n.Actor, ctx: n.Ctx, uncond: n.Uncond, recs: make([]rec, s.nStats)})
+		s.blockIdx[k] = b
+	}
+	return (b-1)*s.blockSize + uint32(n.Stat)
+}
+
+func (s *Session) node(id uint32) Node {
+	b := &s.blocks[id/s.blockSize]
+	return Node{Actor: b.actor, Stat: StatID(id % s.blockSize), Ctx: b.ctx, Uncond: b.uncond}
+}
+
+func (s *Session) rec(id uint32) *rec {
+	return &s.blocks[id/s.blockSize].recs[id%s.blockSize]
+}
+
+func (s *Session) checkNode(n Node) error {
+	if int(n.Actor) >= s.nActors {
+		return fmt.Errorf("%w: actor %d", ErrBadHandle, n.Actor)
+	}
+	if int(n.Stat) >= s.nStats {
+		return fmt.Errorf("%w: stat %d", ErrBadHandle, n.Stat)
+	}
+	if int(n.Ctx) >= len(s.masks) {
+		return fmt.Errorf("%w: context %d", ErrBadHandle, n.Ctx)
+	}
+	return nil
+}
+
+func (s *Session) recoverEval() {
+	if p := recover(); p != nil {
+		s.abort()
+		panic(p)
+	}
+}
+
+func (s *Session) takeErr() error {
+	err := s.err
+	if err != nil {
+		s.abort()
+	}
+	return err
+}
+
+// abort resets evaluation state after an error or panic; partial results are discarded.
+func (s *Session) abort() {
+	for _, id := range s.stack {
+		s.rec(id).busy = false
+	}
+	s.stack = s.stack[:0]
+	s.err = nil
+	s.Invalidate()
 }

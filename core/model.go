@@ -78,17 +78,20 @@ type Bit uint16
 // MaxBits is the number of context bits a Model can register over all dimensions.
 const MaxBits = 256
 
+// wordMask selects a bit's position within its 64-bit word of a Mask.
+const wordMask = 63
+
 // Mask is a set of context bits.
 type Mask [MaxBits / 64]uint64
 
 // Set returns m with bit b set.
 func (m Mask) Set(b Bit) Mask {
-	m[b>>6] |= 1 << (b & 63)
+	m[b>>6] |= 1 << (b & wordMask)
 	return m
 }
 
 // Has reports whether bit b is set.
-func (m Mask) Has(b Bit) bool { return m[b>>6]&(1<<(b&63)) != 0 }
+func (m Mask) Has(b Bit) bool { return m[b>>6]&(1<<(b&wordMask)) != 0 }
 
 // Intersects reports whether m and o share a bit.
 func (m Mask) Intersects(o Mask) bool {
@@ -114,8 +117,13 @@ type Dimension struct {
 	Values []string
 }
 
-// Bit returns the bit of the value at index i.
-func (d Dimension) Bit(i int) Bit { return d.First + Bit(i) }
+// Bit returns the bit of the value at index i. It panics if i is outside d.Values.
+func (d Dimension) Bit(i int) Bit {
+	if i < 0 || i >= len(d.Values) {
+		panic("core: dimension value index out of range")
+	}
+	return d.First + Bit(u16(i))
+}
 
 // ModelBuilder registers stats and context dimensions. The zero value is ready to use.
 type ModelBuilder struct {
@@ -134,10 +142,10 @@ func (b *ModelBuilder) AddStat(def StatDef) (StatID, error) {
 	if def.Round > RoundTrunc {
 		return 0, fmt.Errorf("%w: stat %q: rounding %d", ErrOutOfRange, def.Name, def.Round)
 	}
-	if def.Places < 0 || int(def.Places) >= len(pow10) {
-		return 0, fmt.Errorf("%w: stat %q: places %d, want 0 to %d", ErrOutOfRange, def.Name, def.Places, len(pow10)-1)
+	if def.Places < 0 || def.Places > maxPlaces {
+		return 0, fmt.Errorf("%w: stat %q: places %d, want 0 to %d", ErrOutOfRange, def.Name, def.Places, maxPlaces)
 	}
-	id := StatID(len(b.stats))
+	id := StatID(u32(len(b.stats)))
 	for _, inc := range def.Includes {
 		if inc >= id {
 			return 0, fmt.Errorf("%w: stat %q includes stat %d", ErrBadHandle, def.Name, inc)
@@ -179,7 +187,7 @@ func (b *ModelBuilder) AddDimension(name string, values ...string) (Dimension, e
 	if b.dimNames[name] {
 		return Dimension{}, fmt.Errorf("%w: dimension %q", ErrDuplicateName, name)
 	}
-	d := Dimension{Name: name, First: Bit(b.nBits), Values: slices.Clone(values)}
+	d := Dimension{Name: name, First: Bit(u16(b.nBits)), Values: slices.Clone(values)}
 	keys := map[string]Bit{}
 	for i, v := range values {
 		key := name + "." + v
@@ -250,14 +258,15 @@ func (d *StatDef) finish(r float64) float64 {
 		r = fmin(r, d.Max)
 	}
 	if d.Round != RoundNone {
-		p := pow10[d.Places]
+		p := math.Pow10(int(d.Places))
 		x := r
 		if d.Places != 0 {
 			x = float64(r * p)
 		}
+		//exhaustive:ignore // RoundNone is excluded by the enclosing if
 		switch d.Round {
 		case RoundHalf:
-			x = math.Floor(x + 0.5)
+			x = math.Floor(x + half)
 		case RoundFloor:
 			x = math.Floor(x)
 		case RoundTrunc:
@@ -271,7 +280,11 @@ func (d *StatDef) finish(r float64) float64 {
 	return r + 0.0 // normalise -0
 }
 
-var pow10 = [16]float64{1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15}
+const (
+	// maxPlaces is the most decimal places a stat can round to.
+	maxPlaces = 15
+	half      = 0.5
+)
 
 // fmin and fmax pick the first argument on ties, so signed zeros are deterministic.
 func fmin(a, b float64) float64 {

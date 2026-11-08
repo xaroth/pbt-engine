@@ -10,7 +10,7 @@ import (
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
-var anyValue = statdesc.Limit{Min: math.MinInt32, Max: math.MaxInt32}
+func anyValue() statdesc.Limit { return statdesc.Limit{Min: math.MinInt32, Max: math.MaxInt32} }
 
 func atLeast(n int32) statdesc.Limit { return statdesc.Limit{Min: n, Max: math.MaxInt32} }
 func atMost(n int32) statdesc.Limit  { return statdesc.Limit{Min: math.MinInt32, Max: n} }
@@ -19,7 +19,7 @@ func atMost(n int32) statdesc.Limit  { return statdesc.Limit{Min: math.MinInt32,
 func one(stat, text string, handlers ...statdesc.Handler) statdesc.Description {
 	return statdesc.Description{
 		Stats:    []string{stat},
-		Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}, Text: text, Handlers: handlers}},
+		Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue()}, Text: text, Handlers: handlers}},
 	}
 }
 
@@ -36,7 +36,7 @@ func testSet(t *testing.T) *statdesc.Set {
 		{
 			Stats: []string{"min_fire", "max_fire"},
 			Variants: []statdesc.Variant{
-				{Limits: []statdesc.Limit{anyValue, anyValue}, Text: "Adds {0} to {1} Fire Damage"},
+				{Limits: []statdesc.Limit{anyValue(), anyValue()}, Text: "Adds {0} to {1} Fire Damage"},
 			},
 		},
 		{
@@ -90,7 +90,10 @@ func TestDescribe(t *testing.T) {
 		{name: "later duplicate wins", scope: "parent", stats: map[string]int32{"dup": 1}, want: []string{"second"}},
 		{name: "unknown stat", scope: "parent", stats: map[string]int32{"nope": 1}, want: nil},
 		{name: "child overrides parent", scope: "child", stats: map[string]int32{"hidden": 1}, want: []string{"child text"}},
-		{name: "parent lines first", scope: "child", stats: map[string]int32{"range": 3, "strength": 1}, want: []string{"+1 to Strength", "+0.3 metres to Melee Strike Range"}},
+		{
+			name: "parent lines first", scope: "child", stats: map[string]int32{"range": 3, "strength": 1},
+			want: []string{"+1 to Strength", "+0.3 metres to Melee Strike Range"},
+		},
 		{name: "fixed decimals", scope: "child", stats: map[string]int32{"regen": 60}, want: []string{"Regenerate 1.00% of Life per second"}},
 		{name: "decimals if required", scope: "child", stats: map[string]int32{"regen_short": 90}, want: []string{"Regenerate 1.5% of Life per second"}},
 		{name: "newline", scope: "child", stats: map[string]int32{"cooldown": 1500}, want: []string{"1.5 second Cooldown\nCan be used once"}},
@@ -149,7 +152,7 @@ func TestNewSetErrors(t *testing.T) {
 		{name: "parent cycle", scopes: []statdesc.Scope{{Name: "a", Parent: "b"}, {Name: "b", Parent: "a"}}},
 		{name: "no stats", scopes: []statdesc.Scope{{Name: "a", Descriptions: []statdesc.Description{{}}}}},
 		{name: "limit count", scopes: []statdesc.Scope{{Name: "a", Descriptions: []statdesc.Description{{
-			Stats: []string{"x", "y"}, Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue}}},
+			Stats: []string{"x", "y"}, Variants: []statdesc.Variant{{Limits: []statdesc.Limit{anyValue()}}},
 		}}}}},
 		{name: "handler stat out of range", scopes: []statdesc.Scope{{Name: "a", Descriptions: []statdesc.Description{
 			one("x", "{0}", statdesc.Handler{Name: "negate", Stat: 1}),

@@ -33,59 +33,83 @@ func (t *Table) Check(s *dataset.Store, files map[resolve.Scope]string) error {
 	if m.Game != t.Game {
 		return fmt.Errorf("semantics: %w: table %s, dataset %s", ErrOtherGame, t.Game, m.Game)
 	}
-	version, err := dataset.ParseGameVersion(m.Version)
-	if err != nil {
-		return fmt.Errorf("semantics: dataset %w", err)
-	}
-	stats, err := s.Stats()
+	d, err := loadCheckData(s, files)
 	if err != nil {
 		return err
-	}
-	chars, err := s.Characters()
-	if err != nil {
-		return err
-	}
-	known := make(map[string]bool, len(stats))
-	for _, st := range stats {
-		known[st.ID] = true
-	}
-	var text *dataset.Text
-	if slices.Contains(m.Languages(), sourceLanguage) {
-		if text, err = s.Text(sourceLanguage); err != nil {
-			return err
-		}
 	}
 	var errs []error
 	for i := range t.Entries {
 		e := &t.Entries[i]
-		if !e.Holds(version) {
+		if !e.Holds(d.version) {
 			continue
 		}
-		if !known[e.Stat] {
-			errs = append(errs, fmt.Errorf("semantics: %s: %w %s", e, ErrUnknownStat, m.Version))
+		if !d.known[e.Stat] {
+			errs = append(errs, fmt.Errorf("semantics: %s: %w %s", e, ErrUnknownStat, d.name))
 		}
-		for _, src := range e.Sources {
-			var ok bool
-			switch src.Kind {
-			case Description:
-				if text == nil {
-					errs = append(errs, fmt.Errorf("semantics: %s: %w", e, ErrTextNotChecked))
-					continue
-				}
-				ok = src.Ref == renderedFrom(text, files[e.Scope], e.Stat) && describes(text, src, e.Stat)
-			case ObjectTemplate:
-				ok = everyCharacterHas(stats, chars, src.Text)
-			case GameData:
-				ok = carriesColumn(src.Ref, e.Stat)
-			default:
-				continue
-			}
-			if !ok {
-				errs = append(errs, fmt.Errorf("semantics: %s: %w %s: %s %s %q", e, ErrSourceMismatch, m.Version, src.Kind, src.Ref, src.Text))
-			}
-		}
+		errs = append(errs, d.checkSources(e)...)
 	}
 	return errors.Join(errs...)
+}
+
+// checkData is what Check compares entries against.
+type checkData struct {
+	name    string
+	version dataset.GameVersion
+	stats   []dataset.Stat
+	known   map[string]bool
+	chars   []dataset.Character
+	text    *dataset.Text // nil without the source language
+	files   map[resolve.Scope]string
+}
+
+func loadCheckData(s *dataset.Store, files map[resolve.Scope]string) (*checkData, error) {
+	m := s.Manifest()
+	d := &checkData{name: m.Version, files: files}
+	var err error
+	if d.version, err = dataset.ParseGameVersion(m.Version); err != nil {
+		return nil, fmt.Errorf("semantics: dataset %w", err)
+	}
+	if d.stats, err = s.Stats(); err != nil {
+		return nil, fmt.Errorf("semantics: load stats: %w", err)
+	}
+	if d.chars, err = s.Characters(); err != nil {
+		return nil, fmt.Errorf("semantics: load characters: %w", err)
+	}
+	d.known = make(map[string]bool, len(d.stats))
+	for _, st := range d.stats {
+		d.known[st.ID] = true
+	}
+	if slices.Contains(m.Languages(), sourceLanguage) {
+		if d.text, err = s.Text(sourceLanguage); err != nil {
+			return nil, fmt.Errorf("semantics: load text: %w", err)
+		}
+	}
+	return d, nil
+}
+
+func (d *checkData) checkSources(e *Entry) []error {
+	var errs []error
+	for _, src := range e.Sources {
+		var ok bool
+		switch src.Kind {
+		case Description:
+			if d.text == nil {
+				errs = append(errs, fmt.Errorf("semantics: %s: %w", e, ErrTextNotChecked))
+				continue
+			}
+			ok = src.Ref == renderedFrom(d.text, d.files[e.Scope], e.Stat) && describes(d.text, src, e.Stat)
+		case ObjectTemplate:
+			ok = everyCharacterHas(d.stats, d.chars, src.Text)
+		case GameData:
+			ok = carriesColumn(src.Ref, e.Stat)
+		default:
+			continue
+		}
+		if !ok {
+			errs = append(errs, fmt.Errorf("semantics: %s: %w %s: %s %s %q", e, ErrSourceMismatch, d.name, src.Kind, src.Ref, src.Text))
+		}
+	}
+	return errs
 }
 
 // renderedFrom returns the file a stat's text renders from when looked up in file: file or

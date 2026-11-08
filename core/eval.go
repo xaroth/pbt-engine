@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// percent is what a percentage value is divided by to give a fraction.
+const percent = 100.0
+
 func (s *Session) get(id uint32) float64 {
 	r := s.rec(id)
 	if r.busy {
@@ -127,10 +130,10 @@ func (s *Session) read(deps *[]uint32, ref Ref, fam uint8, actor ActorID, ctx Ct
 	}
 	n := Node{Actor: actor, Stat: ref.Stat, Ctx: ctx}
 	if ref.Actor != Self {
-		n.Actor = ActorID(ref.Actor)
+		n.Actor = ActorID(ref.Actor) //nolint:gosec // checkRef above rejected values outside ActorID
 	}
 	if ref.Ctx != Self {
-		n.Ctx = CtxID(ref.Ctx)
+		n.Ctx = CtxID(ref.Ctx) //nolint:gosec // checkRef above rejected values outside CtxID
 	}
 	n.Uncond = fam != 0 && s.m.stats[n.Stat].CycleFamily == fam
 	id := s.nodeID(n)
@@ -152,70 +155,97 @@ func (s *Session) eval(id uint32, deps *[]uint32, terms *[]Term) float64 {
 		if k >= 0 {
 			t = def.Includes[k]
 		}
-		fam := s.m.stats[t].CycleFamily
-		for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
-			if !s.mAlive[mi] || s.srcOff[s.mSource[mi]] {
+		s.sumStat(&agg, t, n, &mask, deps, terms)
+	}
+	return def.finish(s.total(def, agg, n, deps))
+}
+
+// sumStat adds to agg the modifiers of stat t that apply to node n.
+func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32, terms *[]Term) {
+	fam := s.m.stats[t].CycleFamily
+	for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
+		if !s.modLive(mi) || !s.predHolds(mi, mask) || (n.Uncond && !s.modPlain(mi)) {
+			continue
+		}
+		v := s.mValue[mi]
+		if !s.modPlain(mi) {
+			var ok bool
+			if v, ok = s.modValue(mi, n, fam, deps); !ok {
 				continue
-			}
-			if p := s.mPred[mi]; p >= 0 && !s.preds[p].matches(mask) {
-				continue
-			}
-			cs := s.conds[s.mCond[mi]:s.mCond[mi+1]]
-			ss := s.scales[s.mScale[mi]:s.mScale[mi+1]]
-			if n.Uncond && (len(cs) > 0 || len(ss) > 0) {
-				continue
-			}
-			ok := true
-			for i := range cs {
-				if !cs[i].holds(s.read(deps, cs[i].Ref, fam, n.Actor, n.Ctx)) {
-					ok = false
-					break
-				}
-			}
-			if !ok {
-				continue
-			}
-			v := s.mValue[mi]
-			for i := range ss {
-				sc := &ss[i]
-				q := math.Floor(s.read(deps, sc.Ref, fam, n.Actor, n.Ctx) / sc.Step)
-				if sc.HasCap {
-					q = fmin(q, sc.Cap)
-				}
-				v = float64(v * q)
-			}
-			switch s.mOp[mi] {
-			case OpBase:
-				agg.Base += v
-			case OpInc:
-				agg.Inc += v
-			case OpMore:
-				agg.More *= 1.0 + v/100.0
-			case OpOverride:
-				agg.Override = v
-				agg.HasOverride = true
-			case OpFlag:
-				agg.Flag = true
-			}
-			if terms != nil {
-				*terms = append(*terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: s.mOp[mi], Value: v})
 			}
 		}
+		aggregate(agg, s.mOp[mi], v)
+		if terms != nil {
+			*terms = append(*terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: s.mOp[mi], Value: v})
+		}
 	}
-	var r float64
+}
+
+// The three checks below run per modifier and are small enough for the compiler to inline.
+
+func (s *Session) modLive(mi uint32) bool { return s.mAlive[mi] && !s.srcOff[s.mSource[mi]] }
+
+func (s *Session) predHolds(mi uint32, mask *Mask) bool {
+	p := s.mPred[mi]
+	return p < 0 || s.preds[p].matches(*mask)
+}
+
+// modPlain reports whether modifier mi has no conditions or scales.
+func (s *Session) modPlain(mi uint32) bool {
+	return s.mCond[mi] == s.mCond[mi+1] && s.mScale[mi] == s.mScale[mi+1]
+}
+
+// modValue returns modifier mi's value after scaling; ok is false when a condition fails.
+func (s *Session) modValue(mi uint32, n Node, fam uint8, deps *[]uint32) (float64, bool) {
+	cs := s.conds[s.mCond[mi]:s.mCond[mi+1]]
+	for i := range cs {
+		if !cs[i].holds(s.read(deps, cs[i].Ref, fam, n.Actor, n.Ctx)) {
+			return 0, false
+		}
+	}
+	v := s.mValue[mi]
+	ss := s.scales[s.mScale[mi]:s.mScale[mi+1]]
+	for i := range ss {
+		sc := &ss[i]
+		q := math.Floor(s.read(deps, sc.Ref, fam, n.Actor, n.Ctx) / sc.Step)
+		if sc.HasCap {
+			q = fmin(q, sc.Cap)
+		}
+		v = float64(v * q)
+	}
+	return v, true
+}
+
+func aggregate(agg *Agg, op Op, v float64) {
+	switch op {
+	case OpBase:
+		agg.Base += v
+	case OpInc:
+		agg.Inc += v
+	case OpMore:
+		agg.More *= 1.0 + v/percent
+	case OpOverride:
+		agg.Override = v
+		agg.HasOverride = true
+	case OpFlag:
+		agg.Flag = true
+	}
+}
+
+// total returns a node's value from its aggregate, before the stat's clamp and rounding.
+func (s *Session) total(def *StatDef, agg Agg, n Node, deps *[]uint32) float64 {
 	switch {
 	case agg.HasOverride:
-		r = agg.Override
+		return agg.Override
 	case def.Formula != nil:
-		r = def.Formula(Reader{s: s, deps: deps, actor: n.Actor, ctx: n.Ctx, fam: def.CycleFamily}, agg)
+		return def.Formula(Reader{s: s, deps: deps, actor: n.Actor, ctx: n.Ctx, fam: def.CycleFamily}, agg)
 	case def.Flag:
 		if agg.Flag {
-			r = 1
+			return 1
 		}
-	default:
-		r = agg.Default()
+		return 0
 	}
-	return def.finish(r)
+	return agg.Default()
 }
 
 // Reader gives a formula access to other nodes. Every read becomes a dependency.

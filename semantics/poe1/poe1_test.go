@@ -19,10 +19,13 @@ import (
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
+//nolint:gochecknoglobals // the testing package parses flags before any test runs, so the flag must exist at package init
 var update = flag.Bool("update", false, "rewrite the golden files of excluded stats and the fixture datasets from $PBT_DATASETS")
 
 // versions are the real datasets the tests read from $PBT_DATASETS.
-var versions = []string{"3.28.0.16", "3.29.3.3"}
+func versions() []string {
+	return []string{"3.28.0.16", "3.29.3.3"}
+}
 
 // openReal opens a real dataset under $PBT_DATASETS, a directory with one dataset per
 // version, and skips the test when the variable is not set.
@@ -74,7 +77,7 @@ func checkTable(t *testing.T, s *dataset.Store) {
 
 func TestTableAgainstDatasets(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			checkTable(t, openReal(t, version))
@@ -86,7 +89,7 @@ func TestTableAgainstDatasets(t *testing.T) {
 // $PBT_DATASETS. TestFixtures keeps the fixtures in step with the real datasets.
 func TestTableAgainstFixtures(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			s, err := dataset.Open(os.DirFS(filepath.Join("testdata", "fixture", version)))
@@ -110,7 +113,7 @@ func TestFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			d := fixture(t, tbl, openReal(t, version))
@@ -180,6 +183,26 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 	if err != nil {
 		t.Fatal(err)
 	}
+	wanted := wantedStats(tbl)
+	d := &dataset.Dataset{Manifest: dataset.Manifest{Game: m.Game, Version: m.Version, Source: map[string]string{"fixtureOf": m.ID}}}
+	handle := map[uint32]uint32{} // real handle to fixture handle
+	for i, st := range stats {
+		if wanted[st.ID] {
+			handle[uint32(i)] = uint32(len(d.Stats))
+			d.Stats = append(d.Stats, st)
+		}
+	}
+	for _, c := range chars {
+		c.Stats = keepValues(handle, c.Stats)
+		d.Characters = append(d.Characters, c)
+	}
+	d.Trees = []dataset.Tree{fixtureTree(tree, handle)}
+	d.Texts = []dataset.Text{fixtureText(text, quotedVariants(tbl, version), wanted)}
+	return d
+}
+
+// wantedStats returns the stats of tbl's entries and object-template sources.
+func wantedStats(tbl *semantics.Table) map[string]bool {
 	wanted := map[string]bool{}
 	for _, e := range tbl.Entries {
 		wanted[e.Stat] = true
@@ -190,38 +213,32 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 			}
 		}
 	}
-	d := &dataset.Dataset{Manifest: dataset.Manifest{Game: m.Game, Version: m.Version, Source: map[string]string{"fixtureOf": m.ID}}}
-	handle := map[uint32]uint32{} // real handle to fixture handle
-	for i, st := range stats {
-		if wanted[st.ID] {
-			handle[uint32(i)] = uint32(len(d.Stats))
-			d.Stats = append(d.Stats, st)
+	return wanted
+}
+
+// keepValues returns the values of svs whose stat is in handle, under the fixture handles.
+func keepValues(handle map[uint32]uint32, svs []dataset.StatValue) []dataset.StatValue {
+	var out []dataset.StatValue
+	for _, sv := range svs {
+		if h, ok := handle[sv.Stat]; ok {
+			out = append(out, dataset.StatValue{Stat: h, Value: sv.Value})
 		}
 	}
-	keep := func(svs []dataset.StatValue) []dataset.StatValue {
-		var out []dataset.StatValue
-		for _, sv := range svs {
-			if h, ok := handle[sv.Stat]; ok {
-				out = append(out, dataset.StatValue{Stat: h, Value: sv.Value})
-			}
-		}
-		slices.SortFunc(out, func(a, b dataset.StatValue) int { return int(a.Stat) - int(b.Stat) })
-		return out
-	}
-	for _, c := range chars {
-		c.Stats = keep(c.Stats)
-		d.Characters = append(d.Characters, c)
-	}
+	slices.SortFunc(out, func(a, b dataset.StatValue) int { return int(a.Stat) - int(b.Stat) })
+	return out
+}
+
+func fixtureTree(tree *dataset.Tree, handle map[uint32]uint32) dataset.Tree {
 	ft := dataset.Tree{Variant: tree.Variant}
 	for _, n := range tree.Nodes {
-		fn := dataset.Node{ID: n.ID, Kind: n.Kind, Stats: keep(n.Stats)}
+		fn := dataset.Node{ID: n.ID, Kind: n.Kind, Stats: keepValues(handle, n.Stats)}
 		for _, b := range n.Buffs {
-			if kept := keep(b); len(kept) > 0 {
+			if kept := keepValues(handle, b); len(kept) > 0 {
 				fn.Buffs = append(fn.Buffs, kept)
 			}
 		}
 		for _, e := range n.MasteryEffects {
-			if kept := keep(e.Stats); len(kept) > 0 {
+			if kept := keepValues(handle, e.Stats); len(kept) > 0 {
 				fn.MasteryEffects = append(fn.MasteryEffects, dataset.MasteryEffect{ID: e.ID, Stats: kept})
 			}
 		}
@@ -229,10 +246,14 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 			ft.Nodes = append(ft.Nodes, fn)
 		}
 	}
-	d.Trees = []dataset.Tree{ft}
+	return ft
+}
 
-	// quoted holds the variants the table quotes, by file, stat and text.
-	type quote struct{ file, stat, text string }
+// quote is a variant the table quotes, by file, stat and text.
+type quote struct{ file, stat, text string }
+
+// quotedVariants returns the handlers of each variant tbl quotes at version.
+func quotedVariants(tbl *semantics.Table, version dataset.GameVersion) map[quote][]string {
 	quoted := map[quote][]string{}
 	for _, e := range tbl.Entries {
 		if !e.Holds(version) {
@@ -244,6 +265,10 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 			}
 		}
 	}
+	return quoted
+}
+
+func fixtureText(text *dataset.Text, quoted map[quote][]string, wanted map[string]bool) dataset.Text {
 	byName := map[string]statdesc.Scope{}
 	for _, sc := range text.Descriptions {
 		byName[sc.Name] = sc
@@ -257,32 +282,39 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 	slices.Sort(files)
 	ftext := dataset.Text{Language: "en"}
 	for _, f := range files {
-		sc := byName[f]
-		fsc := statdesc.Scope{Name: sc.Name, Parent: sc.Parent}
-		for _, desc := range sc.Descriptions {
-			fd := statdesc.Description{Stats: desc.Stats}
-			for _, va := range desc.Variants {
-				names := make([]string, len(va.Handlers))
-				for i, h := range va.Handlers {
-					names[i] = h.Name
-				}
-				if slices.ContainsFunc(desc.Stats, func(stat string) bool {
-					handlers, ok := quoted[quote{f, stat, va.Text}]
-					return ok && slices.Equal(handlers, names)
-				}) {
-					fd.Variants = append(fd.Variants, va)
-				}
-			}
-			// A description without a quoted variant stays, without text, so a stat renders from
-			// the same file as in the real dataset.
-			if slices.ContainsFunc(desc.Stats, func(stat string) bool { return wanted[stat] }) {
-				fsc.Descriptions = append(fsc.Descriptions, fd)
-			}
-		}
-		ftext.Descriptions = append(ftext.Descriptions, fsc)
+		ftext.Descriptions = append(ftext.Descriptions, fixtureScope(byName[f], quoted, wanted))
 	}
-	d.Texts = []dataset.Text{ftext}
-	return d
+	return ftext
+}
+
+func fixtureScope(sc statdesc.Scope, quoted map[quote][]string, wanted map[string]bool) statdesc.Scope {
+	fsc := statdesc.Scope{Name: sc.Name, Parent: sc.Parent}
+	for _, desc := range sc.Descriptions {
+		// A description without a quoted variant stays, without text, so a stat renders from
+		// the same file as in the real dataset.
+		if slices.ContainsFunc(desc.Stats, func(stat string) bool { return wanted[stat] }) {
+			fsc.Descriptions = append(fsc.Descriptions, statdesc.Description{Stats: desc.Stats, Variants: quotedOf(sc.Name, desc, quoted)})
+		}
+	}
+	return fsc
+}
+
+// quotedOf returns the variants of desc that the table quotes.
+func quotedOf(file string, desc statdesc.Description, quoted map[quote][]string) []statdesc.Variant {
+	var out []statdesc.Variant
+	for _, va := range desc.Variants {
+		names := make([]string, len(va.Handlers))
+		for i, h := range va.Handlers {
+			names[i] = h.Name
+		}
+		if slices.ContainsFunc(desc.Stats, func(stat string) bool {
+			handlers, ok := quoted[quote{file, stat, va.Text}]
+			return ok && slices.Equal(handlers, names)
+		}) {
+			out = append(out, va)
+		}
+	}
+	return out
 }
 
 // TestExcluded lists, per real dataset, the stats whose text matches the sheet phrases but
@@ -290,7 +322,7 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 // a change to the exclusions shows in review. Rewrite the files with -update.
 func TestExcluded(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions {
+	for _, version := range versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			s := openReal(t, version)
@@ -427,7 +459,8 @@ func TestFeedsSheet(t *testing.T) {
 				describe("cold_damage_+%_per_25_dexterity", "{0}% increased Cold Damage per 25 Dexterity"),
 				describe("maximum_physical_damage_reduction_%", "{0:+d}% to maximum Armour"),
 				describe("mana_regeneration_rate_per_minute_%_if_inflicted_exposure_recently", "Regenerate {0}% of Mana per second if you've inflicted Exposure Recently"),
-				describe("evasion_rating_+%_if_energy_shield_recharge_started_in_past_2_seconds", "{0}% increased Evasion Rating if Energy Shield Recharge has started in the past 2 seconds"),
+				describe("evasion_rating_+%_if_energy_shield_recharge_started_in_past_2_seconds",
+					"{0}% increased Evasion Rating if Energy Shield Recharge has started in the past 2 seconds"),
 				describe("energy_shield_recharge_rate_+%", "{0}% increased Energy Shield Recharge Rate"),
 				describe("fire_exposure_you_inflict_applies_extra_fire_resistance_+%", "Fire Exposure you inflict applies an extra {0:+d}% to Fire Resistance"),
 				{Stats: []string{"level"}},

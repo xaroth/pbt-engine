@@ -53,22 +53,13 @@ func Open(fsys fs.FS) (*Store, error) {
 		texts:    map[string]func() (*Text, error){},
 	}
 	for _, f := range m.Files {
-		s.files[f.Name] = f
-		switch {
-		case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile:
-		case isGroup(f.Name, treePrefix):
-			variant := groupTag(f.Name, treePrefix)
-			s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
-		case isGroup(f.Name, textPrefix):
-			lang := groupTag(f.Name, textPrefix)
-			s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
-		default:
-			return nil, fmt.Errorf("%s: unknown file %s", ManifestName, f.Name)
+		if err := registerFile(s, f); err != nil {
+			return nil, err
 		}
 	}
 	for _, name := range []string{charactersFile, constantsFile, statsFile} {
 		if _, ok := s.files[name]; !ok {
-			return nil, fmt.Errorf("%s: missing file %s", ManifestName, name)
+			return nil, fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
 		}
 	}
 	s.stats = sync.OnceValues(s.loadStats)
@@ -91,11 +82,11 @@ func readGroup[T any](s *Store, name string, decode func([]byte) (T, error)) (T,
 	f := s.files[name]
 	b, err := fs.ReadFile(s.fsys, name)
 	if err != nil {
-		return out, err
+		return out, fmt.Errorf("read %s: %w", name, err)
 	}
 	sum := sha256.Sum256(b)
 	if len(b) != f.Size || hex.EncodeToString(sum[:]) != f.SHA256 {
-		return out, fmt.Errorf("%s: size or sha256 differs from %s", name, ManifestName)
+		return out, fmt.Errorf("%s: size or sha256 differs from %s: %w", name, ManifestName, ErrInvalid)
 	}
 	err = decodeSafely(func(b []byte) (err error) { out, err = decode(b); return err }, b)
 	if err != nil {
@@ -124,7 +115,7 @@ func (s *Store) Constants() ([]Constant, error) { return s.constants() }
 func (s *Store) Tree(variant string) (*Tree, error) {
 	load, ok := s.trees[variant]
 	if !ok {
-		return nil, fmt.Errorf("dataset %s has no %s tree", s.manifest.Version, variant)
+		return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
 	}
 	return load()
 }
@@ -135,9 +126,104 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {
-		return nil, fmt.Errorf("dataset %s has no %s text", s.manifest.Version, language)
+		return nil, fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, language, ErrNotInDataset)
 	}
 	return load()
+}
+
+// Dataset returns stats, characters, constants and the trees and languages o selects, in
+// manifest order. It fails when a selected tree or language is missing or a group fails to
+// load. Text names of nodes are checked when o selects every tree, names of ascendancies
+// against the selected trees. The Dataset shares its tables with s and every other caller, so
+// it is read-only; Read gives a Dataset the caller owns.
+func (s *Store) Dataset(o Options) (*Dataset, error) {
+	if err := checkOptions(s, o); err != nil {
+		return nil, err
+	}
+	d := &Dataset{Manifest: s.manifest}
+	var err error
+	if d.Stats, err = s.Stats(); err != nil {
+		return nil, err
+	}
+	if d.Characters, err = s.Characters(); err != nil {
+		return nil, err
+	}
+	if d.Constants, err = s.Constants(); err != nil {
+		return nil, err
+	}
+	allTrees, err := loadTrees(s, d, o)
+	if err != nil {
+		return nil, err
+	}
+	if err := loadTexts(s, d, o); err != nil {
+		return nil, err
+	}
+	if err := validateNames(d.Texts, d.Trees, allTrees); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// registerFile records f and, for a tree or text file, how to load it.
+func registerFile(s *Store, f File) error {
+	s.files[f.Name] = f
+	switch {
+	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile:
+	case isGroup(f.Name, treePrefix):
+		variant := groupTag(f.Name, treePrefix)
+		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
+	case isGroup(f.Name, textPrefix):
+		lang := groupTag(f.Name, textPrefix)
+		s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
+	default:
+		return fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
+	}
+	return nil
+}
+
+func checkOptions(s *Store, o Options) error {
+	for _, variant := range o.Trees {
+		if _, ok := s.trees[variant]; !ok {
+			return fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
+		}
+	}
+	for _, lang := range o.Languages {
+		if _, ok := s.texts[lang]; !ok {
+			return fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, lang, ErrNotInDataset)
+		}
+	}
+	return nil
+}
+
+// loadTrees adds the selected trees to d and reports whether they are every tree of s.
+func loadTrees(s *Store, d *Dataset, o Options) (bool, error) {
+	allTrees := true
+	for _, variant := range s.manifest.Trees() {
+		if !slices.Contains(o.Trees, variant) {
+			allTrees = false
+			continue
+		}
+		t, err := s.Tree(variant)
+		if err != nil {
+			return false, err
+		}
+		d.Trees = append(d.Trees, *t)
+	}
+	return allTrees, nil
+}
+
+func loadTexts(s *Store, d *Dataset, o Options) error {
+	for _, lang := range s.manifest.Languages() {
+		if !slices.Contains(o.Languages, lang) {
+			continue
+		}
+		t, err := s.Text(lang)
+		if err != nil {
+			return err
+		}
+		d.Texts = append(d.Texts, *t)
+	}
+	return nil
 }
 
 func (s *Store) loadStats() (statsGroup, error) {
@@ -186,7 +272,7 @@ func (s *Store) loadTree(variant string) (*Tree, error) {
 		return nil, err
 	}
 	if t.Variant != variant {
-		return nil, fmt.Errorf("%s: holds tree variant %q", name, t.Variant)
+		return nil, fmt.Errorf("%s: holds tree variant %q: %w", name, t.Variant, ErrInvalid)
 	}
 	if err := validateTree(len(st.stats), chars, t); err != nil {
 		return nil, err
@@ -205,65 +291,10 @@ func (s *Store) loadText(language string) (*Text, error) {
 		return nil, err
 	}
 	if t.Language != language {
-		return nil, fmt.Errorf("%s: holds text language %q", name, t.Language)
+		return nil, fmt.Errorf("%s: holds text language %q: %w", name, t.Language, ErrInvalid)
 	}
 	if err := validateText(chars, t); err != nil {
 		return nil, err
 	}
 	return &t, nil
-}
-
-// Dataset returns stats, characters, constants and the trees and languages o selects, in
-// manifest order. It fails when a selected tree or language is missing or a group fails to
-// load. Text names of nodes are checked when o selects every tree, names of ascendancies
-// against the selected trees. The Dataset shares its tables with s and every other caller, so
-// it is read-only; Read gives a Dataset the caller owns.
-func (s *Store) Dataset(o Options) (*Dataset, error) {
-	for _, variant := range o.Trees {
-		if _, ok := s.trees[variant]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s tree", s.manifest.Version, variant)
-		}
-	}
-	for _, lang := range o.Languages {
-		if _, ok := s.texts[lang]; !ok {
-			return nil, fmt.Errorf("dataset %s has no %s text", s.manifest.Version, lang)
-		}
-	}
-	d := &Dataset{Manifest: s.manifest}
-	var err error
-	if d.Stats, err = s.Stats(); err != nil {
-		return nil, err
-	}
-	if d.Characters, err = s.Characters(); err != nil {
-		return nil, err
-	}
-	if d.Constants, err = s.Constants(); err != nil {
-		return nil, err
-	}
-	allTrees := true
-	for _, variant := range s.manifest.Trees() {
-		if !slices.Contains(o.Trees, variant) {
-			allTrees = false
-			continue
-		}
-		t, err := s.Tree(variant)
-		if err != nil {
-			return nil, err
-		}
-		d.Trees = append(d.Trees, *t)
-	}
-	for _, lang := range s.manifest.Languages() {
-		if !slices.Contains(o.Languages, lang) {
-			continue
-		}
-		t, err := s.Text(lang)
-		if err != nil {
-			return nil, err
-		}
-		d.Texts = append(d.Texts, *t)
-	}
-	if err := validateNames(d.Texts, d.Trees, allTrees); err != nil {
-		return nil, err
-	}
-	return d, nil
 }
