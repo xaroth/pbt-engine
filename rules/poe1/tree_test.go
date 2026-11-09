@@ -155,8 +155,8 @@ func TestWholeTreeSheetEqualsBuildSheet(t *testing.T) {
 	}
 }
 
-// Random allocations, mastery choices and config on one whole-tree sheet equal a sheet opened
-// fresh for each build.
+// Random levels, allocations, mastery choices and config on one whole-tree sheet equal a sheet
+// opened fresh for each build.
 func TestWholeTreeSheetEdits(t *testing.T) {
 	t.Parallel()
 	const version = "3.29.3.3"
@@ -182,8 +182,12 @@ func TestWholeTreeSheetEdits(t *testing.T) {
 			t.Fatal(err)
 		}
 		cfg, _ := config.Resolve(rules.ConfigSpecs(), config.Layer{Source: config.FromBuild, Values: v})
+		b.Level = 1 + r.IntN(100)
 		c := checked(t, b, s)
 		cb := c.Build()
+		if err := tree.SetLevel(cb.Level); err != nil {
+			t.Fatal(err)
+		}
 		tree.SetNodes(cb.Nodes, cb.Masteries)
 		tree.SetConfig(cfg)
 		sameOutputs(t, "step "+string(rune('a'+step%26)), sheetOf(t, c, false, cfg), tree)
