@@ -23,7 +23,8 @@ const (
 
 // testStore is a dataset with two classes on one tree: Marauder starts at 1 with ascendancy
 // nodes 10 and 12 (Juggernaut, from its start 20; 12 grants a point) and 11 (Berserker);
-// Ranger starts at 2. Masteries 4 and 5 hang off 3 and share effect 7; 6 joins nothing.
+// Ranger starts at 2. Masteries 4 and 5 hang off 3 and share effect 7; 30 is reached only
+// through mastery 4; 6 joins nothing. Juggernaut's 13 is a choice node with options 14 and 15.
 func testStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	d := &dataset.Dataset{
@@ -40,13 +41,17 @@ func testStore(t *testing.T) *dataset.Store {
 				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{3}},
 				{ID: 2, Kind: dataset.ClassStart, Neighbours: []uint32{3}},
 				{ID: 3, Neighbours: []uint32{1, 2, 4, 5}, Stats: []dataset.StatValue{{Stat: 0, Value: 10}}},
-				{ID: 4, Kind: dataset.Mastery, Neighbours: []uint32{3}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 8}}},
+				{ID: 4, Kind: dataset.Mastery, Neighbours: []uint32{3, 30}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 8}}},
 				{ID: 5, Kind: dataset.Mastery, Neighbours: []uint32{3}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 9}}},
 				{ID: 6},
 				{ID: 10, Ascendancy: "Juggernaut", Neighbours: []uint32{20}},
 				{ID: 11, Ascendancy: "Berserker"},
 				{ID: 12, Ascendancy: "Juggernaut", Neighbours: []uint32{20}, SkillPoints: 1},
-				{ID: 20, Kind: dataset.AscendancyStart, Ascendancy: "Juggernaut", Neighbours: []uint32{10, 12}},
+				{ID: 13, Ascendancy: "Juggernaut", Neighbours: []uint32{14, 15, 20}, MultipleChoice: true},
+				{ID: 14, Ascendancy: "Juggernaut", Neighbours: []uint32{13}, MultipleChoiceOption: true},
+				{ID: 15, Ascendancy: "Juggernaut", Neighbours: []uint32{13}, MultipleChoiceOption: true},
+				{ID: 20, Kind: dataset.AscendancyStart, Ascendancy: "Juggernaut", Neighbours: []uint32{10, 12, 13}},
+				{ID: 30, Neighbours: []uint32{4}},
 			},
 		}},
 	}
@@ -250,6 +255,17 @@ func TestCheckWarnings(t *testing.T) {
 					t.Errorf("nodes %v", b.Nodes)
 				}
 			}},
+		{"through a mastery", func(b *build.Build) {
+			b.Nodes = append(b.Nodes, 4, 30)
+			b.Masteries = map[uint32]uint32{4: 7}
+		}, []build.Code{build.NodesDisconnected}, nil},
+		{"two options of one choice", func(b *build.Build) { b.Nodes = append(b.Nodes, 13, 14, 15) }, []build.Code{build.ChoiceRepeated},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if slices.Contains(b.Nodes, 15) || !slices.Contains(b.Nodes, 14) {
+					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
 		{"disconnected", func(b *build.Build) { b.Nodes = append(b.Nodes, 6) }, []build.Code{build.NodesDisconnected},
 			func(t *testing.T, b build.Build) {
 				t.Helper()
@@ -275,34 +291,41 @@ func TestCheckWarnings(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			b := juggernaut()
-			testCase.edit(b)
-			original := b.Clone()
-			c, warnings, err := build.Check(b, s)
-			if err != nil {
-				t.Fatal(err)
-			}
-			codes := make([]build.Code, 0, len(warnings))
-			for _, w := range warnings {
-				codes = append(codes, w.Code)
-			}
-			if diff := cmp.Diff(testCase.codes, codes, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
-			}
-			if testCase.check != nil {
-				testCase.check(t, c.Build())
-			}
-			if diff := cmp.Diff(original, b); diff != "" {
-				t.Errorf("Check changed its argument (-want +got):\n%s", diff)
-			}
+			checkWarnings(t, s, testCase.edit, testCase.codes, testCase.check)
 		})
+	}
+}
+
+// checkWarnings checks juggernaut() edited by edit: the warning codes, the checked build by
+// check when not nil, and that Check left its argument alone.
+func checkWarnings(t *testing.T, s *dataset.Store, edit func(*build.Build), want []build.Code, check func(*testing.T, build.Build)) {
+	t.Helper()
+	b := juggernaut()
+	edit(b)
+	original := b.Clone()
+	c, warnings, err := build.Check(b, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes := make([]build.Code, 0, len(warnings))
+	for _, w := range warnings {
+		codes = append(codes, w.Code)
+	}
+	if diff := cmp.Diff(want, codes, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
+	}
+	if check != nil {
+		check(t, c.Build())
+	}
+	if diff := cmp.Diff(original, b); diff != "" {
+		t.Errorf("Check changed its argument (-want +got):\n%s", diff)
 	}
 }
 
 func TestCheckedMasteriesAndPoints(t *testing.T) {
 	t.Parallel()
 	b := juggernaut()
-	b.Nodes = append(b.Nodes, 4, 12, 20)
+	b.Nodes = append(b.Nodes, 4, 12, 13, 14, 20)
 	b.Masteries = map[uint32]uint32{4: 8}
 	c, warnings, err := build.Check(b, testStore(t))
 	if err != nil || len(warnings) != 0 {
@@ -312,8 +335,9 @@ func TestCheckedMasteriesAndPoints(t *testing.T) {
 	if len(ms) != 1 || ms[0].Node.ID != 4 || ms[0].Effect.ID != 8 {
 		t.Errorf("masteries %+v", ms)
 	}
-	// 3 and 4 passive (1 is the start); 10 and 12 ascendancy (20 is its start); 12 grants 1
-	if p, a, g := c.Points(); p != 2 || a != 2 || g != 1 {
+	// 3 and 4 passive (1 is the start); 10, 12 and 13 ascendancy (20 is its start, option 14 is
+	// free); 12 grants 1
+	if p, a, g := c.Points(); p != 2 || a != 3 || g != 1 {
 		t.Errorf("points: %d passive, %d ascendancy, %d granted", p, a, g)
 	}
 }

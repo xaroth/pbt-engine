@@ -39,6 +39,7 @@ const (
 	MasteryEffectUnknown  Code = "mastery-effect-unknown"
 	MasteryEffectRepeated Code = "mastery-effect-repeated"
 	MasteryNotChosen      Code = "mastery-not-chosen"
+	ChoiceRepeated        Code = "choice-repeated"
 )
 
 // Warning is something a run can go on without; Message says what was done about it. Subject
@@ -144,6 +145,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	c.checkAscendancy()
 	c.checkLevel()
 	c.checkNodes()
+	c.checkChoices()
 	c.checkConnected()
 	c.checkMasteries()
 	return c, slices.Clone(c.warnings), nil
@@ -170,11 +172,11 @@ func (c *Checked) Masteries() []MasteryChoice { return slices.Clone(c.masteries)
 
 // Points returns the passive points the allocation uses: passive nodes other than the class
 // start, ascendancy nodes other than the ascendancy start, and the points the allocated nodes
-// grant.
+// grant. An option of a multiple-choice node is free: its parent paid the point.
 func (c *Checked) Points() (passive, ascendancy, granted int) {
 	for _, n := range c.nodes {
 		switch {
-		case n.Kind == dataset.ClassStart, n.Kind == dataset.AscendancyStart:
+		case n.Kind == dataset.ClassStart, n.Kind == dataset.AscendancyStart, n.MultipleChoiceOption:
 		case n.Ascendancy != "":
 			ascendancy++
 		default:
@@ -297,7 +299,45 @@ func (c *Checked) checkConnected() {
 	}
 }
 
-// reach returns the nodes reachable from roots through nodes in allowed.
+// checkChoices keeps one option per multiple-choice node, the lowest id, and drops the others:
+// a choice node takes one of its options.
+func (c *Checked) checkChoices() {
+	taken := map[uint32]uint32{}
+	var dropped []uint32
+	for _, n := range c.nodes {
+		p := c.choiceOf(n)
+		if p == nil {
+			continue
+		}
+		if first, ok := taken[p.ID]; ok {
+			c.warnf(ChoiceRepeated, fmt.Sprintf("node %d", n.ID), "node %d already takes option %d; dropped", p.ID, first)
+			dropped = append(dropped, n.ID)
+		} else {
+			taken[p.ID] = n.ID
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	c.nodes = slices.DeleteFunc(c.nodes, func(n *dataset.Node) bool { return slices.Contains(dropped, n.ID) })
+	c.build.Nodes = slices.DeleteFunc(c.build.Nodes, func(id uint32) bool { return slices.Contains(dropped, id) })
+}
+
+// choiceOf returns the multiple-choice node n is an option of, or nil.
+func (c *Checked) choiceOf(n *dataset.Node) *dataset.Node {
+	if !n.MultipleChoiceOption {
+		return nil
+	}
+	for _, nb := range n.Neighbours {
+		if p := c.node(nb); p != nil && p.MultipleChoice {
+			return p
+		}
+	}
+	return nil
+}
+
+// reach returns the nodes reachable from roots through nodes in allowed. A mastery is reached
+// but not passed through: its edges say which notables unlock it, not a path.
 func (c *Checked) reach(roots []uint32, allowed map[uint32]bool) map[uint32]bool {
 	reached := map[uint32]bool{}
 	queue := slices.Clone(roots)
@@ -308,7 +348,7 @@ func (c *Checked) reach(roots []uint32, allowed map[uint32]bool) map[uint32]bool
 			continue
 		}
 		reached[id] = true
-		if n := c.node(id); n != nil {
+		if n := c.node(id); n != nil && n.Kind != dataset.Mastery {
 			for _, nb := range n.Neighbours {
 				if allowed[nb] && !reached[nb] {
 					queue = append(queue, nb)
