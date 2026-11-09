@@ -142,3 +142,28 @@ func TestCompare(t *testing.T) {
 		t.Errorf("same build:\n%s", got)
 	}
 }
+
+func TestPower(t *testing.T) {
+	t.Parallel()
+	root := writeSimRoot(t)
+	path := buildWith(t, "")
+	got := runOut(t, "power", path, "--root", root)
+	// node 2 gives 20 life
+	if !strings.Contains(got, "by player.life, the node alone, 1 candidates on dataset 3.29.3.3") || !strings.Contains(got, "  1          20  node 2") {
+		t.Errorf("alone:\n%s", got)
+	}
+	got = runOut(t, "power", path, "--root", root, "--mode", "path", "--max-distance", "1", "--top", "5")
+	if !strings.Contains(got, "  1          20          20 in  1  node 2") {
+		t.Errorf("path:\n%s", got)
+	}
+	for name, args := range map[string][]string{
+		"bad mode":     {"--mode", "cheapest"},
+		"bad top":      {"--top", "-1"},
+		"bad distance": {"--max-distance", "x"},
+		"bad output":   {"--by", "player.nothing"},
+	} {
+		if err := run(append([]string{"power", path, "--root", root}, args...), io.Discard, io.Discard); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+}
