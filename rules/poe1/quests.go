@@ -1,6 +1,7 @@
 package poe1
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
@@ -70,30 +71,11 @@ func (sh *Sheet) noted(src core.SourceID) bool {
 	return slices.ContainsFunc(sh.notes, func(n sourcedNote) bool { return n.always && n.src == src })
 }
 
-// SetNodes turns node sources on for the allocated nodes and the chosen mastery effects and off
-// for the rest, for a sheet opened over resolve.ResolveTree. Other sources are left as they are.
-func (sh *Sheet) SetNodes(nodes []uint32, masteries map[uint32]uint32) {
-	on := make(map[uint32]bool, len(nodes))
-	for _, n := range nodes {
-		on[n] = true
-	}
-	for id, src := range sh.sources {
-		if src.Bundle == nil {
-			continue
-		}
-		n, ok := src.Bundle.Source.(resolve.NodeSource)
-		if !ok {
-			continue
-		}
-		enabled := on[n.ID] && (n.Effect == 0 || masteries[n.ID] == n.Effect)
-		// id is a source of this session, so this cannot fail.
-		_ = sh.session.SetSourceEnabled(core.SourceID(id), enabled)
-	}
-}
-
 // SetLevel switches the sheet to character level: the level bundle of that level goes on,
 // the others off. A level not seen yet gets its bundle added once, so a sheet serves every
-// level without being opened again.
+// level without being opened again. Adding is refused while a checkpoint is open
+// (ErrCheckpointOpen), since Revert could not take it back; switching to a level seen before
+// is fine.
 func (sh *Sheet) SetLevel(level int) error {
 	found := false
 	for id, src := range sh.sources {
@@ -110,6 +92,9 @@ func (sh *Sheet) SetLevel(level int) error {
 	}
 	if found {
 		return nil
+	}
+	if sh.marked {
+		return fmt.Errorf("%w: level %d", ErrCheckpointOpen, level)
 	}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.LevelSource{},
 		Stats: []resolve.StatValue{{Stat: resolve.LevelStat, Value: float64(level)}}}

@@ -2,6 +2,7 @@ package poe1_test
 
 import (
 	"cmp"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -226,4 +227,95 @@ func BenchmarkOpenSheet(b *testing.B) {
 			}
 		}
 	})
+}
+
+// outputs reads every catalogue output's bits.
+func outputs(tb testing.TB, sh *rules.Sheet) []uint64 {
+	tb.Helper()
+	out := make([]uint64, 0, len(rules.Outputs()))
+	for _, o := range rules.Outputs() {
+		v, err := sh.Output(o.Key)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		out = append(out, math.Float64bits(v))
+	}
+	return out
+}
+
+// Switching one node or mastery effect in a checkpoint equals SetNodes with it, and Revert
+// gives back the bits before.
+func TestSetNodeAndRevert(t *testing.T) {
+	t.Parallel()
+	const version = "3.29.3.3"
+	s := fixtureStore(t, version)
+	base := checked(t, chieftain(t, s, version), s)
+	sh := sheetOf(t, base, true, rules.DefaultConfig())
+	before := outputs(t, sh)
+	tree, err := s.Tree("standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cb := base.Build()
+	tried := 0
+	for _, n := range tree.Nodes {
+		if slices.Contains(cb.Nodes, n.ID) || n.Ascendancy != "" || tried >= 25 {
+			continue
+		}
+		with := cb.Clone()
+		with.Nodes = append(with.Nodes, n.ID)
+		cp := sh.Mark()
+		if n.Kind == dataset.Mastery && len(n.MasteryEffects) > 0 {
+			with.Masteries[n.ID] = n.MasteryEffects[0].ID
+			sh.SetMasteryEffect(n.ID, n.MasteryEffects[0].ID, true)
+		} else if !sh.SetNode(n.ID, true) {
+			t.Fatalf("node %d with stats not on the sheet", n.ID)
+		}
+		want := sheetOf(t, base, true, rules.DefaultConfig())
+		want.SetNodes(with.Nodes, with.Masteries)
+		if !slices.Equal(outputs(t, want), outputs(t, sh)) {
+			t.Fatalf("node %d: SetNode differs from SetNodes", n.ID)
+		}
+		if err := sh.Revert(cp); err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(before, outputs(t, sh)) {
+			t.Fatalf("node %d: revert did not restore the outputs", n.ID)
+		}
+		tried++
+	}
+	sh.Commit()
+	if sh.SetNode(999999999, true) {
+		t.Error("an unknown node reported on the sheet")
+	}
+}
+
+// A level not seen yet cannot be added inside a checkpoint; the reviewer's sequence (Mark,
+// SetLevel(37), Revert, Commit, SetLevel(37)) now gives level 37.
+func TestSetLevelInCheckpoint(t *testing.T) {
+	t.Parallel()
+	const version = "3.29.3.3"
+	s := fixtureStore(t, version)
+	c := checked(t, chieftain(t, s, version), s)
+	sh := sheetOf(t, c, true, rules.DefaultConfig())
+	cp := sh.Mark()
+	if err := sh.SetLevel(37); !errors.Is(err, rules.ErrCheckpointOpen) {
+		t.Fatalf("add in checkpoint: %v", err)
+	}
+	if err := sh.SetLevel(90); err != nil {
+		t.Errorf("switch to a known level in checkpoint: %v", err)
+	}
+	if err := sh.Revert(cp); err != nil {
+		t.Fatal(err)
+	}
+	sh.Commit()
+	if err := sh.SetLevel(37); err != nil {
+		t.Fatal(err)
+	}
+	b := c.Build()
+	b.Level = 37
+	fresh := sheetOf(t, checked(t, &b, s), false, rules.DefaultConfig())
+	if !slices.Equal(outputs(t, fresh), outputs(t, sh)) {
+		t.Error("level 37 after the checkpoint differs from a fresh level 37 sheet")
+	}
 }

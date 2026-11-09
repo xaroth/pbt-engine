@@ -22,6 +22,9 @@ var (
 	ErrConstant = errors.New("missing or malformed constant")
 	// ErrActor marks a bundle for an actor the sheet does not model yet.
 	ErrActor = errors.New("actor not supported")
+	// ErrCheckpointOpen marks a change that adds to the sheet, such as a level not seen yet,
+	// while a checkpoint is open: Revert could not take the addition back.
+	ErrCheckpointOpen = errors.New("sheet: cannot add while a checkpoint is open")
 )
 
 // NoteKind says why a bundle stat is not, or not fully, in the sheet.
@@ -86,6 +89,10 @@ type Sheet struct {
 	// table and gameVersion turn bundles added after Open, such as other levels, into modifiers.
 	table       *semantics.Table
 	gameVersion dataset.GameVersion
+	// nodes maps a node, or a mastery node and effect, to its sources (global and buff bundles).
+	nodes map[resolve.NodeSource][]core.SourceID
+	// marked is true from Mark to Commit: switches are journalled, additions refused.
+	marked bool
 }
 
 // sourcedNote is a note and the core source of its bundle; always marks notes that hold
@@ -161,7 +168,16 @@ func (sh *Sheet) Value(name string) (float64, error) {
 // newSource adds a core source described by d.
 func (sh *Sheet) newSource(d Source) core.SourceID {
 	sh.sources = append(sh.sources, d)
-	return sh.session.NewSource()
+	id := sh.session.NewSource()
+	if d.Bundle != nil {
+		if n, ok := d.Bundle.Source.(resolve.NodeSource); ok {
+			if sh.nodes == nil {
+				sh.nodes = map[resolve.NodeSource][]core.SourceID{}
+			}
+			sh.nodes[n] = append(sh.nodes[n], id)
+		}
+	}
+	return id
 }
 
 // proportion returns the proportional view of engine stat name.
