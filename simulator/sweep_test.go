@@ -38,13 +38,64 @@ func randomVariant(r *rand.Rand) []build.Edit {
 	return out
 }
 
-// Every variant's values equal simulating the edited build, bit for bit, whatever the number of
-// workers; ranking equals sorting those values.
-func TestSweepEqualsBruteForce(t *testing.T) {
+// dirtyBases are bases the check changes: a choice on an unallocated mastery, two options of
+// one choice node, one effect on two masteries, an unknown node.
+func dirtyBases() map[string]*build.Build {
+	stale := marauderBuild(70, 2, 4)
+	stale.Masteries = map[uint32]uint32{4: 7, 6: 9}
+	options := marauderBuild(70, 2, 8, 10, 11)
+	shared := marauderBuild(70, 4, 6)
+	shared.Masteries = map[uint32]uint32{4: 7, 6: 7}
+	unknown := marauderBuild(70, 2, 99)
+	return map[string]*build.Build{"stale mastery choice": stale, "two options": options, "shared effect": shared, "unknown node": unknown}
+}
+
+// The reviewer's cases: an edit brings back what the check dropped from the base.
+func TestSweepDirtyBase(t *testing.T) {
 	t.Parallel()
 	s := newSim(t)
-	base := marauderBuild(70, 2, 4, 8, 10)
-	base.Masteries = map[uint32]uint32{4: 7}
+	bases := dirtyBases()
+	for name, tc := range map[string]struct {
+		base  *build.Build
+		edits []build.Edit
+	}{
+		"stale mastery choice comes back": {bases["stale mastery choice"], []build.Edit{build.Allocate(6)}},
+		"dropped option comes back":       {bases["two options"], []build.Edit{build.Deallocate(10)}},
+		"dropped repeated effect":         {bases["shared effect"], []build.Edit{build.ClearMastery(4)}},
+	} {
+		res, err := s.Sweep(tc.base, [][]build.Edit{tc.edits}, simulator.Outputs(poe1.Life))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := tc.base.Clone()
+		if err := b.Apply(tc.edits...); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := res[0].Changes[poe1.Life].After, get(t, simulate(t, newSim(t), b), poe1.Life); got != want {
+			t.Errorf("%s: sweep %v, simulate %v", name, got, want)
+		}
+	}
+}
+
+// Every variant's values equal simulating the edited build, bit for bit, whatever the number of
+// workers, on clean and dirty bases; ranking equals sorting those values.
+func TestSweepEqualsBruteForce(t *testing.T) {
+	t.Parallel()
+	clean := marauderBuild(70, 2, 4, 8, 10)
+	clean.Masteries = map[uint32]uint32{4: 7}
+	bases := dirtyBases()
+	bases["clean"] = clean
+	for name, base := range bases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			bruteForce(t, base)
+		})
+	}
+}
+
+func bruteForce(t *testing.T, base *build.Build) {
+	t.Helper()
+	s := newSim(t)
 	r := rand.New(rand.NewPCG(10, 1))
 	variants := make([][]build.Edit, 120)
 	for i := range variants {
@@ -61,20 +112,7 @@ func TestSweepEqualsBruteForce(t *testing.T) {
 	}
 	before := simulate(t, newSim(t), base)
 	for i, v := range variants {
-		b := base.Clone()
-		if err := b.Apply(v...); err != nil {
-			t.Fatal(err)
-		}
-		want := simulate(t, newSim(t), b)
-		for _, k := range keys {
-			for name, res := range map[string]simulator.Result{"1 worker": one[i], "4 workers": many[i]} {
-				c := res.Changes[k]
-				if res.Err != nil || res.Index != i || math.Float64bits(c.After) != math.Float64bits(get(t, want, k)) ||
-					math.Float64bits(c.Before) != math.Float64bits(get(t, before, k)) {
-					t.Fatalf("%s variant %d %v %s: %+v, err %v; want %v", name, i, v, k, c, res.Err, get(t, want, k))
-				}
-			}
-		}
+		checkVariant(t, base, before, i, v, keys, map[string]simulator.Result{"1 worker": one[i], "4 workers": many[i]})
 	}
 	ranked, err := s.Sweep(base, variants, simulator.Outputs(poe1.Mana), simulator.RankBy(poe1.Life))
 	if err != nil {
@@ -91,6 +129,25 @@ func TestSweepEqualsBruteForce(t *testing.T) {
 	}
 	if _, ok := ranked[0].Changes[poe1.Mana]; !ok {
 		t.Error("asked output missing from ranked results")
+	}
+}
+
+// checkVariant compares results of variant i with simulating the edited build.
+func checkVariant(t *testing.T, base *build.Build, before *simulator.Stats, i int, v []build.Edit, keys []output.Key, results map[string]simulator.Result) {
+	t.Helper()
+	b := base.Clone()
+	if err := b.Apply(v...); err != nil {
+		t.Fatal(err)
+	}
+	want := simulate(t, newSim(t), b)
+	for _, k := range keys {
+		for name, res := range results {
+			c := res.Changes[k]
+			if res.Err != nil || res.Index != i || math.Float64bits(c.After) != math.Float64bits(get(t, want, k)) ||
+				math.Float64bits(c.Before) != math.Float64bits(get(t, before, k)) {
+				t.Fatalf("%s variant %d %v %s: %+v, err %v; want %v", name, i, v, k, c, res.Err, get(t, want, k))
+			}
+		}
 	}
 }
 
@@ -153,5 +210,29 @@ func TestSweepPaths(t *testing.T) {
 		if err != nil || fast != tc.fast {
 			t.Errorf("%s: fast %v, want %v (%v)", name, fast, tc.fast, err)
 		}
+	}
+}
+
+// Fast and full variants report the same warnings: those about their edits.
+func TestSweepWarningsAlike(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	base := marauderBuild(70, 2, 99)
+	res, err := s.Sweep(base, [][]build.Edit{
+		{build.Allocate(98)},                        // fast
+		{build.Allocate(98), build.SetLevel(10)},    // full
+		{build.SetMastery(4, 7)},                    // fast: 4 not allocated
+		{build.SetMastery(4, 7), build.SetLevel(9)}, // full
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < len(res); i += 2 {
+		if fast, full := res[i].Warnings, res[i+1].Warnings; len(fast) != 1 || !slices.Equal(fast, full) {
+			t.Errorf("variants %d and %d: %v and %v", i, i+1, fast, full)
+		}
+	}
+	if res[0].Warnings[0].Code != build.NodeUnknown || res[2].Warnings[0].Code != build.MasteryNotAllocated {
+		t.Errorf("codes %v, %v", res[0].Warnings, res[2].Warnings)
 	}
 }

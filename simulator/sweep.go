@@ -18,7 +18,9 @@ import (
 )
 
 // Result is one variant of a sweep: its index in the variants, its edits, the change of each
-// output against the base build, and its warnings. A variant that cannot be simulated has Err
+// output against the base build, and the warnings about its edits (build.Checked.EditWarnings:
+// nodes the build cannot take, mastery effects that do not fit), alike on every path. Warnings
+// about the base build are Simulate's of the base. A variant that cannot be simulated has Err
 // and no changes; the sweep goes on.
 type Result struct {
 	Index    int
@@ -190,51 +192,38 @@ type switchPlan struct {
 	warnings              []Warning
 }
 
-// fastPlan turns node and mastery edits into switches, as build.Check would treat the edited
-// build: unknown and other ascendancies' nodes do nothing (the sheet does not have them),
-// mastery choices count only on allocated masteries. It reports false for any other edit, and
-// for edits the check would change values for: an option of a multiple-choice node, or a
-// mastery effect chosen twice.
+// fastPlan turns node and mastery edits into switches. It applies the edits to the base build
+// as given, not as checked, as Simulate of the edited build does, then compares the result
+// with the checked base the sheet is switched to: what the check dropped from the base can come
+// back (a mastery choice on a node the variant allocates). Nodes the build cannot take have no
+// sources on the sheet, so switching them does nothing, as the check drops them. It reports
+// false for any other edit, and when the check would resolve the result differently: two
+// options of one choice node, or one mastery effect chosen on two allocated masteries.
 func (sw *sweep) fastPlan(edits []build.Edit) (switchPlan, bool) {
-	cb := sw.base.checked.Build()
-	nodes := map[uint32]bool{}
-	for _, n := range cb.Nodes {
+	raw := sw.base.build
+	nodes := make(map[uint32]bool, len(raw.Nodes))
+	for _, n := range raw.Nodes {
 		nodes[n] = true
 	}
-	masteries := make(map[uint32]uint32, len(cb.Masteries))
-	maps.Copy(masteries, cb.Masteries)
-	var p switchPlan
+	masteries := make(map[uint32]uint32, len(raw.Masteries))
+	maps.Copy(masteries, raw.Masteries)
 	for _, e := range edits {
-		if !sw.applyFast(e, nodes, masteries, &p) {
-			return p, false
+		if !applyFast(e, nodes, masteries) {
+			return switchPlan{}, false
 		}
 	}
-	// a mastery effect chosen twice is the check's to resolve
-	seen := map[uint32]bool{}
-	for n, e := range masteries {
-		if nodes[n] {
-			if seen[e] {
-				return p, false
-			}
-			seen[e] = true
-		}
+	if sw.choiceConflict(nodes) || sw.effectRepeated(nodes, masteries) {
+		return switchPlan{}, false
 	}
-	sw.diffPlan(cb, nodes, masteries, &p)
+	p := switchPlan{warnings: sw.base.checked.EditWarnings(edits)}
+	sw.diffPlan(sw.base.checked.Build(), nodes, masteries, &p)
 	return p, true
 }
 
-func (sw *sweep) applyFast(e build.Edit, nodes map[uint32]bool, masteries map[uint32]uint32, p *switchPlan) bool {
+func applyFast(e build.Edit, nodes map[uint32]bool, masteries map[uint32]uint32) bool {
 	switch e.Op {
 	case build.OpAllocate:
 		for _, id := range e.Nodes {
-			n := sw.node(id)
-			if n == nil {
-				p.warnings = append(p.warnings, Warning{Code: build.NodeUnknown, Subject: fmt.Sprintf("node %d", id), Message: "not in the tree; dropped"})
-				continue
-			}
-			if n.MultipleChoiceOption {
-				return false
-			}
 			nodes[id] = true
 		}
 	case build.OpDeallocate:
@@ -249,6 +238,43 @@ func (sw *sweep) applyFast(e build.Edit, nodes map[uint32]bool, masteries map[ui
 		return false
 	}
 	return true
+}
+
+// choiceConflict reports whether two allocated nodes are options of one choice node.
+func (sw *sweep) choiceConflict(nodes map[uint32]bool) bool {
+	taken := map[uint32]bool{}
+	for id := range nodes {
+		n := sw.node(id)
+		if n == nil || !n.MultipleChoiceOption {
+			continue
+		}
+		for _, nb := range n.Neighbours {
+			if p := sw.node(nb); p != nil && p.MultipleChoice {
+				if taken[p.ID] {
+					return true
+				}
+				taken[p.ID] = true
+			}
+		}
+	}
+	return false
+}
+
+// effectRepeated reports whether one effect is chosen on two allocated masteries that have it.
+func (sw *sweep) effectRepeated(nodes map[uint32]bool, masteries map[uint32]uint32) bool {
+	seen := map[uint32]bool{}
+	for id, effect := range masteries {
+		n := sw.node(id)
+		if !nodes[id] || n == nil || n.Kind != dataset.Mastery ||
+			!slices.ContainsFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect }) {
+			continue
+		}
+		if seen[effect] {
+			return true
+		}
+		seen[effect] = true
+	}
+	return false
 }
 
 // diffPlan lists the switches from the base to nodes and masteries.
@@ -341,7 +367,7 @@ func (sw *sweep) full(edits []build.Edit) Result {
 	if err != nil {
 		return Result{Err: err}
 	}
-	r := Result{Changes: make(map[output.Key]Change, len(sw.keys)), Warnings: st.Warnings()}
+	r := Result{Changes: make(map[output.Key]Change, len(sw.keys)), Warnings: sw.base.checked.EditWarnings(edits)}
 	for _, k := range sw.keys {
 		r.Changes[k] = change(sw.before[k], st.values[k])
 	}
