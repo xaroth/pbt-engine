@@ -7,6 +7,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/resolve"
 	rules "github.com/xaroth/pbt-engine/rules/poe1"
 )
@@ -49,13 +50,13 @@ func TestRealSheets(t *testing.T) {
 	testCases := []struct {
 		name  string
 		build build.Build
-		want  map[string]float64
+		want  map[output.Key]float64
 	}{
 		{
 			// 38 + 12 + 16; 34 + 6 + 7; 15 * 1.02; 47 * 0.0175 = 0.8225
 			name:  "marauder level 1",
 			build: build.Build{Class: marauder, Level: 1},
-			want: map[string]float64{
+			want: map[output.Key]float64{
 				"player.life": 66, "player.mana": 47, "player.evasion_rating": 15, "player.mana_regeneration": 0.8,
 				"player.fire_resistance": -60, "player.chaos_resistance": -60, "player.maximum_cold_resistance": 75,
 			},
@@ -64,19 +65,19 @@ func TestRealSheets(t *testing.T) {
 			// 38 + 12 + 7; 34 + 6 + 16; 56 * 0.0175 = 0.98
 			name:  "witch level 1",
 			build: build.Build{Class: witch, Level: 1},
-			want:  map[string]float64{"player.life": 57, "player.mana": 56, "player.mana_regeneration": 1, "player.energy_shield": 0},
+			want:  map[output.Key]float64{"player.life": 57, "player.mana": 56, "player.mana_regeneration": 1, "player.energy_shield": 0},
 		},
 		{
 			// 38 + 1080 + 7; 34 + 540 + 7; 15 * 1.06 = 15.9
 			name:  "ranger level 90",
 			build: build.Build{Class: ranger, Level: 90},
-			want:  map[string]float64{"player.life": 1125, "player.mana": 581, "player.evasion_rating": 16},
+			want:  map[output.Key]float64{"player.life": 1125, "player.mana": 581, "player.evasion_rating": 16},
 		},
 		{
 			// node 31628: +16 to maximum Life; 38 + 1080 + 16 + 16
 			name:  "juggernaut level 90 with a life node",
 			build: build.Build{Class: marauder, Ascendancy: "Juggernaut", Level: 90, Nodes: []uint32{47175, 17765, 31628}},
-			want:  map[string]float64{"player.life": 1150, "player.strength": 32},
+			want:  map[output.Key]float64{"player.life": 1150, "player.strength": 32},
 		},
 	}
 	for _, version := range []string{"3.28.0.16", "3.29.3.3"} {
