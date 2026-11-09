@@ -86,6 +86,8 @@ type Sheet struct {
 	// table and gameVersion turn bundles added after Open, such as other levels, into modifiers.
 	table       *semantics.Table
 	gameVersion dataset.GameVersion
+	// nodes maps a node, or a mastery node and effect, to its sources (global and buff bundles).
+	nodes map[resolve.NodeSource][]core.SourceID
 }
 
 // sourcedNote is a note and the core source of its bundle; always marks notes that hold
@@ -161,7 +163,16 @@ func (sh *Sheet) Value(name string) (float64, error) {
 // newSource adds a core source described by d.
 func (sh *Sheet) newSource(d Source) core.SourceID {
 	sh.sources = append(sh.sources, d)
-	return sh.session.NewSource()
+	id := sh.session.NewSource()
+	if d.Bundle != nil {
+		if n, ok := d.Bundle.Source.(resolve.NodeSource); ok {
+			if sh.nodes == nil {
+				sh.nodes = map[resolve.NodeSource][]core.SourceID{}
+			}
+			sh.nodes[n] = append(sh.nodes[n], id)
+		}
+	}
+	return id
 }
 
 // proportion returns the proportional view of engine stat name.
