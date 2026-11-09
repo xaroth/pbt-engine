@@ -281,3 +281,34 @@ func TestNew(t *testing.T) {
 		t.Errorf("bad option: %v", err)
 	}
 }
+
+// Level is switched on a pooled sheet: one sheet serves every level with fresh results.
+func TestLevelsShareASheet(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	for _, level := range []int{90, 1, 47, 90, 100, 1} {
+		b := marauderBuild(level, 2, 3)
+		sameStats(t, "level", simulate(t, newSim(t), b), simulate(t, s, b))
+	}
+	if n := s.IdleSheets(); n != 1 {
+		t.Errorf("%d idle sheets for one shape, want 1", n)
+	}
+}
+
+// The pool keeps at most MaxIdle sheets, however many run at once.
+func TestPoolLimit(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	var wg sync.WaitGroup
+	for range 3 * simulator.MaxIdle {
+		wg.Go(func() {
+			if _, err := s.Simulate(marauderBuild(90, 2)); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+	if n := s.IdleSheets(); n > simulator.MaxIdle {
+		t.Errorf("%d idle sheets, limit %d", n, simulator.MaxIdle)
+	}
+}

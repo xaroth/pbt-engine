@@ -41,8 +41,9 @@ const (
 // Warning is something a simulation went on without; its message says what was done.
 type Warning = build.Warning
 
-// maxIdle is how many idle sheets a sim keeps per build shape.
-const maxIdle = 8
+// maxIdle is how many idle sheets a sim keeps over all build shapes; the least recently used
+// goes first. A whole-tree sheet is about a megabyte.
+const maxIdle = 16
 
 // Sim simulates builds against one dataset. Its config can change with Configure; each call
 // takes a snapshot when it starts. A Sim is safe for concurrent use.
@@ -50,15 +51,21 @@ type Sim struct {
 	store *dataset.Store
 	table *semantics.Table
 
-	mu   sync.Mutex
-	cfg  config.Values
-	idle map[shape][]*poe1.Sheet
+	mu  sync.Mutex
+	cfg config.Values
+	// idle sheets, least recently returned first.
+	idle []idleSheet
 }
 
-// shape is what a sheet over the whole tree is fixed to; everything else is switched.
+// shape is what a sheet over the whole tree is fixed to; nodes, masteries, level and config
+// are switched.
 type shape struct {
 	variant, class, ascendancy string
-	level                      int
+}
+
+type idleSheet struct {
+	shape shape
+	sheet *poe1.Sheet
 }
 
 // New returns a sim over the dataset in store, configured by opts (Set and Clear). It fails
@@ -71,7 +78,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 	if err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
-	s := &Sim{store: store, table: t, cfg: config.Values{}, idle: map[shape][]*poe1.Sheet{}}
+	s := &Sim{store: store, table: t, cfg: config.Values{}}
 	if err := s.Configure(opts...); err != nil {
 		return nil, err
 	}
@@ -153,7 +160,7 @@ func (s *Sim) prepare(b *build.Build, co callOptions) (*run, error) {
 	}
 	r := &run{build: b.Clone(), checked: c, warnings: warnings}
 	cb := c.Build()
-	r.shape = shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, level: cb.Level}
+	r.shape = shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy}
 	if w, ok := versionWarning(b.Version, s.store.Manifest().Version); ok {
 		r.warnings = append(r.warnings, w)
 	}
@@ -180,6 +187,9 @@ func (s *Sim) prepare(b *build.Build, co callOptions) (*run, error) {
 // stats reads keys from sh after switching it to the run's nodes and config.
 func (r *run) stats(sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
 	cb := r.checked.Build()
+	if err := sh.SetLevel(cb.Level); err != nil {
+		return nil, fmt.Errorf("simulator: %w", err)
+	}
 	sh.SetNodes(cb.Nodes, cb.Masteries)
 	sh.SetConfig(r.cfg)
 	st := &Stats{values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, build: r.build}
@@ -212,16 +222,18 @@ func outputKeys(keys []output.Key) ([]output.Key, error) {
 	return keys, nil
 }
 
-// checkout takes an idle sheet of c's shape or opens one over the whole tree.
+// checkout takes the most recently returned idle sheet of c's shape or opens one over the
+// whole tree.
 func (s *Sim) checkout(c *build.Checked) (*poe1.Sheet, error) {
 	cb := c.Build()
-	k := shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, level: cb.Level}
+	k := shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy}
 	s.mu.Lock()
-	if idle := s.idle[k]; len(idle) > 0 {
-		sh := idle[len(idle)-1]
-		s.idle[k] = idle[:len(idle)-1]
-		s.mu.Unlock()
-		return sh, nil
+	for i, e := range slices.Backward(s.idle) {
+		if e.shape == k {
+			s.idle = slices.Delete(s.idle, i, i+1)
+			s.mu.Unlock()
+			return e.sheet, nil
+		}
 	}
 	s.mu.Unlock()
 	r, err := resolve.Tree(c)
@@ -235,12 +247,21 @@ func (s *Sim) checkout(c *build.Checked) (*poe1.Sheet, error) {
 	return sh, nil
 }
 
+// checkin returns a sheet to the pool, dropping the least recently used beyond maxIdle.
 func (s *Sim) checkin(k shape, sh *poe1.Sheet) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(s.idle[k]) < maxIdle {
-		s.idle[k] = append(s.idle[k], sh)
+	s.idle = append(s.idle, idleSheet{shape: k, sheet: sh})
+	if over := len(s.idle) - maxIdle; over > 0 {
+		s.idle = slices.Delete(s.idle, 0, over)
 	}
+}
+
+// idleSheets returns how many idle sheets the pool holds, for tests.
+func (s *Sim) idleSheets() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.idle)
 }
 
 // versionWarning warns when the build was made for a version the dataset is not a patch of.

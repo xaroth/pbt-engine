@@ -90,3 +90,37 @@ func (sh *Sheet) SetNodes(nodes []uint32, masteries map[uint32]uint32) {
 		_ = sh.session.SetSourceEnabled(core.SourceID(id), enabled)
 	}
 }
+
+// SetLevel switches the sheet to character level: the level bundle of that level goes on,
+// the others off. A level not seen yet gets its bundle added once, so a sheet serves every
+// level without being opened again.
+func (sh *Sheet) SetLevel(level int) error {
+	found := false
+	for id, src := range sh.sources {
+		if src.Bundle == nil {
+			continue
+		}
+		if _, ok := src.Bundle.Source.(resolve.LevelSource); !ok {
+			continue
+		}
+		on := levelOf(src.Bundle) == float64(level)
+		found = found || on
+		// id is a source of this session, so this cannot fail.
+		_ = sh.session.SetSourceEnabled(core.SourceID(id), on)
+	}
+	if found {
+		return nil
+	}
+	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.LevelSource{},
+		Stats: []resolve.StatValue{{Stat: resolve.LevelStat, Value: float64(level)}}}
+	return sh.add(&bd, sh.table, sh.gameVersion)
+}
+
+func levelOf(bd *resolve.Bundle) float64 {
+	for _, sv := range bd.Stats {
+		if sv.Stat == resolve.LevelStat {
+			return sv.Value
+		}
+	}
+	return 0
+}

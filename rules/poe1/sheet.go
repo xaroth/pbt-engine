@@ -83,6 +83,9 @@ type Sheet struct {
 	sources []Source
 	version string
 	notes   []sourcedNote
+	// table and gameVersion turn bundles added after Open, such as other levels, into modifiers.
+	table       *semantics.Table
+	gameVersion dataset.GameVersion
 }
 
 // sourcedNote is a note and the core source of its bundle; always marks notes that hold
@@ -128,7 +131,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if err != nil {
 		return nil, fmt.Errorf("sheet: %w", err)
 	}
-	sh := &Sheet{session: s, stats: stats, version: r.Version}
+	sh := &Sheet{session: s, stats: stats, version: r.Version, table: t, gameVersion: v}
 	for i := range r.Bundles {
 		if err := sh.add(&r.Bundles[i], t, v); err != nil {
 			return nil, err
