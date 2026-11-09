@@ -66,7 +66,7 @@ func nodePower(in invocation) error {
 		if mode == modeAlone {
 			return np.Alone.Changes[by].Abs
 		}
-		return np.ViaPath.Changes[by].Abs / float64(max(np.Points, 1))
+		return np.ViaPath.Changes[by].Abs / float64(max(budgetPoints(np), 1))
 	}
 	slices.SortStableFunc(nps, func(a, c power.NodePower) int { return cmp.Compare(score(c), score(a)) })
 	nm, err := namer(s)
@@ -78,16 +78,35 @@ func nodePower(in invocation) error {
 	for i, np := range nps[:min(top, len(nps))] {
 		p.printf("%3d  %10s", i+1, number(score(np), gainPlaces))
 		if mode == modePath {
-			p.printf("  %10s in %2d", number(np.ViaPath.Changes[by].Abs, gainPlaces), np.Points)
+			p.printf("  %10s in %s", number(np.ViaPath.Changes[by].Abs, gainPlaces), pointsLabel(np))
 		}
 		p.printf("  %s\n", candidateName(s, nm, np))
 	}
 	return p.err
 }
 
+// budgetPoints is what a path costs from the budget it draws on: passive points, or for an
+// ascendancy path, ascendancy points. Each budget ranks against its own.
+func budgetPoints(np power.NodePower) int {
+	if np.PassivePoints > 0 {
+		return np.PassivePoints
+	}
+	return np.AscendancyPoints
+}
+
+func pointsLabel(np power.NodePower) string {
+	switch {
+	case np.AscendancyPoints == 0:
+		return fmt.Sprintf("%2d", np.PassivePoints)
+	case np.PassivePoints == 0:
+		return fmt.Sprintf("%2d ascendancy", np.AscendancyPoints)
+	}
+	return fmt.Sprintf("%2d + %d ascendancy", np.PassivePoints, np.AscendancyPoints)
+}
+
 func modeLabel(mode string) string {
 	if mode == modePath {
-		return "gain per point along the shortest path (gain, points)"
+		return "gain per point along the shortest path (gain, points; ascendancy paths per ascendancy point)"
 	}
 	return "the node alone"
 }
