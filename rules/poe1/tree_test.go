@@ -195,27 +195,61 @@ func TestWholeTreeSheetEdits(t *testing.T) {
 	}
 }
 
-// BenchmarkOpenSheet opens the level 90 Chieftain's sheet from its build and over the whole
-// tree (Q2 trades a slower open for edits that only switch sources), then switches the whole
-// tree sheet to the build's nodes.
+// BenchmarkOpenSheet times rules.Open of the level 90 Chieftain on the fixture tree, from its
+// build and over the whole tree, resolved beforehand (01-goals, open a session from a build:
+// < 10 ms native).
 func BenchmarkOpenSheet(b *testing.B) {
 	const version = "3.29.3.3"
 	s := fixtureStore(b, version)
 	c := checked(b, chieftain(b, s, version), s)
-	cfg := rules.DefaultConfig()
-	b.Run("build", func(b *testing.B) {
-		for b.Loop() {
-			sheetOf(b, c, false, cfg)
+	tbl, err := sempoe1.Load()
+	if err != nil {
+		b.Fatal(err)
+	}
+	for name, res := range map[string]func(*build.Checked) (*resolve.Resolved, error){"build": resolve.Resolve, "whole tree": resolve.Tree} {
+		r, err := res(c)
+		if err != nil {
+			b.Fatal(err)
 		}
-	})
-	b.Run("whole tree", func(b *testing.B) {
-		for b.Loop() {
-			sheetOf(b, c, true, cfg)
-		}
-	})
-	sh := sheetOf(b, c, true, cfg)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := rules.Open(r, tbl, rules.DefaultConfig()); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkSwitchNode switches one node on a whole-tree sheet in a checkpoint, reads life and
+// reverts, as a sweep's fast path does (01-goals, one what-if: < 0.2 ms native), and switches
+// a whole allocation with SetNodes.
+func BenchmarkSwitchNode(b *testing.B) {
+	const version = "3.29.3.3"
+	s := fixtureStore(b, version)
+	c := checked(b, chieftain(b, s, version), s)
+	sh := sheetOf(b, c, true, rules.DefaultConfig())
 	cb := c.Build()
-	b.Run("set nodes and read life", func(b *testing.B) {
+	if _, err := sh.Output(rules.Life); err != nil {
+		b.Fatal(err)
+	}
+	b.Run("one node", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			cp := sh.Mark()
+			sh.SetNode(cb.Nodes[len(cb.Nodes)-1], false)
+			if _, err := sh.Output(rules.Life); err != nil {
+				b.Fatal(err)
+			}
+			if err := sh.Revert(cp); err != nil {
+				b.Fatal(err)
+			}
+		}
+		sh.Commit()
+	})
+	b.Run("whole allocation", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; b.Loop(); i++ {
 			nodes := cb.Nodes
 			if i%2 == 0 {

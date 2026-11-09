@@ -103,6 +103,8 @@ func TestRealChieftainEqualsBruteForce(t *testing.T) {
 	}
 }
 
+// BenchmarkNodes sweeps every candidate of the real level 90 Chieftain (01-goals, node power,
+// ~1500 nodes: < 0.3 s native); it needs $PBT_DATASETS.
 func BenchmarkNodes(b *testing.B) {
 	sim, base := realChieftain(b)
 	for name, opts := range map[string][]power.Option{
@@ -111,6 +113,7 @@ func BenchmarkNodes(b *testing.B) {
 		"all workers, distance 5": {power.Outputs(poe1.Life), power.MaxDistance(5)},
 	} {
 		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
 			n := 0
 			for b.Loop() {
 				nps, err := power.Nodes(sim, base, opts...)
