@@ -61,8 +61,9 @@ type Manifest struct {
 	ID string `json:"id"`
 	// Capabilities are the rule versions the dataset needs; see Capabilities.
 	Capabilities Capabilities `json:"capabilities,omitempty"`
-	// Source records where the data came from, such as the game build and schema revision.
-	Source map[string]string `json:"source"`
+	// Source optionally records where the data came from. Published datasets leave it out:
+	// their recipe sits next to them (pbt-data's source.json).
+	Source map[string]string `json:"source,omitempty"`
 	Files  []File            `json:"files"`
 }
 

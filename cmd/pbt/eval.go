@@ -23,7 +23,7 @@ var (
 )
 
 // simFor reads a build file and returns it with a sim over the dataset its version (or
-// version, when set) resolves to under --root.
+// version, when set) resolves to.
 func simFor(in invocation, path, version string) (*build.Build, *simulator.Sim, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -33,7 +33,7 @@ func simFor(in invocation, path, version string) (*build.Build, *simulator.Sim, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", path, err)
 	}
-	res, err := resolveVersions(in.notes, in.opts["root"], b.Game, cmp.Or(version, b.Version))
+	res, err := in.resolve(in.notes, b.Game, cmp.Or(version, b.Version))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", path, err)
 	}

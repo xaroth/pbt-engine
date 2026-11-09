@@ -11,7 +11,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/xaroth/pbt-engine/build"
-	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/resolve"
 	rules "github.com/xaroth/pbt-engine/rules/poe1"
@@ -157,14 +156,4 @@ func treeNodes(tb testing.TB, version string) []uint32 {
 		out = append(out, uint32(n))
 	}
 	return out
-}
-
-func realSheetStore(t *testing.T, version string, b *build.Build) (*rules.Sheet, *dataset.Store) {
-	t.Helper()
-	sh := realSheet(t, version, b)
-	s, err := dataset.Open(os.DirFS(filepath.Join(os.Getenv("PBT_DATASETS"), version)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return sh, s
 }
