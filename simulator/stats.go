@@ -7,6 +7,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/resolve"
 	"github.com/xaroth/pbt-engine/rules/poe1"
@@ -55,6 +56,15 @@ func (st *Stats) Explain(k output.Key, v poe1.View) (*poe1.Explanation, error) {
 
 // Build returns a copy of the build as simulated, before the check's fixes.
 func (st *Stats) Build() *build.Build { return st.build.Clone() }
+
+// Text returns the dataset's display text in language, for naming sources in explanations.
+func (st *Stats) Text(language string) (*dataset.Text, error) {
+	t, err := st.sim.store.Text(language)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: %w", err)
+	}
+	return t, nil
+}
 
 // Version returns the version of the dataset the build was simulated on.
 func (st *Stats) Version() string { return st.sim.store.Manifest().Version }

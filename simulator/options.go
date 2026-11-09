@@ -1,8 +1,10 @@
 package simulator
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/output"
@@ -35,6 +37,12 @@ func Set[T any](k config.Key[T], v T) Option {
 	var vals config.Values
 	err := config.Set(&vals, k, v)
 	return Option{kind: optSet, key: k.Name(), values: vals, err: err}
+}
+
+// SetRaw sets the named key to a JSON value, for hosts that send keys and values as text. An
+// unknown key or a value that does not decode is a warning of the run, as in a build.
+func SetRaw(name string, value json.RawMessage) Option {
+	return Option{kind: optSet, key: name, values: config.Values{name: slices.Clone(value)}}
 }
 
 // Clear removes the named key from the sim's config with Configure; for one call it ignores
