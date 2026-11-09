@@ -353,7 +353,6 @@ bundle player global node 12345
   base_strength = 20
 bundle player buff node 12345
   aura_damage_+% = 5
-note node 12345: mastery effect not chosen; builds have no mastery choices yet
 `
 	if diff := cmp.Diff(want, out.String()); diff != "" {
 		t.Errorf("(-want +got):\n%s", diff)

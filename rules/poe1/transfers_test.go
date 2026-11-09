@@ -87,7 +87,7 @@ func TestTransfers(t *testing.T) {
 					t.Errorf("%s: got %v, want %v", stat, got, want)
 				}
 			}
-			for _, n := range sh.Notes {
+			for _, n := range sh.Notes() {
 				if n.Kind != rules.Partial {
 					t.Errorf("note: %s", n)
 				}
@@ -105,7 +105,7 @@ func TestTableRulesImplemented(t *testing.T) {
 			continue
 		}
 		sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, e.Scope, resolve.StatValue{Stat: e.Stat, Value: 1})))
-		for _, n := range sh.Notes {
+		for _, n := range sh.Notes() {
 			if n.Kind == rules.RuleMissing {
 				t.Errorf("%s: %s", e.Stat, n)
 			}

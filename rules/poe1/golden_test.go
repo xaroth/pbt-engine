@@ -141,18 +141,18 @@ func TestGoldenRealExplanations(t *testing.T) {
 }
 
 // treeNodes reads the Chieftain's node list for version's league.
-func treeNodes(t *testing.T, version string) []uint32 {
-	t.Helper()
+func treeNodes(tb testing.TB, version string) []uint32 {
+	tb.Helper()
 	league := version[:strings.LastIndex(version[:strings.LastIndex(version, ".")], ".")]
 	data, err := os.ReadFile(filepath.Join(goldenDir, "chieftain-L90-"+league+".nodes"))
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	var out []uint32
 	for f := range strings.SplitSeq(strings.TrimSpace(string(data)), ",") {
 		n, err := strconv.ParseUint(f, 10, 32)
 		if err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 		out = append(out, uint32(n))
 	}

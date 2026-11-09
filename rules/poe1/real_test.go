@@ -92,7 +92,7 @@ func TestRealSheets(t *testing.T) {
 						t.Errorf("%s: got %v, %v, want %v", name, got, err, want)
 					}
 				}
-				for _, n := range sh.Notes {
+				for _, n := range sh.Notes() {
 					if n.Kind == rules.RuleMissing {
 						t.Errorf("note: %s", n)
 					}

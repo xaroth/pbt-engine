@@ -176,15 +176,47 @@ func TestResolveSources(t *testing.T) {
 	}
 }
 
-func TestResolveNotes(t *testing.T) {
+// nodeSources lists the node sources of r's bundles in order.
+func nodeSources(r *resolve.Resolved) []resolve.NodeSource {
+	var out []resolve.NodeSource
+	for _, b := range r.Bundles {
+		if n, ok := b.Source.(resolve.NodeSource); ok {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func TestResolveMasteries(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
-	r, err := resolveBuild(t, s, testBuild(1, 1, 7, 9))
+	b := testBuild(1, 1, 7, 9)
+	b.Masteries = map[uint32]uint32{9: 1}
+	r, err := resolveBuild(t, s, b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff([]string{"node 9: mastery effect not chosen; builds have no mastery choices yet"}, r.Notes); diff != "" {
-		t.Errorf("notes (-want +got):\n%s", diff)
+	want := []resolve.NodeSource{{ID: 7}, {ID: 7}, {ID: 9, Effect: 1}}
+	if diff := cmp.Diff(want, nodeSources(r)); diff != "" || len(r.Notes) != 0 {
+		t.Errorf("node sources (-want +got):\n%s\nnotes %v", diff, r.Notes)
+	}
+}
+
+// Tree holds every node and mastery effect, allocated or not.
+func TestTree(t *testing.T) {
+	t.Parallel()
+	s := open(t, testDataset())
+	c, _, err := build.Check(testBuild(1, 1), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := resolve.Tree(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []resolve.NodeSource{{ID: 4}, {ID: 7}, {ID: 7}, {ID: 9, Effect: 1}}
+	if diff := cmp.Diff(want, nodeSources(r)); diff != "" {
+		t.Errorf("node sources (-want +got):\n%s", diff)
 	}
 }
 
@@ -281,7 +313,7 @@ func TestBundleParts(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantEffect := resolve.Bundle{
-		Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9},
+		Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: 9, Effect: 1},
 		Stats: []resolve.StatValue{{"maximum_life_+%", 10}},
 	}
 	if diff := cmp.Diff(wantEffect, effect); diff != "" {

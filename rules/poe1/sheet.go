@@ -82,8 +82,27 @@ type Sheet struct {
 	// sources describes each core source, by core.SourceID.
 	sources []Source
 	version string
-	// Notes lists the bundle stats left out of the sheet, in bundle order.
-	Notes []Note
+	notes   []sourcedNote
+}
+
+// sourcedNote is a note and the core source of its bundle; always marks notes that hold
+// whether the source is on or not.
+type sourcedNote struct {
+	note   Note
+	src    core.SourceID
+	always bool
+}
+
+// Notes lists the bundle stats left out of the sheet, in bundle order, for the bundles that
+// are on: a sheet over the whole tree notes only the allocated nodes.
+func (sh *Sheet) Notes() []Note {
+	var out []Note
+	for _, n := range sh.notes {
+		if n.always || sh.session.SourceEnabled(n.src) {
+			out = append(out, n.note)
+		}
+	}
+	return out
 }
 
 // Open builds the sheet of r under config cfg (resolved over ConfigSpecs; keys it lacks take
@@ -118,7 +137,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if err := sh.addAttributeBonuses(r.Constants); err != nil {
 		return nil, err
 	}
-	sh.applyQuests(cfg)
+	sh.SetConfig(cfg)
 	s.Commit()
 	return sh, nil
 }
@@ -185,7 +204,7 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 			}
 		}
 		if kind, text := noteFor(e, ok, ruled); kind != 0 {
-			sh.Notes = append(sh.Notes, Note{Kind: kind, Source: bd.Source, Scope: bd.Scope, Stat: sv.Stat, Text: text})
+			sh.notes = append(sh.notes, sourcedNote{note: Note{Kind: kind, Source: bd.Source, Scope: bd.Scope, Stat: sv.Stat, Text: text}, src: src})
 		}
 	}
 	return nil
