@@ -44,6 +44,11 @@ func sample() *dataset.Dataset {
 			{ID: "Metadata/Characters/Dex/Dex"},
 		},
 		Constants: []dataset.Constant{{ID: "life_per_strength", Value: 1, Per: 2}},
+		Quests: []dataset.Quest{
+			{Quest: "a2q7", Flag: "a2q7-QuestRewardTaken", Act: 2, PassivePoints: 1},
+			{Quest: "a5q6", Flag: "a5q6-CompletedBoss", Act: 5, Stats: []dataset.StatValue{{Stat: 2, Value: -30}}},
+			{Flag: "LabyrinthComplete1", AscendancyPoints: 2},
+		},
 		Trees: []dataset.Tree{
 			{
 				Variant: "standard", TotalPoints: 123, AscendancyPoints: 8,
@@ -163,7 +168,7 @@ func TestRoundTrip(t *testing.T) {
 			if diff := gocmp.Diff(&want, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("round trip mismatch (-want +got):\n%s", diff)
 			}
-			if wantFiles := 3 + len(testCase.d.Trees) + len(testCase.d.Texts); m.Format != dataset.FormatVersion || len(m.Files) != wantFiles {
+			if wantFiles := 4 + len(testCase.d.Trees) + len(testCase.d.Texts); m.Format != dataset.FormatVersion || len(m.Files) != wantFiles {
 				t.Errorf("manifest: got format %d and %d files, want %d and %d", m.Format, len(m.Files), dataset.FormatVersion, wantFiles)
 			}
 		})
@@ -203,6 +208,9 @@ func renumbered() *dataset.Dataset {
 	}
 	for _, c := range d.Characters {
 		remap(c.Stats, true)
+	}
+	for _, q := range d.Quests {
+		remap(q.Stats, true)
 	}
 	for _, n := range d.Trees[0].Nodes {
 		remap(n.Stats, true)
@@ -307,6 +315,11 @@ func TestWriteErrors(t *testing.T) {
 		{name: "repeated variant", want: `tree variant "standard"`, change: func(d *dataset.Dataset) { d.Trees[1].Variant = "standard" }},
 		{name: "empty variant", want: `tree variant ""`, change: func(d *dataset.Dataset) { d.Trees[1].Variant = "" }},
 		{name: "constant per zero", want: "per is 0", change: func(d *dataset.Dataset) { d.Constants[0].Per = 0 }},
+		{name: "quest flag repeated", want: "empty or repeated", change: func(d *dataset.Dataset) { d.Quests[1].Flag = d.Quests[0].Flag }},
+		{name: "quest flag empty", want: "empty or repeated", change: func(d *dataset.Dataset) { d.Quests[0].Flag = "" }},
+		{name: "quest stats unsorted", want: "not sorted", change: func(d *dataset.Dataset) {
+			d.Quests[1].Stats = []dataset.StatValue{{Stat: 2, Value: 1}, {Stat: 0, Value: 1}}
+		}},
 		{name: "repeated stat id", want: "stat level repeated", change: func(d *dataset.Dataset) { d.Stats[1].ID = "level" }},
 		{name: "empty stat id", want: "stat 1: empty id", change: func(d *dataset.Dataset) { d.Stats[1].ID = "" }},
 		{name: "description parent missing", want: "parent gone not in set", change: func(d *dataset.Dataset) { d.Texts[0].Descriptions[1].Parent = "gone" }},
@@ -475,11 +488,11 @@ func TestReadErrors(t *testing.T) {
 		},
 		{name: "id differs", want: "id does not match", fsys: edit(func(m map[string]any) { m["id"] = "00" })},
 		{name: "file listed twice", want: "file stats.fb listed twice", fsys: edit(func(m map[string]any) { m["files"] = append(files(m), files(m)[0]) })},
-		{name: "truncated tree", want: "tree-standard.fb: malformed", fsys: replace(3, good["tree-standard.fb"].Data[:40])},
-		{name: "truncated text", want: "text-en.fb: malformed", fsys: replace(5, good["text-en.fb"].Data[:40])},
-		{name: "text not a text file", want: "text-en.fb: wrong file identifier", fsys: replace(5, good["constants.fb"].Data)},
-		{name: "tree of another variant", want: `tree-standard.fb: holds tree variant "ruthless"`, fsys: replace(3, good["tree-ruthless.fb"].Data)},
-		{name: "text of another language", want: `text-en.fb: holds text language "zh-hant"`, fsys: replace(5, good["text-zh-hant.fb"].Data)},
+		{name: "truncated tree", want: "tree-standard.fb: malformed", fsys: replace(4, good["tree-standard.fb"].Data[:40])},
+		{name: "truncated text", want: "text-en.fb: malformed", fsys: replace(6, good["text-en.fb"].Data[:40])},
+		{name: "text not a text file", want: "text-en.fb: wrong file identifier", fsys: replace(6, good["constants.fb"].Data)},
+		{name: "tree of another variant", want: `tree-standard.fb: holds tree variant "ruthless"`, fsys: replace(4, good["tree-ruthless.fb"].Data)},
+		{name: "text of another language", want: `text-en.fb: holds text language "zh-hant"`, fsys: replace(6, good["text-zh-hant.fb"].Data)},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

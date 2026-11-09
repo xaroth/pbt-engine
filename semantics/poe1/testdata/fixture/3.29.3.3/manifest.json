@@ -2,9 +2,9 @@
   "format": 1,
   "game": "poe1",
   "version": "3.29.3.3",
-  "id": "625af015eb2955c0be3881ef78b274782ac2d6120788c2e20728cc6215382435",
+  "id": "a24fe13de1714480997a6172f608b779bf5a0370500e1fa75b3b0dbe25a27d29",
   "source": {
-    "fixtureOf": "51c9afc83cb9e1db75822ba2efdd7c3786e243fb24a439f4052be98ab80ade1c"
+    "fixtureOf": "ef9e827d64771418df173eea7301277c0ffa44e6262c182358b098a5937bda82"
   },
   "files": [
     {
@@ -21,6 +21,11 @@
       "name": "constants.fb",
       "size": 28,
       "sha256": "af877230aa924d9342b03d5122b29193fc98b1036f466910c204f7888d8de85e"
+    },
+    {
+      "name": "quests.fb",
+      "size": 36,
+      "sha256": "64cc73b5b3092d4fd120fa45199a76693765b91aa7b74a072ec5490d126fa5fd"
     },
     {
       "name": "tree-standard.fb",

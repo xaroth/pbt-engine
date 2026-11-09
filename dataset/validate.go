@@ -21,6 +21,9 @@ func (d *Dataset) validate(allTrees bool) error {
 	if err := validateConstants(d.Constants); err != nil {
 		return err
 	}
+	if err := validateQuests(n, d.Quests); err != nil {
+		return err
+	}
 	variants := map[string]bool{}
 	for _, t := range d.Trees {
 		if variants[t.Variant] {
@@ -84,6 +87,22 @@ func validateConstants(cs []Constant) error {
 	for _, c := range cs {
 		if c.Per == 0 {
 			return fmt.Errorf("constant %s: per is 0: %w", c.ID, ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// validateQuests checks quests against a stats group of n stats: flags present and unique,
+// stats sorted.
+func validateQuests(n int, qs []Quest) error {
+	flags := make(map[string]bool, len(qs))
+	for _, q := range qs {
+		if q.Flag == "" || flags[q.Flag] {
+			return fmt.Errorf("quest %s: flag %q empty or repeated: %w", q.Quest, q.Flag, ErrInvalid)
+		}
+		flags[q.Flag] = true
+		if err := sortedStats("quest flag "+q.Flag, q.Stats, n); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -9,6 +9,8 @@ type Dataset struct {
 	Stats      []Stat
 	Characters []Character
 	Constants  []Constant
+	// Quests are the campaign and labyrinth rewards, in game table order.
+	Quests []Quest
 	// Trees has one entry per tree variant, such as standard and ruthless.
 	Trees []Tree
 	// Texts holds display text per language. Read loads only the languages asked for; nothing
@@ -100,6 +102,22 @@ type Constant struct {
 	ID    string
 	Value int32
 	Per   int32
+}
+
+// Quest is the static reward one quest flag grants: passive skill points, ascendancy points,
+// passive refund points and stats.
+type Quest struct {
+	// Quest is the Quest.Id, such as "a2q7"; empty for a reward no quest owns, such as a
+	// labyrinth.
+	Quest string
+	// Flag is the QuestFlags.Id that grants the reward. Flags are unique.
+	Flag             string
+	Act              int32
+	PassivePoints    int32
+	AscendancyPoints int32
+	RefundPoints     int32
+	// Stats are sorted by Stat, without duplicates.
+	Stats []StatValue
 }
 
 // Tree is one passive tree variant.

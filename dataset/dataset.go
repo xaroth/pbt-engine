@@ -2,7 +2,7 @@
 // JSON manifest.
 package dataset
 
-//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs
+//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs
 
 import (
 	"bytes"
@@ -41,6 +41,7 @@ const (
 	statsFile      = "stats.fb"
 	charactersFile = "characters.fb"
 	constantsFile  = "constants.fb"
+	questsFile     = "quests.fb"
 	treePrefix     = "tree-"
 	textPrefix     = "text-"
 	fbSuffix       = ".fb"
@@ -69,6 +70,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 		{statsFile, encodeStats(d.Stats)},
 		{charactersFile, encodeCharacters(d.Stats, d.Characters)},
 		{constantsFile, encodeConstants(d.Constants)},
+		{questsFile, encodeQuests(d.Stats, d.Quests)},
 	}
 	for _, t := range d.Trees {
 		groups = append(groups, group{treePrefix + t.Variant + fbSuffix, encodeTree(d.Stats, t)})
@@ -97,7 +99,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	return m, nil
 }
 
-// Options selects the groups Read loads besides stats, characters and constants, which it
+// Options selects the groups Read loads besides stats, characters, constants and quests, which it
 // always loads. ReadManifest lists what a dataset holds.
 type Options struct {
 	// Trees are tree variants, such as "standard".
