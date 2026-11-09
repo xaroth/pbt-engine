@@ -434,7 +434,7 @@ func (c *Checked) checkMasteries() {
 	}
 	for _, n := range c.nodes {
 		if _, ok := c.build.Masteries[n.ID]; n.Kind == dataset.Mastery && !ok {
-			c.warnf(MasteryNotChosen, fmt.Sprintf("node %d", n.ID), "allocated mastery with no effect chosen; it gives nothing")
+			c.warnf(MasteryNotChosen, fmt.Sprintf("node %d", n.ID), "allocated mastery with no effect chosen; it counts towards its group only")
 		}
 	}
 }

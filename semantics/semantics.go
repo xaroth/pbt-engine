@@ -42,6 +42,7 @@ var (
 	errWithMods       = errors.New("with mods")
 	errOnlyAuthored   = errors.New("with unvalidated or omitted; only authored entries have them")
 	errStepPositive   = errors.New("want > 0")
+	errCount          = errors.New("want a counter and atLeast > 0")
 	errStatIDRefText  = errors.New("stat-id with ref or text")
 	errWithoutRef     = errors.New("without ref")
 	errWithoutText    = errors.New("without text")
@@ -219,14 +220,24 @@ type Per struct {
 	Step int32
 }
 
+// Count holds a modifier until the dataset counter Stat reaches AtLeast, as in "10% more
+// Maximum Life if you have at least 6 Life Masteries allocated". A counter is a stat the
+// dataset counts rather than an engine stat: a mastery group's count stat, 1 per allocated
+// mastery of the group.
+type Count struct {
+	Stat    string
+	AtLeast int32
+}
+
 // Mod is one engine modifier a stat gives: engine stat, op and value as the game stat value
-// times Factor, scaled by Per when set. Only an override has a zero Factor, for effects such
-// as "Removes all Mana".
+// times Factor, scaled by Per when set and held only while If holds when set. Only an
+// override has a zero Factor, for effects such as "Removes all Mana".
 type Mod struct {
 	Stat   string
 	Op     core.Op
 	Factor Ratio
 	Per    *Per
+	If     *Count
 }
 
 // Entry is the meaning of one stat in one scope over a range of game versions.
@@ -321,10 +332,16 @@ type fileReason struct {
 }
 
 type fileMod struct {
-	Stat   string   `json:"stat"`
-	Op     string   `json:"op"`
-	Factor string   `json:"factor"`
-	Per    *filePer `json:"per"`
+	Stat   string     `json:"stat"`
+	Op     string     `json:"op"`
+	Factor string     `json:"factor"`
+	Per    *filePer   `json:"per"`
+	If     *fileCount `json:"if"`
+}
+
+type fileCount struct {
+	Stat    string `json:"count"`
+	AtLeast int32  `json:"atLeast"`
 }
 
 type filePer struct {
@@ -628,16 +645,35 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 		return Mod{}, fmt.Errorf("%w %s on %s; only override may set a value of 0", errFactor, factor, op)
 	}
 	m := Mod{Stat: f.Stat, Op: op, Factor: factor}
-	if f.Per != nil {
-		if !vocab.IsEngineStat(f.Per.Stat) {
-			return Mod{}, fmt.Errorf("per: %w engine stat %q", errUnknown, f.Per.Stat)
-		}
-		if f.Per.Step <= 0 {
-			return Mod{}, fmt.Errorf("per %s: step %d, %w", f.Per.Stat, f.Per.Step, errStepPositive)
-		}
-		m.Per = &Per{Stat: f.Per.Stat, Step: f.Per.Step}
+	if m.Per, err = parsePer(f.Per, vocab); err != nil {
+		return Mod{}, err
+	}
+	if m.If, err = parseCount(f.If); err != nil {
+		return Mod{}, err
 	}
 	return m, nil
+}
+
+func parsePer(f *filePer, vocab Vocabulary) (*Per, error) {
+	switch {
+	case f == nil:
+		return nil, nil //nolint:nilnil // no per is valid
+	case !vocab.IsEngineStat(f.Stat):
+		return nil, fmt.Errorf("per: %w engine stat %q", errUnknown, f.Stat)
+	case f.Step <= 0:
+		return nil, fmt.Errorf("per %s: step %d, %w", f.Stat, f.Step, errStepPositive)
+	}
+	return &Per{Stat: f.Stat, Step: f.Step}, nil
+}
+
+func parseCount(f *fileCount) (*Count, error) {
+	switch {
+	case f == nil:
+		return nil, nil //nolint:nilnil // no condition is valid
+	case f.Stat == "" || f.AtLeast <= 0:
+		return nil, fmt.Errorf("if: %w: count %q, atLeast %d", errCount, f.Stat, f.AtLeast)
+	}
+	return &Count{Stat: f.Stat, AtLeast: f.AtLeast}, nil
 }
 
 func parseSource(f *fileSource) (Source, error) {
