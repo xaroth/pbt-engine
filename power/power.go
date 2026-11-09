@@ -22,10 +22,13 @@ type NodePower struct {
 	// Alone allocates only the candidate (and chooses the effect), connected or not.
 	Alone simulator.Result
 	// Path is the shortest path of unallocated nodes from the tree to the candidate, the
-	// candidate last; empty for another effect of an allocated mastery.
+	// candidate last; empty for another effect of an allocated mastery. Its length is the
+	// candidate's distance, which MaxDistance limits.
 	Path []uint32
-	// Points is how many nodes the path allocates, the candidate included.
-	Points int
+	// PassivePoints and AscendancyPoints are what the path costs from each budget (level and
+	// quests; labyrinths): ascendancy nodes cost ascendancy points, the option of a choice node
+	// costs nothing (its parent paid), every other node a passive point.
+	PassivePoints, AscendancyPoints int
 	// ViaPath allocates the whole path (and chooses the effect).
 	ViaPath simulator.Result
 }
@@ -39,7 +42,7 @@ type options struct {
 }
 
 // MaxDistance keeps only candidates whose shortest path allocates at most n nodes, the
-// candidate included. It applies to both results: a far candidate gets neither. 0 or less is
+// candidate included, whatever budget each comes from. It applies to both results: a far candidate gets neither. 0 or less is
 // no limit.
 func MaxDistance(n int) Option { return func(o *options) { o.maxDistance = n } }
 
@@ -81,7 +84,9 @@ func Nodes(sim *simulator.Sim, base *build.Build, opts ...Option) ([]NodePower, 
 	out := make([]NodePower, 0, len(cands))
 	i := 0
 	for _, cd := range cands {
-		np := NodePower{Node: cd.node, Effect: cd.effect, Path: cd.path, Points: len(cd.path), Alone: results[i]}
+		np := NodePower{
+			Node: cd.node, Effect: cd.effect, Path: cd.path, PassivePoints: cd.passive, AscendancyPoints: cd.ascendancy, Alone: results[i],
+		}
 		i++
 		np.ViaPath = np.Alone
 		if cd.hasPath() {
@@ -96,10 +101,11 @@ func Nodes(sim *simulator.Sim, base *build.Build, opts ...Option) ([]NodePower, 
 // resultsPerCandidate is alone and via the path.
 const resultsPerCandidate = 2
 
-// candidate is one node or mastery effect and its shortest path.
+// candidate is one node or mastery effect, its shortest path and what the path costs.
 type candidate struct {
-	node, effect uint32
-	path         []uint32
+	node, effect        uint32
+	path                []uint32
+	passive, ascendancy int
 }
 
 func (cd candidate) alone() []build.Edit {
@@ -130,13 +136,14 @@ func candidates(c *build.Checked, limit int) []candidate {
 	var out []candidate
 	for _, id := range reached {
 		path := pathTo(id, w.parent, w.depth)
+		passive, ascendancy := w.cost(path)
 		n := w.node(id)
 		if n.Kind != dataset.Mastery {
-			out = append(out, candidate{node: id, path: path})
+			out = append(out, candidate{node: id, path: path, passive: passive, ascendancy: ascendancy})
 			continue
 		}
 		for _, e := range n.MasteryEffects {
-			out = append(out, candidate{node: id, effect: e.ID, path: path})
+			out = append(out, candidate{node: id, effect: e.ID, path: path, passive: passive, ascendancy: ascendancy})
 		}
 	}
 	for _, m := range c.Masteries() {
@@ -190,6 +197,20 @@ func (w *walk) node(id uint32) *dataset.Node {
 		return nil
 	}
 	return &w.tree.Nodes[j]
+}
+
+// cost returns the passive and ascendancy points path costs, as build.Checked.Points counts.
+func (w *walk) cost(path []uint32) (passive, ascendancy int) {
+	for _, id := range path {
+		switch n := w.node(id); {
+		case n.MultipleChoiceOption:
+		case n.Ascendancy != "":
+			ascendancy++
+		default:
+			passive++
+		}
+	}
+	return passive, ascendancy
 }
 
 // takeable reports whether the walk may enter n.

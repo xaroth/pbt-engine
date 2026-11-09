@@ -16,8 +16,9 @@ import (
 const marauder = "Metadata/Characters/Str/Str"
 
 // testSim is a Marauder tree: start 1 joins 2 and 5, both join 3, mastery 7 hangs off 3
-// (effects 70, +5% life, and 71, +3% life), Juggernaut start 20 joins 21, node 9 joins
-// nothing. Nodes 2, 3, 5 and 21 give 10, 20, 30 and 40 life.
+// (effects 70, +5% life, and 71, +3% life), Juggernaut start 20 joins 21, which joins choice
+// node 22 with option 23; node 9 joins nothing. Nodes 2, 3, 5, 21 and 23 give 10, 20, 30, 40
+// and 50 life.
 func testSim(tb testing.TB) *simulator.Sim {
 	tb.Helper()
 	stats := []string{
@@ -48,7 +49,9 @@ func testSim(tb testing.TB) *simulator.Sim {
 				}},
 				{ID: 9, Stats: life(99)},
 				{ID: 20, Kind: dataset.AscendancyStart, Ascendancy: "Juggernaut", Neighbours: []uint32{21}},
-				{ID: 21, Ascendancy: "Juggernaut", Neighbours: []uint32{20}, Stats: life(40)},
+				{ID: 21, Ascendancy: "Juggernaut", Neighbours: []uint32{20, 22}, Stats: life(40)},
+				{ID: 22, Ascendancy: "Juggernaut", Neighbours: []uint32{21, 23}, MultipleChoice: true},
+				{ID: 23, Ascendancy: "Juggernaut", Neighbours: []uint32{22}, MultipleChoiceOption: true, Stats: life(50)},
 			},
 		}},
 	}
@@ -75,15 +78,15 @@ func juggernaut(nodes ...uint32) *build.Build {
 }
 
 type summary struct {
-	node, effect uint32
-	path         []uint32
-	points       int
+	node, effect        uint32
+	path                []uint32
+	passive, ascendancy int
 }
 
 func summarize(nps []power.NodePower) []summary {
 	out := make([]summary, 0, len(nps))
 	for _, np := range nps {
-		out = append(out, summary{np.Node, np.Effect, np.Path, np.Points})
+		out = append(out, summary{np.Node, np.Effect, np.Path, np.PassivePoints, np.AscendancyPoints})
 	}
 	return out
 }
@@ -101,13 +104,16 @@ func TestCandidatesAndPaths(t *testing.T) {
 	t.Parallel()
 	sim := testSim(t)
 	got := summarize(nodes(t, sim, juggernaut()))
-	// 3 is two steps away through 2 or 5: the lower id wins; 9 joins nothing
+	// 3 is two steps away through 2 or 5: the lower id wins; 9 joins nothing; ascendancy nodes
+	// cost ascendancy points, option 23 costs nothing
 	want := []summary{
-		{2, 0, []uint32{2}, 1}, {3, 0, []uint32{2, 3}, 2}, {5, 0, []uint32{5}, 1},
-		{7, 70, []uint32{2, 3, 7}, 3}, {7, 71, []uint32{2, 3, 7}, 3}, {21, 0, []uint32{21}, 1},
+		{2, 0, []uint32{2}, 1, 0}, {3, 0, []uint32{2, 3}, 2, 0}, {5, 0, []uint32{5}, 1, 0},
+		{7, 70, []uint32{2, 3, 7}, 3, 0}, {7, 71, []uint32{2, 3, 7}, 3, 0},
+		{21, 0, []uint32{21}, 0, 1}, {22, 0, []uint32{21, 22}, 0, 2}, {23, 0, []uint32{21, 22, 23}, 0, 2},
 	}
 	if !slices.EqualFunc(want, got, func(a, b summary) bool {
-		return a.node == b.node && a.effect == b.effect && a.points == b.points && slices.Equal(a.path, b.path)
+		return a.node == b.node && a.effect == b.effect && a.passive == b.passive && a.ascendancy == b.ascendancy &&
+			slices.Equal(a.path, b.path)
 	}) {
 		t.Errorf("got  %v\nwant %v", got, want)
 	}
@@ -115,7 +121,7 @@ func TestCandidatesAndPaths(t *testing.T) {
 	b := juggernaut(2, 3, 7)
 	b.Masteries = map[uint32]uint32{7: 70}
 	got = summarize(nodes(t, sim, b))
-	if !slices.ContainsFunc(got, func(s summary) bool { return s.node == 7 && s.effect == 71 && s.points == 0 && len(s.path) == 0 }) ||
+	if !slices.ContainsFunc(got, func(s summary) bool { return s.node == 7 && s.effect == 71 && s.passive == 0 && len(s.path) == 0 }) ||
 		slices.ContainsFunc(got, func(s summary) bool { return s.node == 7 && s.effect == 70 }) {
 		t.Errorf("allocated mastery: %v", got)
 	}
@@ -124,12 +130,13 @@ func TestCandidatesAndPaths(t *testing.T) {
 func TestMaxDistance(t *testing.T) {
 	t.Parallel()
 	sim := testSim(t)
-	for limit, want := range map[int][]uint32{1: {2, 5, 21}, 2: {2, 3, 5, 21}, 3: {2, 3, 5, 7, 7, 21}, 0: {2, 3, 5, 7, 7, 21}, 99: {2, 3, 5, 7, 7, 21}} {
+	all := []uint32{2, 3, 5, 7, 7, 21, 22, 23}
+	for limit, want := range map[int][]uint32{1: {2, 5, 21}, 2: {2, 3, 5, 21, 22}, 3: all, 0: all, 99: all} {
 		nps := nodes(t, sim, juggernaut(), power.MaxDistance(limit))
 		got := make([]uint32, 0, len(nps))
 		for _, np := range nps {
-			if np.Points > limit && limit > 0 {
-				t.Errorf("limit %d: node %d at %d points", limit, np.Node, np.Points)
+			if len(np.Path) > limit && limit > 0 {
+				t.Errorf("limit %d: node %d at distance %d", limit, np.Node, len(np.Path))
 			}
 			got = append(got, np.Node)
 		}
