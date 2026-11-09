@@ -20,6 +20,8 @@ const (
 	optSet optionKind = iota + 1
 	optClear
 	optOutputs
+	optRankBy
+	optWorkers
 )
 
 // Option configures a sim (Configure) or one call (Simulate, Compare).
@@ -28,6 +30,7 @@ type Option struct {
 	key     string
 	values  config.Values
 	outputs []output.Key
+	workers int
 	err     error
 }
 
@@ -54,11 +57,22 @@ func Outputs(keys ...output.Key) Option {
 	return Option{kind: optOutputs, outputs: append([]output.Key(nil), keys...)}
 }
 
-// callOptions are the options of one call: config values set and keys cleared, and outputs.
+// RankBy sorts a sweep's results by the change of output k, largest first; ties keep variant
+// order. The output is computed even when Outputs does not list it.
+func RankBy(k output.Key) Option { return Option{kind: optRankBy, outputs: []output.Key{k}} }
+
+// Workers sets how many goroutines a sweep runs, each on its own sheet; 0 or less means
+// runtime.GOMAXPROCS. Results do not depend on it.
+func Workers(n int) Option { return Option{kind: optWorkers, workers: n} }
+
+// callOptions are the options of one call: config values set and keys cleared, outputs, and
+// for sweeps the ranking and workers.
 type callOptions struct {
 	set     config.Values
 	cleared map[string]bool
 	outputs []output.Key
+	rankBy  output.Key
+	workers int
 }
 
 func readCallOptions(opts []Option) (callOptions, error) {
@@ -76,6 +90,10 @@ func readCallOptions(opts []Option) (callOptions, error) {
 			delete(co.set, o.key)
 		case optOutputs:
 			co.outputs = append(co.outputs, o.outputs...)
+		case optRankBy:
+			co.rankBy = o.outputs[0]
+		case optWorkers:
+			co.workers = o.workers
 		}
 	}
 	return co, nil
