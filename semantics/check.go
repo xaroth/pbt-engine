@@ -22,8 +22,8 @@ var (
 // sourceLanguage is the language of description source texts.
 const sourceLanguage = "en"
 
-// Check checks the entries of t that hold for the dataset version in s against it: each stat
-// must be in the dataset's stats; a description source must quote a template of that stat in
+// Check checks the entries of t that hold for the dataset version in s against it: each stat,
+// and each counter a modifier holds on, must be in the dataset's stats; a description source must quote a template of that stat in
 // the file its text renders from in the entry's scope, which is files[scope] or, when that
 // file does not describe the stat, the nearest parent file that does; an object-template
 // source's stat line must hold for every character; a game-data source must name the
@@ -45,6 +45,11 @@ func (t *Table) Check(s *dataset.Store, files map[resolve.Scope]string) error {
 		}
 		if !d.known[e.Stat] {
 			errs = append(errs, fmt.Errorf("semantics: %s: %w %s", e, ErrUnknownStat, d.name))
+		}
+		for _, m := range e.Mods {
+			if m.If != nil && !d.known[m.If.Stat] {
+				errs = append(errs, fmt.Errorf("semantics: %s: counter %s: %w %s", e, m.If.Stat, ErrUnknownStat, d.name))
+			}
 		}
 		errs = append(errs, d.checkSources(e)...)
 	}

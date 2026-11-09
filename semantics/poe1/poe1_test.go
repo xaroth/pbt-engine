@@ -201,11 +201,17 @@ func fixture(t *testing.T, tbl *semantics.Table, s *dataset.Store) *dataset.Data
 	return d
 }
 
-// wantedStats returns the stats of tbl's entries and object-template sources.
+// wantedStats returns the stats of tbl's entries, the counters their modifiers hold on and
+// their object-template sources.
 func wantedStats(tbl *semantics.Table) map[string]bool {
 	wanted := map[string]bool{}
 	for _, e := range tbl.Entries {
 		wanted[e.Stat] = true
+		for _, m := range e.Mods {
+			if m.If != nil {
+				wanted[m.If.Stat] = true
+			}
+		}
 		for _, src := range e.Sources {
 			if src.Kind == semantics.ObjectTemplate {
 				stat, _, _ := strings.Cut(src.Text, " = ")

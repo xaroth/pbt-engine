@@ -45,7 +45,8 @@ type Summary struct {
 
 // Cover computes the coverage of the stats the dataset in s gives as resolve emits them: the
 // bundles of every node of the tree variant, with mastery effects, every character, the level
-// and the quest rewards of a completed campaign. feeds says which stats the caller needs
+// and the quest rewards of a completed campaign. Counters (resolve.Counters) need no entry
+// and are left out. feeds says which stats the caller needs
 // meanings for.
 func Cover(s *dataset.Store, variant string, t *Table, feeds func(stat string, scope resolve.Scope) bool) (*Coverage, error) {
 	m := s.Manifest()
@@ -90,10 +91,16 @@ func statUses(s *dataset.Store, variant string) (map[useKey]int, error) {
 	if err != nil {
 		return nil, err
 	}
+	counters, err := resolve.Counters(s, variant)
+	if err != nil {
+		return nil, fmt.Errorf("semantics: %w", err)
+	}
 	uses := map[useKey]int{}
 	add := func(scope resolve.Scope, svs []resolve.StatValue) {
 		for _, sv := range svs {
-			uses[useKey{sv.Stat, scope}]++
+			if _, counter := slices.BinarySearch(counters, sv.Stat); !counter {
+				uses[useKey{sv.Stat, scope}]++
+			}
 		}
 	}
 	for i := range chars {

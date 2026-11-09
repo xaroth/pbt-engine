@@ -6,33 +6,49 @@ import (
 	"github.com/xaroth/pbt-engine/resolve"
 )
 
-// lifeMasteries are n allocated Life Masteries, each counting itself, and on the first the
-// "10% more Maximum Life if you have at least 6 Life Masteries allocated" effect.
-func lifeMasteries(n int) []resolve.Bundle {
-	var out []resolve.Bundle
+// masteries are n allocated Life Masteries and one Fire Mastery, each counting itself, and on
+// the first Life Mastery the "10% more Maximum Life if you have at least 6 Life Masteries
+// allocated" effect.
+func masteries(n int) *resolve.Resolved {
+	bundles := endgame()
 	for i := range n {
-		id := uint32(100 + i)
-		out = append(out, bundle(resolve.NodeSource{ID: id}, resolve.Global, resolve.StatValue{Stat: "number_of_life_masteries", Value: 1}))
+		bundles = append(bundles, bundle(resolve.NodeSource{ID: uint32(100 + i)}, resolve.Global, resolve.StatValue{Stat: "number_of_life_masteries", Value: 1}))
 	}
-	return append(out, bundle(resolve.NodeSource{ID: 100, Effect: 64381}, resolve.Global,
-		resolve.StatValue{Stat: "life_mastery_count_maximum_life_+%_final", Value: 10}))
+	bundles = append(bundles,
+		bundle(resolve.NodeSource{ID: 200}, resolve.Global, resolve.StatValue{Stat: "number_of_fire_masteries", Value: 1}),
+		bundle(resolve.NodeSource{ID: 100, Effect: 64381}, resolve.Global, resolve.StatValue{Stat: "life_mastery_count_maximum_life_+%_final", Value: 10}))
+	r := resolved(bundles...)
+	r.Counters = []string{"number_of_fire_masteries", "number_of_life_masteries"}
+	return r
 }
 
-func TestLifeMasteryCount(t *testing.T) {
+func TestMasteryCount(t *testing.T) {
 	t.Parallel()
 	// level 90: 1134 life
 	for n, want := range map[int]float64{5: 1134, 6: 1247, 7: 1247} {
-		sh := open(t, resolved(append(endgame(), lifeMasteries(n)...)...))
+		sh := open(t, masteries(n))
 		if got := value(t, sh, "maximum_life"); got != want {
 			t.Errorf("%d life masteries: life %v, want %v", n, got, want)
 		}
 		if got := value(t, sh, "number_of_life_masteries"); got != float64(n) {
 			t.Errorf("%d life masteries counted as %v", n, got)
 		}
-		for _, note := range sh.Notes() {
-			if note.Stat == "life_mastery_count_maximum_life_+%_final" || note.Stat == "number_of_life_masteries" {
-				t.Errorf("note: %s", note)
-			}
+		if got := value(t, sh, "number_of_fire_masteries"); got != 1 {
+			t.Errorf("fire masteries counted as %v", got)
 		}
+		for _, note := range sh.Notes() {
+			t.Errorf("note: %s", note)
+		}
+	}
+}
+
+// TestMasteryCountWithoutCounter: on a tree without the counter the effect never holds.
+func TestMasteryCountWithoutCounter(t *testing.T) {
+	t.Parallel()
+	r := masteries(6)
+	r.Counters = []string{"number_of_fire_masteries"}
+	sh := open(t, r)
+	if got := value(t, sh, "maximum_life"); got != 1134 {
+		t.Errorf("life %v, want 1134", got)
 	}
 }

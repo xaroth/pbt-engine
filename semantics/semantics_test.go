@@ -136,6 +136,8 @@ func TestLoadRejects(t *testing.T) {
 		{"bad version", unknown(`"from": "3.x", ` + reason), `version "3.x"`},
 		{"empty range", unknown(`"from": "3.29", "until": "3.29", ` + reason), "not before until"},
 		{"authored without mods", authored(`"omitted": "o"`), "authored without mods or rule"},
+		{"count without counter", authored(`"mods": [{"stat": "life", "op": "more", "if": {"atLeast": 6}}]`), "want a counter"},
+		{"count at least 0", authored(`"mods": [{"stat": "life", "op": "more", "if": {"count": "n", "atLeast": 0}}]`), "want a counter"},
 		{"params without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "params": {"from": "life"}`), "params without a rule"},
 		{"rule factor without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "ruleFactor": "100"`), "rule factor without a rule"},
 		{"zero rule factor", authored(`"rule": "gain_as_extra", "params": {"from": "life", "to": "armour"}, "ruleFactor": "0"`), "rule factor 0"},
@@ -415,6 +417,12 @@ func TestCheck(t *testing.T) {
 			testDataset("3.29.3.3"),
 			[]error{mismatch, mismatch},
 		},
+		{
+			"counter not in dataset",
+			strings.Replace(fixture, `"step": 2}`, `"step": 2}, "if": {"count": "no_such_counter", "atLeast": 6}`, 1),
+			testDataset("3.29.3.3"),
+			[]error{semantics.ErrUnknownStat, mismatch},
+		},
 		{"no text", fixture, noText, slices.Repeat([]error{semantics.ErrTextNotChecked}, 5)},
 		{"other game", fixture, otherGame, []error{semantics.ErrOtherGame}},
 	}
@@ -507,6 +515,22 @@ unvalidated maximum_all_resistances_% global, uses 1: no description text
 `
 	if diff := cmp.Diff(wantText, out.String()); diff != "" {
 		t.Errorf("WriteText (-want +got):\n%s", diff)
+	}
+}
+
+// A mastery's counter needs no entry, so Cover leaves it out.
+func TestCoverCounters(t *testing.T) {
+	t.Parallel()
+	d := testDataset("3.29.3.3")
+	d.Trees[0].Nodes[2].Stats = []dataset.StatValue{{Stat: 4, Value: 1}}
+	c, err := semantics.Cover(open(t, d), "standard", load(t, readFixture(t)), func(string, resolve.Scope) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.Stats {
+		if u.Stat == "unmapped_stat" {
+			t.Errorf("counter covered: %+v", u)
+		}
 	}
 }
 

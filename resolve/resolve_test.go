@@ -202,6 +202,30 @@ func TestResolveMasteries(t *testing.T) {
 	}
 }
 
+// A mastery's stat is its group's counter, in Counters whether the mastery is allocated or not.
+func TestCounters(t *testing.T) {
+	t.Parallel()
+	d := testDataset()
+	d.Stats = append(d.Stats, dataset.Stat{ID: "number_of_life_masteries"})
+	d.Trees[0].Nodes[3].Stats = []dataset.StatValue{{Stat: uint32(len(d.Stats) - 1), Value: 1}}
+	s := open(t, d)
+	r, err := resolveBuild(t, s, testBuild(1, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"number_of_life_masteries"}
+	if diff := cmp.Diff(want, r.Counters); diff != "" {
+		t.Errorf("Resolved.Counters (-want +got):\n%s", diff)
+	}
+	got, err := resolve.Counters(s, "standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Counters (-want +got):\n%s", diff)
+	}
+}
+
 // Tree holds every node and mastery effect, allocated or not.
 func TestTree(t *testing.T) {
 	t.Parallel()

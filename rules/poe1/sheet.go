@@ -3,6 +3,8 @@ package poe1
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/core"
@@ -82,6 +84,9 @@ func capabilityVersions() map[string]int { return map[string]int{} }
 type Sheet struct {
 	session *core.Session
 	stats   map[string]core.StatID
+	// counters are the engine stats of the tree's counters (resolve.Counters): a bundle stat
+	// that is one adds its value to it, without a table entry.
+	counters map[string]bool
 	// sources describes each core source, by core.SourceID.
 	sources []Source
 	version string
@@ -133,12 +138,12 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if _, err := r.Capabilities.Check(capabilityVersions()); err != nil {
 		return nil, fmt.Errorf("sheet: dataset %s: %w", r.Version, err)
 	}
-	m, stats := model()
-	s, err := core.NewSession(m, 1)
+	md := modelFor(r.Counters)
+	s, err := core.NewSession(md.model, 1)
 	if err != nil {
 		return nil, fmt.Errorf("sheet: %w", err)
 	}
-	sh := &Sheet{session: s, stats: stats, version: r.Version, table: t, gameVersion: v}
+	sh := &Sheet{session: s, stats: md.stats, counters: md.counters, version: r.Version, table: t, gameVersion: v}
 	for i := range r.Bundles {
 		if err := sh.add(&r.Bundles[i], t, v); err != nil {
 			return nil, err
@@ -193,14 +198,47 @@ func (sh *Sheet) proportion(name string) (core.Proportion, error) {
 	return p, nil
 }
 
-func model() (*core.Model, map[string]core.StatID) {
-	var b core.ModelBuilder
-	stats := map[string]core.StatID{}
-	for _, name := range engineStats() {
-		stats[name] = b.MustAddStat(statDef(name, stats))
+// sheetModel is the core model of a sheet over a tree with some counters, shared by every
+// sheet over such a tree; sheets only read it.
+type sheetModel struct {
+	model    *core.Model
+	stats    map[string]core.StatID
+	counters map[string]bool
+}
+
+//nolint:gochecknoglobals // a cache of immutable models, one per set of counters
+var models struct {
+	sync.Mutex
+
+	byCounters map[string]*sheetModel
+}
+
+// modelFor returns the model of the engine stats and counters; counters are sorted.
+func modelFor(counters []string) *sheetModel {
+	key := strings.Join(counters, ",")
+	models.Lock()
+	defer models.Unlock()
+	if md, ok := models.byCounters[key]; ok {
+		return md
 	}
-	addTransferStats(&b, stats)
-	return b.Build(), stats
+	var b core.ModelBuilder
+	md := &sheetModel{stats: map[string]core.StatID{}, counters: make(map[string]bool, len(counters))}
+	for _, name := range engineStats() {
+		md.stats[name] = b.MustAddStat(statDef(name, md.stats))
+	}
+	addTransferStats(&b, md.stats)
+	for _, name := range counters {
+		if _, ok := md.stats[name]; !ok {
+			md.stats[name] = b.MustAddStat(core.StatDef{Name: name})
+			md.counters[name] = true
+		}
+	}
+	md.model = b.Build()
+	if models.byCounters == nil {
+		models.byCounters = map[string]*sheetModel{}
+	}
+	models.byCounters[key] = md
+	return md
 }
 
 func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion) error {
@@ -211,6 +249,12 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 	b := *bd
 	src := sh.newSource(Source{Bundle: &b})
 	for _, sv := range bd.Stats {
+		if sh.counters[sv.Stat] {
+			if _, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[sv.Stat], Op: core.OpBase, Value: sv.Value, Source: src}); err != nil {
+				return fmt.Errorf("sheet: counter %s: %w", sv.Stat, err)
+			}
+			continue
+		}
 		e, ok := t.Lookup(sv.Stat, bd.Scope, v)
 		ruled := false
 		if ok && e.Status == semantics.Authored {
@@ -253,6 +297,13 @@ func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID) e
 		mod := core.Modifier{Stat: sh.stats[m.Stat], Op: m.Op, Value: m.Factor.Apply(value), Source: src}
 		if m.Per != nil {
 			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
+		}
+		if m.If != nil {
+			if !sh.counters[m.If.Stat] {
+				// A counter the tree lacks stays 0, below any AtLeast.
+				continue
+			}
+			mod.Conds = []core.Cond{{Ref: core.SelfRef(sh.stats[m.If.Stat]), Cmp: core.CmpGE, Threshold: float64(m.If.AtLeast)}}
 		}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return fmt.Errorf("sheet: %s: %w", e.Stat, err)

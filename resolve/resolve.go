@@ -130,6 +130,9 @@ type Resolved struct {
 	Capabilities dataset.Capabilities
 	Bundles      []Bundle
 	Constants    []Constant
+	// Counters are the stats the tree counts rather than gives: each mastery group's count
+	// stat, which every mastery of the group carries at 1. Sorted.
+	Counters []string
 	// Notes lists build fields that were not resolved, with the reason.
 	Notes []string
 }
@@ -235,7 +238,7 @@ func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load constants: %w", err)
 	}
-	r := &Resolved{Game: m.Game, Version: m.Version, Capabilities: maps.Clone(m.Capabilities)}
+	r := &Resolved{Game: m.Game, Version: m.Version, Capabilities: maps.Clone(m.Capabilities), Counters: counters(stats, c.Tree())}
 
 	ch := c.Character()
 	r.Bundles = append(r.Bundles,
@@ -350,6 +353,33 @@ func node(s *dataset.Store, variant string, id uint32) ([]dataset.Stat, *dataset
 		return nil, nil, fmt.Errorf("resolve: dataset %s has no node %d in the %s tree: %w", s.Manifest().Version, id, variant, dataset.ErrNotInDataset)
 	}
 	return stats, &tree.Nodes[i], nil
+}
+
+// Counters returns the counters of the variant tree of s, as Resolved.Counters.
+func Counters(s *dataset.Store, variant string) ([]string, error) {
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, fmt.Errorf("resolve: load stats: %w", err)
+	}
+	tree, err := s.Tree(variant)
+	if err != nil {
+		return nil, fmt.Errorf("resolve: load tree: %w", err)
+	}
+	return counters(stats, tree), nil
+}
+
+// counters returns the stats of tree's masteries: a mastery's only stat is its group's count.
+func counters(stats []dataset.Stat, tree *dataset.Tree) []string {
+	var out []string
+	for i := range tree.Nodes {
+		if n := &tree.Nodes[i]; n.Kind == dataset.Mastery {
+			for _, sv := range n.Stats {
+				out = append(out, stats[sv.Stat].ID)
+			}
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // nodeBundles is NodeBundles of n, whose stat handles index stats.

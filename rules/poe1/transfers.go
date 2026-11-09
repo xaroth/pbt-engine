@@ -193,9 +193,6 @@ func transferFormula(name string, ids map[string]core.StatID) core.Formula {
 // applyRule adds the modifiers of an authored entry's rule for a stat of value v, and reports
 // whether these rules implement it.
 func (sh *Sheet) applyRule(e *semantics.Entry, v float64, src core.SourceID) (bool, error) {
-	if e.Rule == ruleLifeMasteryCount {
-		return true, sh.addLifeMasteryCount(e, v, src)
-	}
 	for _, t := range transfers() {
 		if t.rule != e.Rule || t.from != e.Params["from"] || t.to != e.Params["to"] {
 			continue
