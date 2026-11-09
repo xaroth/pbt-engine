@@ -12,6 +12,7 @@ import (
 type attributeBonus struct {
 	constant, attribute, target, off string
 	op                               core.Op
+	label                            string
 }
 
 // attributeBonuses are the inherent bonuses on the sheet. The constants' notes say each is
@@ -19,32 +20,34 @@ type attributeBonus struct {
 func attributeBonuses() []attributeBonus {
 	return []attributeBonus{
 		{
-			constant: "life_per_strength", attribute: statStrength, target: statMaximumLife, op: core.OpBase,
+			constant: "life_per_strength", label: "Strength bonus to maximum life", attribute: statStrength, target: statMaximumLife, op: core.OpBase,
 			off: statNoStrengthBonusToMaximumLife,
 		},
 		{
-			constant: "mana_per_intelligence", attribute: statIntelligence, target: statMaximumMana, op: core.OpBase,
+			constant: "mana_per_intelligence", label: "Intelligence bonus to maximum mana", attribute: statIntelligence, target: statMaximumMana, op: core.OpBase,
 			off: statNoIntelligenceBonusToMaximumMana,
 		},
 		{
-			constant: "evasion_rating_+%_per_dexterity", attribute: statDexterity, target: statEvasionRating, op: core.OpInc,
+			constant: "evasion_rating_+%_per_dexterity", label: "Dexterity bonus to evasion rating", attribute: statDexterity, target: statEvasionRating, op: core.OpInc,
 			off: statNoDexterityBonusToEvasionRating,
 		},
 		{
-			constant: "energy_shield_+%_per_intelligence", attribute: statIntelligence, target: statMaximumEnergyShield, op: core.OpInc,
+			constant: "energy_shield_+%_per_intelligence", label: "Intelligence bonus to maximum energy shield",
+			attribute: statIntelligence, target: statMaximumEnergyShield, op: core.OpInc,
 			off: statNoIntelligenceBonusToMaximumEnergyShield,
 		},
 	}
 }
 
-// addAttributeBonuses adds the inherent attribute bonuses as modifiers of one source.
+// addAttributeBonuses adds the inherent attribute bonuses as modifiers, one source each so
+// each explains as its own line.
 func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
-	src := sh.session.NewSource()
 	for _, b := range attributeBonuses() {
 		c, err := constant(consts, b.constant)
 		if err != nil {
 			return err
 		}
+		src := sh.newSource(Source{Rule: fmt.Sprintf("%s (%d per %d, constant %s)", b.label, c.Value, c.Per, b.constant)})
 		mod := core.Modifier{
 			Stat: sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src,
 			Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[b.attribute]), Step: float64(c.Per)}},

@@ -5,8 +5,13 @@ import (
 	"fmt"
 )
 
-// ErrUnknownOutput is returned for an output name not in the catalogue.
-var ErrUnknownOutput = errors.New("unknown output")
+// Errors of the catalogue and explanations.
+var (
+	// ErrUnknownOutput is returned for an output name not in the catalogue.
+	ErrUnknownOutput = errors.New("unknown output")
+	// ErrUnknownView is returned for a View that is not Tree, Proportional or Marginal.
+	ErrUnknownView = errors.New("unknown view")
+)
 
 // Units of outputs.
 const (
