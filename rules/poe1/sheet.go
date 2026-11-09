@@ -78,6 +78,9 @@ func capabilityVersions() map[string]int { return map[string]int{} }
 type Sheet struct {
 	session *core.Session
 	stats   map[string]core.StatID
+	// sources describes each core source, by core.SourceID.
+	sources []Source
+	version string
 	// Notes lists the bundle stats left out of the sheet, in bundle order.
 	Notes []Note
 }
@@ -103,7 +106,7 @@ func Open(r *resolve.Resolved, t *semantics.Table) (*Sheet, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sheet: %w", err)
 	}
-	sh := &Sheet{session: s, stats: stats}
+	sh := &Sheet{session: s, stats: stats, version: r.Version}
 	for i := range r.Bundles {
 		if err := sh.add(&r.Bundles[i], t, v); err != nil {
 			return nil, err
@@ -127,6 +130,12 @@ func (sh *Sheet) Value(name string) (float64, error) {
 		return 0, fmt.Errorf("sheet: %s: %w", name, err)
 	}
 	return val, nil
+}
+
+// newSource adds a core source described by d.
+func (sh *Sheet) newSource(d Source) core.SourceID {
+	sh.sources = append(sh.sources, d)
+	return sh.session.NewSource()
 }
 
 // proportion returns the proportional view of engine stat name.
@@ -157,7 +166,8 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 	if bd.Actor != resolve.Player {
 		return fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
 	}
-	src := sh.session.NewSource()
+	b := *bd
+	src := sh.newSource(Source{Bundle: &b})
 	for _, sv := range bd.Stats {
 		e, ok := t.Lookup(sv.Stat, bd.Scope, v)
 		ruled := false
