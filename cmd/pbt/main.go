@@ -7,6 +7,8 @@
 //	pbt build check <build.json>
 //	pbt build resolve <build.json>
 //	pbt semantics coverage --version <v> [--variant standard]
+//	pbt eval <build.json> [--version v] [--set key=value]... [--explain output [--view tree]] [--warnings all]
+//	pbt compare <a.json> <b.json> [--version v] [--version-b v] [--set key=value]... [--warnings all]
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions of --game (default poe1) resolve as
@@ -52,6 +54,8 @@ const usage = `usage:
   pbt build check <build.json>
   pbt build resolve <build.json>
   pbt semantics coverage --version <v> [--variant standard]
+  pbt eval <build.json> [--version v] [--set key=value]... [--explain output [--view tree|proportional|marginal]] [--warnings all]
+  pbt compare <a.json> <b.json> [--version v] [--version-b v] [--set key=value]... [--warnings all]
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -89,6 +93,9 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 			i++
 			val = args[i]
 		}
+		if name == "set" {
+			val = opts[name] + val + "\n"
+		}
 		opts[name] = val
 	}
 	return pos, opts, nil
@@ -98,6 +105,7 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 func run(args []string, w, notes io.Writer) error {
 	pos, opts, err := parseArgs(args, map[string]string{
 		"version": "", "variant": build.DefaultVariant, "root": "datasets", "limit": "20", "language": "en", "game": "poe1",
+		"set": "", "explain": "", "view": "tree", "version-b": "", "warnings": "short",
 	})
 	if err != nil {
 		return err
@@ -111,9 +119,14 @@ func run(args []string, w, notes io.Writer) error {
 		"build check":        {3, buildCheck},
 		"build resolve":      {3, buildResolve},
 		"semantics coverage": {2, semanticsCoverage},
+		"eval":               {2, eval},
+		"compare":            {3, compare},
 	}
 	const commandWords = 2
 	cmd, ok := commands[strings.Join(pos[:min(len(pos), commandWords)], " ")]
+	if !ok && len(pos) > 0 {
+		cmd, ok = commands[pos[0]]
+	}
 	if !ok || len(pos) != cmd.args {
 		return errUsage
 	}
