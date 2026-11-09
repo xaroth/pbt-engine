@@ -23,22 +23,26 @@ type Stats struct {
 	checked  *build.Checked
 	sim      *Sim
 
-	explainOnce  sync.Once
+	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
+	explainMu    sync.Mutex
 	explainSheet *poe1.Sheet
 	explainErr   error
 }
 
 // Explain explains output k in view v. The first call opens a sheet from the build and config
-// the simulation used (about a millisecond); later calls reuse it. Safe for concurrent use.
+// the simulation used (about a millisecond); later calls reuse it. Safe for concurrent use;
+// explanations of one Stats run one at a time.
 func (st *Stats) Explain(k output.Key, v poe1.View) (*poe1.Explanation, error) {
-	st.explainOnce.Do(func() {
+	st.explainMu.Lock()
+	defer st.explainMu.Unlock()
+	if st.explainSheet == nil && st.explainErr == nil {
 		r, err := resolve.Resolve(st.checked)
 		if err != nil {
 			st.explainErr = fmt.Errorf("simulator: explain: %w", err)
-			return
+		} else {
+			st.explainSheet, st.explainErr = poe1.Open(r, st.sim.table, st.cfg)
 		}
-		st.explainSheet, st.explainErr = poe1.Open(r, st.sim.table, st.cfg)
-	})
+	}
 	if st.explainErr != nil {
 		return nil, st.explainErr
 	}

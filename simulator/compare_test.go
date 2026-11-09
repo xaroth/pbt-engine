@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
@@ -118,4 +119,21 @@ func TestStatsExplain(t *testing.T) {
 	if _, err := st.Explain("player.nothing", poe1.Tree); err == nil {
 		t.Error("unknown output: no error")
 	}
+}
+
+// Explanations of one Stats from several goroutines (run with -race).
+func TestStatsExplainConcurrent(t *testing.T) {
+	t.Parallel()
+	st := simulate(t, newSim(t), marauderBuild(90, 2, 3))
+	var wg sync.WaitGroup
+	for g := range 6 {
+		wg.Go(func() {
+			for _, k := range []output.Key{poe1.Life, poe1.FireResistance, poe1.Mana} {
+				if _, err := st.Explain(k, []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal}[g%3]); err != nil {
+					t.Error(err)
+				}
+			}
+		})
+	}
+	wg.Wait()
 }
