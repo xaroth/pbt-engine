@@ -181,6 +181,7 @@ func buildCheck(in invocation) error {
 		return err
 	}
 	p := &printer{w: in.w}
+	printWarnings(p, c.Warnings())
 	b := c.Build()
 	p.printf("ok: %s %s (dataset %s), %s tree, %s %s, level %d, %d nodes\n", b.Game, b.Version, c.Store().Manifest().Version,
 		b.Variant, b.Class, cmp.Or(b.Ascendancy, "no ascendancy"), b.Level, len(b.Nodes))
@@ -191,6 +192,11 @@ func buildResolve(in invocation) error {
 	c, err := checkBuild(in.w, in.opts["root"], in.pos[2])
 	if err != nil {
 		return err
+	}
+	p := &printer{w: in.w}
+	printWarnings(p, c.Warnings())
+	if p.err != nil {
+		return p.err
 	}
 	r, err := resolve.Resolve(c)
 	if err != nil {
@@ -279,6 +285,13 @@ func read(s *dataset.Store, variants []string, language string) (*dataset.Datase
 	return d, nil
 }
 
+// printWarnings prints one line per warning.
+func printWarnings(p *printer, ws []build.Warning) {
+	for _, w := range ws {
+		p.printf("warning %s\n", w)
+	}
+}
+
 // checkBuild reads a build file and checks it against the dataset its version resolves to
 // under --root.
 func checkBuild(notes io.Writer, root, path string) (*build.Checked, error) {
@@ -294,7 +307,7 @@ func checkBuild(notes io.Writer, root, path string) (*build.Checked, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	c, err := build.Check(b, res[0].Store)
+	c, _, err := build.Check(b, res[0].Store)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}

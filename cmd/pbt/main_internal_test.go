@@ -274,6 +274,18 @@ func TestBuildCheck(t *testing.T) {
 	}
 }
 
+func TestBuildCheckWarns(t *testing.T) {
+	t.Parallel()
+	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","level":1,"nodes":[2]}`)
+	var out strings.Builder
+	if err := run([]string{"build", "check", path, "--root", writeRoot(t)}, &out, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(out.String(), "warning node-unknown node 2: not in the standard tree of 3.29; dropped\nok: ") {
+		t.Errorf("got %q", out.String())
+	}
+}
+
 func TestBuildCheckErrors(t *testing.T) {
 	t.Parallel()
 	root := writeRoot(t)
@@ -282,7 +294,7 @@ func TestBuildCheckErrors(t *testing.T) {
 	}{
 		{"not a build", `{"format":9}`},
 		{"unknown version", `{"format":1,"game":"poe1","version":"9.9","class":"Metadata/Characters/Str/Str","level":1,"nodes":[]}`},
-		{"unknown node", `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","level":1,"nodes":[2]}`},
+		{"unknown class", `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Nope","level":1,"nodes":[]}`},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

@@ -24,7 +24,7 @@ func realSheet(t *testing.T, version string, b *build.Build) *rules.Sheet {
 	if err != nil {
 		t.Fatalf("dataset %s: %v", version, err)
 	}
-	c, err := build.Check(b, s)
+	c, _, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -76,7 +76,7 @@ func testBuild(level int, nodes ...uint32) *build.Build {
 
 func resolveBuild(t *testing.T, s *dataset.Store, b *build.Build) (*resolve.Resolved, error) {
 	t.Helper()
-	c, err := build.Check(b, s)
+	c, _, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
 	}
