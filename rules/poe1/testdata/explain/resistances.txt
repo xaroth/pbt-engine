@@ -1,0 +1,92 @@
+Fire Resistance: 75% (+65% over)  [tree, dataset 3.29.3.3]
+  total 140, effective 75
+  fire_resistance_capped = 75 [resistance capped by its maximum]
+    fire_resistance = 140
+      base 200  node 1
+      base -30  quest a5q6 on elemental_resistance
+      base -30  quest a10q3 on elemental_resistance
+    effective_maximum_fire_resistance = 75 [effective maximum resistance]
+      elemental_maximum_resistances_are_highest = 0
+      maximum_fire_resistance = 75
+        base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+
+Fire Resistance: 75% (+65% over)  [proportional, dataset 3.29.3.3]
+  total 140, effective 75, capped by effective_maximum_fire_resistance
+         200  node 1 (base)
+         -30  quest a5q6 (base)
+         -30  quest a10q3 (base)
+
+Fire Resistance: 75% (+65% over)  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+  total 140, effective 75
+        -135  node 1 (total -200)
+           0  quest a5q6 (total 30)
+           0  quest a10q3 (total 30)
+         -75  character Metadata/Characters/Str/Str (total 0)
+
+Cold Resistance: 40%  [tree, dataset 3.29.3.3]
+  cold_resistance_capped = 40 [resistance capped by its maximum]
+    cold_resistance = 40
+      base -30  quest a5q6 on elemental_resistance
+      base -30  quest a10q3 on elemental_resistance
+      base 100  node 1 on fire_resistance at 50%
+      fire_resistance_modifiers_to_cold_and_lightning_% = 50
+        base 50  node 2
+    effective_maximum_cold_resistance = 75 [effective maximum resistance]
+      elemental_maximum_resistances_are_highest = 0
+      maximum_cold_resistance = 75
+        base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+        maximum_fire_resistance_modifiers_to_cold_and_lightning_% = 0
+
+Cold Resistance: 40%  [proportional, dataset 3.29.3.3]
+         100  node 2
+                base 100 via fire_resistance_modifiers_to_cold_and_lightning_% applying node 1
+         -30  quest a5q6 (base)
+         -30  quest a10q3 (base)
+
+Cold Resistance: 40%  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+        -100  node 1
+        -100  node 2
+          30  quest a5q6
+          30  quest a10q3
+         -40  character Metadata/Characters/Str/Str (total 0)
+
+Chaos Resistance: -80%  [tree, dataset 3.29.3.3]
+  chaos_resistance_capped = -80 [resistance capped by its maximum]
+    chaos_resistance = -80 [chaos resistance]
+      base -30  quest a5q6
+      base -30  quest a10q3
+      base 20  node 3
+      chaos_resistance_is_doubled = 1
+        flag 1  node 3
+    maximum_chaos_resistance = 75
+      base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+
+Chaos Resistance: -80%  [proportional, dataset 3.29.3.3]
+         -30  quest a5q6 (base)
+         -30  quest a10q3 (base)
+         -20  node 3
+                base 20
+                more -40 via chaos_resistance_is_doubled
+
+Chaos Resistance: -80%  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+          60  quest a5q6
+          60  quest a10q3
+          20  node 3
+
+Maximum Cold Resistance: 75%  [tree, dataset 3.29.3.3]
+  effective_maximum_cold_resistance = 75 [effective maximum resistance]
+    elemental_maximum_resistances_are_highest = 0
+    maximum_cold_resistance = 75
+      base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+      maximum_fire_resistance_modifiers_to_cold_and_lightning_% = 0
+
+Maximum Cold Resistance: 75%  [proportional, dataset 3.29.3.3]
+          75  character Metadata/Characters/Str/Str (base)
+
+Maximum Cold Resistance: 75%  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+         -75  character Metadata/Characters/Str/Str
+

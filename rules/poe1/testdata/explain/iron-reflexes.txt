@@ -1,0 +1,83 @@
+Armour: 120  [tree, dataset 3.29.3.3]
+  armour = 120 [conversion and gain as extra]
+    increased 20  node 1 on armour_and_evasion_rating
+    base.maximum_life = 1134 [amount a transfer starts from]
+      base 38  character Metadata/Characters/Str/Str on maximum_life
+      base 1080  character Metadata/Characters/Str/Str on maximum_life
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength) on maximum_life
+      level = 90
+        base 90  level
+      no_strength_bonus_to_maximum_life = 0
+      strength = 32
+        base 32  character Metadata/Characters/Str/Str
+    gain_as_extra.maximum_life.armour.% = 0
+    increases.maximum_life.armour = 20 [increases of a transfer]
+      base 38  character Metadata/Characters/Str/Str on maximum_life
+      base 1080  character Metadata/Characters/Str/Str on maximum_life
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength) on maximum_life
+      increased 20  node 1 on armour_and_evasion_rating
+      level = 90 (above)
+      no_strength_bonus_to_maximum_life = 0 (above)
+      strength = 32 (above)
+    more.maximum_life.armour = 1 [more multipliers of a transfer]
+      base 38  character Metadata/Characters/Str/Str on maximum_life
+      base 1080  character Metadata/Characters/Str/Str on maximum_life
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength) on maximum_life
+      increased 20  node 1 on armour_and_evasion_rating
+      level = 90 (above)
+      no_strength_bonus_to_maximum_life = 0 (above)
+      strength = 32 (above)
+    base.evasion_rating = 100 [amount a transfer starts from]
+      base 15  character Metadata/Characters/Str/Str on evasion_rating
+      base 85  node 1 on evasion_rating
+      increased 0  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) on evasion_rating (condition not met)
+      increased 20  node 1 on armour_and_evasion_rating
+      no_dexterity_bonus_to_evasion_rating = 1
+        flag 1  node 1
+    convert.evasion_rating.armour.% = 100
+      base 100  node 1
+    increases.evasion_rating.armour = 20 [increases of a transfer]
+      base 15  character Metadata/Characters/Str/Str on evasion_rating
+      base 85  node 1 on evasion_rating
+      increased 0  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) on evasion_rating (condition not met)
+      increased 20  node 1 on armour_and_evasion_rating
+      no_dexterity_bonus_to_evasion_rating = 1 (above)
+    more.evasion_rating.armour = 1 [more multipliers of a transfer]
+      base 15  character Metadata/Characters/Str/Str on evasion_rating
+      base 85  node 1 on evasion_rating
+      increased 0  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) on evasion_rating (condition not met)
+      increased 20  node 1 on armour_and_evasion_rating
+      no_dexterity_bonus_to_evasion_rating = 1 (above)
+
+Armour: 120  [proportional, dataset 3.29.3.3]
+         120  node 1
+                increased 20
+                base 100 via convert.evasion_rating.armour.%
+
+Armour: 120  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+        -120  node 1
+         -18  character Metadata/Characters/Str/Str
+
+Evasion Rating: 0  [tree, dataset 3.29.3.3]
+  evasion_rating = 0 [conversion and gain as extra]
+    base 15  character Metadata/Characters/Str/Str
+    base 85  node 1
+    increased 0  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) (condition not met)
+    increased 20  node 1 on armour_and_evasion_rating
+    no_dexterity_bonus_to_evasion_rating = 1
+      flag 1  node 1
+    convert.evasion_rating.armour.% = 100
+      base 100  node 1
+
+Evasion Rating: 0  [proportional, dataset 3.29.3.3]
+          15  character Metadata/Characters/Str/Str (base)
+         -15  node 1
+                base 85
+                increased 20
+                more -120 via convert.evasion_rating.armour.%
+
+Evasion Rating: 0  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+          15  node 1 (total 15.3)
+

@@ -1,0 +1,59 @@
+Life Regeneration: 24.5/s  [tree, dataset 3.29.3.3]
+  life_regeneration = 24.5 [regeneration]
+    base 10  node 1 on life_regenerated_per_second
+    increased 50  node 2 on life_regeneration_rate
+    more -50  node 2 on life_regeneration_rate
+    life_regeneration_is_not_applied = 0
+    life_regeneration_applies_to_energy_shield = 0
+    maximum_life = 1134 [conversion and gain as extra]
+      base 38  character Metadata/Characters/Str/Str
+      base 1080  character Metadata/Characters/Str/Str
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
+      level = 90
+        base 90  level
+      no_strength_bonus_to_maximum_life = 0
+      strength = 32
+        base 32  character Metadata/Characters/Str/Str
+      convert.maximum_life.maximum_energy_shield.% = 0
+    percent_of_life_regenerated_per_second = 2
+      base 2  node 1
+
+Life Regeneration: 24.5/s  [proportional, dataset 3.29.3.3]
+       32.68  node 1
+                base 10
+                base 22.68 via percent_of_life_regenerated_per_second
+       -8.17  node 2
+                increased 16.34
+                more -24.51
+
+Life Regeneration: 24.5/s  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+       -24.5  node 1 (total -24.51)
+         -17  character Metadata/Characters/Str/Str (total -16.99)
+       -16.2  level
+         8.2  node 2 (total 8.17)
+        -0.2  Strength bonus to maximum life (1 per 2, constant life_per_strength) (total -0.24)
+
+Mana Regeneration: 10.2/s  [tree, dataset 3.29.3.3]
+  mana_regeneration = 10.2 [regeneration]
+    maximum_mana = 581 [conversion and gain as extra]
+      base 34  character Metadata/Characters/Str/Str
+      base 540  character Metadata/Characters/Str/Str
+      base 7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence)
+      level = 90
+        base 90  level
+      no_intelligence_bonus_to_maximum_mana = 0
+      intelligence = 14
+        base 14  character Metadata/Characters/Str/Str
+    percent_of_mana_regenerated_per_second = 1.75
+      base 1.75  character Metadata/Characters/Str/Str
+
+Mana Regeneration: 10.2/s  [proportional, dataset 3.29.3.3]
+       10.17  character Metadata/Characters/Str/Str (base)
+
+Mana Regeneration: 10.2/s  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+       -10.2  character Metadata/Characters/Str/Str (total -10.17)
+        -9.5  level (total -9.45)
+        -0.2  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) (total -0.12)
+
