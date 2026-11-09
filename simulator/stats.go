@@ -1,11 +1,15 @@
 package simulator
 
 import (
+	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/output"
+	"github.com/xaroth/pbt-engine/resolve"
+	"github.com/xaroth/pbt-engine/rules/poe1"
 )
 
 // Stats is the result of one simulation: output values, warnings and the config each key
@@ -16,7 +20,40 @@ type Stats struct {
 	warnings []Warning
 	cfg      config.Resolved
 	build    *build.Build
+	checked  *build.Checked
+	sim      *Sim
+
+	explainOnce  sync.Once
+	explainSheet *poe1.Sheet
+	explainErr   error
 }
+
+// Explain explains output k in view v. The first call opens a sheet from the build and config
+// the simulation used (about a millisecond); later calls reuse it. Safe for concurrent use.
+func (st *Stats) Explain(k output.Key, v poe1.View) (*poe1.Explanation, error) {
+	st.explainOnce.Do(func() {
+		r, err := resolve.Resolve(st.checked)
+		if err != nil {
+			st.explainErr = fmt.Errorf("simulator: explain: %w", err)
+			return
+		}
+		st.explainSheet, st.explainErr = poe1.Open(r, st.sim.table, st.cfg)
+	})
+	if st.explainErr != nil {
+		return nil, st.explainErr
+	}
+	ex, err := st.explainSheet.Explain(k, v)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: %w", err)
+	}
+	return ex, nil
+}
+
+// Build returns a copy of the build as simulated, before the check's fixes.
+func (st *Stats) Build() *build.Build { return st.build.Clone() }
+
+// Version returns the version of the dataset the build was simulated on.
+func (st *Stats) Version() string { return st.sim.store.Manifest().Version }
 
 // Get returns the value of output k, and false when the simulation did not compute it.
 func (st *Stats) Get(k output.Key) (float64, bool) {
