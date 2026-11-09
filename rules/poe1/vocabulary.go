@@ -54,7 +54,11 @@ const (
 	statPercentOfLifeRegeneratedPerSecond                = "percent_of_life_regenerated_per_second"
 	statPercentOfManaRegeneratedPerSecond                = "percent_of_mana_regenerated_per_second"
 	statStrength                                         = "strength"
+	statNumberOfLifeMasteries                            = "number_of_life_masteries"
 )
+
+// ruleLifeMasteryCount: "10% more Maximum Life if you have at least 6 Life Masteries allocated".
+const ruleLifeMasteryCount = "life_mastery_count_maximum_life"
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
 // registration order: a stat follows the stats it includes or reads.
@@ -65,6 +69,9 @@ const (
 // armour_and_evasion_rating holds those to both, which armour and evasion rating include. The
 // _to_cold_and_lightning_% stats are the share of fire's own modifiers, or maximum fire's,
 // that cold and lightning take.
+//
+// number_of_life_masteries counts allocated Life Masteries: each one's node carries its
+// group's count stat at 1.
 //
 // The no_ stats are flags that turn off one inherent attribute bonus each; the _is_ and _are_
 // stats are flags of one-off mechanics. effective_maximum_ elemental resistances are the
@@ -77,6 +84,7 @@ const (
 // mana.
 func engineStats() []string {
 	return []string{
+		statNumberOfLifeMasteries,
 		statChaosResistanceIsDoubled,
 		statElementalMaximumResistancesAreHighest,
 		statLifeRegenerationIsNotApplied,
@@ -133,6 +141,7 @@ func ruleNames() []string {
 		ruleConvert,
 		"energy_shield_from_spell_block_chance",
 		ruleGainAsExtra,
+		ruleLifeMasteryCount,
 	}
 }
 
