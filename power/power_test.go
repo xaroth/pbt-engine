@@ -172,3 +172,15 @@ func TestResults(t *testing.T) {
 		}
 	}
 }
+
+// BenchmarkNodesTestTree sweeps every candidate of the test tree, alone and via its path; the
+// real-tree measure (01-goals, node power: < 0.3 s native) is BenchmarkNodes.
+func BenchmarkNodesTestTree(b *testing.B) {
+	sim := testSim(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := power.Nodes(sim, juggernaut(), power.Outputs(poe1.Life), power.Workers(1)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

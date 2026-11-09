@@ -33,11 +33,13 @@ func benchSheet(b *testing.B) *rules.Sheet {
 	return sh
 }
 
-// BenchmarkProportional is the core proportional view of one output (D6: under 1 ms in WASM).
+// BenchmarkProportional is the core proportional view of one output (01-goals, explanation of
+// one output: < 1 ms native, < 3 ms WASM).
 func BenchmarkProportional(b *testing.B) {
 	sh := benchSheet(b)
 	for _, stat := range []string{"maximum_life", "fire_resistance_capped", "life_regeneration"} {
 		b.Run(stat, func(b *testing.B) {
+			b.ReportAllocs()
 			for b.Loop() {
 				if _, err := sh.Proportion(stat); err != nil {
 					b.Fatal(err)
@@ -47,11 +49,13 @@ func BenchmarkProportional(b *testing.B) {
 	}
 }
 
-// BenchmarkExplain is Sheet.Explain per view on life, sources grouped and named.
+// BenchmarkExplain is Sheet.Explain per view on life, sources grouped and named (01-goals,
+// explanation of one output: < 1 ms native).
 func BenchmarkExplain(b *testing.B) {
 	sh := benchSheet(b)
 	for _, v := range []rules.View{rules.Tree, rules.Proportional, rules.Marginal} {
 		b.Run(v.String(), func(b *testing.B) {
+			b.ReportAllocs()
 			for b.Loop() {
 				if _, err := sh.Explain("player.life", v); err != nil {
 					b.Fatal(err)

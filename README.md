@@ -29,6 +29,16 @@ A build file (`build` package) names a game, version, tree variant, class (`Char
  "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "config": {"bandits": "help-oak"}}
 ```
 
+## Benchmarks
+
+Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests only. Each benchmark's doc comment names the target from `plan/01-goals.md` it measures.
+
+```sh
+go test -run '^$' -bench . -benchmem ./...          # every benchmark
+go test -run '^$' -bench . -count 10 ./core > new.txt # then benchstat old.txt new.txt
+PBT_DATASETS=../pbt-archive/datasets go test -run '^$' -bench Nodes ./power   # node power on the real tree
+```
+
 ## Semantics
 
 What a game stat id means in engine terms is authored by us from game data: stat ids, stat description text, object templates. The `semantics` package holds the table format: entries keyed by stat id and scope, with optional game version ranges, a status (`authored`, `unknown` or `display-only`), the sources each was authored from, and for unknown entries a typed reason (a scenario condition, equipped items, a rule still to write, and so on).
