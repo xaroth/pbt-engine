@@ -77,6 +77,9 @@ type StatDef struct {
 	Formula Formula
 	// FormulaName names Formula in explanations.
 	FormulaName string
+	// Attribute splits a Formula's value among sources for the proportional view; a stat
+	// with a Formula and no Attribute cannot be explained proportionally.
+	Attribute Attribute
 	// FormulaSeesOverride runs Formula even when an override matched; the formula reads
 	// Agg.HasOverride and Agg.Override and decides. Without it an override replaces the
 	// formula. It has no effect without a Formula.
