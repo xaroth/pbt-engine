@@ -122,8 +122,8 @@ func TestTerms(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantTerms := []core.Term{
-		{Mod: ids[2], Source: 2, Op: core.OpBase, Value: 10.5},
-		{Mod: ids[1], Source: 5, Op: core.OpInc, Value: 6},
+		{Mod: ids[2], Source: 2, Op: core.OpBase, Value: 10.5, Stat: dmg, Rate: 1, Held: true},
+		{Mod: ids[1], Source: 5, Op: core.OpInc, Value: 6, Stat: dmg, Rate: 1, Held: true},
 	}
 	if diff := cmp.Diff(wantTerms, terms, cmp.Comparer(func(a, b core.ModID) bool { return a == b })); diff != "" {
 		t.Errorf("terms (-want +got):\n%s", diff)
@@ -155,6 +155,7 @@ func TestBadHandles(t *testing.T) {
 		{"get stat", func(s *core.Session) error { _, err := s.Get(0, 5, core.GlobalCtx); return wrap(t, "get", err) }},
 		{"get context", func(s *core.Session) error { _, err := s.Get(0, x, 3); return wrap(t, "get", err) }},
 		{"terms", func(s *core.Session) error { _, _, err := s.Terms(core.Node{Stat: 5}); return wrap(t, "terms", err) }},
+		{"explain", func(s *core.Session) error { _, err := s.Explain(core.Node{Stat: 5}); return wrap(t, "explain", err) }},
 		{"formula read actor", func(s *core.Session) error { _, err := s.Get(0, readActor, core.GlobalCtx); return wrap(t, "get", err) }},
 		{"formula read actor past ActorID", func(s *core.Session) error {
 			_, err := s.Get(0, readWideActor, core.GlobalCtx)

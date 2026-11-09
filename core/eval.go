@@ -116,12 +116,26 @@ func (s *Session) cycle(id uint32) {
 	s.err = e
 }
 
-// Term is one modifier that matched a node.
+// Term is one modifier considered for a node.
 type Term struct {
 	Mod    ModID
 	Source SourceID
 	Op     Op
-	Value  float64 // after scaling
+	Value  float64 // after scaling and the share rate; 0 when Held is false
+	// Stat is the stat the modifier is on: the node's own, one it includes or one it shares.
+	Stat StatID
+	// Rate is the share rate as a fraction for a shared stat's modifier, else 1.
+	Rate float64
+	// Held is false for a modifier whose condition failed; Terms leaves those out.
+	Held bool
+}
+
+// collector receives what an evaluation saw, for Terms and Explain.
+type collector struct {
+	terms  []Term
+	failed bool // also collect terms whose condition failed
+	agg    Agg
+	total  float64
 }
 
 // read resolves ref against the node being evaluated, records the dependency and returns the
@@ -149,9 +163,9 @@ func (s *Session) read(deps *[]uint32, ref Ref, fam uint8, actor ActorID, ctx Ct
 	return s.get(id)
 }
 
-// eval computes node id. deps receives every node read; terms, when not nil, every matching
-// modifier.
-func (s *Session) eval(id uint32, deps *[]uint32, terms *[]Term) float64 {
+// eval computes node id. deps receives every node read; c, when not nil, the terms, aggregate
+// and total.
+func (s *Session) eval(id uint32, deps *[]uint32, c *collector) float64 {
 	n := s.node(id)
 	def := &s.m.stats[n.Stat]
 	mask := s.masks[n.Ctx]
@@ -161,21 +175,32 @@ func (s *Session) eval(id uint32, deps *[]uint32, terms *[]Term) float64 {
 		if k >= 0 {
 			t = def.Includes[k]
 		}
-		s.sumStat(&agg, t, n, &mask, deps, terms)
+		s.sumStat(&agg, t, n, &mask, deps, c)
 	}
 	for i := range def.Shares {
 		sh := &def.Shares[i]
 		if rate := s.read(deps, sh.Rate, def.CycleFamily, n.Actor, n.Ctx) / percent; rate != 0 {
-			s.sumShare(&agg, sh.Stat, rate, n, &mask, deps, terms)
+			s.sumShare(&agg, sh.Stat, rate, n, &mask, deps, c)
 		}
 	}
-	return def.finish(s.total(def, agg, n, deps))
+	total := s.total(def, agg, n, deps)
+	if c != nil {
+		c.agg, c.total = agg, total
+	}
+	return def.finish(total)
+}
+
+// add records modifier mi of stat t as a term of the node being collected; c is not nil.
+func (c *collector) add(s *Session, mi uint32, t StatID, op Op, v, rate float64, held bool) {
+	if held || c.failed {
+		c.terms = append(c.terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v, Stat: t, Rate: rate, Held: held})
+	}
 }
 
 // sumShare adds to agg the base, increased and more modifiers of stat t that apply to node n,
 // at rate times their value. It is sumStat's loop apart, so sumStat stays small enough to
 // inline its checks.
-func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask, deps *[]uint32, terms *[]Term) {
+func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask, deps *[]uint32, c *collector) {
 	fam := s.m.stats[t].CycleFamily
 	for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
 		op := s.mOp[mi]
@@ -186,19 +211,22 @@ func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask,
 		if !s.modPlain(mi) {
 			var ok bool
 			if v, ok = s.modValue(mi, n, fam, deps); !ok {
+				if c != nil {
+					c.add(s, mi, t, op, 0, rate, false)
+				}
 				continue
 			}
 		}
 		v = float64(v * rate)
 		aggregate(agg, op, v)
-		if terms != nil {
-			*terms = append(*terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v})
+		if c != nil {
+			c.add(s, mi, t, op, v, rate, true)
 		}
 	}
 }
 
 // sumStat adds to agg the modifiers of stat t that apply to node n.
-func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32, terms *[]Term) {
+func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32, c *collector) {
 	fam := s.m.stats[t].CycleFamily
 	for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
 		if !s.modLive(mi) || !s.predHolds(mi, mask) || (n.Uncond && !s.modPlain(mi)) {
@@ -208,12 +236,15 @@ func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32
 		if !s.modPlain(mi) {
 			var ok bool
 			if v, ok = s.modValue(mi, n, fam, deps); !ok {
+				if c != nil {
+					c.add(s, mi, t, s.mOp[mi], 0, 1, false)
+				}
 				continue
 			}
 		}
 		aggregate(agg, s.mOp[mi], v)
-		if terms != nil {
-			*terms = append(*terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: s.mOp[mi], Value: v})
+		if c != nil {
+			c.add(s, mi, t, s.mOp[mi], v, 1, true)
 		}
 	}
 }

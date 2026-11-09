@@ -75,6 +75,8 @@ type StatDef struct {
 	CycleFamily uint8
 	// Formula replaces the default aggregation; nil uses Agg.Default (or the flag rule).
 	Formula Formula
+	// FormulaName names Formula in explanations.
+	FormulaName string
 	// FormulaSeesOverride runs Formula even when an override matched; the formula reads
 	// Agg.HasOverride and Agg.Override and decides. Without it an override replaces the
 	// formula. It has no effect without a Formula.
@@ -285,12 +287,22 @@ func (m *Model) Bit(name string) (Bit, bool) {
 }
 
 func (d *StatDef) finish(r float64) float64 {
+	return d.round(d.clamp(r))
+}
+
+// clamp applies the stat's minimum and maximum.
+func (d *StatDef) clamp(r float64) float64 {
 	if d.HasMin {
 		r = fmax(r, d.Min)
 	}
 	if d.HasMax {
 		r = fmin(r, d.Max)
 	}
+	return r
+}
+
+// round applies the stat's rounding and normalises -0.
+func (d *StatDef) round(r float64) float64 {
 	if d.Round != RoundNone {
 		p := math.Pow10(int(d.Places))
 		x := r

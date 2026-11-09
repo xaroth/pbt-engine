@@ -186,12 +186,12 @@ func (s *Session) Terms(n Node) ([]Term, float64, error) {
 		return nil, 0, err
 	}
 	defer s.recoverEval()
-	var terms []Term
-	v := s.eval(s.nodeID(n), nil, &terms)
+	var c collector
+	v := s.eval(s.nodeID(n), nil, &c)
 	if err := s.takeErr(); err != nil {
 		return nil, 0, err
 	}
-	return terms, v, nil
+	return c.terms, v, nil
 }
 
 func (s *Session) nodeID(n Node) uint32 {
