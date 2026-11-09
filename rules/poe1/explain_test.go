@@ -7,14 +7,15 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/resolve"
 	rules "github.com/xaroth/pbt-engine/rules/poe1"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
-func explainOf(t *testing.T, sh *rules.Sheet, output string, v rules.View) *rules.Explanation {
+func explainOf(t *testing.T, sh *rules.Sheet, key output.Key, v rules.View) *rules.Explanation {
 	t.Helper()
-	ex, err := sh.Explain(output, v)
+	ex, err := sh.Explain(key, v)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,13 +43,13 @@ func TestExplainProportional(t *testing.T) {
 	t.Parallel()
 	sh := open(t, resolved(fireSheet()...))
 	for _, o := range rules.Outputs() {
-		ex := explainOf(t, sh, o.Name, rules.Proportional)
+		ex := explainOf(t, sh, o.Key, rules.Proportional)
 		sum := 0.0
 		for _, l := range ex.Lines {
 			sum += l.Value
 		}
 		if !near(sum, ex.Amount) {
-			t.Errorf("%s: lines sum to %v, amount %v", o.Name, sum, ex.Amount)
+			t.Errorf("%s: lines sum to %v, amount %v", o.Key, sum, ex.Amount)
 		}
 	}
 	fire := explainOf(t, sh, "player.fire_resistance", rules.Proportional)
@@ -70,8 +71,8 @@ func TestExplainMarginal(t *testing.T) {
 	t.Parallel()
 	bundles := fireSheet()
 	sh := open(t, resolved(bundles...))
-	for _, output := range []string{"player.life", "player.fire_resistance", "player.cold_resistance"} {
-		ex := explainOf(t, sh, output, rules.Marginal)
+	for _, out := range []output.Key{rules.Life, rules.FireResistance, rules.ColdResistance} {
+		ex := explainOf(t, sh, out, rules.Marginal)
 		for _, l := range ex.Lines {
 			if l.Source.Bundle == nil {
 				continue
@@ -82,12 +83,12 @@ func TestExplainMarginal(t *testing.T) {
 					rest = append(rest, b)
 				}
 			}
-			without, err := open(t, resolved(rest...)).Output(output)
+			without, err := open(t, resolved(rest...)).Output(out)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if got := ex.Value - without; math.Abs(got-l.Value) > 1e-9 {
-				t.Errorf("%s without %s: line %v, recompute %v", output, l.Source, l.Value, got)
+				t.Errorf("%s without %s: line %v, recompute %v", out, l.Source, l.Value, got)
 			}
 		}
 	}

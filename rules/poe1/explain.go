@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/xaroth/pbt-engine/core"
+	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/resolve"
 )
 
@@ -115,11 +116,11 @@ type TreeTerm struct {
 	Held bool
 }
 
-// Explain explains catalogue output name in view v.
-func (sh *Sheet) Explain(name string, v View) (*Explanation, error) {
-	o, ok := outputByName(name)
+// Explain explains catalogue output k in view v.
+func (sh *Sheet) Explain(k output.Key, v View) (*Explanation, error) {
+	o, ok := outputByKey(k)
 	if !ok {
-		return nil, fmt.Errorf("%w %q", ErrUnknownOutput, name)
+		return nil, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
 	n := core.Node{Stat: sh.stats[o.stat]}
 	ex := &Explanation{Output: o, View: v, Version: sh.version}
@@ -135,7 +136,7 @@ func (sh *Sheet) Explain(name string, v View) (*Explanation, error) {
 		err = fmt.Errorf("%w: %d", ErrUnknownView, v)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("sheet: explain %s: %w", name, err)
+		return nil, fmt.Errorf("sheet: explain %s: %w", k, err)
 	}
 	return ex, nil
 }
@@ -158,15 +159,6 @@ func (sh *Sheet) amount(o Output) (float64, error) {
 		return 0, fmt.Errorf("amount: %w", err)
 	}
 	return e.Total, nil
-}
-
-func outputByName(name string) (Output, bool) {
-	for _, o := range Outputs() {
-		if o.Name == name {
-			return o, true
-		}
-	}
-	return Output{}, false
 }
 
 func (sh *Sheet) statName(id core.StatID) string {

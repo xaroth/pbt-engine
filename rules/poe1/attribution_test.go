@@ -84,10 +84,10 @@ func TestEveryOutputExplains(t *testing.T) {
 					sum += pt.Value
 				}
 				if !near(sum, p.Amount) {
-					t.Errorf("%s: parts sum to %v, amount %v", o.Name, sum, p.Amount)
+					t.Errorf("%s: parts sum to %v, amount %v", o.Key, sum, p.Amount)
 				}
 				if v := value(t, sh, rules.OutputStat(o)); p.Value != v {
-					t.Errorf("%s: value %v, sheet %v", o.Name, p.Value, v)
+					t.Errorf("%s: value %v, sheet %v", o.Key, p.Value, v)
 				}
 			}
 		})
