@@ -37,4 +37,8 @@ func TestConfigKeys(t *testing.T) {
 	if _, err := rules.Bandits.Decode(json.RawMessage(`"help-eramir"`)); !errors.Is(err, rules.ErrConfigValue) {
 		t.Errorf("bad bandits: %v", err)
 	}
+	// "" is a valid bandit choice, so null must not decode to it
+	if _, err := rules.Bandits.Decode(json.RawMessage(`null`)); !errors.Is(err, config.ErrBadValue) {
+		t.Errorf("null bandits: %v", err)
+	}
 }

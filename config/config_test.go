@@ -33,7 +33,7 @@ func TestDecode(t *testing.T) {
 	if v, err := keyStage.Decode(json.RawMessage(`"early"`)); err != nil || v != "early" {
 		t.Errorf("valid: got %q, %v", v, err)
 	}
-	for name, raw := range map[string]string{"not in set": `"middle"`, "wrong type": `3`, "trailing": `"early" 1`} {
+	for name, raw := range map[string]string{"not in set": `"middle"`, "wrong type": `3`, "trailing": `"early" 1`, "null": ` null `} {
 		if _, err := keyStage.Decode(json.RawMessage(raw)); !errors.Is(err, config.ErrBadValue) {
 			t.Errorf("%s: got %v, want ErrBadValue", name, err)
 		}
@@ -91,6 +91,12 @@ func TestResolve(t *testing.T) {
 	if len(problems) != 2 || !errors.Is(problems[0].Err, config.ErrBadValue) || problems[0].Source != config.FromCall ||
 		!errors.Is(problems[1].Err, config.ErrUnknownKey) || problems[1].Key != "unknown" {
 		t.Errorf("problems: %v", problems)
+	}
+	// null is not a value: it is reported and the build's value stays
+	r, problems = config.Resolve(specs(), config.Layer{Source: config.FromSim, Values: config.Values{"stage": json.RawMessage(`null`)}},
+		config.Layer{Source: config.FromBuild, Values: build})
+	if v, src := config.Lookup(r, keyStage); v != "early" || src != config.FromBuild || len(problems) != 2 || !errors.Is(problems[0].Err, config.ErrBadValue) {
+		t.Errorf("null in a higher layer: %v from %s, problems %v", v, src, problems)
 	}
 	r, _ = config.Resolve(specs())
 	if v, src := config.Lookup(r, keyStage); v != "late" || src != config.Default {

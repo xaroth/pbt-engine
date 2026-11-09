@@ -31,9 +31,14 @@ type Validator interface {
 	Valid() error
 }
 
-// Decode decodes raw as a value of k, rejecting unknown fields and values that fail Valid.
+// Decode decodes raw as a value of k, rejecting null, unknown fields, trailing data and values
+// that fail Valid. JSON null would decode to the zero value, which for some keys is a valid
+// value; a layer that has no value for a key leaves it out instead.
 func (k Key[T]) Decode(raw json.RawMessage) (T, error) {
 	var v T
+	if string(bytes.TrimSpace(raw)) == "null" {
+		return v, fmt.Errorf("%w: %s: null", ErrBadValue, k)
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&v); err != nil {
