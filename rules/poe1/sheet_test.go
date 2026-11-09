@@ -86,8 +86,8 @@ func TestOpenSumsModifiers(t *testing.T) {
 			t.Errorf("%s: got %v, want %v", testCase.stat, got, testCase.want)
 		}
 	}
-	if len(sh.Notes) != 0 {
-		t.Errorf("notes: got %v, want none", sh.Notes)
+	if len(sh.Notes()) != 0 {
+		t.Errorf("notes: got %v, want none", sh.Notes())
 	}
 }
 
@@ -107,7 +107,7 @@ func TestOpenNotes(t *testing.T) {
 			Text: "50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life",
 		},
 	}
-	if diff := cmp.Diff(want, sh.Notes); diff != "" {
+	if diff := cmp.Diff(want, sh.Notes()); diff != "" {
 		t.Errorf("notes (-want +got):\n%s", diff)
 	}
 	if got := value(t, sh, "evasion_rating"); got != 0 {
@@ -130,7 +130,7 @@ func TestOpenRuleMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []rules.Note{{Kind: rules.RuleMissing, Source: resolve.NodeSource{ID: 1}, Scope: resolve.Global, Stat: "x", Text: "gain_as_extra"}}
-	if diff := cmp.Diff(want, sh.Notes); diff != "" {
+	if diff := cmp.Diff(want, sh.Notes()); diff != "" {
 		t.Errorf("notes (-want +got):\n%s", diff)
 	}
 	if got := value(t, sh, "armour"); got != 5 {

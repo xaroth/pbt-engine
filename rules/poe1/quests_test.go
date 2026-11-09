@@ -79,12 +79,12 @@ func TestUnknownQuestFlagIsNoted(t *testing.T) {
 		t.Errorf("unknown reward applied: life %v", got)
 	}
 	found := false
-	for _, n := range sh.Notes {
+	for _, n := range sh.Notes() {
 		if n.Source == (resolve.QuestSource{ID: "a9q9", Flag: "a9q9-Something"}) && n.Kind == rules.NotApplied {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("no note for the unknown flag: %v", sh.Notes)
+		t.Errorf("no note for the unknown flag: %v", sh.Notes())
 	}
 }

@@ -1,6 +1,8 @@
 package poe1
 
 import (
+	"slices"
+
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/core"
 	"github.com/xaroth/pbt-engine/resolve"
@@ -38,9 +40,9 @@ func configValues(cfg config.Resolved) (CampaignStage, BanditChoice) {
 	return c, b
 }
 
-// applyQuests turns each quest reward's source on or off by cfg. A reward these rules have no
-// grant for stays off, with a note.
-func (sh *Sheet) applyQuests(cfg config.Resolved) {
+// SetConfig applies cfg to the sheet: each quest reward's source goes on or off by the campaign
+// stage and bandit choice. A reward these rules have no grant for stays off, noted once.
+func (sh *Sheet) SetConfig(cfg config.Resolved) {
 	c, b := configValues(cfg)
 	grants := questGrants()
 	for id, src := range sh.sources {
@@ -52,10 +54,39 @@ func (sh *Sheet) applyQuests(cfg config.Resolved) {
 			continue
 		}
 		grant, known := grants[q.Flag]
-		if !known {
-			sh.Notes = append(sh.Notes, Note{Kind: NotApplied, Source: q, Scope: src.Bundle.Scope, Text: "no campaign rule grants quest flag " + q.Flag})
+		if !known && !sh.noted(core.SourceID(id)) {
+			sh.notes = append(sh.notes, sourcedNote{
+				note:   Note{Kind: NotApplied, Source: q, Scope: src.Bundle.Scope, Text: "no campaign rule grants quest flag " + q.Flag},
+				src:    core.SourceID(id),
+				always: true,
+			})
 		}
 		// id is a source of this session, so this cannot fail.
 		_ = sh.session.SetSourceEnabled(core.SourceID(id), known && grant(c, b))
+	}
+}
+
+func (sh *Sheet) noted(src core.SourceID) bool {
+	return slices.ContainsFunc(sh.notes, func(n sourcedNote) bool { return n.always && n.src == src })
+}
+
+// SetNodes turns node sources on for the allocated nodes and the chosen mastery effects and off
+// for the rest, for a sheet opened over resolve.ResolveTree. Other sources are left as they are.
+func (sh *Sheet) SetNodes(nodes []uint32, masteries map[uint32]uint32) {
+	on := make(map[uint32]bool, len(nodes))
+	for _, n := range nodes {
+		on[n] = true
+	}
+	for id, src := range sh.sources {
+		if src.Bundle == nil {
+			continue
+		}
+		n, ok := src.Bundle.Source.(resolve.NodeSource)
+		if !ok {
+			continue
+		}
+		enabled := on[n.ID] && (n.Effect == 0 || masteries[n.ID] == n.Effect)
+		// id is a source of this session, so this cannot fail.
+		_ = sh.session.SetSourceEnabled(core.SourceID(id), enabled)
 	}
 }

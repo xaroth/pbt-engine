@@ -67,9 +67,11 @@ type CharacterSource struct {
 // LevelSource is the build's character level.
 type LevelSource struct{}
 
-// NodeSource is an allocated passive node.
+// NodeSource is a passive node, or with Effect one of a mastery node's effects.
 type NodeSource struct {
 	ID uint32
+	// Effect is the mastery effect id; 0 for the node's own stats.
+	Effect uint32
 }
 
 // QuestSource is a quest reward from the dataset. Resolve returns every reward with stats; the
@@ -83,8 +85,13 @@ type QuestSource struct {
 
 func (s CharacterSource) String() string { return "character " + s.ID }
 func (LevelSource) String() string       { return "level" }
-func (s NodeSource) String() string      { return fmt.Sprintf("node %d", s.ID) }
-func (s QuestSource) String() string     { return "quest " + s.ID }
+func (s NodeSource) String() string {
+	if s.Effect != 0 {
+		return fmt.Sprintf("node %d effect %d", s.ID, s.Effect)
+	}
+	return fmt.Sprintf("node %d", s.ID)
+}
+func (s QuestSource) String() string { return "quest " + s.ID }
 
 func (CharacterSource) source() {}
 func (LevelSource) source()     {}
@@ -198,10 +205,21 @@ func QuestBundles(s *dataset.Store) ([]Bundle, error) {
 }
 
 // Resolve turns a checked build into bundles and constants: character, level, every quest
-// reward with stats (the rules pick the ones the build's config grants), then the nodes. It
-// fails when a dataset group fails to load or a stat id resolve uses is not in the dataset's
-// stats.
+// reward with stats (the rules pick the ones the build's config grants), then the allocated
+// nodes, each followed by its chosen mastery effect. It fails when a dataset group fails to
+// load or a stat id resolve uses is not in the dataset's stats.
 func Resolve(c *build.Checked) (*Resolved, error) {
+	return resolve(c, false)
+}
+
+// Tree is Resolve with the bundles of every node the build's class and ascendancy can
+// allocate, and of every mastery effect, allocated or not, in tree order. A sheet over it
+// turns sources on and off to match an allocation, so edits and what-ifs need no new bundles.
+func Tree(c *build.Checked) (*Resolved, error) {
+	return resolve(c, true)
+}
+
+func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 	s := c.Store()
 	m := s.Manifest()
 	b := c.Build()
@@ -227,11 +245,10 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 	r.Bundles = append(r.Bundles, quests...)
 	missing := missingStats(r.Bundles, stats)
 
-	for _, n := range c.Nodes() {
-		r.Bundles = append(r.Bundles, nodeBundles(stats, n)...)
-		if len(n.MasteryEffects) > 0 {
-			r.Notes = append(r.Notes, fmt.Sprintf("node %d: mastery effect not chosen; builds have no mastery choices yet", n.ID))
-		}
+	if wholeTree {
+		r.Bundles = append(r.Bundles, treeBundles(stats, c)...)
+	} else {
+		r.Bundles = append(r.Bundles, allocatedBundles(stats, c)...)
 	}
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("resolve: dataset %s has no stat %s: %w", m.Version, strings.Join(missing, ", "), dataset.ErrNotInDataset)
@@ -241,6 +258,36 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 		r.Constants = append(r.Constants, Constant{ID: k.ID, Value: k.Value, Per: k.Per})
 	}
 	return r, nil
+}
+
+func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
+	choices := c.Masteries()
+	var out []Bundle
+	for _, n := range c.Nodes() {
+		out = append(out, nodeBundles(stats, n)...)
+		if i := slices.IndexFunc(choices, func(m build.MasteryChoice) bool { return m.Node.ID == n.ID }); i >= 0 {
+			out = append(out, masteryBundle(stats, n, choices[i].Effect))
+		}
+	}
+	return out
+}
+
+// treeBundles returns the bundles of every node c's class and ascendancy can allocate: not
+// other ascendancies' nodes or other classes' starts.
+func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
+	b := c.Build()
+	var out []Bundle
+	for i := range c.Tree().Nodes {
+		n := &c.Tree().Nodes[i]
+		if (n.Ascendancy != "" && n.Ascendancy != b.Ascendancy) || (n.Kind == dataset.ClassStart && n.ID != c.Class().StartNode) {
+			continue
+		}
+		out = append(out, nodeBundles(stats, n)...)
+		for _, e := range n.MasteryEffects {
+			out = append(out, masteryBundle(stats, n, e))
+		}
+	}
+	return out
 }
 
 // missingStats lists the stats of bundles absent from stats. Only stats resolve names itself
@@ -285,7 +332,7 @@ func MasteryEffectBundle(s *dataset.Store, variant string, id, effect uint32) (B
 	if i < 0 {
 		return Bundle{}, fmt.Errorf("resolve: node %d has no mastery effect %d: %w", id, effect, dataset.ErrNotInDataset)
 	}
-	return Bundle{Actor: Player, Scope: Global, Source: NodeSource{ID: id}, Stats: statValues(stats, n.MasteryEffects[i].Stats)}, nil
+	return masteryBundle(stats, n, n.MasteryEffects[i]), nil
 }
 
 // node returns the node with id in the variant tree of s and the stats its handles index.
@@ -316,6 +363,10 @@ func nodeBundles(stats []dataset.Stat, n *dataset.Node) []Bundle {
 		out = append(out, Bundle{Actor: Player, Scope: Buff, Source: src, Stats: statValues(stats, bf)})
 	}
 	return out
+}
+
+func masteryBundle(stats []dataset.Stat, n *dataset.Node, e dataset.MasteryEffect) Bundle {
+	return Bundle{Actor: Player, Scope: Global, Source: NodeSource{ID: n.ID, Effect: e.ID}, Stats: statValues(stats, e.Stats)}
 }
 
 func statValues(stats []dataset.Stat, svs []dataset.StatValue) []StatValue {
