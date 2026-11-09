@@ -217,6 +217,16 @@ func (b *ModelBuilder) SetFormula(id StatID, f Formula) error {
 	return nil
 }
 
+// SetAttribute sets the formula name and attribution of a registered stat, for formulas set
+// with SetFormula.
+func (b *ModelBuilder) SetAttribute(id StatID, name string, a Attribute) error {
+	if int(id) >= len(b.stats) {
+		return fmt.Errorf("%w: stat %d", ErrBadHandle, id)
+	}
+	b.stats[id].FormulaName, b.stats[id].Attribute = name, a
+	return nil
+}
+
 // AddDimension registers a context dimension with its values, each getting one bit.
 func (b *ModelBuilder) AddDimension(name string, values ...string) (Dimension, error) {
 	if b.nBits+len(values) > MaxBits {

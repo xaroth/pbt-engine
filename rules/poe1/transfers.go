@@ -56,22 +56,73 @@ func addTransferStats(b *core.ModelBuilder, ids map[string]core.StatID) {
 		}
 		register(b, ids, core.StatDef{Name: t.rate()})
 		register(b, ids, core.StatDef{
-			Name: t.inc(), Includes: both, FormulaSeesOverride: true,
+			Name: t.inc(), Includes: both, FormulaSeesOverride: true, FormulaName: formulaTransferIncreases,
 			Formula: func(_ core.Reader, a core.Agg) float64 { return a.Inc },
 		})
 		register(b, ids, core.StatDef{
-			Name: t.more(), Includes: both, FormulaSeesOverride: true,
+			Name: t.more(), Includes: both, FormulaSeesOverride: true, FormulaName: formulaTransferMore,
 			Formula: func(_ core.Reader, a core.Agg) float64 { return a.More },
 		})
 		register(b, ids, core.StatDef{
 			Name: baseOf(t.from), Includes: append([]core.StatID{mustID(ids, t.from)}, from...), FormulaSeesOverride: true,
-			Formula: sourceBase,
+			FormulaName: formulaTransferSource, Formula: sourceBase,
 		})
 	}
 	for _, name := range transferStats() {
-		if err := b.SetFormula(mustID(ids, name), transferFormula(name, ids)); err != nil {
+		id := mustID(ids, name)
+		if err := b.SetFormula(id, transferFormula(name, ids)); err != nil {
 			panic(err)
 		}
+		if err := b.SetAttribute(id, formulaTransfers, transferAttribute(name, ids)); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// convertedAway returns what converts away from the node as negative more parts, credited to
+// each conversion's sources by its share of the converted rate.
+func convertedAway(a *core.Attributor, away []core.StatID) []core.Part {
+	converted := 0.0
+	for _, r := range away {
+		converted += a.Stat(r)
+	}
+	if converted <= 0 {
+		return nil
+	}
+	lost := float64(a.Explanation().Agg.Default()*min(converted, percentScale)) / percentScale
+	var parts []core.Part
+	for _, r := range away {
+		if c := a.Stat(r); c != 0 {
+			parts = append(parts, a.Spread(core.SelfRef(r), -lost*c/converted, core.OpMore)...)
+		}
+	}
+	return parts
+}
+
+// transferAttribute splits a transfer stat as transferFormula computes it: its own parts by
+// the default rule; what converts away as negative more parts credited to the conversions'
+// sources, by their share of the rate; each incoming share credited to its rate's sources,
+// then the increases and more multipliers of source and target.
+func transferAttribute(name string, ids map[string]core.StatID) core.Attribute {
+	var away []core.StatID
+	type in struct{ rate, base, inc core.StatID }
+	var ins []in
+	for _, t := range transfers() {
+		if t.rule == ruleConvert && t.from == name {
+			away = append(away, mustID(ids, t.rate()))
+		}
+		if t.to == name {
+			ins = append(ins, in{mustID(ids, t.rate()), mustID(ids, baseOf(t.from)), mustID(ids, t.inc())})
+		}
+	}
+	return func(a *core.Attributor) core.Attribution {
+		parts := append(a.Default(), convertedAway(a, away)...)
+		for _, p := range ins {
+			if share := float64(a.Stat(p.base)*a.Stat(p.rate)) / percentScale; share != 0 {
+				parts = append(parts, a.LayersOver(core.SelfRef(p.inc), a.Spread(core.SelfRef(p.rate), share, core.OpBase))...)
+			}
+		}
+		return core.Attribution{Parts: parts, Amount: a.Explanation().Total}
 	}
 }
 
