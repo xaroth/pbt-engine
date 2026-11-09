@@ -31,8 +31,14 @@ func statIDs() []string {
 // node 5 joining nothing, and both Kitava rewards (-30% all resistances each).
 func testStore(tb testing.TB) *dataset.Store {
 	tb.Helper()
+	return testStoreWith(tb, "3.29.3.3", 20)
+}
+
+// testStoreWith is testStore at version with node 2 giving life2 life.
+func testStoreWith(tb testing.TB, version string, life2 int32) *dataset.Store {
+	tb.Helper()
 	d := &dataset.Dataset{
-		Manifest: dataset.Manifest{Game: "poe1", Version: "3.29.3.3"},
+		Manifest: dataset.Manifest{Game: "poe1", Version: version},
 		Characters: []dataset.Character{{
 			ID: marauder, BaseStrength: 32, BaseMaxLife: 38,
 			Stats: []dataset.StatValue{{Stat: 0, Value: 1}, {Stat: 1, Value: 12}, {Stat: 2, Value: 75}},
@@ -51,7 +57,7 @@ func testStore(tb testing.TB) *dataset.Store {
 			Classes: []dataset.Class{{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}}}},
 			Nodes: []dataset.Node{
 				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{2, 3, 4}},
-				{ID: 2, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: 6, Value: 20}}},
+				{ID: 2, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: 6, Value: life2}}},
 				{ID: 3, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: 8, Value: 10}}},
 				{ID: 4, Kind: dataset.Mastery, Neighbours: []uint32{1}, MasteryEffects: []dataset.MasteryEffect{{ID: 7, Stats: []dataset.StatValue{{Stat: 8, Value: 5}}}}},
 				{ID: 5, Stats: []dataset.StatValue{{Stat: 6, Value: 1}}},

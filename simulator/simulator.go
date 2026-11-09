@@ -129,7 +129,7 @@ func (s *Sim) Simulate(b *build.Build, opts ...Option) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	run, err := s.prepare(b, co)
+	run, err := s.prepare(b, co, s.Config())
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *Sim) Simulate(b *build.Build, opts ...Option) (*Stats, error) {
 		return nil, err
 	}
 	defer s.checkin(run.shape, sh)
-	return run.stats(sh, keys)
+	return s.statsOf(run, sh, keys)
 }
 
 // run is one build prepared for a sheet: checked, its config resolved, its warnings so far.
@@ -150,7 +150,8 @@ type run struct {
 	warnings []Warning
 }
 
-func (s *Sim) prepare(b *build.Build, co callOptions) (*run, error) {
+// prepare checks b and resolves its config against the sim config snapshot sim.
+func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, error) {
 	c, warnings, err := build.Check(b, s.store)
 	if err != nil {
 		if _, ok := errors.AsType[*build.CheckError](err); ok {
@@ -164,7 +165,7 @@ func (s *Sim) prepare(b *build.Build, co callOptions) (*run, error) {
 	if w, ok := versionWarning(b.Version, s.store.Manifest().Version); ok {
 		r.warnings = append(r.warnings, w)
 	}
-	sim := s.Config()
+	sim = sim.Clone()
 	for k := range co.cleared {
 		sim.Clear(k)
 	}
@@ -184,15 +185,18 @@ func (s *Sim) prepare(b *build.Build, co callOptions) (*run, error) {
 	return r, nil
 }
 
-// stats reads keys from sh after switching it to the run's nodes and config.
-func (r *run) stats(sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
+// statsOf reads keys from sh after switching it to the run's nodes and config.
+func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
 	cb := r.checked.Build()
 	if err := sh.SetLevel(cb.Level); err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
 	sh.SetNodes(cb.Nodes, cb.Masteries)
 	sh.SetConfig(r.cfg)
-	st := &Stats{values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, build: r.build}
+	st := &Stats{
+		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, build: r.build,
+		checked: r.checked, sim: s,
+	}
 	for _, k := range keys {
 		v, err := sh.Output(k)
 		if err != nil {
