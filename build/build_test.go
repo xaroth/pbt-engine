@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -20,8 +21,10 @@ const (
 	ranger   = "Metadata/Characters/Dex/Dex"
 )
 
-// testStore is a dataset with two classes on one tree: Marauder starts at 1 with
-// ascendancy nodes 10 (Juggernaut) and 11 (Berserker); Ranger starts at 2.
+// testStore is a dataset with two classes on one tree: Marauder starts at 1 with ascendancy
+// nodes 10 and 12 (Juggernaut, from its start 20; 12 grants a point) and 11 (Berserker);
+// Ranger starts at 2. Masteries 4 and 5 hang off 3 and share effect 7; 30 is reached only
+// through mastery 4; 6 joins nothing. Juggernaut's 13 is a choice node with options 14 and 15.
 func testStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	d := &dataset.Dataset{
@@ -37,9 +40,18 @@ func testStore(t *testing.T) *dataset.Store {
 			Nodes: []dataset.Node{
 				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{3}},
 				{ID: 2, Kind: dataset.ClassStart, Neighbours: []uint32{3}},
-				{ID: 3, Neighbours: []uint32{1, 2}, Stats: []dataset.StatValue{{Stat: 0, Value: 10}}},
-				{ID: 10, Ascendancy: "Juggernaut"},
+				{ID: 3, Neighbours: []uint32{1, 2, 4, 5}, Stats: []dataset.StatValue{{Stat: 0, Value: 10}}},
+				{ID: 4, Kind: dataset.Mastery, Neighbours: []uint32{3, 30}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 8}}},
+				{ID: 5, Kind: dataset.Mastery, Neighbours: []uint32{3}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 9}}},
+				{ID: 6},
+				{ID: 10, Ascendancy: "Juggernaut", Neighbours: []uint32{20}},
 				{ID: 11, Ascendancy: "Berserker"},
+				{ID: 12, Ascendancy: "Juggernaut", Neighbours: []uint32{20}, SkillPoints: 1},
+				{ID: 13, Ascendancy: "Juggernaut", Neighbours: []uint32{14, 15, 20}, MultipleChoice: true},
+				{ID: 14, Ascendancy: "Juggernaut", Neighbours: []uint32{13}, MultipleChoiceOption: true},
+				{ID: 15, Ascendancy: "Juggernaut", Neighbours: []uint32{13}, MultipleChoiceOption: true},
+				{ID: 20, Kind: dataset.AscendancyStart, Ascendancy: "Juggernaut", Neighbours: []uint32{10, 12, 13}},
+				{ID: 30, Neighbours: []uint32{4}},
 			},
 		}},
 	}
@@ -156,9 +168,9 @@ func TestCheck(t *testing.T) {
 	s := testStore(t)
 	b := juggernaut()
 	b.Variant = ""
-	c, err := build.Check(b, s)
-	if err != nil {
-		t.Fatal(err)
+	c, warnings, err := build.Check(b, s)
+	if err != nil || len(warnings) != 0 {
+		t.Fatal(err, warnings)
 	}
 	ids := make([]uint32, 0, len(c.Nodes()))
 	for _, n := range c.Nodes() {
@@ -178,52 +190,154 @@ func TestCheck(t *testing.T) {
 	}
 }
 
-func TestCheckProblems(t *testing.T) {
+func TestCheckErrors(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
-	type problem struct {
-		Kind error
-		Node uint32
-	}
 	testCases := []struct {
 		name string
 		edit func(b *build.Build)
-		want []problem
+		want error
 	}{
-		{"game", func(b *build.Build) { b.Game = "poe2" }, []problem{{build.ErrGame, 0}}},
-		{"variant", func(b *build.Build) { b.Variant = "ruthless" }, []problem{{build.ErrVariant, 0}}},
-		{"class not in tree", func(b *build.Build) { b.Class = "Metadata/Characters/NotInTree"; b.Ascendancy = ""; b.Nodes = nil }, []problem{{build.ErrClass, 0}}},
-		{"class unknown", func(b *build.Build) { b.Class = "x"; b.Ascendancy = ""; b.Nodes = nil }, []problem{{build.ErrClass, 0}}},
-		{"ascendancy of another class", func(b *build.Build) { b.Ascendancy = "Deadeye"; b.Nodes = nil }, []problem{{build.ErrAscendancy, 0}}},
-		{"level 0", func(b *build.Build) { b.Level = 0 }, []problem{{build.ErrLevel, 0}}},
-		{"level 101", func(b *build.Build) { b.Level = 101 }, []problem{{build.ErrLevel, 0}}},
-		{"unknown node", func(b *build.Build) { b.Nodes = append(b.Nodes, 99) }, []problem{{build.ErrNodeUnknown, 99}}},
-		{"node twice", func(b *build.Build) { b.Nodes = append(b.Nodes, 3) }, []problem{{build.ErrNodeRepeated, 3}}},
-		{"node of another ascendancy", func(b *build.Build) { b.Nodes = append(b.Nodes, 11) }, []problem{{build.ErrNodeAscendancy, 11}}},
-		{"start of another class", func(b *build.Build) { b.Nodes = append(b.Nodes, 2) }, []problem{{build.ErrNodeOtherClassStart, 2}}},
-		{"every problem at once", func(b *build.Build) { b.Level = 0; b.Nodes = append(b.Nodes, 99, 2) },
-			[]problem{{build.ErrLevel, 0}, {build.ErrNodeOtherClassStart, 2}, {build.ErrNodeUnknown, 99}}},
+		{"game", func(b *build.Build) { b.Game = "poe2" }, build.ErrGame},
+		{"variant", func(b *build.Build) { b.Variant = "ruthless" }, build.ErrVariant},
+		{"class not in tree", func(b *build.Build) { b.Class = "Metadata/Characters/NotInTree" }, build.ErrClass},
+		{"class unknown", func(b *build.Build) { b.Class = "x" }, build.ErrClass},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			b := juggernaut()
 			testCase.edit(b)
-			_, err := build.Check(b, s)
-			ce, ok := errors.AsType[*build.CheckError](err)
-			if !ok {
-				t.Fatalf("got %v, want a *CheckError", err)
-			}
-			got := make([]problem, 0, len(ce.Problems))
-			for _, p := range ce.Problems {
-				got = append(got, problem{p.Kind, p.Node})
-			}
-			if diff := cmp.Diff(testCase.want, got, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("problems (-want +got):\n%s", diff)
-			}
-			if !errors.Is(err, testCase.want[0].Kind) {
-				t.Errorf("errors.Is(%v, %v): got false, want true", err, testCase.want[0].Kind)
+			_, _, err := build.Check(b, s)
+			if _, ok := errors.AsType[*build.CheckError](err); !ok || !errors.Is(err, testCase.want) {
+				t.Errorf("got %v, want a *CheckError matching %v", err, testCase.want)
 			}
 		})
+	}
+}
+
+func TestCheckWarnings(t *testing.T) {
+	t.Parallel()
+	s := testStore(t)
+	testCases := []struct {
+		name  string
+		edit  func(b *build.Build)
+		codes []build.Code
+		check func(t *testing.T, b build.Build)
+	}{
+		{"ascendancy of another class", func(b *build.Build) { b.Ascendancy = "Deadeye" },
+			[]build.Code{build.AscendancyNotOfClass, build.NodeOtherAscendancy},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if b.Ascendancy != "" || slices.Contains(b.Nodes, 10) {
+					t.Errorf("ascendancy %q, nodes %v", b.Ascendancy, b.Nodes)
+				}
+			}},
+		{"level 0", func(b *build.Build) { b.Level = 0 }, []build.Code{build.LevelOutOfRange},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if b.Level != 1 {
+					t.Errorf("level %d", b.Level)
+				}
+			}},
+		{"level 101", func(b *build.Build) { b.Level = 101 }, []build.Code{build.LevelOutOfRange},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if b.Level != 100 {
+					t.Errorf("level %d", b.Level)
+				}
+			}},
+		{"unknown, repeated, other ascendancy, other class start", func(b *build.Build) { b.Nodes = append(b.Nodes, 99, 3, 11, 2) },
+			[]build.Code{build.NodeOtherClassStart, build.NodeRepeated, build.NodeOtherAscendancy, build.NodeUnknown},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if !slices.Equal(b.Nodes, []uint32{1, 3, 10}) {
+					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
+		{"through a mastery", func(b *build.Build) {
+			b.Nodes = append(b.Nodes, 4, 30)
+			b.Masteries = map[uint32]uint32{4: 7}
+		}, []build.Code{build.NodesDisconnected}, nil},
+		{"two options of one choice", func(b *build.Build) { b.Nodes = append(b.Nodes, 13, 14, 15) }, []build.Code{build.ChoiceRepeated},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if slices.Contains(b.Nodes, 15) || !slices.Contains(b.Nodes, 14) {
+					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
+		{"disconnected", func(b *build.Build) { b.Nodes = append(b.Nodes, 6) }, []build.Code{build.NodesDisconnected},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if !slices.Contains(b.Nodes, 6) {
+					t.Errorf("disconnected node dropped: %v", b.Nodes)
+				}
+			}},
+		{"masteries", func(b *build.Build) {
+			b.Nodes = append(b.Nodes, 4, 5)
+			b.Masteries = map[uint32]uint32{4: 7, 5: 7, 3: 8, 6: 9}
+		}, []build.Code{build.MasteryNotAllocated, build.MasteryEffectRepeated, build.MasteryNotAllocated, build.MasteryNotChosen},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if len(b.Masteries) != 1 || b.Masteries[4] != 7 {
+					t.Errorf("masteries %v", b.Masteries)
+				}
+			}},
+		{"effect of another mastery", func(b *build.Build) {
+			b.Nodes = append(b.Nodes, 4)
+			b.Masteries = map[uint32]uint32{4: 9}
+		}, []build.Code{build.MasteryEffectUnknown, build.MasteryNotChosen}, nil},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			checkWarnings(t, s, testCase.edit, testCase.codes, testCase.check)
+		})
+	}
+}
+
+// checkWarnings checks juggernaut() edited by edit: the warning codes, the checked build by
+// check when not nil, and that Check left its argument alone.
+func checkWarnings(t *testing.T, s *dataset.Store, edit func(*build.Build), want []build.Code, check func(*testing.T, build.Build)) {
+	t.Helper()
+	b := juggernaut()
+	edit(b)
+	original := b.Clone()
+	c, warnings, err := build.Check(b, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes := make([]build.Code, 0, len(warnings))
+	for _, w := range warnings {
+		codes = append(codes, w.Code)
+	}
+	if diff := cmp.Diff(want, codes, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
+	}
+	if check != nil {
+		check(t, c.Build())
+	}
+	if diff := cmp.Diff(original, b); diff != "" {
+		t.Errorf("Check changed its argument (-want +got):\n%s", diff)
+	}
+}
+
+func TestCheckedMasteriesAndPoints(t *testing.T) {
+	t.Parallel()
+	b := juggernaut()
+	b.Nodes = append(b.Nodes, 4, 12, 13, 14, 20)
+	b.Masteries = map[uint32]uint32{4: 8}
+	c, warnings, err := build.Check(b, testStore(t))
+	if err != nil || len(warnings) != 0 {
+		t.Fatal(err, warnings)
+	}
+	ms := c.Masteries()
+	if len(ms) != 1 || ms[0].Node.ID != 4 || ms[0].Effect.ID != 8 {
+		t.Errorf("masteries %+v", ms)
+	}
+	// 3 and 4 passive (1 is the start); 10, 12 and 13 ascendancy (20 is its start, option 14 is
+	// free); 12 grants 1
+	if p, a, g := c.Points(); p != 2 || a != 3 || g != 1 {
+		t.Errorf("points: %d passive, %d ascendancy, %d granted", p, a, g)
 	}
 }
