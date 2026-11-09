@@ -9,6 +9,7 @@
 //	pbt semantics coverage --version <v> [--variant standard]
 //	pbt eval <build.json> [--version v] [--set key=value]... [--explain output [--view tree]] [--warnings all]
 //	pbt compare <a.json> <b.json> [--version v] [--version-b v] [--set key=value]... [--warnings all]
+//	pbt power <build.json> [--by player.life] [--mode alone|path] [--max-distance n] [--top 20]
 //
 // Datasets are read from the subdirectories of --root (default datasets), with display text
 // in --language (default en). Versions of --game (default poe1) resolve as
@@ -56,6 +57,7 @@ const usage = `usage:
   pbt semantics coverage --version <v> [--variant standard]
   pbt eval <build.json> [--version v] [--set key=value]... [--explain output [--view tree|proportional|marginal]] [--warnings all]
   pbt compare <a.json> <b.json> [--version v] [--version-b v] [--set key=value]... [--warnings all]
+  pbt power <build.json> [--by player.life] [--mode alone|path] [--max-distance n] [--top 20]
 options for all: [--root datasets] [--game poe1] [--language en]`
 
 // Description scopes for passive node text, as named in the dataset.
@@ -106,6 +108,7 @@ func run(args []string, w, notes io.Writer) error {
 	pos, opts, err := parseArgs(args, map[string]string{
 		"version": "", "variant": build.DefaultVariant, "root": "datasets", "limit": "20", "language": "en", "game": "poe1",
 		"set": "", "explain": "", "view": "tree", "version-b": "", "warnings": "short",
+		"by": "player.life", "mode": modeAlone, "max-distance": "", "top": "20",
 	})
 	if err != nil {
 		return err
@@ -121,6 +124,7 @@ func run(args []string, w, notes io.Writer) error {
 		"semantics coverage": {2, semanticsCoverage},
 		"eval":               {2, eval},
 		"compare":            {3, compare},
+		"power":              {2, nodePower},
 	}
 	const commandWords = 2
 	cmd, ok := commands[strings.Join(pos[:min(len(pos), commandWords)], " ")]
