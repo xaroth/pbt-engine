@@ -276,6 +276,7 @@ func statIDs() []string {
 	return []string{
 		"level", "base_maximum_life", "life_regeneration_rate_per_minute_%", "X_to_armour_per_2_strength", "unmapped_stat",
 		"maximum_all_resistances_%", "keystone_blood_magic", "mana_%_to_add_as_energy_shield",
+		"base_resist_all_elements_%", "base_chaos_damage_resistance_%",
 	}
 }
 
@@ -289,6 +290,10 @@ func testDataset(version string) *dataset.Dataset {
 			ID: "Metadata/Characters/Str/Str", BaseStrength: 32, BaseMaxLife: 38,
 			Stats: []dataset.StatValue{{Stat: 0, Value: 1}, {Stat: 5, Value: 75}},
 		}},
+		Quests: []dataset.Quest{
+			{Quest: "a5q6", Flag: "a5q6-CompletedBoss", Act: 5, Stats: []dataset.StatValue{{Stat: 8, Value: -30}, {Stat: 9, Value: -30}}},
+			{Quest: "a10q3", Flag: "EndGameAvailable", Act: 10, Stats: []dataset.StatValue{{Stat: 8, Value: -30}, {Stat: 9, Value: -30}}},
+		},
 		Trees: []dataset.Tree{{
 			Variant: "standard",
 			Nodes: []dataset.Node{

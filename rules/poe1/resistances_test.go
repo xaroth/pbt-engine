@@ -10,15 +10,15 @@ import (
 // chaos resistance each, QuestStaticRewards a5q6 and a10q3) with the 75% maximum of every
 // resistance from Character.ot, plus extra stats on one node.
 func endgame(extra ...resolve.StatValue) []resolve.Bundle {
-	kitava := func(id string) resolve.Bundle {
-		return bundle(resolve.QuestSource{ID: id}, resolve.Global,
+	kitava := func(id, flag string) resolve.Bundle {
+		return bundle(resolve.QuestSource{ID: id, Flag: flag}, resolve.Global,
 			resolve.StatValue{Stat: "base_resist_all_elements_%", Value: -30},
 			resolve.StatValue{Stat: "base_chaos_damage_resistance_%", Value: -30},
 		)
 	}
 	b := marauder(90, extra...)
 	b[0].Stats = append(b[0].Stats, resolve.StatValue{Stat: "base_maximum_all_resistances_%", Value: 75})
-	return append(b, kitava("a5q6"), kitava("a10q3"))
+	return append(b, kitava("a5q6", "a5q6-CompletedBoss"), kitava("a10q3", "EndGameAvailable"))
 }
 
 func TestResistances(t *testing.T) {

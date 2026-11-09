@@ -1,7 +1,6 @@
 package resolve_test
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -34,6 +33,12 @@ func testDataset() *dataset.Dataset {
 			Stats: []dataset.StatValue{{Stat: 0, Value: 1}, {Stat: 1, Value: 12}, {Stat: 2, Value: 75}},
 		}},
 		Constants: []dataset.Constant{{ID: "life_per_strength", Value: 1, Per: 2}},
+		Quests: []dataset.Quest{
+			{Quest: "a2q2", Flag: "a2q2-QuestRewardTaken", Act: 2, Stats: []dataset.StatValue{{Stat: 11, Value: 15}}},
+			{Quest: "a5q6", Flag: "a5q6-CompletedBoss", Act: 5, Stats: []dataset.StatValue{{Stat: 11, Value: -30}, {Stat: 12, Value: -30}}},
+			{Quest: "a10q3", Flag: "a10q3-UsedRewardBook", Act: 10, PassivePoints: 2},
+			{Quest: "a10q3", Flag: "EndGameAvailable", Act: 10, Stats: []dataset.StatValue{{Stat: 11, Value: -30}, {Stat: 12, Value: -30}}},
+		},
 		Trees: []dataset.Tree{{
 			Variant: "standard",
 			Classes: []dataset.Class{{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}}}},
@@ -65,8 +70,8 @@ func open(t *testing.T, d *dataset.Dataset) *dataset.Store {
 	return s
 }
 
-func testBuild(level int, scenario build.Scenario, nodes ...uint32) *build.Build {
-	return &build.Build{Format: 1, Game: "poe1", Version: "3.29", Class: marauder, Level: level, Nodes: nodes, Scenario: scenario}
+func testBuild(level int, nodes ...uint32) *build.Build {
+	return &build.Build{Format: 1, Game: "poe1", Version: "3.29", Class: marauder, Level: level, Nodes: nodes}
 }
 
 func resolveBuild(t *testing.T, s *dataset.Store, b *build.Build) (*resolve.Resolved, error) {
@@ -91,7 +96,7 @@ func dump(t *testing.T, r *resolve.Resolved) string {
 func TestResolve(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
-	r, err := resolveBuild(t, s, testBuild(90, build.Scenario{}, 7, 1, 4))
+	r, err := resolveBuild(t, s, testBuild(90, 7, 1, 4))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,6 +113,8 @@ bundle player global character Metadata/Characters/Str/Str
   base_maximum_all_resistances_% = 75
 bundle player global level
   level = 90
+bundle player global quest a2q2
+  base_resist_all_elements_% = 15
 bundle player global quest a5q6
   base_resist_all_elements_% = -30
   base_chaos_damage_resistance_% = -30
@@ -131,7 +138,7 @@ func TestResolveCapabilities(t *testing.T) {
 	t.Parallel()
 	d := testDataset()
 	d.Manifest.Capabilities = dataset.Capabilities{"life-from-strength": 2, "armour": 3}
-	r, err := resolveBuild(t, open(t, d), testBuild(1, build.Scenario{}))
+	r, err := resolveBuild(t, open(t, d), testBuild(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +154,7 @@ func TestResolveCapabilities(t *testing.T) {
 func TestResolveSources(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
-	r, err := resolveBuild(t, s, testBuild(1, build.Scenario{Campaign: build.CampaignActs6To10}, 1, 7))
+	r, err := resolveBuild(t, s, testBuild(1, 1, 7))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +163,9 @@ func TestResolveSources(t *testing.T) {
 		got = append(got, b.Source)
 	}
 	want := []resolve.Source{
-		resolve.CharacterSource{ID: marauder}, resolve.LevelSource{}, resolve.QuestSource{ID: "a5q6"},
+		resolve.CharacterSource{ID: marauder}, resolve.LevelSource{},
+		resolve.QuestSource{ID: "a2q2", Flag: "a2q2-QuestRewardTaken"}, resolve.QuestSource{ID: "a5q6", Flag: "a5q6-CompletedBoss"},
+		resolve.QuestSource{ID: "a10q3", Flag: "EndGameAvailable"},
 		resolve.NodeSource{ID: 7}, resolve.NodeSource{ID: 7},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -167,44 +176,15 @@ func TestResolveSources(t *testing.T) {
 	}
 }
 
-func TestResolveScenarioAndNotes(t *testing.T) {
+func TestResolveNotes(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
-	testCases := []struct {
-		name     string
-		scenario build.Scenario
-		nodes    []uint32
-		quests   []string
-		notes    []string
-	}{
-		{name: "campaign complete", quests: []string{"a5q6", "a10q3"}},
-		{name: "acts 6 to 10", scenario: build.Scenario{Campaign: build.CampaignActs6To10}, quests: []string{"a5q6"}},
-		{name: "acts 1 to 5", scenario: build.Scenario{Campaign: build.CampaignActs1To5}},
-		{name: "bandits", scenario: build.Scenario{Bandits: build.BanditsHelpAlira}, quests: []string{"a5q6", "a10q3"},
-			notes: []string{"bandits help-alira: quest rewards are not in the dataset yet"}},
-		{name: "mastery without a choice", nodes: []uint32{1, 7, 9}, quests: []string{"a5q6", "a10q3"},
-			notes: []string{"node 9: mastery effect not chosen; builds have no mastery choices yet"}},
+	r, err := resolveBuild(t, s, testBuild(1, 1, 7, 9))
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			r, err := resolveBuild(t, s, testBuild(1, testCase.scenario, testCase.nodes...))
-			if err != nil {
-				t.Fatal(err)
-			}
-			var quests []string
-			for _, b := range r.Bundles {
-				if q, ok := b.Source.(resolve.QuestSource); ok {
-					quests = append(quests, q.ID)
-				}
-			}
-			if diff := cmp.Diff(testCase.quests, quests); diff != "" {
-				t.Errorf("quest bundles (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(testCase.notes, r.Notes); diff != "" {
-				t.Errorf("notes (-want +got):\n%s", diff)
-			}
-		})
+	if diff := cmp.Diff([]string{"node 9: mastery effect not chosen; builds have no mastery choices yet"}, r.Notes); diff != "" {
+		t.Errorf("notes (-want +got):\n%s", diff)
 	}
 }
 
@@ -212,11 +192,9 @@ func TestResolveMissingStat(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name, stat string
-		scenario   build.Scenario
 	}{
-		{name: "character column", stat: "base_maximum_mana", scenario: build.Scenario{Campaign: build.CampaignActs1To5}},
-		{name: "level", stat: "level", scenario: build.Scenario{Campaign: build.CampaignActs1To5}},
-		{name: "quest reward", stat: "base_chaos_damage_resistance_%", scenario: build.Scenario{Campaign: build.CampaignActs6To10}},
+		{name: "character column", stat: "base_maximum_mana"},
+		{name: "level", stat: "level"},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -224,7 +202,7 @@ func TestResolveMissingStat(t *testing.T) {
 			d := testDataset()
 			// Swap the stat out for one no lookup uses, so handles in d stay valid.
 			d.Stats[slices.Index(statIDs(), testCase.stat)].ID = "unused"
-			_, err := resolveBuild(t, open(t, d), testBuild(1, testCase.scenario))
+			_, err := resolveBuild(t, open(t, d), testBuild(1))
 			if err == nil || !strings.Contains(err.Error(), "no stat "+testCase.stat) {
 				t.Errorf("got %v, want an error naming %s", err, testCase.stat)
 			}
@@ -284,18 +262,6 @@ func TestNodeBundlesErrors(t *testing.T) {
 	}
 }
 
-func TestResolveOtherGame(t *testing.T) {
-	t.Parallel()
-	d := testDataset()
-	d.Manifest.Game = "poe2"
-	b := testBuild(1, build.Scenario{Campaign: build.CampaignActs1To5})
-	b.Game = "poe2"
-	_, err := resolveBuild(t, open(t, d), b)
-	if !errors.Is(err, resolve.ErrNoRewards) || !strings.Contains(err.Error(), "poe2") {
-		t.Errorf("got %v, want ErrNoRewards naming poe2", err)
-	}
-}
-
 func TestBundleParts(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
@@ -321,9 +287,16 @@ func TestBundleParts(t *testing.T) {
 	if diff := cmp.Diff(wantEffect, effect); diff != "" {
 		t.Errorf("MasteryEffectBundle (-want +got):\n%s", diff)
 	}
-	quests, err := resolve.CampaignBundles("poe1", build.CampaignActs6To10)
-	if err != nil || len(quests) != 1 || quests[0].Source != (resolve.QuestSource{ID: "a5q6"}) {
-		t.Errorf("CampaignBundles(poe1, acts 6 to 10): got %v, %v, want the a5q6 bundle", quests, err)
+	quests, err := resolve.QuestBundles(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantQuest := resolve.Bundle{
+		Actor: resolve.Player, Scope: resolve.Global, Source: resolve.QuestSource{ID: "a2q2", Flag: "a2q2-QuestRewardTaken"},
+		Stats: []resolve.StatValue{{"base_resist_all_elements_%", 15}},
+	}
+	if len(quests) != 3 || !cmp.Equal(wantQuest, quests[0]) {
+		t.Errorf("QuestBundles: got %v, want 3 bundles starting with %v (the points-only reward has none)", quests, wantQuest)
 	}
 }
 
@@ -345,10 +318,6 @@ func TestBundlePartsErrors(t *testing.T) {
 		{"mastery effect of unknown node", "has no node 5 in the standard tree", func() error {
 			_, err := resolve.MasteryEffectBundle(s, "standard", 5, 1)
 			return wrap(t, "mastery effect bundle", err)
-		}},
-		{"campaign of another game", "resolve: no campaign quest rewards known for poe2", func() error {
-			_, err := resolve.CampaignBundles("poe2", build.CampaignActs1To5)
-			return wrap(t, "campaign bundles", err)
 		}},
 	}
 	for _, testCase := range testCases {

@@ -6,7 +6,6 @@ package resolve
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -16,9 +15,6 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 )
-
-// ErrNoRewards is returned for a game whose campaign quest rewards are not known.
-var ErrNoRewards = errors.New("no campaign quest rewards known")
 
 // Actor owns a bundle's stats.
 type Actor uint8
@@ -76,10 +72,13 @@ type NodeSource struct {
 	ID uint32
 }
 
-// QuestSource is a quest reward the build's campaign stage implies.
+// QuestSource is a quest reward from the dataset. Resolve returns every reward with stats; the
+// rules decide from the build's config which ones the character has.
 type QuestSource struct {
-	// ID is the game's Quest.Id, such as "a5q6".
+	// ID is the game's Quest.Id, such as "a5q6"; empty for a reward no quest owns.
 	ID string
+	// Flag is the QuestFlags.Id that grants the reward, such as "a5q6-CompletedBoss".
+	Flag string
 }
 
 func (s CharacterSource) String() string { return "character " + s.ID }
@@ -179,55 +178,34 @@ func characterStats(stats []dataset.Stat, ch *dataset.Character) []StatValue {
 	return append(out, slices.DeleteFunc(statValues(stats, ch.Stats), func(sv StatValue) bool { return sv.Stat == LevelStat })...)
 }
 
-// kitavaGame is the game whose campaign kitavaQuests and kitavaAffliction describe.
-const kitavaGame = "poe1"
-
-// kitavaQuests are the quests that end with defeating Kitava, in campaign order: The
-// Ravenous God (act 5) and An End to Hunger (act 10).
-func kitavaQuests() []string {
-	return []string{"a5q6", "a10q3"}
-}
-
-// kitavaAffliction is the reward of each quest in kitavaQuests. Datasets have no quest
-// reward table, so it is held here. Source: the QuestStaticRewards rows of a5q6 and a10q3,
-// the same in 3.28.0.16 and 3.29.3.3, whose messages (ClientStrings KitavaWeaken1 and
-// KitavaWeaken2) read "-30% to all Resistances" and "a total of -60%".
-func kitavaAffliction() []StatValue {
-	return []StatValue{{"base_resist_all_elements_%", -30}, {"base_chaos_damage_resistance_%", -30}}
-}
-
-// CampaignBundles returns the bundles of the quest rewards a campaign stage of game implies,
-// in campaign order. It fails for a game other than poe1, whose rewards are not known.
-func CampaignBundles(game string, c build.Campaign) ([]Bundle, error) {
-	if game != kitavaGame {
-		return nil, fmt.Errorf("resolve: %w for %s", ErrNoRewards, game)
+// QuestBundles returns a bundle for each quest reward of s with stats, in dataset order.
+func QuestBundles(s *dataset.Store) ([]Bundle, error) {
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, fmt.Errorf("resolve: load stats: %w", err)
+	}
+	qs, err := s.Quests()
+	if err != nil {
+		return nil, fmt.Errorf("resolve: load quests: %w", err)
 	}
 	var out []Bundle
-	for _, q := range kitavaQuests()[:kitavaDefeats(c)] {
-		out = append(out, Bundle{Actor: Player, Scope: Global, Source: QuestSource{ID: q}, Stats: kitavaAffliction()})
+	for _, q := range qs {
+		if len(q.Stats) > 0 {
+			out = append(out, Bundle{Actor: Player, Scope: Global, Source: QuestSource{ID: q.Quest, Flag: q.Flag}, Stats: statValues(stats, q.Stats)})
+		}
 	}
 	return out, nil
 }
 
-func kitavaDefeats(c build.Campaign) int {
-	switch c {
-	case build.CampaignActs1To5:
-	case build.CampaignActs6To10:
-		return 1
-	case build.CampaignComplete:
-		return len(kitavaQuests())
-	}
-	return 0
-}
-
-// Resolve turns a checked build into bundles and constants. It fails when a dataset group
-// fails to load, a stat id resolve uses is not in the dataset's stats, or the build's game has
-// no known campaign quest rewards (only poe1 has).
+// Resolve turns a checked build into bundles and constants: character, level, every quest
+// reward with stats (the rules pick the ones the build's config grants), then the nodes. It
+// fails when a dataset group fails to load or a stat id resolve uses is not in the dataset's
+// stats.
 func Resolve(c *build.Checked) (*Resolved, error) {
 	s := c.Store()
 	m := s.Manifest()
 	b := c.Build()
-	quests, err := CampaignBundles(m.Game, b.Scenario.Campaign)
+	quests, err := QuestBundles(s)
 	if err != nil {
 		return nil, err
 	}
@@ -261,9 +239,6 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 
 	for _, k := range consts {
 		r.Constants = append(r.Constants, Constant{ID: k.ID, Value: k.Value, Per: k.Per})
-	}
-	if b.Scenario.Bandits != build.BanditsNotCompleted {
-		r.Notes = append(r.Notes, fmt.Sprintf("bandits %s: quest rewards are not in the dataset yet", b.Scenario.Bandits))
 	}
 	return r, nil
 }

@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/resolve"
 )
@@ -111,12 +110,12 @@ func statUses(s *dataset.Store, variant string) (map[useKey]int, error) {
 	return uses, nil
 }
 
-// treeBundles returns the quest rewards of a completed campaign, then the bundles of every
-// node of tree and its mastery effects.
+// treeBundles returns every quest reward, then the bundles of every node of tree and its
+// mastery effects.
 func treeBundles(s *dataset.Store, variant string, tree *dataset.Tree) ([]resolve.Bundle, error) {
-	bundles, err := resolve.CampaignBundles(s.Manifest().Game, build.CampaignComplete)
+	bundles, err := resolve.QuestBundles(s)
 	if err != nil {
-		return nil, fmt.Errorf("semantics: campaign bundles: %w", err)
+		return nil, fmt.Errorf("semantics: quest bundles: %w", err)
 	}
 	for i := range tree.Nodes {
 		n := &tree.Nodes[i]

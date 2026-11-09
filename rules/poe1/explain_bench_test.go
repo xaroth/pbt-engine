@@ -26,7 +26,7 @@ func benchSheet(b *testing.B) *rules.Sheet {
 	if err != nil {
 		b.Fatal(err)
 	}
-	sh, err := rules.Open(resolved(bundles...), t)
+	sh, err := rules.Open(resolved(bundles...), t, rules.DefaultConfig())
 	if err != nil {
 		b.Fatal(err)
 	}

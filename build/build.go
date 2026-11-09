@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"slices"
+
+	"github.com/xaroth/pbt-engine/config"
 )
 
 // Errors Parse returns; match them with errors.Is.
@@ -39,46 +41,14 @@ type Build struct {
 	Ascendancy string `json:"ascendancy,omitzero"`
 	Level      int    `json:"level"`
 	// Nodes are the allocated passive node ids (hashes), including ascendancy nodes.
-	Nodes    []uint32 `json:"nodes"`
-	Scenario Scenario `json:"scenario"`
+	Nodes []uint32 `json:"nodes"`
+	// Config holds config values by key name, such as {"campaign": "acts-6-10"}. Keys and
+	// values are the game rules'; Check does not read them.
+	Config config.Values `json:"config,omitzero"`
 }
-
-// Scenario is where the character stands in the game, as far as the sheet depends on it.
-type Scenario struct {
-	Campaign Campaign `json:"campaign"`
-	Bandits  Bandits  `json:"bandits,omitzero"`
-}
-
-// Campaign is how far the character is through the story campaign. Defeating Kitava at the
-// end of act 5 and again at the end of act 10 each lowers the character's resistances.
-type Campaign string
-
-// Campaign stages.
-const (
-	// CampaignComplete is after defeating Kitava in act 10. It is the default, since the
-	// endgame (maps) opens only then.
-	CampaignComplete Campaign = "complete"
-	// CampaignActs6To10 is after defeating Kitava in act 5, before act 10's Kitava.
-	CampaignActs6To10 Campaign = "acts-6-10"
-	// CampaignActs1To5 is before defeating Kitava in act 5.
-	CampaignActs1To5 Campaign = "acts-1-5"
-)
-
-// Bandits is the outcome of the act 2 quest Deal with the Bandits. The zero value is a
-// character that has not completed the quest, so it has no reward from it.
-type Bandits string
-
-// Quest outcomes.
-const (
-	BanditsNotCompleted Bandits = ""
-	BanditsKillAll      Bandits = "kill-all"
-	BanditsHelpAlira    Bandits = "help-alira"
-	BanditsHelpKraityn  Bandits = "help-kraityn"
-	BanditsHelpOak      Bandits = "help-oak"
-)
 
 // Parse decodes a build file. Unknown fields, another format and trailing data are errors.
-// An empty variant becomes DefaultVariant and an empty campaign CampaignComplete.
+// An empty variant becomes DefaultVariant.
 func Parse(data []byte) (*Build, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
@@ -115,5 +85,4 @@ func (b *Build) Encode() ([]byte, error) {
 
 func (b *Build) fillDefaults() {
 	b.Variant = cmp.Or(b.Variant, DefaultVariant)
-	b.Scenario.Campaign = cmp.Or(b.Scenario.Campaign, CampaignComplete)
 }
