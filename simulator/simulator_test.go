@@ -27,8 +27,9 @@ func statIDs() []string {
 }
 
 // testStore is a Marauder (32 strength, 38 life plus 12 per level, 75% maximum resistances)
-// with nodes 2 (+20 life), 3 (+10% life) and mastery 4 (effect 7: +5% life) off the start 1,
-// node 5 joining nothing, and both Kitava rewards (-30% all resistances each).
+// with nodes 2 (+20 life), 3 (+10% life), mastery 4 (effect 7: +5% life), mastery 6 (effects
+// 7 and 9: +3% life) and choice node 8 (+5 life; options 10, +7 life, and 11, +2% life) off
+// the start 1, node 5 joining nothing, and both Kitava rewards (-30% all resistances each).
 func testStore(tb testing.TB) *dataset.Store {
 	tb.Helper()
 	return testStoreWith(tb, "3.29.3.3", 20)
@@ -56,11 +57,17 @@ func testStoreWith(tb testing.TB, version string, life2 int32) *dataset.Store {
 			Variant: "standard",
 			Classes: []dataset.Class{{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}}}},
 			Nodes: []dataset.Node{
-				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{2, 3, 4}},
+				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{2, 3, 4, 6, 8}},
 				{ID: 2, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: 6, Value: life2}}},
 				{ID: 3, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: 8, Value: 10}}},
 				{ID: 4, Kind: dataset.Mastery, Neighbours: []uint32{1}, MasteryEffects: []dataset.MasteryEffect{{ID: 7, Stats: []dataset.StatValue{{Stat: 8, Value: 5}}}}},
 				{ID: 5, Stats: []dataset.StatValue{{Stat: 6, Value: 1}}},
+				{ID: 6, Kind: dataset.Mastery, Neighbours: []uint32{1}, MasteryEffects: []dataset.MasteryEffect{
+					{ID: 7, Stats: []dataset.StatValue{{Stat: 8, Value: 5}}}, {ID: 9, Stats: []dataset.StatValue{{Stat: 8, Value: 3}}},
+				}},
+				{ID: 8, Neighbours: []uint32{1, 10, 11}, MultipleChoice: true, Stats: []dataset.StatValue{{Stat: 6, Value: 5}}},
+				{ID: 10, Neighbours: []uint32{8}, MultipleChoiceOption: true, Stats: []dataset.StatValue{{Stat: 6, Value: 7}}},
+				{ID: 11, Neighbours: []uint32{8}, MultipleChoiceOption: true, Stats: []dataset.StatValue{{Stat: 8, Value: 2}}},
 			},
 		}},
 	}

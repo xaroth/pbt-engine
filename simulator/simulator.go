@@ -185,14 +185,22 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	return r, nil
 }
 
-// statsOf reads keys from sh after switching it to the run's nodes and config.
-func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
+// switchTo switches sh to the run's level, nodes, masteries and config.
+func switchTo(r *run, sh *poe1.Sheet) error {
 	cb := r.checked.Build()
 	if err := sh.SetLevel(cb.Level); err != nil {
-		return nil, fmt.Errorf("simulator: %w", err)
+		return fmt.Errorf("simulator: %w", err)
 	}
 	sh.SetNodes(cb.Nodes, cb.Masteries)
 	sh.SetConfig(r.cfg)
+	return nil
+}
+
+// statsOf reads keys from sh after switching it to the run's nodes and config.
+func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
+	if err := switchTo(r, sh); err != nil {
+		return nil, err
+	}
 	st := &Stats{
 		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, build: r.build,
 		checked: r.checked, sim: s,

@@ -202,6 +202,47 @@ func (c *Checked) Character() *dataset.Character { return c.character }
 // Nodes returns the allocated nodes, sorted by id.
 func (c *Checked) Nodes() []*dataset.Node { return slices.Clone(c.nodes) }
 
+// EditWarnings returns the warnings Check would give about edits applied to the checked build,
+// as far as they concern the edits themselves: nodes it cannot take, and mastery effects on a
+// node that is not an allocated mastery or not of that mastery. Connectivity, mastery choices
+// still to make and point budgets are about the whole build; Check gives those.
+func (c *Checked) EditWarnings(edits []Edit) []Warning {
+	allocated := map[uint32]bool{}
+	for _, n := range c.build.Nodes {
+		allocated[n] = true
+	}
+	var out []Warning
+	for _, e := range edits {
+		switch e.Op {
+		case OpAllocate:
+			out = append(out, c.allocateWarnings(e.Nodes, allocated)...)
+		case OpDeallocate:
+			for _, id := range e.Nodes {
+				delete(allocated, id)
+			}
+		case OpSetMastery:
+			if w, bad := c.effectProblem(e.Node, e.Effect, allocated[e.Node]); bad {
+				out = append(out, w)
+			}
+		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetConfig, OpClearConfig:
+		}
+	}
+	return out
+}
+
+// allocateWarnings returns the warnings for allocating ids and marks the ones taken.
+func (c *Checked) allocateWarnings(ids []uint32, allocated map[uint32]bool) []Warning {
+	var out []Warning
+	for _, id := range ids {
+		if w, bad := c.nodeProblem(id, c.node(id)); bad {
+			out = append(out, w)
+		} else {
+			allocated[id] = true
+		}
+	}
+	return out
+}
+
 func (c *Checked) warnf(code Code, subject, format string, args ...any) {
 	c.warnings = append(c.warnings, Warning{Code: code, Subject: subject, Message: fmt.Sprintf(format, args...)})
 }
@@ -252,19 +293,42 @@ func (c *Checked) checkNodes() {
 			continue
 		}
 		n := c.node(id)
-		switch {
-		case n == nil:
-			c.warnf(NodeUnknown, subject, "not in the %s tree of %s; dropped", c.build.Variant, c.store.Manifest().Version)
-		case n.Ascendancy != "" && n.Ascendancy != c.build.Ascendancy:
-			c.warnf(NodeOtherAscendancy, subject, "a node of %s; dropped", n.Ascendancy)
-		case n.Kind == dataset.ClassStart && n.ID != c.class.StartNode:
-			c.warnf(NodeOtherClassStart, subject, "another class's start; dropped")
-		default:
-			c.nodes = append(c.nodes, n)
-			kept = append(kept, id)
+		if w, bad := c.nodeProblem(id, n); bad {
+			c.warnings = append(c.warnings, w)
+			continue
 		}
+		c.nodes = append(c.nodes, n)
+		kept = append(kept, id)
 	}
 	c.build.Nodes = kept
+}
+
+// nodeProblem returns the warning for allocating node id (n, nil when not in the tree) when the
+// build cannot take it.
+func (c *Checked) nodeProblem(id uint32, n *dataset.Node) (Warning, bool) {
+	subject := fmt.Sprintf("node %d", id)
+	switch {
+	case n == nil:
+		return Warning{NodeUnknown, subject, fmt.Sprintf("not in the %s tree of %s; dropped", c.build.Variant, c.store.Manifest().Version)}, true
+	case n.Ascendancy != "" && n.Ascendancy != c.build.Ascendancy:
+		return Warning{NodeOtherAscendancy, subject, fmt.Sprintf("a node of %s; dropped", n.Ascendancy)}, true
+	case n.Kind == dataset.ClassStart && n.ID != c.class.StartNode:
+		return Warning{NodeOtherClassStart, subject, "another class's start; dropped"}, true
+	}
+	return Warning{}, false
+}
+
+// effectProblem returns the warning for choosing effect on node when it does not fit.
+func (c *Checked) effectProblem(node, effect uint32, allocated bool) (Warning, bool) {
+	subject := fmt.Sprintf("node %d", node)
+	n := c.node(node)
+	if n == nil || n.Kind != dataset.Mastery || !allocated {
+		return Warning{MasteryNotAllocated, subject, fmt.Sprintf("effect %d chosen on a node that is not an allocated mastery; dropped", effect)}, true
+	}
+	if !slices.ContainsFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect }) {
+		return Warning{MasteryEffectUnknown, subject, fmt.Sprintf("effect %d is not one of this mastery's; dropped", effect)}, true
+	}
+	return Warning{}, false
 }
 
 func (c *Checked) node(id uint32) *dataset.Node {
@@ -380,16 +444,12 @@ func (c *Checked) checkMasteries() {
 func (c *Checked) choose(id uint32, chosen map[uint32]bool) bool {
 	effect, subject := c.build.Masteries[id], fmt.Sprintf("node %d", id)
 	n := c.allocated(id)
-	if n == nil || n.Kind != dataset.Mastery {
-		c.warnf(MasteryNotAllocated, subject, "effect %d chosen on a node that is not an allocated mastery; dropped", effect)
+	if w, bad := c.effectProblem(id, effect, n != nil); bad {
+		c.warnings = append(c.warnings, w)
 		return false
 	}
 	i := slices.IndexFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect })
-	switch {
-	case i < 0:
-		c.warnf(MasteryEffectUnknown, subject, "effect %d is not one of this mastery's; dropped", effect)
-		return false
-	case chosen[effect]:
+	if chosen[effect] {
 		c.warnf(MasteryEffectRepeated, subject, "effect %d is chosen on another mastery already; dropped", effect)
 		return false
 	}
