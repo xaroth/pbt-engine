@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
@@ -42,6 +43,8 @@ type Build struct {
 	Level      int    `json:"level"`
 	// Nodes are the allocated passive node ids (hashes), including ascendancy nodes.
 	Nodes []uint32 `json:"nodes"`
+	// Masteries maps an allocated mastery node's id to the id of its chosen effect.
+	Masteries map[uint32]uint32 `json:"masteries,omitzero"`
 	// Config holds config values by key name, such as {"campaign": "acts-6-10"}. Keys and
 	// values are the game rules'; Check does not read them.
 	Config config.Values `json:"config,omitzero"`
@@ -81,6 +84,15 @@ func (b *Build) Encode() ([]byte, error) {
 		return nil, fmt.Errorf("build: encode: %w", err)
 	}
 	return append(out, '\n'), nil
+}
+
+// Clone returns a deep copy of b.
+func (b *Build) Clone() *Build {
+	c := *b
+	c.Nodes = slices.Clone(b.Nodes)
+	c.Masteries = maps.Clone(b.Masteries)
+	c.Config = b.Config.Clone()
+	return &c
 }
 
 func (b *Build) fillDefaults() {
