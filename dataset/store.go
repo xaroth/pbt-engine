@@ -28,6 +28,7 @@ type Store struct {
 	stats      func() (statsGroup, error)
 	characters func() ([]Character, error)
 	constants  func() ([]Constant, error)
+	quests     func() ([]Quest, error)
 	// trees and texts are keyed by variant and language, fixed by the manifest.
 	trees map[string]func() (*Tree, error)
 	texts map[string]func() (*Text, error)
@@ -39,7 +40,7 @@ type statsGroup struct {
 }
 
 // Open reads the manifest in fsys and reads no table group yet. It fails when ReadManifest
-// does, or the manifest lists an unknown file or misses stats, characters or constants.
+// does, or the manifest lists an unknown file or misses stats, characters, constants or quests.
 func Open(fsys fs.FS) (*Store, error) {
 	m, err := ReadManifest(fsys)
 	if err != nil {
@@ -57,7 +58,7 @@ func Open(fsys fs.FS) (*Store, error) {
 			return nil, err
 		}
 	}
-	for _, name := range []string{charactersFile, constantsFile, statsFile} {
+	for _, name := range []string{charactersFile, constantsFile, questsFile, statsFile} {
 		if _, ok := s.files[name]; !ok {
 			return nil, fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
 		}
@@ -65,6 +66,7 @@ func Open(fsys fs.FS) (*Store, error) {
 	s.stats = sync.OnceValues(s.loadStats)
 	s.characters = sync.OnceValues(s.loadCharacters)
 	s.constants = sync.OnceValues(s.loadConstants)
+	s.quests = sync.OnceValues(s.loadQuests)
 	return s, nil
 }
 
@@ -111,6 +113,9 @@ func (s *Store) Characters() ([]Character, error) { return s.characters() }
 // Constants returns the edition constants group, shared and read-only.
 func (s *Store) Constants() ([]Constant, error) { return s.constants() }
 
+// Quests returns the quest rewards group, shared and read-only.
+func (s *Store) Quests() ([]Quest, error) { return s.quests() }
+
 // Tree returns the tree of one variant, such as "standard", shared and read-only.
 func (s *Store) Tree(variant string) (*Tree, error) {
 	load, ok := s.trees[variant]
@@ -131,7 +136,7 @@ func (s *Store) Text(language string) (*Text, error) {
 	return load()
 }
 
-// Dataset returns stats, characters, constants and the trees and languages o selects, in
+// Dataset returns stats, characters, constants, quests and the trees and languages o selects, in
 // manifest order. It fails when a selected tree or language is missing or a group fails to
 // load. Text names of nodes are checked when o selects every tree, names of ascendancies
 // against the selected trees. The Dataset shares its tables with s and every other caller, so
@@ -151,6 +156,9 @@ func (s *Store) Dataset(o Options) (*Dataset, error) {
 	if d.Constants, err = s.Constants(); err != nil {
 		return nil, err
 	}
+	if d.Quests, err = s.Quests(); err != nil {
+		return nil, err
+	}
 	allTrees, err := loadTrees(s, d, o)
 	if err != nil {
 		return nil, err
@@ -168,7 +176,7 @@ func (s *Store) Dataset(o Options) (*Dataset, error) {
 func registerFile(s *Store, f File) error {
 	s.files[f.Name] = f
 	switch {
-	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile:
+	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile || f.Name == questsFile:
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
@@ -255,6 +263,18 @@ func (s *Store) loadConstants() ([]Constant, error) {
 		return nil, err
 	}
 	return cs, validateConstants(cs)
+}
+
+func (s *Store) loadQuests() ([]Quest, error) {
+	st, err := s.stats()
+	if err != nil {
+		return nil, err
+	}
+	qs, err := readGroup(s, questsFile, func(b []byte) ([]Quest, error) { return decodeQuests(b, st.index) })
+	if err != nil {
+		return nil, err
+	}
+	return qs, validateQuests(len(st.stats), qs)
 }
 
 func (s *Store) loadTree(variant string) (*Tree, error) {

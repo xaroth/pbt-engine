@@ -1,0 +1,25 @@
+include "characters.fbs";
+
+namespace fb;
+
+file_identifier "PBQU";
+
+table Quest {
+  // Quest.Id, such as "a2q7"; empty for a reward no quest owns (labyrinths).
+  quest: string;
+  // QuestFlags.Id that grants the reward; unique.
+  flag: string (required);
+  act: int32;
+  passive_points: int32;
+  ascendancy_points: int32;
+  refund_points: int32;
+  stats: [StatValue] (required);
+}
+
+table Quests {
+  quests: [Quest] (required);
+  // Stat ids the file uses, sorted, as in characters.fbs.
+  stat_ids: [string] (required);
+}
+
+root_type Quests;

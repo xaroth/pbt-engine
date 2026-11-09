@@ -231,6 +231,62 @@ func decodeConstants(buf []byte) ([]Constant, error) {
 	return out, nil
 }
 
+func encodeQuests(all []Stat, qs []Quest) []byte {
+	b := flatbuffers.NewBuilder(0)
+	lists := make([][]StatValue, len(qs))
+	for i, q := range qs {
+		lists[i] = q.Stats
+	}
+	st := newStatTable(all, lists...)
+	offs := make([]flatbuffers.UOffsetT, len(qs))
+	for i, q := range qs {
+		quest, flag := b.CreateString(q.Quest), b.CreateString(q.Flag)
+		stats := statValueVector(b, fb.QuestStartStatsVector, st.toLocal(q.Stats, true))
+		fb.QuestStart(b)
+		fb.QuestAddQuest(b, quest)
+		fb.QuestAddFlag(b, flag)
+		fb.QuestAddAct(b, q.Act)
+		fb.QuestAddPassivePoints(b, q.PassivePoints)
+		fb.QuestAddAscendancyPoints(b, q.AscendancyPoints)
+		fb.QuestAddRefundPoints(b, q.RefundPoints)
+		fb.QuestAddStats(b, stats)
+		offs[i] = fb.QuestEnd(b)
+	}
+	vec := tableVector(b, fb.QuestsStartQuestsVector, offs)
+	ids := stringVector(b, fb.QuestsStartStatIdsVector, st.ids)
+	fb.QuestsStart(b)
+	fb.QuestsAddQuests(b, vec)
+	fb.QuestsAddStatIds(b, ids)
+	fb.FinishQuestsBuffer(b, fb.QuestsEnd(b))
+	return b.FinishedBytes()
+}
+
+func decodeQuests(buf []byte, index map[string]uint32) ([]Quest, error) {
+	if !fb.QuestsBufferHasIdentifier(buf) {
+		return nil, errIdentifier
+	}
+	root := fb.GetRootAsQuests(buf, 0)
+	h, err := handles(index, root.StatIdsLength(), root.StatIds)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Quest, root.QuestsLength())
+	var q fb.Quest
+	for i := range out {
+		root.Quests(&q, i)
+		stats, err := fromLocal(&q, h, true)
+		if err != nil {
+			return nil, fmt.Errorf("quest flag %s: %w", q.Flag(), err)
+		}
+		out[i] = Quest{
+			Quest: string(q.Quest()), Flag: string(q.Flag()), Act: q.Act(),
+			PassivePoints: q.PassivePoints(), AscendancyPoints: q.AscendancyPoints(), RefundPoints: q.RefundPoints(),
+			Stats: stats,
+		}
+	}
+	return out, nil
+}
+
 func ascendancyVector(b *flatbuffers.Builder, start startFunc, as []Ascendancy) flatbuffers.UOffsetT {
 	offs := make([]flatbuffers.UOffsetT, len(as))
 	for i, a := range as {
