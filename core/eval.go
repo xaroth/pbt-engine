@@ -128,6 +128,8 @@ type Term struct {
 	Rate float64
 	// Held is false for a modifier whose condition failed; Terms leaves those out.
 	Held bool
+	// Shared is true for a modifier of a stat in the node's Shares.
+	Shared bool
 }
 
 // collector receives what an evaluation saw, for Terms and Explain.
@@ -191,9 +193,9 @@ func (s *Session) eval(id uint32, deps *[]uint32, c *collector) float64 {
 }
 
 // add records modifier mi of stat t as a term of the node being collected; c is not nil.
-func (c *collector) add(s *Session, mi uint32, t StatID, op Op, v, rate float64, held bool) {
+func (c *collector) add(s *Session, mi uint32, t StatID, op Op, v, rate float64, held, shared bool) {
 	if held || c.failed {
-		c.terms = append(c.terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v, Stat: t, Rate: rate, Held: held})
+		c.terms = append(c.terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v, Stat: t, Rate: rate, Held: held, Shared: shared})
 	}
 }
 
@@ -212,7 +214,7 @@ func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask,
 			var ok bool
 			if v, ok = s.modValue(mi, n, fam, deps); !ok {
 				if c != nil {
-					c.add(s, mi, t, op, 0, rate, false)
+					c.add(s, mi, t, op, 0, rate, false, true)
 				}
 				continue
 			}
@@ -220,7 +222,7 @@ func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask,
 		v = float64(v * rate)
 		aggregate(agg, op, v)
 		if c != nil {
-			c.add(s, mi, t, op, v, rate, true)
+			c.add(s, mi, t, op, v, rate, true, true)
 		}
 	}
 }
@@ -237,14 +239,14 @@ func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32
 			var ok bool
 			if v, ok = s.modValue(mi, n, fam, deps); !ok {
 				if c != nil {
-					c.add(s, mi, t, s.mOp[mi], 0, 1, false)
+					c.add(s, mi, t, s.mOp[mi], 0, 1, false, false)
 				}
 				continue
 			}
 		}
 		aggregate(agg, s.mOp[mi], v)
 		if c != nil {
-			c.add(s, mi, t, s.mOp[mi], v, 1, true)
+			c.add(s, mi, t, s.mOp[mi], v, 1, true, false)
 		}
 	}
 }

@@ -38,7 +38,7 @@ func TestExplain(t *testing.T) {
 			{Mod: ids[1], Source: 1, Op: core.OpBase, Value: 40.5, Stat: cold, Rate: 1, Held: true},
 			{Mod: ids[2], Source: 2, Op: core.OpBase, Value: 0, Stat: cold, Rate: 1, Held: false},
 			{Mod: ids[3], Source: 3, Op: core.OpBase, Value: 20, Stat: all, Rate: 1, Held: true},
-			{Mod: ids[4], Source: 4, Op: core.OpBase, Value: 15, Stat: fire, Rate: 0.5, Held: true},
+			{Mod: ids[4], Source: 4, Op: core.OpBase, Value: 15, Stat: fire, Rate: 0.5, Held: true, Shared: true},
 		},
 		Agg:   core.Agg{Base: 75.5, More: 1},
 		Reads: []core.Node{{Stat: str}, {Stat: rate}},
