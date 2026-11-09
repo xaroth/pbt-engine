@@ -2,6 +2,7 @@ package poe1_test
 
 import (
 	"cmp"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -286,5 +287,35 @@ func TestSetNodeAndRevert(t *testing.T) {
 	sh.Commit()
 	if sh.SetNode(999999999, true) {
 		t.Error("an unknown node reported on the sheet")
+	}
+}
+
+// A level not seen yet cannot be added inside a checkpoint; the reviewer's sequence (Mark,
+// SetLevel(37), Revert, Commit, SetLevel(37)) now gives level 37.
+func TestSetLevelInCheckpoint(t *testing.T) {
+	t.Parallel()
+	const version = "3.29.3.3"
+	s := fixtureStore(t, version)
+	c := checked(t, chieftain(t, s, version), s)
+	sh := sheetOf(t, c, true, rules.DefaultConfig())
+	cp := sh.Mark()
+	if err := sh.SetLevel(37); !errors.Is(err, rules.ErrCheckpointOpen) {
+		t.Fatalf("add in checkpoint: %v", err)
+	}
+	if err := sh.SetLevel(90); err != nil {
+		t.Errorf("switch to a known level in checkpoint: %v", err)
+	}
+	if err := sh.Revert(cp); err != nil {
+		t.Fatal(err)
+	}
+	sh.Commit()
+	if err := sh.SetLevel(37); err != nil {
+		t.Fatal(err)
+	}
+	b := c.Build()
+	b.Level = 37
+	fresh := sheetOf(t, checked(t, &b, s), false, rules.DefaultConfig())
+	if !slices.Equal(outputs(t, fresh), outputs(t, sh)) {
+		t.Error("level 37 after the checkpoint differs from a fresh level 37 sheet")
 	}
 }

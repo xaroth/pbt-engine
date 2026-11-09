@@ -1,6 +1,7 @@
 package poe1
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
@@ -72,7 +73,9 @@ func (sh *Sheet) noted(src core.SourceID) bool {
 
 // SetLevel switches the sheet to character level: the level bundle of that level goes on,
 // the others off. A level not seen yet gets its bundle added once, so a sheet serves every
-// level without being opened again.
+// level without being opened again. Adding is refused while a checkpoint is open
+// (ErrCheckpointOpen), since Revert could not take it back; switching to a level seen before
+// is fine.
 func (sh *Sheet) SetLevel(level int) error {
 	found := false
 	for id, src := range sh.sources {
@@ -89,6 +92,9 @@ func (sh *Sheet) SetLevel(level int) error {
 	}
 	if found {
 		return nil
+	}
+	if sh.marked {
+		return fmt.Errorf("%w: level %d", ErrCheckpointOpen, level)
 	}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.LevelSource{},
 		Stats: []resolve.StatValue{{Stat: resolve.LevelStat, Value: float64(level)}}}

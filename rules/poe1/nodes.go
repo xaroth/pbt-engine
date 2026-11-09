@@ -42,9 +42,13 @@ func (sh *Sheet) setSources(srcs []core.SourceID, on bool) {
 	}
 }
 
-// Mark returns a checkpoint: switches after it can be undone with Revert. Commit ends the
-// journalling once no checkpoint is needed, as core.Session does.
-func (sh *Sheet) Mark() core.Checkpoint { return sh.session.Mark() }
+// Mark returns a checkpoint: switches after it can be undone with Revert. Until Commit the
+// sheet refuses to add sources (ErrCheckpointOpen). Commit ends the journalling once no
+// checkpoint is needed, as core.Session does.
+func (sh *Sheet) Mark() core.Checkpoint {
+	sh.marked = true
+	return sh.session.Mark()
+}
 
 // Revert undoes every switch since cp.
 func (sh *Sheet) Revert(cp core.Checkpoint) error {
@@ -54,5 +58,8 @@ func (sh *Sheet) Revert(cp core.Checkpoint) error {
 	return nil
 }
 
-// Commit keeps every switch made so far and stops journalling.
-func (sh *Sheet) Commit() { sh.session.Commit() }
+// Commit keeps every switch made so far and stops journalling; the sheet may add sources again.
+func (sh *Sheet) Commit() {
+	sh.marked = false
+	sh.session.Commit()
+}

@@ -22,6 +22,9 @@ var (
 	ErrConstant = errors.New("missing or malformed constant")
 	// ErrActor marks a bundle for an actor the sheet does not model yet.
 	ErrActor = errors.New("actor not supported")
+	// ErrCheckpointOpen marks a change that adds to the sheet, such as a level not seen yet,
+	// while a checkpoint is open: Revert could not take the addition back.
+	ErrCheckpointOpen = errors.New("sheet: cannot add while a checkpoint is open")
 )
 
 // NoteKind says why a bundle stat is not, or not fully, in the sheet.
@@ -88,6 +91,8 @@ type Sheet struct {
 	gameVersion dataset.GameVersion
 	// nodes maps a node, or a mastery node and effect, to its sources (global and buff bundles).
 	nodes map[resolve.NodeSource][]core.SourceID
+	// marked is true from Mark to Commit: switches are journalled, additions refused.
+	marked bool
 }
 
 // sourcedNote is a note and the core source of its bundle; always marks notes that hold
