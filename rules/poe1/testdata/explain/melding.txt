@@ -1,0 +1,57 @@
+Fire Resistance: 80% (+60% over)  [tree, dataset 3.29.3.3]
+  total 140, effective 80
+  fire_resistance_capped = 80 [resistance capped by its maximum]
+    fire_resistance = 140
+      base 200  node 1 on elemental_resistance
+      base -30  quest a5q6 on elemental_resistance
+      base -30  quest a10q3 on elemental_resistance
+    effective_maximum_fire_resistance = 80 [effective maximum resistance]
+      elemental_maximum_resistances_are_highest = 1
+        flag 1  node 1
+      maximum_fire_resistance = 75
+        base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+      maximum_cold_resistance = 80
+        base 5  node 1
+        base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+        maximum_fire_resistance_modifiers_to_cold_and_lightning_% = 0
+      maximum_lightning_resistance = 75
+        base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+        maximum_fire_resistance_modifiers_to_cold_and_lightning_% = 0 (above)
+
+Fire Resistance: 80% (+60% over)  [proportional, dataset 3.29.3.3]
+  total 140, effective 80, capped by effective_maximum_fire_resistance
+         200  node 1 (base)
+         -30  quest a5q6 (base)
+         -30  quest a10q3 (base)
+
+Fire Resistance: 80% (+60% over)  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+  total 140, effective 80
+        -140  node 1 (total -200)
+           0  quest a5q6 (total 30)
+           0  quest a10q3 (total 30)
+         -75  character Metadata/Characters/Str/Str (total 0)
+
+Maximum Fire Resistance: 80%  [tree, dataset 3.29.3.3]
+  effective_maximum_fire_resistance = 80 [effective maximum resistance]
+    elemental_maximum_resistances_are_highest = 1
+      flag 1  node 1
+    maximum_fire_resistance = 75
+      base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+    maximum_cold_resistance = 80
+      base 5  node 1
+      base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+      maximum_fire_resistance_modifiers_to_cold_and_lightning_% = 0
+    maximum_lightning_resistance = 75
+      base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
+      maximum_fire_resistance_modifiers_to_cold_and_lightning_% = 0 (above)
+
+Maximum Fire Resistance: 80%  [proportional, dataset 3.29.3.3]
+          75  character Metadata/Characters/Str/Str (base)
+           5  node 1 (base)
+
+Maximum Fire Resistance: 80%  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+         -75  character Metadata/Characters/Str/Str
+          -5  node 1
+

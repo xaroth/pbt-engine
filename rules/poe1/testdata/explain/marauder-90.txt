@@ -1,0 +1,61 @@
+Life: 1134  [tree, dataset 3.29.3.3]
+  maximum_life = 1134 [conversion and gain as extra]
+    base 38  character Metadata/Characters/Str/Str
+    base 1080  character Metadata/Characters/Str/Str
+    base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
+    level = 90
+      base 90  level
+    no_strength_bonus_to_maximum_life = 0
+    strength = 32
+      base 32  character Metadata/Characters/Str/Str
+    convert.maximum_life.maximum_energy_shield.% = 0
+
+Life: 1134  [proportional, dataset 3.29.3.3]
+        1118  character Metadata/Characters/Str/Str (base)
+          16  Strength bonus to maximum life (1 per 2, constant life_per_strength) (base)
+
+Life: 1134  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+       -1133  character Metadata/Characters/Str/Str (total -1134)
+       -1080  level
+         -16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
+
+Mana: 581  [tree, dataset 3.29.3.3]
+  maximum_mana = 581 [conversion and gain as extra]
+    base 34  character Metadata/Characters/Str/Str
+    base 540  character Metadata/Characters/Str/Str
+    base 7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence)
+    level = 90
+      base 90  level
+    no_intelligence_bonus_to_maximum_mana = 0
+    intelligence = 14
+      base 14  character Metadata/Characters/Str/Str
+
+Mana: 581  [proportional, dataset 3.29.3.3]
+         574  character Metadata/Characters/Str/Str (base)
+           7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) (base)
+
+Mana: 581  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+        -581  character Metadata/Characters/Str/Str
+        -540  level
+          -7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence)
+
+Evasion Rating: 15  [tree, dataset 3.29.3.3]
+  evasion_rating = 15 [conversion and gain as extra]
+    base 15  character Metadata/Characters/Str/Str
+    increased 2  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity)
+    no_dexterity_bonus_to_evasion_rating = 0
+    dexterity = 14
+      base 14  character Metadata/Characters/Str/Str
+    convert.evasion_rating.armour.% = 0
+
+Evasion Rating: 15  [proportional, dataset 3.29.3.3]
+          15  character Metadata/Characters/Str/Str (base)
+         0.3  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) (increased)
+
+Evasion Rating: 15  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+         -15  character Metadata/Characters/Str/Str (total -15.3)
+           0  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) (total -0.3)
+

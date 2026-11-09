@@ -237,6 +237,7 @@ func (sh *Sheet) explainProportional(ex *Explanation, n core.Node) error {
 	for _, id := range order {
 		ex.Lines = append(ex.Lines, *byID[id])
 	}
+	ex.Lines = dropZeros(ex.Lines)
 	trimCommonVia(ex.Lines)
 	sortLines(ex.Lines, func(l Line) float64 { return l.Value })
 	return nil
@@ -260,6 +261,18 @@ func trimCommonVia(lines []Line) {
 		}
 		lines[i].Parts = parts
 	}
+}
+
+// dropZeros leaves out lines whose share is 0 in every part, such as a node's "0% increased
+// maximum Life", unless all are: a value a flag turns off still names the flag.
+func dropZeros(lines []Line) []Line {
+	kept := slices.DeleteFunc(slices.Clone(lines), func(l Line) bool {
+		return !slices.ContainsFunc(l.Parts, func(p LinePart) bool { return p.Value != 0 })
+	})
+	if len(kept) == 0 {
+		return lines
+	}
+	return kept
 }
 
 // commonVia returns the longest path prefix all parts share.

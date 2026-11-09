@@ -1,0 +1,345 @@
+Life: 3511  [tree, dataset 3.29.3.3]
+  maximum_life = 3511 [conversion and gain as extra]
+    base 38  Marauder (character)
+    base 1080  Marauder (character)
+    increased 5  node 5152 Life
+    increased 5  node 5743 Life and Energy Shield
+    increased 10  node 6289 Bloodless
+    increased 6  node 6712 Life
+    increased 5  node 13714 Life
+    increased 6  node 14936 Life
+    increased 4  node 15868 Life and Armour
+    increased 10  node 21958 Cruel Preparation
+    increased 5  node 22627 Life and Armour
+    increased 4  node 30380 Life and Elemental Resistances
+    increased 8  node 33287 Juggernaut
+    increased 6  node 33755 Life
+    increased 4  node 36047 Life and Armour
+    increased 10  node 36949 Devotion
+    increased 0  node 37403 Infused Flesh
+    increased 6  node 48287 Life
+    base 16  node 50904 Life and Armour
+    increased 8  node 53118 Barbarism
+    base 20  node 55485 Constitution
+    increased 10  node 55485 Constitution
+    increased 4  node 55676 Life and Armour
+    more 10  node 57279 Blood Magic
+    increased 10  node 58218 Purity of Flesh
+    base 20  node 61198 Heart of the Warrior
+    increased 10  node 61198 Heart of the Warrior
+    increased 4  node 63048 Life and Armour
+    base 156  Strength bonus to maximum life (1 per 2, constant life_per_strength)
+    level = 90
+      base 90  level
+    no_strength_bonus_to_maximum_life = 0
+    strength = 312
+      base 32  Marauder (character)
+      base 0  Marauder (character)
+      base 10  node 3644 Strength
+      base 10  node 5233 Strength
+      base 10  node 14056 Strength
+      base 10  node 14930 Strength
+      base 10  node 15405 Strength
+      base 10  node 22703 Strength
+      base 10  node 23027 Strength
+      base 20  node 24383 Warrior's Blood
+      base 10  node 28330 Strength
+      base 10  node 29353 Strength
+      base 10  node 30733 Strength
+      base 10  node 34171 Strength
+      base 10  node 34400 Strength
+      base 10  node 43374 Strength
+      base 10  node 44202 Strength
+      base 10  node 46578 Strength
+      base 10  node 49178 Strength
+      base 10  node 49412 Strength
+      base 10  node 50422 Strength
+      base 10  node 50570 Strength
+      base 10  node 50862 Strength
+      base 10  node 59928 Strength
+      base 10  node 60472 Strength
+      base 10  node 61198 Heart of the Warrior
+      base 10  node 62429 Strength
+      base 10  node 63282 Strength
+      base 10  node 63723 Strength
+      level = 90 (above)
+    convert.maximum_life.maximum_energy_shield.% = 0
+
+Life: 3511  [proportional, dataset 3.29.3.3]
+        1118  Marauder (character) (base)
+       319.2  node 57279 Blood Magic "Removes all mana / 10% more maximum Life / Skills Cost Life instead of Mana / Skills Reserve Life instead of Mana" (more)
+         156  Strength bonus to maximum life (1 per 2, constant life_per_strength) (base)
+         153  node 55485 Constitution "+20 to maximum Life / 10% increased maximum Life"
+                base 20
+                increased 133
+         153  node 61198 Heart of the Warrior "+20 to maximum Life / 10% increased maximum Life / +10 to Strength"
+                base 20
+                increased 133
+         133  node 6289 Bloodless "10% increased maximum Life / Enemies Cannot Leech Life From you" (increased)
+         133  node 21958 Cruel Preparation "10% increased maximum Life / +5% to all Elemental Resistances" (increased)
+         133  node 36949 Devotion "10% increased maximum Life / 25% increased Effect of Consecrated Ground you create" (increased)
+         133  node 58218 Purity of Flesh "8% increased maximum Energy Shield / 10% increased maximum Life / +8% to Chaos Resistance" (increased)
+       106.4  node 33287 Juggernaut "24% increased Armour / 8% increased maximum Life" (increased)
+       106.4  node 53118 Barbarism "8% increased maximum Life / +1% to maximum Fire Resistance / +8% to Fire Resistance" (increased)
+        79.8  node 6712 Life "6% increased maximum Life" (increased)
+        79.8  node 14936 Life "6% increased maximum Life" (increased)
+        79.8  node 33755 Life "6% increased maximum Life" (increased)
+        79.8  node 48287 Life "6% increased maximum Life" (increased)
+        66.5  node 5152 Life "5% increased maximum Life" (increased)
+        66.5  node 5743 Life and Energy Shield "4% increased maximum Energy Shield / 5% increased maximum Life" (increased)
+        66.5  node 13714 Life "5% increased maximum Life" (increased)
+        66.5  node 22627 Life and Armour "+30 to Armour / 5% increased maximum Life" (increased)
+        53.2  node 15868 Life and Armour "10% increased Armour / 4% increased maximum Life" (increased)
+        53.2  node 30380 Life and Elemental Resistances "4% increased maximum Life / +3% to all Elemental Resistances" (increased)
+        53.2  node 36047 Life and Armour "12% increased Armour / 4% increased maximum Life" (increased)
+        53.2  node 55676 Life and Armour "8% increased Armour / 4% increased maximum Life" (increased)
+        53.2  node 63048 Life and Armour "10% increased Armour / 4% increased maximum Life" (increased)
+          16  node 50904 Life and Armour "+20 to Armour / +16 to maximum Life" (base)
+
+Life: 3511  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+       -2994  Marauder (character) (total -2993.76)
+       -2851  level (total -2851.2)
+        -412  Strength bonus to maximum life (1 per 2, constant life_per_strength) (total -411.84)
+        -319  node 57279 Blood Magic "Removes all mana / 10% more maximum Life / Skills Cost Life instead of Mana / Skills Reserve Life instead of Mana" (total -319.2)
+        -209  node 61198 Heart of the Warrior "+20 to maximum Life / 10% increased maximum Life / +10 to Strength" (total -209.55)
+        -197  node 55485 Constitution "+20 to maximum Life / 10% increased maximum Life" (total -196.9)
+        -146  node 6289 Bloodless "10% increased maximum Life / Enemies Cannot Leech Life From you" (total -146.3)
+        -146  node 21958 Cruel Preparation "10% increased maximum Life / +5% to all Elemental Resistances" (total -146.3)
+        -146  node 36949 Devotion "10% increased maximum Life / 25% increased Effect of Consecrated Ground you create" (total -146.3)
+        -146  node 58218 Purity of Flesh "8% increased maximum Energy Shield / 10% increased maximum Life / +8% to Chaos Resistance" (total -146.3)
+        -117  node 33287 Juggernaut "24% increased Armour / 8% increased maximum Life" (total -117.04)
+        -117  node 53118 Barbarism "8% increased maximum Life / +1% to maximum Fire Resistance / +8% to Fire Resistance" (total -117.04)
+         -88  node 6712 Life "6% increased maximum Life" (total -87.78)
+         -88  node 14936 Life "6% increased maximum Life" (total -87.78)
+         -88  node 33755 Life "6% increased maximum Life" (total -87.78)
+         -88  node 48287 Life "6% increased maximum Life" (total -87.78)
+         -73  node 5152 Life "5% increased maximum Life" (total -73.15)
+         -73  node 5743 Life and Energy Shield "4% increased maximum Energy Shield / 5% increased maximum Life" (total -73.15)
+         -73  node 13714 Life "5% increased maximum Life" (total -73.15)
+         -73  node 22627 Life and Armour "+30 to Armour / 5% increased maximum Life" (total -73.15)
+         -58  node 15868 Life and Armour "10% increased Armour / 4% increased maximum Life" (total -58.52)
+         -58  node 30380 Life and Elemental Resistances "4% increased maximum Life / +3% to all Elemental Resistances" (total -58.52)
+         -58  node 36047 Life and Armour "12% increased Armour / 4% increased maximum Life" (total -58.52)
+         -58  node 55676 Life and Armour "8% increased Armour / 4% increased maximum Life" (total -58.52)
+         -58  node 63048 Life and Armour "10% increased Armour / 4% increased maximum Life" (total -58.52)
+         -42  node 50904 Life and Armour "+20 to Armour / +16 to maximum Life" (total -42.24)
+         -26  node 24383 Warrior's Blood "Regenerate 1.8% of Life per second / 20% increased Stun Threshold / +20 to Strength" (total -26.4)
+         -13  node 3644 Strength "+10 to Strength" (total -13.2)
+         -13  node 5233 Strength "+10 to Strength" (total -13.2)
+         -13  node 14056 Strength "+10 to Strength" (total -13.2)
+         -13  node 14930 Strength "+10 to Strength" (total -13.2)
+         -13  node 15405 Strength "+10 to Strength" (total -13.2)
+         -13  node 22703 Strength "+10 to Strength" (total -13.2)
+         -13  node 23027 Strength "+10 to Strength" (total -13.2)
+         -13  node 28330 Strength "+10 to Strength" (total -13.2)
+         -13  node 29353 Strength "+10 to Strength" (total -13.2)
+         -13  node 30733 Strength "+10 to Strength" (total -13.2)
+         -13  node 34171 Strength "+10 to Strength" (total -13.2)
+         -13  node 34400 Strength "+10 to Strength" (total -13.2)
+         -13  node 43374 Strength "+10 to Strength" (total -13.2)
+         -13  node 44202 Strength "+10 to Strength" (total -13.2)
+         -13  node 46578 Strength "+10 to Strength" (total -13.2)
+         -13  node 49178 Strength "+10 to Strength" (total -13.2)
+         -13  node 49412 Strength "+10 to Strength" (total -13.2)
+         -13  node 50422 Strength "+10 to Strength" (total -13.2)
+         -13  node 50570 Strength "+10 to Strength" (total -13.2)
+         -13  node 50862 Strength "+10 to Strength" (total -13.2)
+         -13  node 59928 Strength "+10 to Strength" (total -13.2)
+         -13  node 60472 Strength "+10 to Strength" (total -13.2)
+         -13  node 62429 Strength "+10 to Strength" (total -13.2)
+         -13  node 63282 Strength "+10 to Strength" (total -13.2)
+         -13  node 63723 Strength "+10 to Strength" (total -13.2)
+
+Fire Resistance: 20%  [tree, dataset 3.29.3.3]
+  fire_resistance_capped = 20 [resistance capped by its maximum]
+    fire_resistance = 20
+      base 15  node 5643 Life Regeneration, Fire Resistance
+      base 24  node 29049 Holy Fire
+      base 15  node 42659 Life Regeneration, Fire Resistance
+      base 8  node 53118 Barbarism
+      base -30  quest a5q6 on elemental_resistance
+      base -30  quest a10q3 on elemental_resistance
+      base 10  node 19144 Sentinel on elemental_resistance
+      base 5  node 21958 Cruel Preparation on elemental_resistance
+      base 3  node 30380 Life and Elemental Resistances on elemental_resistance
+    effective_maximum_fire_resistance = 76 [effective maximum resistance]
+      elemental_maximum_resistances_are_highest = 0
+      maximum_fire_resistance = 76
+        base 1  node 53118 Barbarism
+        base 75  Marauder (character) on maximum_all_resistances
+
+Fire Resistance: 20%  [proportional, dataset 3.29.3.3]
+         -30  quest a5q6 (base)
+         -30  quest a10q3 (base)
+          24  node 29049 Holy Fire "+12% to Fire Damage over Time Multiplier / +24% to Fire Resistance" (base)
+          15  node 5643 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second" (base)
+          15  node 42659 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second" (base)
+          10  node 19144 Sentinel "24% increased Evasion Rating and Armour / +10% to all Elemental Resistances" (base)
+           8  node 53118 Barbarism "8% increased maximum Life / +1% to maximum Fire Resistance / +8% to Fire Resistance" (base)
+           5  node 21958 Cruel Preparation "10% increased maximum Life / +5% to all Elemental Resistances" (base)
+           3  node 30380 Life and Elemental Resistances "4% increased maximum Life / +3% to all Elemental Resistances" (base)
+
+Fire Resistance: 20%  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+          30  quest a5q6
+          30  quest a10q3
+         -24  node 29049 Holy Fire "+12% to Fire Damage over Time Multiplier / +24% to Fire Resistance"
+         -15  node 5643 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second"
+         -15  node 42659 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second"
+         -10  node 19144 Sentinel "24% increased Evasion Rating and Armour / +10% to all Elemental Resistances"
+          -8  node 53118 Barbarism "8% increased maximum Life / +1% to maximum Fire Resistance / +8% to Fire Resistance"
+          -5  node 21958 Cruel Preparation "10% increased maximum Life / +5% to all Elemental Resistances"
+          -3  node 30380 Life and Elemental Resistances "4% increased maximum Life / +3% to all Elemental Resistances"
+         -19  Marauder (character) (total 0)
+
+Life Regeneration: 66.7/s  [tree, dataset 3.29.3.3]
+  life_regeneration = 66.7 [regeneration]
+    more -50  node 21650 Eternal Youth on life_regeneration_rate
+    life_regeneration_is_not_applied = 0
+    life_regeneration_applies_to_energy_shield = 0
+    maximum_life = 3511 [conversion and gain as extra]
+      base 38  Marauder (character)
+      base 1080  Marauder (character)
+      increased 5  node 5152 Life
+      increased 5  node 5743 Life and Energy Shield
+      increased 10  node 6289 Bloodless
+      increased 6  node 6712 Life
+      increased 5  node 13714 Life
+      increased 6  node 14936 Life
+      increased 4  node 15868 Life and Armour
+      increased 10  node 21958 Cruel Preparation
+      increased 5  node 22627 Life and Armour
+      increased 4  node 30380 Life and Elemental Resistances
+      increased 8  node 33287 Juggernaut
+      increased 6  node 33755 Life
+      increased 4  node 36047 Life and Armour
+      increased 10  node 36949 Devotion
+      increased 0  node 37403 Infused Flesh
+      increased 6  node 48287 Life
+      base 16  node 50904 Life and Armour
+      increased 8  node 53118 Barbarism
+      base 20  node 55485 Constitution
+      increased 10  node 55485 Constitution
+      increased 4  node 55676 Life and Armour
+      more 10  node 57279 Blood Magic
+      increased 10  node 58218 Purity of Flesh
+      base 20  node 61198 Heart of the Warrior
+      increased 10  node 61198 Heart of the Warrior
+      increased 4  node 63048 Life and Armour
+      base 156  Strength bonus to maximum life (1 per 2, constant life_per_strength)
+      level = 90
+        base 90  level
+      no_strength_bonus_to_maximum_life = 0
+      strength = 312
+        base 32  Marauder (character)
+        base 0  Marauder (character)
+        base 10  node 3644 Strength
+        base 10  node 5233 Strength
+        base 10  node 14056 Strength
+        base 10  node 14930 Strength
+        base 10  node 15405 Strength
+        base 10  node 22703 Strength
+        base 10  node 23027 Strength
+        base 20  node 24383 Warrior's Blood
+        base 10  node 28330 Strength
+        base 10  node 29353 Strength
+        base 10  node 30733 Strength
+        base 10  node 34171 Strength
+        base 10  node 34400 Strength
+        base 10  node 43374 Strength
+        base 10  node 44202 Strength
+        base 10  node 46578 Strength
+        base 10  node 49178 Strength
+        base 10  node 49412 Strength
+        base 10  node 50422 Strength
+        base 10  node 50570 Strength
+        base 10  node 50862 Strength
+        base 10  node 59928 Strength
+        base 10  node 60472 Strength
+        base 10  node 61198 Heart of the Warrior
+        base 10  node 62429 Strength
+        base 10  node 63282 Strength
+        base 10  node 63723 Strength
+        level = 90 (above)
+      convert.maximum_life.maximum_energy_shield.% = 0
+    percent_of_life_regenerated_per_second = 3.8
+      base 0.5  node 5643 Life Regeneration, Fire Resistance
+      base 0.5  node 9971 Life Regeneration, Fire Damage
+      base 0.5  node 10238 Life Regeneration, Fire Damage
+      base 1.8  node 24383 Warrior's Blood
+      base 0.5  node 42659 Life Regeneration, Fire Resistance
+
+Life Regeneration: 66.7/s  [proportional, dataset 3.29.3.3]
+      -66.71  node 21650 Eternal Youth "50% less Life Regeneration Rate / 50% less maximum Total Life Recovery per Second from Leech / Energy Shield Recharge instead applies to Life" (more)
+        63.2  node 24383 Warrior's Blood "Regenerate 1.8% of Life per second / 20% increased Stun Threshold / +20 to Strength"
+                base 63.2 via percent_of_life_regenerated_per_second
+       17.56  node 5643 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second"
+                base 17.56 via percent_of_life_regenerated_per_second
+       17.56  node 9971 Life Regeneration, Fire Damage "10% increased Fire Damage / Regenerate 0.5% of Life per second"
+                base 17.56 via percent_of_life_regenerated_per_second
+       17.56  node 10238 Life Regeneration, Fire Damage "10% increased Fire Damage / Regenerate 0.5% of Life per second"
+                base 17.56 via percent_of_life_regenerated_per_second
+       17.56  node 42659 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second"
+                base 17.56 via percent_of_life_regenerated_per_second
+
+Life Regeneration: 66.7/s  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+        66.7  node 21650 Eternal Youth "50% less Life Regeneration Rate / 50% less maximum Total Life Recovery per Second from Leech / Energy Shield Recharge instead applies to Life" (total 66.71)
+       -56.9  Marauder (character) (total -56.89)
+       -54.2  level (total -54.17)
+       -31.8  node 24383 Warrior's Blood "Regenerate 1.8% of Life per second / 20% increased Stun Threshold / +20 to Strength" (total -31.86)
+        -8.8  node 5643 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second" (total -8.78)
+        -8.8  node 9971 Life Regeneration, Fire Damage "10% increased Fire Damage / Regenerate 0.5% of Life per second" (total -8.78)
+        -8.8  node 10238 Life Regeneration, Fire Damage "10% increased Fire Damage / Regenerate 0.5% of Life per second" (total -8.78)
+        -8.8  node 42659 Life Regeneration, Fire Resistance "+15% to Fire Resistance / Regenerate 0.5% of Life per second" (total -8.78)
+        -7.8  Strength bonus to maximum life (1 per 2, constant life_per_strength) (total -7.83)
+        -6.1  node 57279 Blood Magic "Removes all mana / 10% more maximum Life / Skills Cost Life instead of Mana / Skills Reserve Life instead of Mana" (total -6.06)
+          -4  node 61198 Heart of the Warrior "+20 to maximum Life / 10% increased maximum Life / +10 to Strength" (total -3.97)
+        -3.7  node 55485 Constitution "+20 to maximum Life / 10% increased maximum Life" (total -3.74)
+        -2.8  node 6289 Bloodless "10% increased maximum Life / Enemies Cannot Leech Life From you" (total -2.77)
+        -2.8  node 21958 Cruel Preparation "10% increased maximum Life / +5% to all Elemental Resistances" (total -2.77)
+        -2.8  node 36949 Devotion "10% increased maximum Life / 25% increased Effect of Consecrated Ground you create" (total -2.77)
+        -2.8  node 58218 Purity of Flesh "8% increased maximum Energy Shield / 10% increased maximum Life / +8% to Chaos Resistance" (total -2.77)
+        -2.2  node 33287 Juggernaut "24% increased Armour / 8% increased maximum Life" (total -2.22)
+        -2.2  node 53118 Barbarism "8% increased maximum Life / +1% to maximum Fire Resistance / +8% to Fire Resistance" (total -2.22)
+        -1.7  node 6712 Life "6% increased maximum Life" (total -1.67)
+        -1.7  node 14936 Life "6% increased maximum Life" (total -1.67)
+        -1.7  node 33755 Life "6% increased maximum Life" (total -1.67)
+        -1.7  node 48287 Life "6% increased maximum Life" (total -1.67)
+        -1.4  node 5152 Life "5% increased maximum Life" (total -1.39)
+        -1.4  node 5743 Life and Energy Shield "4% increased maximum Energy Shield / 5% increased maximum Life" (total -1.39)
+        -1.4  node 13714 Life "5% increased maximum Life" (total -1.39)
+        -1.4  node 22627 Life and Armour "+30 to Armour / 5% increased maximum Life" (total -1.39)
+        -1.1  node 15868 Life and Armour "10% increased Armour / 4% increased maximum Life"
+        -1.1  node 30380 Life and Elemental Resistances "4% increased maximum Life / +3% to all Elemental Resistances"
+        -1.1  node 36047 Life and Armour "12% increased Armour / 4% increased maximum Life"
+        -1.1  node 55676 Life and Armour "8% increased Armour / 4% increased maximum Life"
+        -1.1  node 63048 Life and Armour "10% increased Armour / 4% increased maximum Life"
+        -0.8  node 50904 Life and Armour "+20 to Armour / +16 to maximum Life"
+        -0.2  node 3644 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 5233 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 14056 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 14930 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 15405 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 22703 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 23027 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 28330 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 29353 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 30733 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 34171 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 34400 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 43374 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 44202 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 46578 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 49178 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 49412 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 50422 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 50570 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 50862 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 59928 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 60472 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 62429 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 63282 Strength "+10 to Strength" (total -0.25)
+        -0.2  node 63723 Strength "+10 to Strength" (total -0.25)
+

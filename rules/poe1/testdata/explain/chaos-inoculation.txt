@@ -1,0 +1,104 @@
+Life: 1  [tree, dataset 3.29.3.3]
+  maximum_life = 1 [conversion and gain as extra] (overridden)
+    base 38  character Metadata/Characters/Str/Str
+    base 1080  character Metadata/Characters/Str/Str
+    override 1  node 1
+    base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
+    level = 90
+      base 90  level
+    no_strength_bonus_to_maximum_life = 0
+    strength = 32
+      base 32  character Metadata/Characters/Str/Str
+
+Life: 1  [proportional, dataset 3.29.3.3]
+           1  node 1 (override)
+
+Life: 1  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+        1133  node 1
+
+Energy Shield: 102  [tree, dataset 3.29.3.3]
+  maximum_energy_shield = 102 [conversion and gain as extra]
+    base 100  node 1
+    increased 1  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence)
+    no_intelligence_bonus_to_maximum_energy_shield = 0
+    intelligence = 14
+      base 14  character Metadata/Characters/Str/Str
+    base.maximum_mana = 581 [amount a transfer starts from]
+      base 34  character Metadata/Characters/Str/Str on maximum_mana
+      base 540  character Metadata/Characters/Str/Str on maximum_mana
+      base 7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) on maximum_mana
+      level = 90
+        base 90  level
+      no_intelligence_bonus_to_maximum_mana = 0
+      intelligence = 14 (above)
+    gain_as_extra.maximum_mana.maximum_energy_shield.% = 0
+    increases.maximum_mana.maximum_energy_shield = 1 [increases of a transfer]
+      base 34  character Metadata/Characters/Str/Str on maximum_mana
+      base 540  character Metadata/Characters/Str/Str on maximum_mana
+      base 7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) on maximum_mana
+      base 100  node 1 on maximum_energy_shield
+      increased 1  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence) on maximum_energy_shield
+      level = 90 (above)
+      no_intelligence_bonus_to_maximum_mana = 0 (above)
+      intelligence = 14 (above)
+      no_intelligence_bonus_to_maximum_energy_shield = 0 (above)
+    more.maximum_mana.maximum_energy_shield = 1 [more multipliers of a transfer]
+      base 34  character Metadata/Characters/Str/Str on maximum_mana
+      base 540  character Metadata/Characters/Str/Str on maximum_mana
+      base 7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) on maximum_mana
+      base 100  node 1 on maximum_energy_shield
+      increased 1  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence) on maximum_energy_shield
+      level = 90 (above)
+      no_intelligence_bonus_to_maximum_mana = 0 (above)
+      intelligence = 14 (above)
+      no_intelligence_bonus_to_maximum_energy_shield = 0 (above)
+    base.maximum_life = 1 [amount a transfer starts from]
+      base 38  character Metadata/Characters/Str/Str on maximum_life
+      base 1080  character Metadata/Characters/Str/Str on maximum_life
+      override 1  node 1 on maximum_life
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength) on maximum_life
+      level = 90 (above)
+      no_strength_bonus_to_maximum_life = 0
+      strength = 32
+        base 32  character Metadata/Characters/Str/Str
+    gain_as_extra.maximum_life.maximum_energy_shield.% = 100
+      base 100  node 1
+    increases.maximum_life.maximum_energy_shield = 1 [increases of a transfer]
+      base 38  character Metadata/Characters/Str/Str on maximum_life
+      base 1080  character Metadata/Characters/Str/Str on maximum_life
+      override 1  node 1 on maximum_life
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength) on maximum_life
+      base 100  node 1 on maximum_energy_shield
+      increased 1  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence) on maximum_energy_shield
+      level = 90 (above)
+      no_strength_bonus_to_maximum_life = 0 (above)
+      strength = 32 (above)
+      no_intelligence_bonus_to_maximum_energy_shield = 0 (above)
+      intelligence = 14 (above)
+    more.maximum_life.maximum_energy_shield = 1 [more multipliers of a transfer]
+      base 38  character Metadata/Characters/Str/Str on maximum_life
+      base 1080  character Metadata/Characters/Str/Str on maximum_life
+      override 1  node 1 on maximum_life
+      base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength) on maximum_life
+      base 100  node 1 on maximum_energy_shield
+      increased 1  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence) on maximum_energy_shield
+      level = 90 (above)
+      no_strength_bonus_to_maximum_life = 0 (above)
+      strength = 32 (above)
+      no_intelligence_bonus_to_maximum_energy_shield = 0 (above)
+      intelligence = 14 (above)
+    convert.maximum_life.maximum_energy_shield.% = 0
+
+Energy Shield: 102  [proportional, dataset 3.29.3.3]
+         101  node 1
+                base 100
+                base 1 via gain_as_extra.maximum_life.maximum_energy_shield.%
+        1.01  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence) (increased)
+
+Energy Shield: 102  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+        -102  node 1 (total -102.01)
+          -1  character Metadata/Characters/Str/Str (total -1.01)
+          -1  Intelligence bonus to maximum energy shield (1 per 10, constant energy_shield_+%_per_intelligence) (total -1.01)
+

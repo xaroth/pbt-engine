@@ -1,0 +1,21 @@
+Evasion Rating: 16  [tree, dataset 3.29.3.3]
+  evasion_rating = 16 [conversion and gain as extra]
+    base 15  Ranger (character)
+    increased 6  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity)
+    no_dexterity_bonus_to_evasion_rating = 0
+    dexterity = 32
+      base 32  Ranger (character)
+      base 0  Ranger (character)
+      level = 90
+        base 90  level
+    convert.evasion_rating.armour.% = 0
+
+Evasion Rating: 16  [proportional, dataset 3.29.3.3]
+          15  Ranger (character) (base)
+         0.9  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) (increased)
+
+Evasion Rating: 16  [marginal, dataset 3.29.3.3]
+  change without each source: value (total before caps)
+         -16  Ranger (character) (total -15.9)
+          -1  Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity) (total -0.9)
+
