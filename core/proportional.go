@@ -178,7 +178,7 @@ func (a *Attributor) BaseTerms() []Part {
 	var out []Part
 	for _, t := range a.e.Terms {
 		if t.Held && t.Op == OpBase {
-			out = append(out, a.credit(t, t.Value)...)
+			out = append(out, a.credit(t, a.def, t.Value)...)
 		}
 	}
 	return out
@@ -192,24 +192,37 @@ func (a *Attributor) Default() []Part { return a.Layers(a.BaseTerms()) }
 // base: an increased term gets B i/100; more terms split B (1 + I/100)(M - 1) by the weight
 // ln(1 + m/100). A more factor of 0 or below takes the whole more part, split equally among
 // such terms.
-func (a *Attributor) Layers(base []Part) []Part {
+func (a *Attributor) Layers(base []Part) []Part { return a.layers(a.e.Terms, a.def, base) }
+
+// LayersOver is Layers with the increased and more terms of another node, for a formula
+// that applies that node's multipliers to an amount of its own.
+func (a *Attributor) LayersOver(ref Ref, base []Part) []Part {
+	n := a.Node(ref)
+	e, err := a.p.s.Explain(n)
+	if a.fail(err) {
+		return nil
+	}
+	return a.layers(e.Terms, &a.p.s.m.stats[n.Stat], base)
+}
+
+func (a *Attributor) layers(terms []Term, def *StatDef, base []Part) []Part {
 	out := append([]Part(nil), base...)
 	b := 0.0
 	for _, pt := range base {
 		b += pt.Value
 	}
-	inc, more, nonPositive := a.sums()
+	inc, more, nonPositive := sums(terms)
 	bi := float64(b * (1 + inc/percent))
-	for _, t := range a.e.Terms {
+	for _, t := range terms {
 		if !t.Held {
 			continue
 		}
 		switch t.Op {
 		case OpInc:
-			out = append(out, a.credit(t, float64(b*t.Value)/percent)...)
+			out = append(out, a.credit(t, def, float64(b*t.Value)/percent)...)
 		case OpMore:
 			if v, ok := moreShare(t.Value, bi, more, nonPositive); ok {
-				out = append(out, a.credit(t, v)...)
+				out = append(out, a.credit(t, def, v)...)
 			}
 		case OpBase, OpOverride, OpFlag:
 		}
@@ -233,11 +246,11 @@ func (a *Attributor) attribute() Attribution {
 	return Attribution{Parts: a.Default(), Amount: a.e.Total}
 }
 
-// sums returns the node's increased sum, more product and number of more factors of 0 or
+// sums returns the terms' increased sum, more product and number of more factors of 0 or
 // below.
-func (a *Attributor) sums() (inc, more float64, nonPositive int) {
+func sums(terms []Term) (inc, more float64, nonPositive int) {
 	more = 1
-	for _, t := range a.e.Terms {
+	for _, t := range terms {
 		switch {
 		case !t.Held:
 		case t.Op == OpInc:
@@ -267,13 +280,13 @@ func moreShare(m, bi, more float64, nonPositive int) (float64, bool) {
 	return float64(bi * math.Log(f) * ((more - 1) / math.Log(more))), true
 }
 
-// credit returns the parts for term t worth v: its own source, or for a shared stat's term
-// the sources granting the share (spread by their parts of the rate).
-func (a *Attributor) credit(t Term, v float64) []Part {
+// credit returns the parts for term t of a node of def worth v: its own source, or for a
+// shared stat's term the sources granting the share (spread by their parts of the rate).
+func (a *Attributor) credit(t Term, def *StatDef, v float64) []Part {
 	if !t.Shared {
 		return []Part{{Source: t.Source, Op: t.Op, Value: v, Mod: t.Mod, HasMod: true}}
 	}
-	for _, sh := range a.def.Shares {
+	for _, sh := range def.Shares {
 		if sh.Stat == t.Stat {
 			parts := a.Spread(sh.Rate, v, t.Op)
 			for i := range parts {

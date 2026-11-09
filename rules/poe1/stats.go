@@ -121,6 +121,7 @@ func regenerationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef 
 		}
 		def.Includes = []core.StatID{mustID(ids, rg.flat), mustID(ids, rg.rate)}
 		def.Round, def.Places = core.RoundHalf, regenerationPlaces
+		def.FormulaName, def.Attribute = formulaRegeneration, regenerationAttribute(percent, pool, off)
 		def.Formula = func(rd core.Reader, a core.Agg) float64 {
 			for _, f := range off {
 				if rd.Stat(f) != 0 {
@@ -134,8 +135,48 @@ func regenerationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef 
 	if def.Name == statEnergyShieldRegeneration {
 		def.Round, def.Places = core.RoundHalf, regenerationPlaces
 		def.Formula = lifeRegenerationAsEnergyShield(ids)
+		def.FormulaName, def.Attribute = formulaLifeRegenerationAsEnergyShield, lifeRegenerationAsEnergyShieldAttribute(ids)
 	}
 	return def
+}
+
+// regenerationAttribute splits a pool's regeneration: flat terms and the pool times the
+// percentage, credited to the percentage's sources, then the rate's increases and more. While
+// an off flag is set the value is 0 and the flag's sources are listed at 0.
+func regenerationAttribute(percent, pool core.StatID, off []core.StatID) core.Attribute {
+	return func(a *core.Attributor) core.Attribution {
+		for _, f := range off {
+			if a.Stat(f) != 0 {
+				return core.Attribution{Parts: a.Spread(core.SelfRef(f), 0, core.OpFlag)}
+			}
+		}
+		base := a.BaseTerms()
+		if pct := a.Stat(percent); pct != 0 {
+			base = append(base, a.Spread(core.SelfRef(percent), float64(a.Stat(pool)*pct)/percentScale, core.OpBase)...)
+		}
+		return core.Attribution{Parts: a.Layers(base), Amount: a.Explanation().Total}
+	}
+}
+
+// lifeRegenerationAsEnergyShieldAttribute credits the flat and percent life regeneration
+// sources.
+func lifeRegenerationAsEnergyShieldAttribute(ids map[string]core.StatID) core.Attribute {
+	on := mustID(ids, statLifeRegenerationAppliesToEnergyShield)
+	flat, percent := mustID(ids, statLifeRegeneratedPerSecond), mustID(ids, statPercentOfLifeRegeneratedPerSecond)
+	pool := mustID(ids, statMaximumEnergyShield)
+	return func(a *core.Attributor) core.Attribution {
+		at := core.Attribution{Amount: a.Explanation().Total}
+		if a.Stat(on) == 0 {
+			return at
+		}
+		if v := a.Stat(flat); v != 0 {
+			at.Parts = a.Spread(core.SelfRef(flat), v, core.OpBase)
+		}
+		if pct := a.Stat(percent); pct != 0 {
+			at.Parts = append(at.Parts, a.Spread(core.SelfRef(percent), float64(a.Stat(pool)*pct)/percentScale, core.OpBase)...)
+		}
+		return at
+	}
 }
 
 // lifeRegenerationAsEnergyShield is energy shield regeneration while "Life Regeneration is
@@ -165,6 +206,7 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 				def.Shares = fireShare(def.Name, statFireResistance, statFireResistanceModifiersToColdAndLightning, ids)
 			} else {
 				def.Formula = chaosResistance(mustID(ids, statChaosResistanceIsDoubled))
+				def.FormulaName, def.Attribute = formulaChaosResistance, chaosResistanceAttribute(mustID(ids, statChaosResistanceIsDoubled))
 			}
 		case r.maximum:
 			def.Round, def.HasMax, def.Max = core.RoundTrunc, true, maxResistanceCap
@@ -175,10 +217,12 @@ func resistanceDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			}
 		case r.effective:
 			def.Formula = effectiveMaximum(mustID(ids, r.maximum), ids)
+			def.FormulaName, def.Attribute = formulaEffectiveMaximum, effectiveMaximumAttribute(mustID(ids, r.maximum), ids)
 		case r.capped:
 			total, maximum := mustID(ids, r.total), mustID(ids, r.effective)
 			def.HasMin, def.Min = true, resistanceFloor
 			def.Formula = func(rd core.Reader, _ core.Agg) float64 { return min(rd.Stat(total), rd.Stat(maximum)) }
+			def.FormulaName, def.Attribute = formulaCappedResistance, cappedAttribute(total, maximum)
 		}
 	}
 	return def
@@ -224,5 +268,64 @@ func effectiveMaximum(own core.StatID, ids map[string]core.StatID) core.Formula 
 			v = max(v, rd.Stat(m))
 		}
 		return v
+	}
+}
+
+// Formula names shown in explanations.
+const (
+	formulaRegeneration                   = "regeneration"
+	formulaLifeRegenerationAsEnergyShield = "life regeneration applied to energy shield"
+	formulaChaosResistance                = "chaos resistance"
+	formulaEffectiveMaximum               = "effective maximum resistance"
+	formulaCappedResistance               = "resistance capped by its maximum"
+	formulaTransfers                      = "conversion and gain as extra"
+	formulaTransferIncreases              = "increases of a transfer"
+	formulaTransferMore                   = "more multipliers of a transfer"
+	formulaTransferSource                 = "amount a transfer starts from"
+)
+
+// chaosResistanceAttribute is the default rule, plus the doubling as a more part credited to
+// the flag's sources.
+func chaosResistanceAttribute(doubled core.StatID) core.Attribute {
+	return func(a *core.Attributor) core.Attribution {
+		parts := a.Default()
+		if a.Stat(doubled) != 0 {
+			parts = append(parts, a.Spread(core.SelfRef(doubled), a.Explanation().Agg.Default(), core.OpMore)...)
+		}
+		return core.Attribution{Parts: parts, Amount: a.Explanation().Total}
+	}
+}
+
+// effectiveMaximumAttribute passes the whole value through the maximum it takes: its own, or
+// the highest elemental one (the first on ties, as the formula).
+func effectiveMaximumAttribute(own core.StatID, ids map[string]core.StatID) core.Attribute {
+	highest := mustID(ids, statElementalMaximumResistancesAreHighest)
+	maxima := []core.StatID{
+		mustID(ids, statMaximumFireResistance), mustID(ids, statMaximumColdResistance), mustID(ids, statMaximumLightningResistance),
+	}
+	return func(a *core.Attributor) core.Attribution {
+		from := own
+		if a.Stat(highest) != 0 {
+			from = maxima[0]
+			for _, m := range maxima[1:] {
+				if a.Stat(m) > a.Stat(from) {
+					from = m
+				}
+			}
+		}
+		parts, amount := a.Of(core.SelfRef(from))
+		return core.Attribution{Parts: parts, Amount: amount}
+	}
+}
+
+// cappedAttribute explains the uncapped total; when the maximum is lower it caps the value.
+func cappedAttribute(total, maximum core.StatID) core.Attribute {
+	return func(a *core.Attributor) core.Attribution {
+		parts, amount := a.Of(core.SelfRef(total))
+		at := core.Attribution{Parts: parts, Amount: amount}
+		if a.Stat(maximum) < a.Stat(total) {
+			at.CapBy = []core.Node{a.Node(core.SelfRef(maximum))}
+		}
+		return at
 	}
 }

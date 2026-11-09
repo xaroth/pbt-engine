@@ -129,6 +129,19 @@ func (sh *Sheet) Value(name string) (float64, error) {
 	return val, nil
 }
 
+// proportion returns the proportional view of engine stat name.
+func (sh *Sheet) proportion(name string) (core.Proportion, error) {
+	id, ok := sh.stats[name]
+	if !ok {
+		return core.Proportion{}, fmt.Errorf("%w %q", ErrUnknownStat, name)
+	}
+	p, err := sh.session.Proportional(core.Node{Stat: id})
+	if err != nil {
+		return core.Proportion{}, fmt.Errorf("sheet: %s: %w", name, err)
+	}
+	return p, nil
+}
+
 func model() (*core.Model, map[string]core.StatID) {
 	var b core.ModelBuilder
 	stats := map[string]core.StatID{}

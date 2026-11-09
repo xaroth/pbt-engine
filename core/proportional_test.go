@@ -233,3 +233,37 @@ func checkSums(tb testing.TB, s *core.Session, n core.Node) bool {
 	}
 	return true
 }
+
+// A formula applying another node's multipliers to an amount credited elsewhere: 10% of x,
+// with mult's 50% increased and 20% more.
+func TestProportionalLayersOver(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	x := b.MustAddStat(core.StatDef{Name: "x"})
+	rate := b.MustAddStat(core.StatDef{Name: "rate"})
+	mult := b.MustAddStat(core.StatDef{Name: "mult"})
+	y := b.MustAddStat(core.StatDef{Name: "y"})
+	setFormula(t, &b, y, func(r core.Reader, _ core.Agg) float64 { return r.Stat(x) * r.Stat(rate) / 100 * 1.5 * 1.2 })
+	must(t, b.SetAttribute(y, "share of x", func(a *core.Attributor) core.Attribution {
+		base := a.Spread(core.SelfRef(rate), a.Stat(x)*a.Stat(rate)/100, core.OpBase)
+		return core.Attribution{Parts: a.LayersOver(core.SelfRef(mult), base), Amount: a.Explanation().Total}
+	}))
+	if err := b.SetAttribute(99, "", nil); !errors.Is(err, core.ErrBadHandle) {
+		t.Errorf("bad stat: got %v", err)
+	}
+	s := newSession(t, b.Build(), 1)
+	addAll(t, s, []core.Modifier{
+		{Stat: x, Op: core.OpBase, Value: 200, Source: 0},
+		{Stat: rate, Op: core.OpBase, Value: 10, Source: 1},
+		{Stat: mult, Op: core.OpInc, Value: 50, Source: 2},
+		{Stat: mult, Op: core.OpMore, Value: 20, Source: 3},
+	})
+	p := proportional(t, s, core.Node{Stat: y})
+	got := bySource(p.Parts)
+	if p.Amount != 36 || got[1] != 20 || got[2] != 10 || !near(got[3], 6) || got[0] != 0 {
+		t.Errorf("got %v, amount %v", got, p.Amount)
+	}
+	if e, err := s.Explain(core.Node{Stat: y}); err != nil || e.Formula != "share of x" {
+		t.Errorf("formula name: %q, %v", e.Formula, err)
+	}
+}
