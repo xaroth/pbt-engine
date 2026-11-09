@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/core"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/resolve"
@@ -85,12 +86,14 @@ type Sheet struct {
 	Notes []Note
 }
 
-// Open builds the sheet of r: each bundle stat goes through t to engine modifiers, one source
-// per bundle, then the rules add theirs, such as the attribute bonuses from r's constants.
+// Open builds the sheet of r under config cfg (resolved over ConfigSpecs; keys it lacks take
+// their defaults): each bundle stat goes through t to engine modifiers, one source per bundle,
+// then the rules add theirs, such as the attribute bonuses from r's constants. Quest rewards
+// are on only when cfg's campaign stage or bandit choice grants them.
 // Stats t cannot apply become notes, not errors. It fails when r is for another game, its
 // version does not parse, its dataset needs a rule version these rules do not implement, a
 // bundle is for an actor other than the player, or a constant is missing.
-func Open(r *resolve.Resolved, t *semantics.Table) (*Sheet, error) {
+func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet, error) {
 	if r.Game != Game || t.Game != Game {
 		return nil, fmt.Errorf("%w: build %s, table %s, rules %s", ErrOtherGame, r.Game, t.Game, Game)
 	}
@@ -115,6 +118,7 @@ func Open(r *resolve.Resolved, t *semantics.Table) (*Sheet, error) {
 	if err := sh.addAttributeBonuses(r.Constants); err != nil {
 		return nil, err
 	}
+	sh.applyQuests(cfg)
 	s.Commit()
 	return sh, nil
 }

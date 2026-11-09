@@ -21,8 +21,6 @@ var (
 	ErrClass               = errors.New("class not in the tree or characters")
 	ErrAscendancy          = errors.New("ascendancy not of the class")
 	ErrLevel               = errors.New("level out of range")
-	ErrCampaign            = errors.New("unknown campaign stage")
-	ErrBandits             = errors.New("unknown bandit quest outcome")
 	ErrNodeUnknown         = errors.New("node not in the tree")
 	ErrNodeRepeated        = errors.New("node allocated more than once")
 	ErrNodeAscendancy      = errors.New("node of another ascendancy")
@@ -75,7 +73,7 @@ type Checked struct {
 	nodes     []*dataset.Node
 }
 
-// Check checks every id and scenario field of b against the dataset s. It returns a
+// Check checks every id of b against the dataset s. It returns a
 // *CheckError listing every problem, or the error of a dataset group that fails to load.
 // Tree connectivity, the point budget and mastery choices are not checked.
 func Check(b *Build, s *dataset.Store) (*Checked, error) {
@@ -104,7 +102,9 @@ func Check(b *Build, s *dataset.Store) (*Checked, error) {
 	c.tree = tree
 
 	ps.checkClass(c, b, chars)
-	ps.checkScenario(c, b)
+	if b.Level < 1 || b.Level > MaxLevel {
+		ps.addf(ErrLevel, 0, "%d, want 1 to %d", b.Level, MaxLevel)
+	}
 	ps.checkNodes(c, b)
 	if len(ps) > 0 {
 		return nil, ps.err()
@@ -135,23 +135,6 @@ func (ps *problems) checkClass(c *Checked, b *Build, chars []dataset.Character) 
 	if b.Ascendancy != "" && c.class != nil &&
 		!slices.ContainsFunc(c.class.Ascendancies, func(a dataset.Ascendancy) bool { return a.ID == b.Ascendancy }) {
 		ps.addf(ErrAscendancy, 0, "%q, class %s", b.Ascendancy, b.Class)
-	}
-}
-
-func (ps *problems) checkScenario(c *Checked, b *Build) {
-	if b.Level < 1 || b.Level > MaxLevel {
-		ps.addf(ErrLevel, 0, "%d, want 1 to %d", b.Level, MaxLevel)
-	}
-	switch c.build.Scenario.Campaign {
-	case CampaignComplete, CampaignActs6To10, CampaignActs1To5:
-	default:
-		ps.addf(ErrCampaign, 0, "%q, want %s, %s or %s", b.Scenario.Campaign, CampaignComplete, CampaignActs6To10, CampaignActs1To5)
-	}
-	switch b.Scenario.Bandits {
-	case BanditsNotCompleted, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak:
-	default:
-		ps.addf(ErrBandits, 0, "%q, want %s, %s, %s, %s or empty (quest not completed)",
-			b.Scenario.Bandits, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak)
 	}
 }
 

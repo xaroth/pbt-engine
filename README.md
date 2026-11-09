@@ -22,11 +22,11 @@ Text is read in English unless `--language` says otherwise.
 
 ## Builds
 
-A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and a scenario: the campaign stage (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and the outcome of the bandit quest (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `pbt build check build.json --root datasets` checks every id against the dataset the version resolves to; `pbt build resolve build.json --root datasets` prints the stat bundles the build resolves to (game stat ids and values per source: character, level, the quest rewards of the campaign stage, each node), the edition constants and the dataset's capabilities:
+A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and config values by key. The poe1 keys are `campaign` (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and `bandits` (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `pbt build check build.json --root datasets` checks every id against the dataset the version resolves to; `pbt build resolve build.json --root datasets` prints the stat bundles the build resolves to (game stat ids and values per source: character, level, every quest reward with stats, each node; the rules pick the rewards the config grants), the edition constants and the dataset's capabilities:
 
 ```json
 {"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
- "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "scenario": {"bandits": "help-oak"}}
+ "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "config": {"bandits": "help-oak"}}
 ```
 
 ## Semantics

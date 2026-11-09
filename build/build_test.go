@@ -1,6 +1,7 @@
 package build_test
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
@@ -56,7 +58,7 @@ func juggernaut() *build.Build {
 	return &build.Build{
 		Format: build.Format, Game: "poe1", Version: "3.29", Variant: "standard",
 		Class: marauder, Ascendancy: "Juggernaut", Level: 90, Nodes: []uint32{10, 3, 1},
-		Scenario: build.Scenario{Campaign: build.CampaignActs6To10, Bandits: build.BanditsHelpOak},
+		Config: config.Values{"campaign": json.RawMessage(`"acts-6-10"`), "bandits": json.RawMessage(`"help-oak"`)},
 	}
 }
 
@@ -80,9 +82,9 @@ func TestEncodeParse(t *testing.T) {
     3,
     10
   ],
-  "scenario": {
-    "campaign": "acts-6-10",
-    "bandits": "help-oak"
+  "config": {
+    "bandits": "help-oak",
+    "campaign": "acts-6-10"
   }
 }
 `
@@ -103,7 +105,6 @@ func TestDefaults(t *testing.T) {
 	t.Parallel()
 	want := &build.Build{
 		Format: 1, Game: "poe1", Version: "3.29", Variant: build.DefaultVariant, Class: "x", Level: 1, Nodes: []uint32{},
-		Scenario: build.Scenario{Campaign: build.CampaignComplete},
 	}
 	parsed, err := build.Parse([]byte(`{"format":1,"game":"poe1","version":"3.29","class":"x","level":1,"nodes":[]}`))
 	if err != nil {
@@ -154,7 +155,7 @@ func TestCheck(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
 	b := juggernaut()
-	b.Variant, b.Scenario.Campaign = "", ""
+	b.Variant = ""
 	c, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
@@ -172,7 +173,6 @@ func TestCheck(t *testing.T) {
 	}
 	want := *juggernaut()
 	want.Nodes = []uint32{1, 3, 10}
-	want.Scenario.Campaign = build.CampaignComplete
 	if diff := cmp.Diff(want, c.Build()); diff != "" {
 		t.Errorf("Build (-want +got):\n%s", diff)
 	}
@@ -197,8 +197,6 @@ func TestCheckProblems(t *testing.T) {
 		{"ascendancy of another class", func(b *build.Build) { b.Ascendancy = "Deadeye"; b.Nodes = nil }, []problem{{build.ErrAscendancy, 0}}},
 		{"level 0", func(b *build.Build) { b.Level = 0 }, []problem{{build.ErrLevel, 0}}},
 		{"level 101", func(b *build.Build) { b.Level = 101 }, []problem{{build.ErrLevel, 0}}},
-		{"campaign", func(b *build.Build) { b.Scenario.Campaign = "act3" }, []problem{{build.ErrCampaign, 0}}},
-		{"bandits", func(b *build.Build) { b.Scenario.Bandits = "help-eramir" }, []problem{{build.ErrBandits, 0}}},
 		{"unknown node", func(b *build.Build) { b.Nodes = append(b.Nodes, 99) }, []problem{{build.ErrNodeUnknown, 99}}},
 		{"node twice", func(b *build.Build) { b.Nodes = append(b.Nodes, 3) }, []problem{{build.ErrNodeRepeated, 3}}},
 		{"node of another ascendancy", func(b *build.Build) { b.Nodes = append(b.Nodes, 11) }, []problem{{build.ErrNodeAscendancy, 11}}},

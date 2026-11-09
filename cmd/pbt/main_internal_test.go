@@ -21,11 +21,17 @@ func testDataset(version string, strength int32) *dataset.Dataset {
 	anyValue := statdesc.Limit{Min: math.MinInt32, Max: math.MaxInt32}
 	return &dataset.Dataset{
 		Manifest: dataset.Manifest{Game: "poe1", Version: version},
-		Stats:    []dataset.Stat{{ID: "base_strength"}, {ID: "aura_damage_+%"}},
+		Stats: []dataset.Stat{
+			{ID: "base_strength"}, {ID: "aura_damage_+%"}, {ID: "base_resist_all_elements_%"}, {ID: "base_chaos_damage_resistance_%"},
+		},
 		Characters: []dataset.Character{{
 			ID: "Metadata/Characters/Str/Str", BaseStrength: 32, BaseMaxLife: 38,
 			Stats: []dataset.StatValue{{Stat: 0, Value: 1}},
 		}},
+		Quests: []dataset.Quest{
+			{Quest: "a5q6", Flag: "a5q6-CompletedBoss", Act: 5, Stats: []dataset.StatValue{{Stat: 2, Value: -30}, {Stat: 3, Value: -30}}},
+			{Quest: "a10q3", Flag: "EndGameAvailable", Act: 10, Stats: []dataset.StatValue{{Stat: 2, Value: -30}, {Stat: 3, Value: -30}}},
+		},
 		Texts: []dataset.Text{{
 			Language:        "en",
 			NodeNames:       []dataset.NodeName{{ID: 1, Name: "Start"}, {ID: 12345, Name: "Might"}},
@@ -96,7 +102,7 @@ func TestRun(t *testing.T) {
 		{
 			name: "show stat",
 			args: []string{"data", "show", "stat", "aura_damage_+%", "--version=3.29", "--root=" + root},
-			want: []string{"aura_damage_+% (handle 1 of 2)"},
+			want: []string{"aura_damage_+% (handle 1 of 4)"},
 		},
 		{
 			name: "show character",
@@ -107,7 +113,7 @@ func TestRun(t *testing.T) {
 			name: "diff",
 			args: []string{"data", "diff", "3.28", "3.29", "--root", root},
 			want: []string{
-				"3.28 -> 3.29", "stats: 2 -> 2, 0 added, 0 removed; ids kept: 100.00%",
+				"3.28 -> 3.29", "stats: 4 -> 4, 0 added, 0 removed; ids kept: 100.00%",
 				"text en: description scopes changed: none; names changed: 0 nodes, 0 characters, 0 ascendancies",
 				"tree standard: 0 nodes added, 0 removed, 1 changed; node ids kept: 100.00%; mastery effects 0 added, 0 removed",
 				"  12345 Might [stats]", "    - +10 to Strength", "    + +20 to Strength",
@@ -116,19 +122,19 @@ func TestRun(t *testing.T) {
 		{
 			name:  "show resolves latest",
 			args:  []string{"data", "show", "stat", "aura_damage_+%", "--version", "latest", "--root", root},
-			want:  []string{"aura_damage_+% (handle 1 of 2)"},
+			want:  []string{"aura_damage_+% (handle 1 of 4)"},
 			notes: []string{"(poe1 latest resolves to 3.29)"},
 		},
 		{
 			name:  "show falls back to an earlier patch",
 			args:  []string{"data", "show", "stat", "aura_damage_+%", "--version", "3.27.0.6", "--root", root},
-			want:  []string{"aura_damage_+% (handle 1 of 2)"},
+			want:  []string{"aura_damage_+% (handle 1 of 4)"},
 			notes: []string{"(poe1 3.27.0.6 has no dataset; using 3.27.0.5, the newest earlier patch of its league)"},
 		},
 		{
 			name:  "show falls forward to a later patch",
 			args:  []string{"data", "show", "stat", "aura_damage_+%", "--version", "3.27.0.1", "--root", root},
-			want:  []string{"aura_damage_+% (handle 1 of 2)"},
+			want:  []string{"aura_damage_+% (handle 1 of 4)"},
 			notes: []string{"(poe1 3.27.0.1 has no dataset or earlier patch; using 3.27.0.5, the newest patch of its league)"},
 		},
 		{
@@ -184,7 +190,7 @@ func TestRunSkipsBadDataset(t *testing.T) {
 	if err := run([]string{"data", "show", "stat", "aura_damage_+%", "--version", "3.29", "--root", root}, &out, &notes); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	wantLines(t, "stdout", out.String(), []string{"aura_damage_+% (handle 1 of 2)"})
+	wantLines(t, "stdout", out.String(), []string{"aura_damage_+% (handle 1 of 4)"})
 	wantLines(t, "stderr", notes.String(), []string{"pbt: skipped " + root + "/3.28: dataset format 2, want 1"})
 }
 
@@ -309,7 +315,7 @@ func TestBuildResolve(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,
-		"nodes":[1,12345],"scenario":{"campaign":"acts-1-5"}}`)
+		"nodes":[1,12345],"config":{"campaign":"acts-1-5"}}`)
 	var out, notes strings.Builder
 	if err := run([]string{"build", "resolve", path, "--root", root}, &out, &notes); err != nil {
 		t.Fatal(err)
@@ -325,6 +331,12 @@ bundle player global character Metadata/Characters/Str/Str
   base_strength = 1
 bundle player global level
   level = 90
+bundle player global quest a5q6
+  base_resist_all_elements_% = -30
+  base_chaos_damage_resistance_% = -30
+bundle player global quest a10q3
+  base_resist_all_elements_% = -30
+  base_chaos_damage_resistance_% = -30
 bundle player global node 12345
   base_strength = 20
 bundle player buff node 12345

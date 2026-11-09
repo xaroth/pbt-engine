@@ -42,7 +42,7 @@ func bundle(src resolve.Source, scope resolve.Scope, stats ...resolve.StatValue)
 
 func open(t *testing.T, r *resolve.Resolved) *rules.Sheet {
 	t.Helper()
-	sh, err := rules.Open(r, table(t))
+	sh, err := rules.Open(r, table(t), rules.DefaultConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestOpenRuleMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, resolve.StatValue{Stat: "x", Value: 5}))
-	sh, err := rules.Open(r, tb)
+	sh, err := rules.Open(r, tb, rules.DefaultConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestOpenErrors(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := rules.Open(testCase.r, table(t)); !errors.Is(err, testCase.is) {
+			if _, err := rules.Open(testCase.r, table(t), rules.DefaultConfig()); !errors.Is(err, testCase.is) {
 				t.Errorf("got %v, want errors.Is %v", err, testCase.is)
 			}
 		})
