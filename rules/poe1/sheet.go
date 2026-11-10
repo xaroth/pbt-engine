@@ -42,6 +42,9 @@ const (
 	Partial
 	// RuleMissing: the entry needs a rule these rules do not implement; Note.Text names it.
 	RuleMissing
+	// Unchecked: the entry's modifiers apply without checking a condition of the stat's text;
+	// Note.Text names it.
+	Unchecked
 )
 
 func (k NoteKind) String() string {
@@ -54,6 +57,8 @@ func (k NoteKind) String() string {
 		return "partial"
 	case RuleMissing:
 		return "rule missing"
+	case Unchecked:
+		return "unchecked"
 	}
 	return "note?"
 }
@@ -288,6 +293,8 @@ func noteFor(e *semantics.Entry, ok, ruled bool) (NoteKind, string) {
 		return RuleMissing, e.Rule
 	case e.Omitted != "":
 		return Partial, e.Omitted
+	case e.Unchecked != "":
+		return Unchecked, e.Unchecked
 	}
 	return 0, ""
 }

@@ -98,7 +98,7 @@ func TestLoad(t *testing.T) {
 				{Kind: semantics.ObjectTemplate, Ref: "Metadata/Characters/Character.ot", Text: "maximum_all_resistances_% = 75"},
 				statID,
 			},
-			Unvalidated: "no description text"},
+			Unvalidated: "no description text", Unchecked: "the condition"},
 		{Stat: "removed_stat", Scope: resolve.Global, Until: v329, Status: semantics.DisplayOnly,
 			Sources: []semantics.Source{statID}, Reason: semantics.Reason{Kind: semantics.Display, Text: "shows text only"}},
 	}}
@@ -167,6 +167,7 @@ func TestLoadRejects(t *testing.T) {
 		},
 		{"unknown marked unvalidated", unknown(`"unvalidated": "u", ` + reason), "only authored entries"},
 		{"unknown with omitted", unknown(`"omitted": "o", ` + reason), "only authored entries"},
+		{"unknown with unchecked", unknown(`"unchecked": "c", ` + reason), "only authored entries"},
 		{"unknown engine stat", authored(`"mods": [{"stat": "lifes", "op": "base"}]`), `unknown engine stat "lifes"`},
 		{"unknown op", authored(`"mods": [{"stat": "life", "op": "add"}]`), `unknown op "add"`},
 		{"zero factor on base", authored(`"mods": [{"stat": "life", "op": "base", "factor": "0/60"}]`), "only override may set a value of 0"},
@@ -512,6 +513,7 @@ gap base_strength global, uses 1
 omitted keystone_blood_magic global, uses 1: Skills Cost Life instead of Mana
 unknown life_regeneration_rate_per_minute_% buff, uses 1: condition: near the node's aura
 unvalidated maximum_all_resistances_% global, uses 1: no description text
+unchecked maximum_all_resistances_% global, uses 1: the condition
 `
 	if diff := cmp.Diff(wantText, out.String()); diff != "" {
 		t.Errorf("WriteText (-want +got):\n%s", diff)

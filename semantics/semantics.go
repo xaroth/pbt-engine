@@ -40,7 +40,7 @@ var (
 	errDisplayReason  = errors.New("display-only needs reason")
 	errDisplayRule    = errors.New("display-only with a rule")
 	errWithMods       = errors.New("with mods")
-	errOnlyAuthored   = errors.New("with unvalidated or omitted; only authored entries have them")
+	errOnlyAuthored   = errors.New("with unvalidated, omitted or unchecked; only authored entries have them")
 	errStepPositive   = errors.New("want > 0")
 	errCount          = errors.New("want a counter and atLeast > 0")
 	errStatIDRefText  = errors.New("stat-id with ref or text")
@@ -70,7 +70,8 @@ type Status uint8
 // Statuses.
 const (
 	// Authored: the entry's modifiers, and its rule if it names one, are the stat's effect on
-	// engine stats, except what Omitted lists.
+	// engine stats, except what Omitted lists, and apply whether or not what Unchecked names
+	// holds.
 	Authored Status = iota + 1
 	// Unknown: the stat has an effect the table does not express yet; Reason says why.
 	Unknown
@@ -271,6 +272,10 @@ type Entry struct {
 	// Omitted, on an Authored entry, lists the effects of the stat's text that the modifiers
 	// do not carry, such as a keystone's effects outside the engine stats. Empty means none.
 	Omitted string
+	// Unchecked, on an Authored entry, names a condition of the stat's text that the modifiers
+	// apply without checking, and why that is right for now. Unlike Omitted, the entry can
+	// over-apply once the condition can fail. Empty means none.
+	Unchecked string
 }
 
 // Holds reports whether the entry holds for game version v.
@@ -324,6 +329,7 @@ type fileEntry struct {
 	Reason      *fileReason       `json:"reason"`
 	Unvalidated string            `json:"unvalidated"`
 	Omitted     string            `json:"omitted"`
+	Unchecked   string            `json:"unchecked"`
 }
 
 type fileReason struct {
@@ -516,7 +522,7 @@ func parseEntryHeader(f *fileEntry) (Entry, error) {
 	if f.Stat == "" {
 		return Entry{}, errNoStat
 	}
-	e := Entry{Stat: f.Stat, Rule: f.Rule, Unvalidated: f.Unvalidated, Omitted: f.Omitted}
+	e := Entry{Stat: f.Stat, Rule: f.Rule, Unvalidated: f.Unvalidated, Omitted: f.Omitted, Unchecked: f.Unchecked}
 	var err error
 	if e.Scope, err = parseScope(f.Scope); err != nil {
 		return Entry{}, err
@@ -593,7 +599,7 @@ func checkStatus(e *Entry, mods int) error {
 	switch {
 	case mods > 0:
 		return fmt.Errorf("%s %w", e.Status, errWithMods)
-	case e.Unvalidated != "" || e.Omitted != "":
+	case e.Unvalidated != "" || e.Omitted != "" || e.Unchecked != "":
 		return fmt.Errorf("%s %w", e.Status, errOnlyAuthored)
 	}
 	return nil

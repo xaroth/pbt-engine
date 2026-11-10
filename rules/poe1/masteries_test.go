@@ -66,7 +66,7 @@ func TestLifeIfNoLifeOnBodyArmour(t *testing.T) {
 		t.Errorf("life: got %v, want 1304", got)
 	}
 	notes := sh.Notes()
-	if len(notes) != 1 || notes[0].Kind != rules.Partial || notes[0].Stat != "maximum_life_+%_if_no_life_tags_on_body_armour" {
-		t.Errorf("notes: got %v, want one partial note for the body armour condition", notes)
+	if len(notes) != 1 || notes[0].Kind != rules.Unchecked || notes[0].Stat != "maximum_life_+%_if_no_life_tags_on_body_armour" {
+		t.Errorf("notes: got %v, want one unchecked note for the body armour condition", notes)
 	}
 }

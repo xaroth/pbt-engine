@@ -295,9 +295,13 @@ func configWarning(p config.Problem) Warning {
 func noteWarnings(notes []poe1.Note) []Warning {
 	out := make([]Warning, 0, len(notes))
 	for _, n := range notes {
-		msg := n.Kind.String() + ", left out"
+		done := ", left out"
+		if n.Kind == poe1.Unchecked {
+			done = ", applied"
+		}
+		msg := n.Kind.String() + done
 		if n.Text != "" {
-			msg = n.Kind.String() + ": " + n.Text + ", left out"
+			msg = n.Kind.String() + ": " + n.Text + done
 		}
 		out = append(out, Warning{Code: UnmodelledStat, Subject: n.Stat + " from " + n.Source.String(), Message: msg})
 	}
