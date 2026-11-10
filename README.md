@@ -14,27 +14,16 @@ Published datasets live in [pbt-data](https://github.com/xaroth/pbt-data), one p
 
 `dataset.Registry` holds several versions side by side and reads table groups on first use. A version resolves exactly, by prefix (`3.29` is the newest 3.29 dataset, `latest` the newest of all), or, for a patch without a dataset, to the newest earlier patch of the same league, else the newest patch of that league; leagues never fall back to each other. A subdirectory whose dataset cannot be opened, such as one in an older format, is skipped.
 
-`pbt` resolves `--version` of `--game` (default `poe1`) that way among the datasets in the subdirectories of `--root`; fallbacks and skipped datasets are noted on stderr. Without `--root` it uses a cache in the user cache directory (`pbt/<game>`), pulled from `--source` (default pbt-data's `main`) on first use; `pbt data pull` brings it up to date:
-
-```sh
-go run ./cmd/pbt data pull                     # every league; or name some: data pull 3.29
-go run ./cmd/pbt data show node 44297 --version 3.29
-go run ./cmd/pbt data show character Marauder --version 3.29
-go run ./cmd/pbt data diff 3.28 3.29
-```
-
-Text is read in English unless `--language` says otherwise.
-
 ## Builds
 
-A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and config values by key. The poe1 keys are `campaign` (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and `bandits` (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `pbt build check build.json` checks every id against the dataset the version resolves to; `pbt build resolve build.json` prints the stat bundles the build resolves to (game stat ids and values per source: character, level, every quest reward with stats, each node; the rules pick the rewards the config grants), the edition constants and the dataset's capabilities:
+A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and config values by key. The poe1 keys are `campaign` (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and `bandits` (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `build.Check` checks every id against a dataset; `resolve.Resolve` turns a checked build into stat bundles (game stat ids and values per source: character, level, every quest reward with stats, each node; the rules pick the rewards the config grants), the edition constants and the dataset's capabilities:
 
 ```json
 {"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
  "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "config": {"bandits": "help-oak"}}
 ```
 
-Path of Building build files (PoE1) import with `pob.FromXML`: the active tree's version, variant, nodes and mastery choices, class and ascendancy (names mapped through the dataset's English text), level, bandits and the campaign stage from PoB's resistance penalty. Everything else in the file gives a `pob-*` warning: other trees, cluster jewel nodes (dropped), jewels, tattoos, config inputs, items, skill groups, pantheon. `pbt build import pob.xml > build.json` writes the build JSON and lists every warning; `pbt build check`, `eval`, `compare` and `power` also take a PoB file directly (it starts with `<`), folding repeated warnings unless `--warnings all`.
+Path of Building build files (PoE1) import with `pob.FromXML`: the active tree's version, variant, nodes and mastery choices, class and ascendancy (names mapped through the dataset's English text), level, bandits and the campaign stage from PoB's resistance penalty. Everything else in the file gives a `pob-*` warning: other trees, cluster jewel nodes (dropped), jewels, tattoos, config inputs, items, skill groups, pantheon.
 
 ## Benchmarks
 
@@ -50,7 +39,7 @@ PBT_DATASETS=/tmp/pbt-testdata go test -run '^$' -bench Nodes ./power   # node p
 
 What a game stat id means in engine terms is authored by us from game data: stat ids, stat description text, object templates. The `semantics` package holds the table format: entries keyed by stat id and scope, with optional game version ranges, a status (`authored`, `unknown` or `display-only`), the sources each was authored from, and for unknown entries a typed reason (a scenario condition, equipped items, a rule still to write, and so on).
 
-The Path of Exile 1 table (`semantics/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `semantics/poe1/testdata` for review. `pbt semantics coverage --version 3.29` lists the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
+The Path of Exile 1 table (`semantics/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `semantics/poe1/testdata` for review. `semantics.Cover` reports the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
 
 ## Rules
 
@@ -67,13 +56,13 @@ golangci-lint run
 go test ./core -run '^$' -bench .   # benchmarks
 ```
 
-Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures) read the datasets under `$PBT_DATASETS` by exact version (3.28.0.16 and 3.29.3.3) and skip without it. Pull them from the pbt-data snapshot that holds those versions:
+Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures) read the datasets under `$PBT_DATASETS` by exact version (3.28.0.16 and 3.29.3.3) and skip without it. Check out the pbt-data commit that holds those versions:
 
 ```sh
-go run ./cmd/pbt data pull --root /tmp/pbt-testdata \
-  --source https://raw.githubusercontent.com/xaroth/pbt-data/b2469fb6eda35983c21fbf8aec3debc0ee32d7bf/
-PBT_DATASETS=/tmp/pbt-testdata go test ./...
-PBT_DATASETS=/tmp/pbt-testdata go test ./semantics/poe1 -update   # rewrite its fixtures and golden lists
+git clone https://github.com/xaroth/pbt-data /tmp/pbt-data
+git -C /tmp/pbt-data checkout b2469fb6eda35983c21fbf8aec3debc0ee32d7bf
+PBT_DATASETS=/tmp/pbt-data/poe1 go test ./...
+PBT_DATASETS=/tmp/pbt-data/poe1 go test ./semantics/poe1 -update   # rewrite its fixtures and golden lists
 ```
 
 ## Licence

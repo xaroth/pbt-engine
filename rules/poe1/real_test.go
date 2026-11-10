@@ -56,7 +56,7 @@ func realSheetStore(t *testing.T, version string, b *build.Build) (*rules.Sheet,
 }
 
 // TestRealSheets are mechanic cases on the real 3.28.0.16 and 3.29.3.3 datasets. Each value is
-// worked out by hand from `pbt data show` and the formulas: life 38 + 12 per level + strength / 2,
+// worked out by hand from the dataset tables and the formulas: life 38 + 12 per level + strength / 2,
 // mana 34 + 6 per level + intelligence / 2, 15 evasion with 1% increased per 5 dexterity, mana
 // regeneration 1.75% of mana per second, and -60% to every resistance after both Kitava quests
 // (the default campaign stage) with a 75% maximum.
