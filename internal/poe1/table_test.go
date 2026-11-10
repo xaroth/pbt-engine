@@ -354,22 +354,57 @@ func TestExcluded(t *testing.T) {
 				}
 			}
 			slices.Sort(lines)
-			got := strings.Join(lines, "\n") + "\n"
-			golden := filepath.Join("testdata", "excluded-"+version+".txt")
-			if *update {
-				if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
-					t.Fatal(err)
-				}
-				return
-			}
-			want, err := os.ReadFile(golden)
+			checkGolden(t, filepath.Join("testdata", "excluded-"+version+".txt"), strings.Join(lines, "\n")+"\n")
+		})
+	}
+}
+
+// TestCoverage compares the coverage report of the table on each real dataset's standard tree
+// with testdata/coverage-<version>.txt, so -update shows in review what a table or predicate
+// change does to it: stats that feed the sheet with no entry, unknown ones with their reason,
+// and authored ones not validated or with effects left out.
+func TestCoverage(t *testing.T) {
+	t.Parallel()
+	table, err := poe1.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range versions() {
+		t.Run(version, func(t *testing.T) {
+			t.Parallel()
+			s := openReal(t, version)
+			feeds, err := poe1.FeedsSheet(s)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if diff := cmp.Diff(string(want), got); diff != "" {
-				t.Errorf("excluded stats (-want +got):\n%s", diff)
+			c, err := semantics.Cover(s, "standard", table, feeds)
+			if err != nil {
+				t.Fatal(err)
 			}
+			var b strings.Builder
+			if err := c.WriteText(&b); err != nil {
+				t.Fatal(err)
+			}
+			checkGolden(t, filepath.Join("testdata", "coverage-"+version+".txt"), b.String())
 		})
+	}
+}
+
+// checkGolden compares got with the file at path, or rewrites the file with -update.
+func checkGolden(t *testing.T, path, got string) {
+	t.Helper()
+	if *update {
+		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%v (run with -update to create it)", err)
+	}
+	if diff := cmp.Diff(string(want), got); diff != "" {
+		t.Errorf("%s (-want +got):\n%s", path, diff)
 	}
 }
 

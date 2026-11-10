@@ -20,7 +20,7 @@ Published datasets live in [pbt-data](https://github.com/xaroth/pbt-data), one p
 
 ## Builds
 
-A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and config values by key. The poe1 keys are `campaign` (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and `bandits` (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `build.Check` checks every id against a dataset; `resolve.Resolve` turns a checked build into stat bundles (game stat ids and values per source: character, level, every quest reward with stats, each node; the rules pick the rewards the config grants), the edition constants and the dataset's capabilities:
+A build file (`build` package) names a game, version, tree variant, class (`Character.ID`), ascendancy, level, allocated node ids and config values by key. The poe1 keys are `campaign` (`complete`, the default, `acts-6-10` or `acts-1-5`, split where Kitava is defeated) and `bandits` (`kill-all`, `help-alira`, `help-kraityn`, `help-oak`, or none). `build.Check` checks every id against a dataset. Inside the engine, the resolve stage turns a checked build into stat bundles (game stat ids and values per source: character, level, every quest reward with stats, each node; the rules pick the rewards the config grants), the edition constants and the dataset's capabilities. A build file looks like this:
 
 ```json
 {"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
@@ -43,7 +43,7 @@ PBT_DATASETS=/tmp/pbt-data/poe1 go test -run '^$' -bench Nodes ./power   # node 
 
 What a game stat id means in engine terms is authored by us from game data: stat ids, stat description text, object templates. The `internal/semantics` package holds the table format: entries keyed by stat id and scope, with optional game version ranges, a status (`authored`, `unknown` or `display-only`), the sources each was authored from, and for unknown entries a typed reason (a scenario condition, equipped items, a rule still to write, and so on).
 
-The Path of Exile 1 table (`internal/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `internal/poe1/testdata` for review. `semantics.Cover` reports the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
+The Path of Exile 1 table (`internal/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `internal/poe1/testdata` for review. The coverage report per dataset, `internal/poe1/testdata/coverage-<version>.txt`, lists the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first; `go test ./internal/poe1 -update` rewrites it (see Develop).
 
 ## Rules
 
@@ -66,7 +66,7 @@ Tests that need real datasets (sheets, goldens, node power, the semantics table 
 git clone https://github.com/xaroth/pbt-data /tmp/pbt-data
 git -C /tmp/pbt-data checkout b2469fb6eda35983c21fbf8aec3debc0ee32d7bf
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./...
-PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 -update   # rewrite its fixtures, golden lists and explanation goldens
+PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 -update   # rewrite its fixtures, coverage reports, golden lists and explanation goldens
 ```
 
 ## Licence
