@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"slices"
 	"strings"
 
@@ -22,16 +21,12 @@ var (
 	errView = errors.New("--view wants tree, proportional or marginal")
 )
 
-// simFor reads a build file and returns it with a sim over the dataset its version (or
-// version, when set) resolves to.
-func simFor(in invocation, path, version string) (*build.Build, *simulator.Sim, error) {
-	data, err := os.ReadFile(path)
+// simFor reads a build file (see loadBuild; named prefixes its import warnings with the path)
+// and returns it with a sim over the dataset its version (or version, when set) resolves to.
+func simFor(in invocation, path, version string, named bool) (*build.Build, *simulator.Sim, error) {
+	b, err := loadBuild(in, in.notes, path, named)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read build: %w", err)
-	}
-	b, err := build.Parse(data)
-	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", path, err)
+		return nil, nil, err
 	}
 	res, err := in.resolve(in.notes, b.Game, cmp.Or(version, b.Version))
 	if err != nil {
@@ -78,7 +73,7 @@ func view(name string) (poe1.View, error) {
 }
 
 func eval(in invocation) error {
-	b, s, err := simFor(in, in.pos[1], in.opts["version"])
+	b, s, err := simFor(in, in.pos[1], in.opts["version"], false)
 	if err != nil {
 		return err
 	}
@@ -94,7 +89,7 @@ func eval(in invocation) error {
 	p.printf("%s %s on dataset %s\n", b.Game, cmp.Or(b.Version, "?"), st.Version())
 	printSheet(p, st)
 	printConfig(p, st)
-	printSimWarnings(p, st.Warnings(), in.opts["warnings"] == "all")
+	printSimWarnings(p, st.Warnings(), in.opts["warnings"] == warningsAll)
 	if in.opts["explain"] != "" {
 		if err := explain(in, p, st); err != nil {
 			return err
@@ -175,11 +170,11 @@ func explain(in invocation, p *printer, st *simulator.Stats) error {
 }
 
 func compare(in invocation) error {
-	a, sa, err := simFor(in, in.pos[1], in.opts["version"])
+	a, sa, err := simFor(in, in.pos[1], in.opts["version"], true)
 	if err != nil {
 		return err
 	}
-	b, sb, err := simFor(in, in.pos[2], cmp.Or(in.opts["version-b"], in.opts["version"]))
+	b, sb, err := simFor(in, in.pos[2], cmp.Or(in.opts["version-b"], in.opts["version"]), true)
 	if err != nil {
 		return err
 	}
@@ -196,7 +191,7 @@ func compare(in invocation) error {
 	if err != nil {
 		return fmt.Errorf("compare: %w", err)
 	}
-	return printDiff(in.w, d, in.opts["warnings"] == "all")
+	return printDiff(in.w, d, in.opts["warnings"] == warningsAll)
 }
 
 func diffAcross(sa, sb *simulator.Sim, a, b *build.Build, opts []simulator.Option) (*simulator.Diff, error) {

@@ -51,6 +51,7 @@ var (
 	errUsage           = errors.New(usage)
 	errNoSemantics     = errors.New("no semantics table for")
 	errNotFound        = errors.New("not found")
+	errNotPoB          = errors.New("not a Path of Building build file")
 )
 
 const usage = `usage:
@@ -59,13 +60,18 @@ const usage = `usage:
   pbt data show stat <id> --version <v>
   pbt data show character <name> --version <v>
   pbt data diff <version-a> <version-b> [--limit 20]
-  pbt build check <build.json>
-  pbt build resolve <build.json>
+  pbt build import <pob.xml>
+  pbt build check <build>
+  pbt build resolve <build>
   pbt semantics coverage --version <v> [--variant standard]
-  pbt eval <build.json> [--version v] [--set key=value]... [--explain output [--view tree|proportional|marginal]] [--warnings all]
-  pbt compare <a.json> <b.json> [--version v] [--version-b v] [--set key=value]... [--warnings all]
-  pbt power <build.json> [--by player.life] [--mode alone|path] [--max-distance n] [--top 20]
-options for all: [--root dir] [--source url] [--game poe1] [--language en]`
+  pbt eval <build> [--version v] [--set key=value]... [--explain output [--view tree|proportional|marginal]] [--warnings all]
+  pbt compare <a> <b> [--version v] [--version-b v] [--set key=value]... [--warnings all]
+  pbt power <build> [--by player.life] [--mode alone|path] [--max-distance n] [--top 20]
+options for all: [--root dir] [--source url] [--game poe1] [--language en]
+a <build> is build JSON or a Path of Building build file (pob.xml)`
+
+// warningsAll is --warnings all: list every warning instead of folding them.
+const warningsAll = "all"
 
 // Description scopes for passive node text, as named in the dataset.
 const (
@@ -130,6 +136,7 @@ func run(ctx context.Context, args []string, w, notes io.Writer) error {
 		"data pull":          {anyArgs, dataPull},
 		"data show":          {4, dataShow},
 		"data diff":          {4, dataDiff},
+		"build import":       {3, buildImport},
 		"build check":        {3, buildCheck},
 		"build resolve":      {3, buildResolve},
 		"semantics coverage": {2, semanticsCoverage},
@@ -145,7 +152,7 @@ func run(ctx context.Context, args []string, w, notes io.Writer) error {
 	if !ok || (cmd.args != anyArgs && len(pos) != cmd.args) {
 		return errUsage
 	}
-	return cmd.run(invocation{ctx: ctx, pos: pos, opts: opts, w: w, notes: notes})
+	return cmd.run(invocation{ctx: ctx, pos: pos, opts: opts, w: w, notes: notes, registries: map[string]*dataset.Registry{}})
 }
 
 // invocation is a parsed command line and where its output goes.
@@ -154,6 +161,8 @@ type invocation struct {
 	pos      []string
 	opts     map[string]string
 	w, notes io.Writer
+	// registries are the opened dataset roots by game, shared by every copy of the invocation.
+	registries map[string]*dataset.Registry
 }
 
 func dataShow(in invocation) error {
@@ -248,6 +257,31 @@ func semanticsCoverage(in invocation) error {
 // resolve resolves versions of game among the datasets of game's root (see root) and notes on
 // notes each dataset skipped and each version that resolves to another one.
 func (in invocation) resolve(notes io.Writer, game string, versions ...string) ([]dataset.Resolution, error) {
+	reg, err := in.registry(notes, game)
+	if err != nil {
+		return nil, err
+	}
+	p := &printer{w: notes}
+	var out []dataset.Resolution
+	for _, version := range versions {
+		res, err := reg.Resolve(game, version)
+		if err != nil {
+			return nil, fmt.Errorf("resolve version: %w", err)
+		}
+		out = append(out, res)
+	}
+	for _, res := range out {
+		noteMatch(p, game, res)
+	}
+	return out, p.err
+}
+
+// registry opens the datasets of game's root (see root) once per invocation, noting on notes
+// each one skipped.
+func (in invocation) registry(notes io.Writer, game string) (*dataset.Registry, error) {
+	if reg, ok := in.registries[game]; ok {
+		return reg, nil
+	}
 	root, err := in.root(notes, game)
 	if err != nil {
 		return nil, err
@@ -262,18 +296,8 @@ func (in invocation) resolve(notes io.Writer, game string, versions ...string) (
 			p.printf("pbt: skipped %s/%s\n", root, line)
 		}
 	}
-	var out []dataset.Resolution
-	for _, version := range versions {
-		res, err := reg.Resolve(game, version)
-		if err != nil {
-			return nil, fmt.Errorf("resolve version: %w", err)
-		}
-		out = append(out, res)
-	}
-	for _, res := range out {
-		noteMatch(p, game, res)
-	}
-	return out, p.err
+	in.registries[game] = reg
+	return reg, p.err
 }
 
 // noteMatch notes a version that resolved to another one.
@@ -333,13 +357,9 @@ func printWarnings(p *printer, ws []build.Warning) {
 // checkBuild reads a build file and checks it against the dataset its version resolves to,
 // noting on notes as resolve does.
 func checkBuild(in invocation, notes io.Writer, path string) (*build.Checked, error) {
-	data, err := os.ReadFile(path)
+	b, err := loadBuild(in, notes, path, false)
 	if err != nil {
-		return nil, fmt.Errorf("read build: %w", err)
-	}
-	b, err := build.Parse(data)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return nil, err
 	}
 	res, err := in.resolve(notes, b.Game, b.Version)
 	if err != nil {

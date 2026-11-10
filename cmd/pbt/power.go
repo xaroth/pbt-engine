@@ -53,7 +53,7 @@ func nodePower(in invocation) error {
 	if err != nil {
 		return err
 	}
-	b, s, err := simFor(in, in.pos[1], in.opts["version"])
+	b, s, err := simFor(in, in.pos[1], in.opts["version"], false)
 	if err != nil {
 		return err
 	}
