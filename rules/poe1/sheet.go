@@ -169,7 +169,7 @@ func (sh *Sheet) Value(name string) (float64, error) {
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownStat, name)
 	}
-	val, err := sh.session.Get(0, id, core.GlobalCtx)
+	val, err := sh.session.Get(core.Node{Stat: id, Ctx: core.GlobalCtx})
 	if err != nil {
 		return 0, fmt.Errorf("sheet: %s: %w", name, err)
 	}

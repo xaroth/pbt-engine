@@ -24,11 +24,11 @@ type Explanation struct {
 
 // Explain returns the explanation of node n.
 func (s *Session) Explain(n Node) (Explanation, error) {
-	if _, err := s.GetNode(n); err != nil {
+	if _, err := s.Get(n); err != nil {
 		return Explanation{}, err
 	}
 	defer s.recoverEval()
-	c := collector{failed: true}
+	var c collector
 	var deps []uint32
 	v := s.eval(s.nodeID(n), &deps, &c)
 	if err := s.takeErr(); err != nil {

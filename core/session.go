@@ -141,22 +141,14 @@ func (s *Session) NewSource() SourceID {
 	return SourceID(u32(len(s.srcOff) - 1))
 }
 
-// NumSources returns the number of sources created.
-func (s *Session) NumSources() int { return len(s.srcOff) }
-
 // SourceEnabled reports whether a source's modifiers apply; false for an unknown source.
 func (s *Session) SourceEnabled(src SourceID) bool {
 	return int(src) < len(s.srcOff) && !s.srcOff[src]
 }
 
-// Get returns the value of a stat of an actor in a context.
-func (s *Session) Get(actor ActorID, stat StatID, ctx CtxID) (float64, error) {
-	return s.GetNode(Node{Actor: actor, Stat: stat, Ctx: ctx})
-}
-
-// GetNode returns the value of a node. If a formula panics, the session drops its cached
+// Get returns the value of a node. If a formula panics, the session drops its cached
 // values and the panic continues.
-func (s *Session) GetNode(n Node) (float64, error) {
+func (s *Session) Get(n Node) (float64, error) {
 	if err := s.checkNode(n); err != nil {
 		return 0, err
 	}
@@ -177,21 +169,6 @@ func (s *Session) Invalidate() {
 		}
 		s.epoch = 1
 	}
-}
-
-// Terms returns the modifiers matching a node with their scaled values, in evaluation order,
-// and the node's value.
-func (s *Session) Terms(n Node) ([]Term, float64, error) {
-	if _, err := s.GetNode(n); err != nil {
-		return nil, 0, err
-	}
-	defer s.recoverEval()
-	var c collector
-	v := s.eval(s.nodeID(n), nil, &c)
-	if err := s.takeErr(); err != nil {
-		return nil, 0, err
-	}
-	return c.terms, v, nil
 }
 
 func (s *Session) nodeID(n Node) uint32 {

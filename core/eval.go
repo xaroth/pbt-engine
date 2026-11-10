@@ -126,18 +126,17 @@ type Term struct {
 	Stat StatID
 	// Rate is the share rate as a fraction for a shared stat's modifier, else 1.
 	Rate float64
-	// Held is false for a modifier whose condition failed; Terms leaves those out.
+	// Held is false for a modifier whose condition failed.
 	Held bool
 	// Shared is true for a modifier of a stat in the node's Shares.
 	Shared bool
 }
 
-// collector receives what an evaluation saw, for Terms and Explain.
+// collector receives what an evaluation saw, for Explain.
 type collector struct {
-	terms  []Term
-	failed bool // also collect terms whose condition failed
-	agg    Agg
-	total  float64
+	terms []Term
+	agg   Agg
+	total float64
 }
 
 // read resolves ref against the node being evaluated, records the dependency and returns the
@@ -194,9 +193,7 @@ func (s *Session) eval(id uint32, deps *[]uint32, c *collector) float64 {
 
 // add records modifier mi of stat t as a term of the node being collected; c is not nil.
 func (c *collector) add(s *Session, mi uint32, t StatID, op Op, v, rate float64, held, shared bool) {
-	if held || c.failed {
-		c.terms = append(c.terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v, Stat: t, Rate: rate, Held: held, Shared: shared})
-	}
+	c.terms = append(c.terms, Term{Mod: s.modID(mi), Source: s.mSource[mi], Op: op, Value: v, Stat: t, Rate: rate, Held: held, Shared: shared})
 }
 
 // sumShare adds to agg the base, increased and more modifiers of stat t that apply to node n,
