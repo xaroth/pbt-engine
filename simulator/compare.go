@@ -35,7 +35,8 @@ type Diff struct {
 	// or tree variant).
 	Edits []build.Edit
 	// DataChanges are the nodes either build allocates whose data differs between the two
-	// datasets; empty when both ran on one dataset. A node listed may change no output.
+	// datasets; empty when both ran on one dataset or on different tree variants. A node
+	// listed may change no output.
 	DataChanges []NodeChange
 }
 
@@ -131,36 +132,35 @@ func (st *Stats) Diff(other *Stats) (*Diff, error) {
 	return d, nil
 }
 
-// nodeChanges lists the nodes either side allocates that dataset.Compare finds changed.
+// nodeChanges lists the nodes either side allocates whose data changed between the two
+// datasets. Builds on different tree variants have none: their nodes are not the same nodes.
 func nodeChanges(a, b *Stats) ([]NodeChange, error) {
-	diff, err := dataset.Compare(a.sim.store, b.sim.store)
+	variant := a.checked.Build().Variant
+	if b.checked.Build().Variant != variant {
+		return nil, nil
+	}
+	td, err := dataset.CompareTree(a.sim.store, b.sim.store, variant)
 	if err != nil {
 		return nil, fmt.Errorf("simulator: diff: %w", err)
 	}
-	variant := a.checked.Build().Variant
 	allocated := map[uint32]bool{}
 	for _, n := range slices.Concat(a.checked.Nodes(), b.checked.Nodes()) {
 		allocated[n.ID] = true
 	}
 	var out []NodeChange
-	for _, td := range diff.Trees {
-		if td.Variant != variant {
+	for _, nd := range td.Changed {
+		if !allocated[nd.ID] {
 			continue
 		}
-		for _, nd := range td.Changed {
-			if !allocated[nd.ID] {
-				continue
-			}
-			before, err := nodeStats(a.sim.store, variant, nd.ID)
-			if err != nil {
-				return nil, err
-			}
-			after, err := nodeStats(b.sim.store, b.checked.Build().Variant, nd.ID)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, NodeChange{Node: nd.ID, Fields: nd.Fields, Before: before, After: after})
+		before, err := nodeStats(a.sim.store, variant, nd.ID)
+		if err != nil {
+			return nil, err
 		}
+		after, err := nodeStats(b.sim.store, variant, nd.ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, NodeChange{Node: nd.ID, Fields: nd.Fields, Before: before, After: after})
 	}
 	slices.SortFunc(out, func(x, y NodeChange) int { return int(x.Node) - int(y.Node) })
 	return out, nil

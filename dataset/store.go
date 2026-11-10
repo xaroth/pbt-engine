@@ -124,9 +124,8 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 	return load()
 }
 
-// Text returns the display text of one language, such as "en", shared and read-only. Its node and ascendancy names
-// are not checked against trees, which it does not read; Dataset checks them against the trees
-// it holds.
+// Text returns the display text of one language, such as "en", shared and read-only. Its node
+// and ascendancy names are not checked against trees, which it does not read; Write checks them.
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {

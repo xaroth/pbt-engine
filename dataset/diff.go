@@ -38,13 +38,13 @@ type NodeDiff struct {
 }
 
 // Compare returns the changes from a to b in stats, characters, constants and trees. It loads
-// every tree of both.
+// every tree of both; CompareTree compares one.
 func Compare(a, b *Store) (Diff, error) {
-	x, err := tablesOf(a)
+	x, err := tablesOf(a, a.Manifest().Trees())
 	if err != nil {
 		return Diff{}, err
 	}
-	y, err := tablesOf(b)
+	y, err := tablesOf(b, b.Manifest().Trees())
 	if err != nil {
 		return Diff{}, err
 	}
@@ -56,6 +56,20 @@ func Compare(a, b *Store) (Diff, error) {
 	return d, nil
 }
 
+// CompareTree returns the node changes from a's tree of variant to b's. It fails when either
+// dataset has no such tree.
+func CompareTree(a, b *Store, variant string) (TreeDiff, error) {
+	x, err := tablesOf(a, []string{variant})
+	if err != nil {
+		return TreeDiff{}, err
+	}
+	y, err := tablesOf(b, []string{variant})
+	if err != nil {
+		return TreeDiff{}, err
+	}
+	return compareTrees(x, y, x.trees[0], y.trees[0]), nil
+}
+
 // tables are the groups Compare reads from a store.
 type tables struct {
 	stats      []Stat
@@ -64,7 +78,7 @@ type tables struct {
 	trees      []*Tree
 }
 
-func tablesOf(s *Store) (*tables, error) {
+func tablesOf(s *Store, variants []string) (*tables, error) {
 	var t tables
 	var err error
 	if t.stats, err = s.Stats(); err != nil {
@@ -76,7 +90,7 @@ func tablesOf(s *Store) (*tables, error) {
 	if t.constants, err = s.Constants(); err != nil {
 		return nil, err
 	}
-	for _, v := range s.Manifest().Trees() {
+	for _, v := range variants {
 		tr, err := s.Tree(v)
 		if err != nil {
 			return nil, err

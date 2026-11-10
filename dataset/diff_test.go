@@ -1,6 +1,7 @@
 package dataset_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -90,6 +91,31 @@ func TestCompare(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Compare mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCompareTree(t *testing.T) {
+	t.Parallel()
+	a, b := sample(), sample()
+	b.Trees[0].Nodes[1].SkillPoints = 0
+	x, err := dataset.Open(written(t, a))
+	if err != nil {
+		t.Fatal(err)
+	}
+	y, err := dataset.Open(written(t, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := dataset.CompareTree(x, y, "standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := dataset.TreeDiff{Variant: "standard", NodesCompared: 2, Changed: []dataset.NodeDiff{{ID: 2, Fields: []string{"skill_points"}}}}
+	if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("CompareTree mismatch (-want +got):\n%s", diff)
+	}
+	if _, err := dataset.CompareTree(x, y, "alternate"); !errors.Is(err, dataset.ErrNotInDataset) {
+		t.Errorf("missing variant: got %v, want ErrNotInDataset", err)
 	}
 }
 
