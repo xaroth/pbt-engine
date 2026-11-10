@@ -31,7 +31,7 @@ Path of Building build files (PoE1) import with `pob.FromXML`: the active tree's
 
 ## Benchmarks
 
-Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests only. Each benchmark's doc comment names the target from `plan/01-goals.md` it measures.
+Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests only. Each benchmark's doc comment names its target time.
 
 ```sh
 go test -run '^$' -bench . -benchmem ./...          # every benchmark

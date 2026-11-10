@@ -87,7 +87,7 @@ func TestGoldenExplanations(t *testing.T) {
 	}
 }
 
-// TestGoldenRealExplanations explains the 2.6 hand-worked builds and a level 90 Chieftain
+// TestGoldenRealExplanations explains the TestRealSheets builds and a level 90 Chieftain
 // with a real tree (pbt-conformance 05-marauder-L90-chieftain-righteous-fire, tree only) on
 // the real datasets, with names and stat text from the dataset. Skipped without
 // PBT_DATASETS.

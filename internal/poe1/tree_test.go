@@ -214,8 +214,8 @@ func TestWholeTreeSheetEdits(t *testing.T) {
 }
 
 // BenchmarkOpenSheet times poe1.Open of the level 90 Chieftain on the fixture tree, from its
-// build and over the whole tree, resolved beforehand (01-goals, open a session from a build:
-// < 10 ms native).
+// build and over the whole tree, resolved beforehand (target: < 10 ms
+// native).
 func BenchmarkOpenSheet(b *testing.B) {
 	const version = "3.29.3.3"
 	s := fixtureStore(b, version)
@@ -241,7 +241,7 @@ func BenchmarkOpenSheet(b *testing.B) {
 }
 
 // BenchmarkSwitchNode switches one node on a whole-tree sheet in a checkpoint, reads life and
-// reverts, as a sweep's fast path does (01-goals, one what-if: < 0.2 ms native), and switches
+// reverts, as a sweep's fast path does (target per what-if: < 0.2 ms native), and switches
 // a whole allocation with SetNodes.
 func BenchmarkSwitchNode(b *testing.B) {
 	const version = "3.29.3.3"

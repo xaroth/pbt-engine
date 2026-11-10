@@ -69,7 +69,7 @@ func values(t *testing.T, bandits poe1.BanditChoice, stage poe1.CampaignStage) c
 	return v
 }
 
-// The plan's example: one of everything FromXML leaves out.
+// example holds one of everything FromXML leaves out.
 const example = `<PathOfBuilding>
 	<Build level="90" className="Marauder" ascendClassName="Chieftain" bandit="None" pantheonMajorGod="Arakaali" pantheonMinorGod="None"/>
 	<Tree activeSpec="2">
