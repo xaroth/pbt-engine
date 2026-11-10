@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/resolve"
+	rules "github.com/xaroth/pbt-engine/rules/poe1"
 )
 
 // masteries are n allocated Life Masteries and one Fire Mastery, each counting itself, and on
@@ -50,5 +51,22 @@ func TestMasteryCountWithoutCounter(t *testing.T) {
 	sh := open(t, r)
 	if got := value(t, sh, "maximum_life"); got != 1134 {
 		t.Errorf("life %v, want 1134", got)
+	}
+}
+
+// TestLifeIfNoLifeOnBodyArmour: "15% increased maximum Life if there are no Life Modifiers on
+// Equipped Body Armour" applies unconditionally, since builds hold no items and an empty body
+// armour slot meets the condition. Level 90: 1134 life, 15% increased gives 1304.1.
+func TestLifeIfNoLifeOnBodyArmour(t *testing.T) {
+	t.Parallel()
+	bundles := append(endgame(),
+		bundle(resolve.NodeSource{ID: 100, Effect: 34242}, resolve.Global, resolve.StatValue{Stat: "maximum_life_+%_if_no_life_tags_on_body_armour", Value: 15}))
+	sh := open(t, resolved(bundles...))
+	if got := value(t, sh, "maximum_life"); got != 1304 {
+		t.Errorf("life: got %v, want 1304", got)
+	}
+	notes := sh.Notes()
+	if len(notes) != 1 || notes[0].Kind != rules.Unchecked || notes[0].Stat != "maximum_life_+%_if_no_life_tags_on_body_armour" {
+		t.Errorf("notes: got %v, want one unchecked note for the body armour condition", notes)
 	}
 }

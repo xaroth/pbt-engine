@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -23,13 +25,15 @@ func statIDs() []string {
 	return []string{
 		"level", "life_per_level", "base_maximum_all_resistances_%", "base_strength", "base_dexterity", "base_intelligence",
 		"base_maximum_life", "base_maximum_mana", "maximum_life_+%", "base_resist_all_elements_%", "base_chaos_damage_resistance_%",
+		"maximum_life_+%_if_no_life_tags_on_body_armour",
 	}
 }
 
 // testStore is a Marauder (32 strength, 38 life plus 12 per level, 75% maximum resistances)
 // with nodes 2 (+20 life), 3 (+10% life), mastery 4 (effect 7: +5% life), mastery 6 (effects
 // 7 and 9: +3% life) and choice node 8 (+5 life; options 10, +7 life, and 11, +2% life) off
-// the start 1, node 5 joining nothing, and both Kitava rewards (-30% all resistances each).
+// the start 1, nodes 5 and 12 (+15% life if no life on body armour) joining nothing, and both
+// Kitava rewards (-30% all resistances each).
 func testStore(tb testing.TB) *dataset.Store {
 	tb.Helper()
 	return testStoreWith(tb, "3.29.3.3", 20)
@@ -68,6 +72,7 @@ func testStoreWith(tb testing.TB, version string, life2 int32) *dataset.Store {
 				{ID: 8, Neighbours: []uint32{1, 10, 11}, MultipleChoice: true, Stats: []dataset.StatValue{{Stat: 6, Value: 5}}},
 				{ID: 10, Neighbours: []uint32{8}, MultipleChoiceOption: true, Stats: []dataset.StatValue{{Stat: 6, Value: 7}}},
 				{ID: 11, Neighbours: []uint32{8}, MultipleChoiceOption: true, Stats: []dataset.StatValue{{Stat: 8, Value: 2}}},
+				{ID: 12, Stats: []dataset.StatValue{{Stat: 11, Value: 15}}},
 			},
 		}},
 	}
@@ -323,5 +328,26 @@ func TestPoolLimit(t *testing.T) {
 	wg.Wait()
 	if n := s.IdleSheets(); n > simulator.MaxIdle {
 		t.Errorf("%d idle sheets, limit %d", n, simulator.MaxIdle)
+	}
+}
+
+// TestUncheckedWarning: an entry applied without checking its condition warns with its own
+// code, so it is not counted with the stats left out.
+func TestUncheckedWarning(t *testing.T) {
+	t.Parallel()
+	st := simulate(t, newSim(t), marauderBuild(1, 12))
+	want := []build.Warning{{
+		Code: simulator.UncheckedCondition, Subject: "maximum_life_+%_if_no_life_tags_on_body_armour from node 12",
+		Message: "applied without checking: no Life Modifiers on Equipped Body Armour: builds hold no items yet (M4), " +
+			"and an empty body armour slot meets the condition, verified in game",
+	}}
+	var got []build.Warning
+	for _, w := range st.Warnings() {
+		if w.Code == simulator.UncheckedCondition || w.Code == simulator.UnmodelledStat {
+			got = append(got, w)
+		}
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("stat warnings (-want +got):\n%s", diff)
 	}
 }

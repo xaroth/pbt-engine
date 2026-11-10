@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/simulator"
 )
 
 // simDataset is a Marauder dataset the sheet rules can run on: 32 strength, 38 life plus 12
@@ -165,5 +166,24 @@ func TestPower(t *testing.T) {
 		if err := run(t.Context(), append([]string{"power", path, "--root", root}, args...), io.Discard, io.Discard); err == nil {
 			t.Errorf("%s: no error", name)
 		}
+	}
+}
+
+// TestPrintSimWarningsKeepsUnchecked: a condition applied unchecked can over-apply, so it is
+// listed by default instead of folded with the stats left out.
+func TestPrintSimWarningsKeepsUnchecked(t *testing.T) {
+	t.Parallel()
+	ws := []simulator.Warning{
+		{Code: simulator.UnmodelledStat, Subject: "a from node 1", Message: "no entry, left out"},
+		{Code: simulator.UncheckedCondition, Subject: "b from node 2", Message: "applied without checking: c"},
+		{Code: simulator.UnmodelledStat, Subject: "d from node 3", Message: "no entry, left out"},
+	}
+	var out strings.Builder
+	p := &printer{w: &out}
+	printSimWarnings(p, ws, false)
+	want := "warning unchecked-condition b from node 2: applied without checking: c\n" +
+		"warning 2 stats left out as not modelled yet (--warnings all lists them)\n"
+	if out.String() != want {
+		t.Errorf("got %q, want %q", out.String(), want)
 	}
 }

@@ -164,8 +164,8 @@ func (c *Coverage) Summary() Summary {
 }
 
 // WriteText writes c as text: a summary line, the unknown entries counted by reason kind,
-// then, in c's order, one line per gap, unknown entry, and unvalidated or omitted note of an
-// authored entry.
+// then, in c's order, one line per gap, unknown entry, and unvalidated, omitted or unchecked
+// note of an authored entry.
 func (c *Coverage) WriteText(w io.Writer) error {
 	var b strings.Builder
 	s := c.Summary()
@@ -215,6 +215,9 @@ func writeStatUse(b *strings.Builder, u *StatUse) {
 		}
 		if e.Omitted != "" {
 			fmt.Fprintf(b, "omitted %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Omitted)
+		}
+		if e.Unchecked != "" {
+			fmt.Fprintf(b, "unchecked %s %s, uses %d: %s\n", u.Stat, u.Scope, u.Uses, e.Unchecked)
 		}
 	}
 }
