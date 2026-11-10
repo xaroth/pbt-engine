@@ -8,7 +8,8 @@
 
 ## Engine rules
 
-- `core` imports nothing from this module.
+- `internal/core` imports nothing from this module.
+- Everything a game defines (rules, catalogue, semantics table) lives in its package under `internal/`, such as `internal/poe1`. Public packages expose what hosts need through `simulator`.
 - No globals and no I/O in the engine. Same input gives the same bits on every platform.
 - Compute from game ids (stat ids, mod ids, node hashes), not from display text.
 - Add a package when a task needs it, not before.

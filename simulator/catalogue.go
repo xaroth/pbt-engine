@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/xaroth/pbt-engine/core"
-	"github.com/xaroth/pbt-engine/resolve"
-	"github.com/xaroth/pbt-engine/rules/poe1"
+	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 // The names below alias the game's types so hosts can read results without importing the

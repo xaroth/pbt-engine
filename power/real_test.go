@@ -12,8 +12,8 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/power"
-	"github.com/xaroth/pbt-engine/rules/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
 )
 
@@ -47,7 +47,7 @@ func realChieftain(tb testing.TB) (*simulator.Sim, *build.Build) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join("..", "rules", "poe1", "testdata", "explain", "chieftain-L90-3.29.nodes"))
+	data, err := os.ReadFile(filepath.Join("..", "internal", "poe1", "testdata", "explain", "chieftain-L90-3.29.nodes"))
 	if err != nil {
 		tb.Fatal(err)
 	}
