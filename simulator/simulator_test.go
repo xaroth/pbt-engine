@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -329,20 +331,23 @@ func TestPoolLimit(t *testing.T) {
 	}
 }
 
-// TestUncheckedWarning: an entry applied without checking its condition warns that it was
-// applied, not left out.
+// TestUncheckedWarning: an entry applied without checking its condition warns with its own
+// code, so it is not counted with the stats left out.
 func TestUncheckedWarning(t *testing.T) {
 	t.Parallel()
 	st := simulate(t, newSim(t), marauderBuild(1, 12))
-	const want = "unchecked: no Life Modifiers on Equipped Body Armour: builds hold no items yet (M4), " +
-		"and an empty body armour slot meets the condition, verified in game, applied"
-	var got []string
+	want := []build.Warning{{
+		Code: simulator.UncheckedCondition, Subject: "maximum_life_+%_if_no_life_tags_on_body_armour from node 12",
+		Message: "applied without checking: no Life Modifiers on Equipped Body Armour: builds hold no items yet (M4), " +
+			"and an empty body armour slot meets the condition, verified in game",
+	}}
+	var got []build.Warning
 	for _, w := range st.Warnings() {
-		if w.Code == simulator.UnmodelledStat {
-			got = append(got, w.Message)
+		if w.Code == simulator.UncheckedCondition || w.Code == simulator.UnmodelledStat {
+			got = append(got, w)
 		}
 	}
-	if !slices.Equal(got, []string{want}) {
-		t.Errorf("unmodelled-stat warnings: got %q, want %q", got, want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("stat warnings (-want +got):\n%s", diff)
 	}
 }

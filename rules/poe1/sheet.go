@@ -29,7 +29,7 @@ var (
 	ErrCheckpointOpen = errors.New("sheet: cannot add while a checkpoint is open")
 )
 
-// NoteKind says why a bundle stat is not, or not fully, in the sheet.
+// NoteKind says why a bundle stat is not, or not fully, in the sheet, or is in it unchecked.
 type NoteKind uint8
 
 // Note kinds.
@@ -113,8 +113,9 @@ type sourcedNote struct {
 	always bool
 }
 
-// Notes lists the bundle stats left out of the sheet, in bundle order, for the bundles that
-// are on: a sheet over the whole tree notes only the allocated nodes.
+// Notes lists the bundle stats left out of the sheet, applied in part, or applied without
+// checking a condition, in bundle order, for the bundles that are on: a sheet over the whole
+// tree notes only the allocated nodes.
 func (sh *Sheet) Notes() []Note {
 	var out []Note
 	for _, n := range sh.notes {
@@ -271,32 +272,38 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 				return err
 			}
 		}
-		if kind, text := noteFor(e, ok, ruled); kind != 0 {
-			sh.notes = append(sh.notes, sourcedNote{note: Note{Kind: kind, Source: bd.Source, Scope: bd.Scope, Stat: sv.Stat, Text: text}, src: src})
+		for _, n := range notesFor(e, ok, ruled) {
+			n.Source, n.Scope, n.Stat = bd.Source, bd.Scope, sv.Stat
+			sh.notes = append(sh.notes, sourcedNote{note: n, src: src})
 		}
 	}
 	return nil
 }
 
-// noteFor returns the note for a stat whose lookup gave e and ok, or kind 0 when the entry
-// applies in full; ruled says these rules applied the entry's rule. Display-only entries need
-// no note: other stats carry their effect.
-func noteFor(e *semantics.Entry, ok, ruled bool) (NoteKind, string) {
+// notesFor returns the notes, kind and text only, for a stat whose lookup gave e and ok, none
+// when the entry applies in full; ruled says these rules applied the entry's rule. Display-only
+// entries need no note: other stats carry their effect. An unchecked condition is noted beside
+// any other note, since it can over-apply where the others under-apply.
+func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 	switch {
 	case !ok:
-		return NoEntry, ""
+		return []Note{{Kind: NoEntry}}
 	case e.Status == semantics.Unknown:
-		return NotApplied, e.Reason.String()
+		return []Note{{Kind: NotApplied, Text: e.Reason.String()}}
 	case e.Status != semantics.Authored:
-		return 0, ""
-	case e.Rule != "" && !ruled:
-		return RuleMissing, e.Rule
-	case e.Omitted != "":
-		return Partial, e.Omitted
-	case e.Unchecked != "":
-		return Unchecked, e.Unchecked
+		return nil
 	}
-	return 0, ""
+	var out []Note
+	switch {
+	case e.Rule != "" && !ruled:
+		out = append(out, Note{Kind: RuleMissing, Text: e.Rule})
+	case e.Omitted != "":
+		out = append(out, Note{Kind: Partial, Text: e.Omitted})
+	}
+	if e.Unchecked != "" {
+		out = append(out, Note{Kind: Unchecked, Text: e.Unchecked})
+	}
+	return out
 }
 
 func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID) error {

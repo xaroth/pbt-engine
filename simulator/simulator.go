@@ -36,6 +36,9 @@ const (
 	ConfigUnknownKey build.Code = "config-unknown-key"
 	ConfigBadValue   build.Code = "config-bad-value"
 	UnmodelledStat   build.Code = "unmodelled-stat"
+	// UncheckedCondition is a stat applied without checking a condition of its text: unlike a
+	// stat left out, it can over-apply.
+	UncheckedCondition build.Code = "unchecked-condition"
 )
 
 // Warning is something a simulation went on without; its message says what was done.
@@ -295,15 +298,16 @@ func configWarning(p config.Problem) Warning {
 func noteWarnings(notes []poe1.Note) []Warning {
 	out := make([]Warning, 0, len(notes))
 	for _, n := range notes {
-		done := ", left out"
+		subject := n.Stat + " from " + n.Source.String()
 		if n.Kind == poe1.Unchecked {
-			done = ", applied"
+			out = append(out, Warning{Code: UncheckedCondition, Subject: subject, Message: "applied without checking: " + n.Text})
+			continue
 		}
-		msg := n.Kind.String() + done
+		msg := n.Kind.String() + ", left out"
 		if n.Text != "" {
-			msg = n.Kind.String() + ": " + n.Text + done
+			msg = n.Kind.String() + ": " + n.Text + ", left out"
 		}
-		out = append(out, Warning{Code: UnmodelledStat, Subject: n.Stat + " from " + n.Source.String(), Message: msg})
+		out = append(out, Warning{Code: UnmodelledStat, Subject: subject, Message: msg})
 	}
 	return out
 }

@@ -138,6 +138,34 @@ func TestOpenRuleMissing(t *testing.T) {
 	}
 }
 
+// TestOpenOmittedAndUnchecked: an entry with effects left out and a condition not checked
+// notes both.
+func TestOpenOmittedAndUnchecked(t *testing.T) {
+	t.Parallel()
+	tb, err := semantics.Load([]byte(`{"format": 1, "game": "poe1", "entries": [
+		{"stat": "x", "scope": "global", "status": "authored", "mods": [{"stat":"armour","op":"base"}],
+			"sources": [{"kind":"stat-id"}], "omitted": "o", "unchecked": "c"}
+	]}`), rules.Vocabulary{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := resolve.NodeSource{ID: 1}
+	sh, err := rules.Open(resolved(bundle(node, resolve.Global, resolve.StatValue{Stat: "x", Value: 5})), tb, rules.DefaultConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []rules.Note{
+		{Kind: rules.Partial, Source: node, Scope: resolve.Global, Stat: "x", Text: "o"},
+		{Kind: rules.Unchecked, Source: node, Scope: resolve.Global, Stat: "x", Text: "c"},
+	}
+	if diff := cmp.Diff(want, sh.Notes()); diff != "" {
+		t.Errorf("notes (-want +got):\n%s", diff)
+	}
+	if got := value(t, sh, "armour"); got != 5 {
+		t.Errorf("armour: got %v, want 5, the modifiers applied", got)
+	}
+}
+
 func TestOpenErrors(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
