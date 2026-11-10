@@ -1,0 +1,607 @@
+# The mod lines of real 3.29 items in Path of Building's text, one item per paragraph, chosen so every
+# line shape found in those items appears; tags such as {crafted} removed.
+22% increased Elemental Damage
+24% increased Fire Damage
++9% to Fire Damage over Time Multiplier
++19 to Intelligence
++22% to Fire Resistance
+
++16 to maximum Life
++51 to maximum Life
++23% to Fire Resistance
++18% to Lightning Resistance
++15 to Strength
+
++40 to Evasion Rating
+10% increased Rarity of Items found
++35% to all Elemental Resistances
+Reflects 4 Physical Damage to Melee Attackers
+
++62 to maximum Life
+21% increased Armour
++26% to Fire Resistance
++17% to Cold Resistance
+
++5 to Dexterity
++15 to maximum Energy Shield
+30% increased Mana Regeneration Rate
+20% increased Movement Speed
+Cannot be Frozen
+
++14% to Fire and Cold Resistances
++42 to maximum Life
++20% to Lightning Resistance
++16 to Intelligence
+
+24% increased Elemental Damage
+48% increased Fire Damage
++16% to Fire Damage over Time Multiplier
+14% increased Cast Speed
++31 to Intelligence
++33% to Fire Resistance
+
++62% to Fire Resistance
+58% increased Ignite Duration on Enemies
+Reflects 100 Fire Damage to Melee Attackers
+40% of Physical Damage taken as Fire Damage
+
++74 to maximum Life
++33 to Strength
++35% to Fire Resistance
++19% to Chaos Resistance
+
++9% to all Elemental Resistances
++10% to all Elemental Resistances
+8% increased Movement Speed when on Low Life
+31% increased Light Radius
++20% to Chaos Resistance when on Low Life
+Damage of Enemies Hitting you is Unlucky while you are on Low Life
+
+40% increased Duration
+25% increased Movement Speed during Effect
+
+40% increased Duration
+45% increased Armour during Effect
+
+40% increased Duration
+Grants Immunity to Bleeding for 4 seconds if used while Bleeding
+Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood
+
+40% increased Duration
+Grants Immunity to Shock for 4 seconds if used while Shocked
+
+6% increased maximum Life
+14% increased Burning Damage
++12% to Fire Resistance
+
+66% reduced Amount Recovered
+Instant Recovery
+Grants Immunity to Bleeding for 4 seconds if used while Bleeding
+Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood
+
+40% increased Duration
+Grants Immunity to Freeze for 4 seconds if used while Frozen
+
+40% increased Elemental Damage
+80% increased Implicit Modifier magnitudes
+16% increased Cast Speed
+6% increased Elemental Damage per 1% Fire, Cold, or Lightning Resistance above 75%
+
+124% increased Energy Shield
+10% increased maximum Life
++10% Chance to Block Spell Damage
+Sacrifice 10% of your Life when you Use or Trigger a Spell Skill
+3% increased Spell Critical Strike Chance per 100 Player Maximum Life
+3% increased Spell Damage per 100 Player Maximum Life
+
+Has no Sockets
++1000 to maximum Life
+
++94 to maximum Life
+11% increased Life Regeneration rate
++38% to Fire Resistance
++28% to Chaos Resistance
++32 to Intelligence
+
+24% increased Mana Regeneration Rate
++70 to maximum Life
++25% to Fire Resistance
++30% to Cold Resistance
++18% to Lightning Resistance
+Gain 14% of Missing Unreserved Life before being Hit by an Enemy
+
++28% to Fire Resistance
++74 to maximum Life
++26 to Dexterity
++16% to Damage over Time Multiplier
++40% to Lightning Resistance
++29% to Chaos Resistance
+
+7% increased maximum Life
++1% to maximum Fire Resistance
+16% increased Burning Damage
++13% to Fire Resistance
+
++45 to Armour
++126 to maximum Life
+13% increased Life Regeneration rate
++41% to Fire Resistance
++34% to Chaos Resistance
++30 to Intelligence
+
++125 to maximum Life
+19% increased Life Regeneration rate
++45% to Fire Resistance
++31% to Chaos Resistance
+29% increased Movement Speed
++36 to Dexterity
+100% chance to Avoid being Chilled
+
+Adds 9 to 17 Physical Damage
+62% increased Physical Damage
++13 to Strength
+10% increased Attack Speed
++19% to Cold Resistance
+
++24 to Strength
+Adds 3 to 7 Physical Damage to Attacks
++42 to maximum Life
++18 to Dexterity
++23% to Lightning Resistance
+
+25% increased Stun Duration on Enemies
++30 to Strength
+35% more Maximum Physical Attack Damage
+35% less Minimum Physical Attack Damage
+Adds 1 to 17 Physical Damage to Attacks
++88 to maximum Life
+Gain 50 Life when you Stun an Enemy
+
+50% increased Amount Recovered
+Instant Recovery when on Low Life
+
++20% to Damage over Time Multiplier for Bleeding
+Adds 19 to 38 Physical Damage
+112% increased Physical Damage
++180 to Accuracy Rating
+17% increased Attack Speed
++28 to Strength
+
++28 to Strength
+Adds 7 to 14 Physical Damage to Attacks
++68 to maximum Life
++38 to Intelligence
++32% to Fire Resistance
+19% increased Global Physical Damage
+
++14% to Fire and Lightning Resistances
++62 to maximum Life
++33% to Cold Resistance
++29 to Strength
++22 to Dexterity
+Adds 3 to 7 Physical Damage to Attacks
+
++18% to all Elemental Resistances during Effect
+
+Grants Immunity to Freeze for 4 seconds if used while Frozen
+Grants Immunity to Chill for 4 seconds if used while Chilled
+
+Adds 30 to 64 Physical Damage
+148% increased Physical Damage
++250 to Accuracy Rating
+22% increased Attack Speed
++33 to Strength
+25% increased Critical Strike Chance
+
++45 to Strength
++33% to Fire Resistance
+88% increased Armour
++39% to Cold Resistance
++35% to Lightning Resistance
+6% additional Physical Damage Reduction
+
++14 to all Attributes
++34 to Intelligence
+Adds 10 to 21 Physical Damage to Attacks
++82 to maximum Life
++40% to Fire Resistance
+24% increased Global Physical Damage
+
+25% increased effect
+25% reduced Duration
+25% increased Movement Speed during Effect
+
++7% to Physical Damage over Time Multiplier
+6% increased maximum Life
+17% increased Damage with Bleeding
+
+5% increased maximum Life
+14% increased Physical Damage with Axes
++12% to Cold Resistance
+
++7% to Physical Damage over Time Multiplier
+37% increased Armour
++102 to maximum Life
++24% to Fire Resistance
++24% to Chaos Resistance
+6% increased Stun and Block Recovery
+27% reduced Effect of Chill and Shock on you
+
++15 to all Attributes
++30 to Dexterity
+Adds 8 to 13 Physical Damage to Attacks
++98 to maximum Life
++45% to Cold Resistance
++13% to Chaos Resistance
+40% increased Damage while Leeching
+
++23% to Chaos Resistance
++43 to Strength
++113 to maximum Life
++21% to Cold Resistance
++31% to Lightning Resistance
+23% increased Elemental Damage with Attack Skills
+Non-Channelling Skills have -6 to Total Mana Cost
+
+Used when Charges reach full
+17% reduced Charges per use
+35% increased Duration
+When Hit during effect, 25% of Life loss from Damage taken occurs over 4 seconds instead
+
+Used when Charges reach full
+Gain 3 Charges when you are Hit by an Enemy
+10% increased Movement Speed during Effect
+
+Used when Charges reach full
+19% reduced Charges per use
+59% reduced Effect of Curses on you during Effect
+
++7% to Physical Damage over Time Multiplier
+15% increased Lightning Damage
+6% increased maximum Life
+17% increased Damage with Bleeding
+
++7% to Physical Damage over Time Multiplier
+5% increased maximum Life
+9% increased Totem Life
+19% increased Damage with Bleeding
+
+22% increased Elemental Damage with Attack Skills
+Adds 2 to 36 Lightning Damage
+10% increased Attack Speed
++18 to Dexterity
+18% increased Critical Strike Chance
+
+Arrows Pierce an additional Target
++52 to maximum Life
++24% to Cold Resistance
+Adds 1 to 17 Lightning Damage to Attacks
+15% increased Elemental Damage with Attack Skills
+
+Adds 4 to 89 Lightning Damage
+Adds 13 to 25 Cold Damage
+15% increased Attack Speed
++28 to Dexterity
+26% increased Critical Strike Chance
+
+25% increased Critical Strike Chance with Bows
++71 to maximum Life
++31% to Cold Resistance
++29% to Lightning Resistance
+Adds 2 to 40 Lightning Damage to Attacks
+20% increased Elemental Damage with Attack Skills
+
+54% increased Evasion and Energy Shield
++38 to maximum Energy Shield
++32% to Cold Resistance
++27% to Lightning Resistance
++21 to Intelligence
+
++13 to all Attributes
++62 to maximum Life
++26 to Intelligence
++24% to Fire Resistance
++25% to Global Critical Strike Multiplier
+
++19% to Chaos Resistance
++48 to maximum Life
++29% to Fire Resistance
++27 to Dexterity
+Adds 3 to 7 Cold Damage to Attacks
+
+(38-43)% increased Critical Strike Chance during Effect
+
+82% increased Evasion and Energy Shield
++52 to maximum Energy Shield
++38% to Cold Resistance
++34% to Lightning Resistance
++12% chance to Suppress Spell Damage
+
+Has 1 Abyssal Socket
++95 to maximum Life
++42% to Lightning Resistance
++38 to Strength
++37% to Cold Resistance
+
+(125-150)% increased Charges per use
+(40-60)% less Duration
+(10-20)% increased Area of Effect during Effect
+Skills fire 2 additional Projectiles during Effect
+
+7% increased maximum Life
++16% to Global Critical Strike Multiplier
+15% increased Global Critical Strike Chance
++12% to Cold and Lightning Resistances
+
+7% increased maximum Life
++15% to Global Critical Strike Multiplier
+6% increased maximum Energy Shield
++14% to Chaos Resistance
+
+28% increased Elemental Damage with Attack Skills
++108 to maximum Life
++44% to Lightning Resistance
+Adds 5 to 89 Lightning Damage to Attacks
+Bow Attacks fire an additional Arrow
++35% to Global Critical Strike Multiplier
+
+42% increased Global Critical Strike Chance
+Adds 6 to 13 Physical Damage
+Adds 5 to 11 Chaos Damage
+12% increased Attack Speed
+25% increased Damage with Poison
+20% chance to Poison on Hit
++18 to Intelligence
+
++18 to Dexterity and Intelligence
++48 to maximum Life
++22% to Fire Resistance
++19% to Global Critical Strike Multiplier
++20 to Intelligence
+
++22 to Dexterity and Intelligence
++68 to maximum Life
++29% to Global Critical Strike Multiplier
++31% to Cold Resistance
++26 to Intelligence
++32 to maximum Mana
+
+7% increased maximum Life
++6% to Chaos Damage over Time Multiplier
++12% to Lightning Resistance
+
+30% increased Global Critical Strike Chance
+Adds 145 to 225 Physical Damage
+46% increased Critical Strike Chance
++21% to Global Critical Strike Multiplier
++23% to Chaos Resistance
+On Killing a Poisoned Enemy, Enemies within 3 metres are Poisoned
+and nearby Allies Regenerate 400 Life per second
+
++78 to maximum Energy Shield
++56 to maximum Energy Shield
++44% to Fire Resistance
++42% to Lightning Resistance
++50 to Strength
+20% increased Flask Effect Duration
+
+6% increased maximum Energy Shield
+4% increased maximum Mana
+Gain 10% of Maximum Mana as Extra Maximum Energy Shield while affected by Clarity
+
+13% increased Spell Damage
+Adds 5 to 10 Fire Damage to Spells
+19% increased Fire Damage
++9% to Fire Damage over Time Multiplier
++14 to Intelligence
+
++4% to all Elemental Resistances
++88 to maximum Life
+84% increased Armour and Energy Shield
++30% to Fire Resistance
++28% to Cold Resistance
++36 to Strength
+
++74 to maximum Life
++38% to Lightning Resistance
++28% to Chaos Resistance
++34 to Strength
+9% increased Area of Effect
+
++22 to Strength and Dexterity
++78 to maximum Life
++18% to Fire Damage over Time Multiplier
++36% to Lightning Resistance
++30 to Dexterity
+
+Used when Charges reach full
++12 to Maximum Charges
+Recharges 5 Charges when you Consume an Ignited corpse
+Enemies Ignited by you during Effect have Malediction
+Enemies Ignited by you during Effect take 7% increased Damage
+Recover 2% of Life when you Kill an Enemy during Effect
+
+40% increased Spell Damage
+324% increased Physical Damage
+Gain 49% of Physical Damage as Extra Fire Damage
+Gain 43% of Physical Damage as Extra Cold Damage
+Gain 41% of Physical Damage as Extra Lightning Damage
++1 to maximum number of Sacred Wisps
++1 to number of Sacred Wisps Summoned
+
+369% increased Armour and Energy Shield
++10% to all Elemental Resistances
++5% to maximum Cold Resistance
++6% Chance to Block
+Recover Energy Shield equal to 2% of Armour when you Block
+16% increased Elemental Damage with Attack Skills
+
++133 to Armour
++48 to maximum Energy Shield
++48% to Cold Resistance
+Recover 5% of Life on Kill
+11% increased Area of Effect
+77% increased Armour and Energy Shield
+
+-2 to Level of Socketed Support Gems
++2 to Level of Socketed Skill Gems
++2 to Level of Socketed AoE Gems
+Socketed Gems are Supported by Level 20 Burning Damage
+Socketed Gems deal 30% more Elemental Damage
++117 to maximum Life
++30% to Cold Resistance
+31% increased Burning Damage
+8% increased Area of Effect
+72% increased Armour and Energy Shield
+
+Inflict Fire Exposure on Hit, applying -13% to Fire Resistance
+Ignites you inflict spread to other Enemies within 1.5 metres
++41 to Armour
++22 to maximum Energy Shield
++42% to Lightning Resistance
++34% to Chaos Resistance
+35% of Physical Damage Converted to Fire Damage
+11% increased Area of Effect
+16% increased Area Damage
+Ignites you inflict deal Damage 10% faster
+
+Ignites you inflict deal Damage 7% faster
+41% chance to Avoid being Shocked
++97 to maximum Life
+30% increased Rarity of Items found
++26% to Chaos Resistance
+29% increased Movement Speed
+60% chance to Avoid being Shocked
+12% increased Movement Speed if you haven't been Hit Recently
+
+18% increased Elemental Damage
+18% increased Global Critical Strike Chance
++24% to Fire Resistance
++22% to Cold Resistance
+16% increased Duration of Ailments on Enemies
+Left Ring slot: Cover Enemies in Ash for 5 seconds when you Ignite them
+Right Ring slot: Cover Enemies in Frost for 5 seconds when you Freeze them
+Corrupted
+
++24 to Strength and Dexterity
++92 to maximum Life
++1 to Level of all Fire Skill Gems
++24% to Fire Damage over Time Multiplier
++38% to Lightning Resistance
++40 to Dexterity
+
+Used when Charges reach full
+36% increased Charge Recovery
+Enemies you Kill during Effect have a 23% chance to Explode, dealing a tenth of their maximum Life as Damage of a Random Element
+Corrupted
+
+Gain 10% of Fire Damage as Extra Chaos Damage
+Passives granting Fire Resistance or all Elemental Resistances in Radius
+also grant Chance to Block Attack Damage at 50% of its value
+
+Adds 1 to 10 Lightning Damage to Spells and Attacks
+Adds 8 to 15 Cold Damage
+Adds 6 to 12 Fire Damage
+14% increased Critical Strike Chance
++90 to Accuracy Rating
+
++24% to Lightning Resistance
+Adds 4 to 8 Fire Damage to Attacks
++35 to maximum Life
++15 to Intelligence
+
+18% increased Global Physical Damage
+Adds 15 to 31 Fire Damage to Attacks
+Adds 11 to 26 Cold Damage to Attacks
+Adds 1 to 64 Lightning Damage to Attacks
++11% to all Elemental Resistances
+30% increased Elemental Damage with Attack Skills during any Flask Effect
+
+Cannot roll Caster Modifiers
+Adds 28 to 52 Cold Damage
+Adds 22 to 44 Fire Damage
+20% increased Critical Strike Chance
++160 to Accuracy Rating
+
++420 to Accuracy Rating
+230% increased Energy Shield
+25% increased Elemental Damage with Attack Skills
+Increases and Reductions to Cast Speed apply to Attack Speed
+Ancestral Bond
+
++95 to maximum Life
++60 to maximum Mana
++29% to Fire Resistance
++27% to Lightning Resistance
+30% increased Movement Speed
++14% to Lightning and Chaos Resistances
+
++16 to all Attributes
++47 to Dexterity
+25% increased Spell Damage
++30% to Global Critical Strike Multiplier
++90 to maximum Life
++13% to Cold and Chaos Resistances
+
+49% increased Critical Strike Chance during Effect
+
+9% increased Spell Damage
+73% increased Chance to Block
+44% increased Spell Damage
++12% to all Elemental Resistances
++29% to Fire Resistance
++42% to Lightning Resistance
++25 to Dexterity
++60 to maximum Life
+
+4% increased Action Speed
++122 to maximum Life
++60 to maximum Mana
++29% to Fire Resistance
++27% to Lightning Resistance
+30% increased Movement Speed
++14% to Lightning and Chaos Resistances
+
++23% to Chaos Resistance
++46 to maximum Energy Shield
++98 to maximum Life
++31% to Cold Resistance
+32% increased Elemental Damage with Attack Skills
++1 to Minimum Endurance Charges
+
+40% increased Global Accuracy Rating
+Adds 6 to 11 Physical Damage
+Adds 2 to 31 Lightning Damage
+8% increased Attack Speed
++14 to Strength
+
+50% reduced Amount Recovered
+135% increased Recovery rate
+50% of Recovery applied Instantly
+
++475 to Accuracy Rating
+Adds 52 to 86 Physical Damage
+8% increased Attack Speed
++190 to Armour
+3% reduced Movement Speed
++290 to Accuracy Rating
+1% increased Attack Damage per 450 Armour
+
+23% reduced Charges per use
+18% additional Elemental Resistances during Effect
+
++4 to Level of Socketed Aura Gems
+Socketed Gems are Supported by Level 25 Divine Blessing
+280% increased Armour and Energy Shield
++16% to all Elemental Resistances
+28% increased Movement Speed
+
+5% increased maximum Energy Shield
+5% increased maximum Life
+5% increased maximum Mana
++8% Chance to Block Attack Damage while affected by Determination
+Damage Penetrates 12% Lightning Resistance while affected by Wrath
+
+-70% to all Elemental Resistances
+-4% to all maximum Elemental Resistances
+Elemental Resistances are capped by your highest Maximum Elemental Resistance instead

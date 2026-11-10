@@ -1,0 +1,500 @@
+# lines | first reading | readings beside it
+22% increased Elemental Damage | elemental_damage_+%=22
+24% increased Fire Damage | fire_damage_+%=24
++9% to Fire Damage over Time Multiplier | fire_dot_multiplier_+=9
++19 to Intelligence | additional_intelligence=19
++22% to Fire Resistance | base_fire_damage_resistance_%=22
++16 to maximum Life | base_maximum_life=16
++51 to maximum Life | base_maximum_life=51
++23% to Fire Resistance | base_fire_damage_resistance_%=23
++18% to Lightning Resistance | base_lightning_damage_resistance_%=18
++15 to Strength | additional_strength=15
++40 to Evasion Rating | base_evasion_rating=40 | 1 other readings
+10% increased Rarity of Items found | item_found_rarity_+%=10 | 1 other readings
++35% to all Elemental Resistances | base_resist_all_elements_%=35 | 1 other readings
+Reflects 4 Physical Damage to Melee Attackers | physical_damage_to_return_to_melee_attacker=4
++62 to maximum Life | base_maximum_life=62
+21% increased Armour | physical_damage_reduction_rating_+%=21 | 1 other readings
++26% to Fire Resistance | base_fire_damage_resistance_%=26
++17% to Cold Resistance | base_cold_damage_resistance_%=17
++5 to Dexterity | additional_dexterity=5
++15 to maximum Energy Shield | base_maximum_energy_shield=15 | 1 other readings
+30% increased Mana Regeneration Rate | mana_regeneration_rate_+%=30
+20% increased Movement Speed | base_movement_velocity_+%=20
+Cannot be Frozen | base_cannot_be_frozen=1
++14% to Fire and Cold Resistances | fire_and_cold_damage_resistance_%=14
++42 to maximum Life | base_maximum_life=42
++20% to Lightning Resistance | base_lightning_damage_resistance_%=20
++16 to Intelligence | additional_intelligence=16
+24% increased Elemental Damage | elemental_damage_+%=24
+48% increased Fire Damage | fire_damage_+%=48
++16% to Fire Damage over Time Multiplier | fire_dot_multiplier_+=16
+14% increased Cast Speed | base_cast_speed_+%=14
++31 to Intelligence | additional_intelligence=31
++33% to Fire Resistance | base_fire_damage_resistance_%=33
++62% to Fire Resistance | base_fire_damage_resistance_%=62
+58% increased Ignite Duration on Enemies | ignite_duration_+%=58
+Reflects 100 Fire Damage to Melee Attackers | fire_damage_to_return_to_melee_attacker=100
+40% of Physical Damage taken as Fire Damage | physical_hit_and_dot_damage_%_taken_as_fire=40
++74 to maximum Life | base_maximum_life=74
++33 to Strength | additional_strength=33
++35% to Fire Resistance | base_fire_damage_resistance_%=35
++19% to Chaos Resistance | base_chaos_damage_resistance_%=19
++9% to all Elemental Resistances | base_resist_all_elements_%=9 | 1 other readings
++10% to all Elemental Resistances | base_resist_all_elements_%=10 | 1 other readings
+8% increased Movement Speed when on Low Life | movement_velocity_+%_when_on_low_life=8
+31% increased Light Radius | light_radius_+%=31 | 1 other readings
++20% to Chaos Resistance when on Low Life | chaos_damage_resistance_%_when_on_low_life=20
+Damage of Enemies Hitting you is Unlucky while you are on Low Life | enemy_extra_damage_rolls_when_on_low_life=-1
+40% increased Duration | local_flask_duration_+%=40 local_flask_consume_flask_duration_+%_when_used=0
+25% increased Movement Speed during Effect | local_flask_movement_speed_+%_while_healing=25
+40% increased Duration | local_flask_duration_+%=40 local_flask_consume_flask_duration_+%_when_used=0
+45% increased Armour during Effect | local_flask_armour_+%_while_healing=45
+40% increased Duration | local_flask_duration_+%=40 local_flask_consume_flask_duration_+%_when_used=0
+Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood=1 | 1 other readings
+40% increased Duration | local_flask_duration_+%=40 local_flask_consume_flask_duration_+%_when_used=0
+Grants Immunity to Shock for 4 seconds if used while Shocked | local_flask_shock_immunity_if_shocked=1 | 1 other readings
+6% increased maximum Life | maximum_life_+%=6
+14% increased Burning Damage | burn_damage_+%=14
++12% to Fire Resistance | base_fire_damage_resistance_%=12
+66% reduced Amount Recovered | local_flask_amount_to_recover_+%=-66
+Instant Recovery | local_flask_recovery_amount_%_to_recover_instantly=100 | 1 other readings
+Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood=1 | 1 other readings
+40% increased Duration | local_flask_duration_+%=40 local_flask_consume_flask_duration_+%_when_used=0
+Grants Immunity to Freeze for 4 seconds if used while Frozen | no reading
+40% increased Elemental Damage | elemental_damage_+%=40
+80% increased Implicit Modifier magnitudes | local_implicit_stat_magnitude_+%=80
+16% increased Cast Speed | base_cast_speed_+%=16
+6% increased Elemental Damage per 1% Fire, Cold, or Lightning Resistance above 75% | elemental_damage_+%_per_lightning_cold_fire_resistance_above_75=6
+124% increased Energy Shield | local_energy_shield_+%=124
+10% increased maximum Life | maximum_life_+%=10
++10% Chance to Block Spell Damage | additional_spell_block_%=10
+Sacrifice 10% of your Life when you Use or Trigger a Spell Skill | sacrifice_%_life_on_spell_skill=10
+3% increased Spell Critical Strike Chance per 100 Player Maximum Life | spell_critical_strike_chance_+%_per_100_max_life=3
+3% increased Spell Damage per 100 Player Maximum Life | spell_damage_+%_per_100_max_life=3
+Has no Sockets | local_has_no_sockets=1
++1000 to maximum Life | base_maximum_life=1000
++94 to maximum Life | base_maximum_life=94
+11% increased Life Regeneration rate | life_regeneration_rate_+%=11
++38% to Fire Resistance | base_fire_damage_resistance_%=38
++28% to Chaos Resistance | base_chaos_damage_resistance_%=28
++32 to Intelligence | additional_intelligence=32
+24% increased Mana Regeneration Rate | mana_regeneration_rate_+%=24
++70 to maximum Life | base_maximum_life=70
++25% to Fire Resistance | base_fire_damage_resistance_%=25
++30% to Cold Resistance | base_cold_damage_resistance_%=30
++18% to Lightning Resistance | base_lightning_damage_resistance_%=18
+Gain 14% of Missing Unreserved Life before being Hit by an Enemy | missing_unreserved_life_%_gained_as_life_before_hit=14
++28% to Fire Resistance | base_fire_damage_resistance_%=28
++74 to maximum Life | base_maximum_life=74
++26 to Dexterity | additional_dexterity=26
++16% to Damage over Time Multiplier | dot_multiplier_+=16
++40% to Lightning Resistance | base_lightning_damage_resistance_%=40
++29% to Chaos Resistance | base_chaos_damage_resistance_%=29
+7% increased maximum Life | maximum_life_+%=7
++1% to maximum Fire Resistance | base_maximum_fire_damage_resistance_%=1
+16% increased Burning Damage | burn_damage_+%=16
++13% to Fire Resistance | base_fire_damage_resistance_%=13
++45 to Armour | base_physical_damage_reduction_rating=45 | 1 other readings
++126 to maximum Life | base_maximum_life=126
+13% increased Life Regeneration rate | life_regeneration_rate_+%=13
++41% to Fire Resistance | base_fire_damage_resistance_%=41
++34% to Chaos Resistance | base_chaos_damage_resistance_%=34
++30 to Intelligence | additional_intelligence=30
++125 to maximum Life | base_maximum_life=125
+19% increased Life Regeneration rate | life_regeneration_rate_+%=19
++45% to Fire Resistance | base_fire_damage_resistance_%=45
++31% to Chaos Resistance | base_chaos_damage_resistance_%=31
+29% increased Movement Speed | base_movement_velocity_+%=29
++36 to Dexterity | additional_dexterity=36
+100% chance to Avoid being Chilled | base_avoid_chill_%=100
+Adds 9 to 17 Physical Damage | global_minimum_added_physical_damage=9 global_maximum_added_physical_damage=17 | 1 other readings
+62% increased Physical Damage | local_physical_damage_+%=62 local_weapon_no_physical_damage=0
++13 to Strength | additional_strength=13
+10% increased Attack Speed | attack_speed_+%=10 | 1 other readings
++19% to Cold Resistance | base_cold_damage_resistance_%=19
++24 to Strength | additional_strength=24
+Adds 3 to 7 Physical Damage to Attacks | attack_minimum_added_physical_damage=3 attack_maximum_added_physical_damage=7
++42 to maximum Life | base_maximum_life=42
++18 to Dexterity | additional_dexterity=18
++23% to Lightning Resistance | base_lightning_damage_resistance_%=23
+25% increased Stun Duration on Enemies | base_stun_duration_+%=25 | 1 other readings
++30 to Strength | additional_strength=30
+35% more Maximum Physical Attack Damage | unique_ryuslathas_clutches_maximum_physical_attack_damage_+%_final=35 | 1 other readings
+35% less Minimum Physical Attack Damage | unique_ryuslathas_clutches_minimum_physical_attack_damage_+%_final=-35
+Adds 1 to 17 Physical Damage to Attacks | attack_minimum_added_physical_damage=1 attack_maximum_added_physical_damage=17
++88 to maximum Life | base_maximum_life=88
+Gain 50 Life when you Stun an Enemy | gain_X_life_on_stun=50
+50% increased Amount Recovered | local_flask_amount_to_recover_+%=50
+Instant Recovery when on Low Life | local_flask_recover_instantly_when_on_low_life=1
++20% to Damage over Time Multiplier for Bleeding | bleeding_dot_multiplier_+=20
+Adds 19 to 38 Physical Damage | global_minimum_added_physical_damage=19 global_maximum_added_physical_damage=38 | 1 other readings
+112% increased Physical Damage | local_physical_damage_+%=112 local_weapon_no_physical_damage=0
++180 to Accuracy Rating | accuracy_rating=180 | 1 other readings
+17% increased Attack Speed | attack_speed_+%=17 | 1 other readings
++28 to Strength | additional_strength=28
++28 to Strength | additional_strength=28
+Adds 7 to 14 Physical Damage to Attacks | attack_minimum_added_physical_damage=7 attack_maximum_added_physical_damage=14
++68 to maximum Life | base_maximum_life=68
++38 to Intelligence | additional_intelligence=38
++32% to Fire Resistance | base_fire_damage_resistance_%=32
+19% increased Global Physical Damage | physical_damage_+%=19
++14% to Fire and Lightning Resistances | fire_and_lightning_damage_resistance_%=14
++62 to maximum Life | base_maximum_life=62
++33% to Cold Resistance | base_cold_damage_resistance_%=33
++29 to Strength | additional_strength=29
++22 to Dexterity | additional_dexterity=22
+Adds 3 to 7 Physical Damage to Attacks | attack_minimum_added_physical_damage=3 attack_maximum_added_physical_damage=7
++18% to all Elemental Resistances during Effect | no reading
+Grants Immunity to Freeze for 4 seconds if used while Frozen | no reading
+Grants Immunity to Chill for 4 seconds if used while Chilled | no reading
+Adds 30 to 64 Physical Damage | global_minimum_added_physical_damage=30 global_maximum_added_physical_damage=64 | 1 other readings
+148% increased Physical Damage | local_physical_damage_+%=148 local_weapon_no_physical_damage=0
++250 to Accuracy Rating | accuracy_rating=250 | 1 other readings
+22% increased Attack Speed | attack_speed_+%=22 | 1 other readings
++33 to Strength | additional_strength=33
+25% increased Critical Strike Chance | local_critical_strike_chance_+%=25
++45 to Strength | additional_strength=45
++33% to Fire Resistance | base_fire_damage_resistance_%=33
+88% increased Armour | physical_damage_reduction_rating_+%=88 | 1 other readings
++39% to Cold Resistance | base_cold_damage_resistance_%=39
++35% to Lightning Resistance | base_lightning_damage_resistance_%=35
+6% additional Physical Damage Reduction | base_additional_physical_damage_reduction_%=6
++14 to all Attributes | additional_all_attributes=14
++34 to Intelligence | additional_intelligence=34
+Adds 10 to 21 Physical Damage to Attacks | attack_minimum_added_physical_damage=10 attack_maximum_added_physical_damage=21
++82 to maximum Life | base_maximum_life=82
++40% to Fire Resistance | base_fire_damage_resistance_%=40
+24% increased Global Physical Damage | physical_damage_+%=24
+25% increased effect | local_flask_effect_+%=25 local_flask_consume_flask_effect_+%_when_used=0
+25% reduced Duration | local_flask_duration_+%=-25 local_flask_consume_flask_duration_+%_when_used=0
+25% increased Movement Speed during Effect | local_flask_movement_speed_+%_while_healing=25
++7% to Physical Damage over Time Multiplier | physical_dot_multiplier_+=7
+6% increased maximum Life | maximum_life_+%=6
+17% increased Damage with Bleeding | bleeding_damage_+%=17
+5% increased maximum Life | maximum_life_+%=5
+14% increased Physical Damage with Axes | physical_axe_damage_+%=14
++12% to Cold Resistance | base_cold_damage_resistance_%=12
++7% to Physical Damage over Time Multiplier | physical_dot_multiplier_+=7
+37% increased Armour | physical_damage_reduction_rating_+%=37 | 1 other readings
++102 to maximum Life | base_maximum_life=102
++24% to Fire Resistance | base_fire_damage_resistance_%=24
++24% to Chaos Resistance | base_chaos_damage_resistance_%=24
+6% increased Stun and Block Recovery | base_stun_recovery_+%=6
+27% reduced Effect of Chill and Shock on you | shocked_chilled_effect_on_self_+%=-27
++15 to all Attributes | additional_all_attributes=15
++30 to Dexterity | additional_dexterity=30
+Adds 8 to 13 Physical Damage to Attacks | attack_minimum_added_physical_damage=8 attack_maximum_added_physical_damage=13
++98 to maximum Life | base_maximum_life=98
++45% to Cold Resistance | base_cold_damage_resistance_%=45
++13% to Chaos Resistance | base_chaos_damage_resistance_%=13
+40% increased Damage while Leeching | damage_+%_while_leeching=40
++23% to Chaos Resistance | base_chaos_damage_resistance_%=23
++43 to Strength | additional_strength=43
++113 to maximum Life | base_maximum_life=113
++21% to Cold Resistance | base_cold_damage_resistance_%=21
++31% to Lightning Resistance | base_lightning_damage_resistance_%=31
+23% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=23
+Non-Channelling Skills have -6 to Total Mana Cost | skill_mana_cost_+_with_non_channelling_skills=-6
+Used when Charges reach full | local_flask_use_on_full_charges=1
+17% reduced Charges per use | local_charges_used_+%=-17 local_flask_consume_charges_used_+%_when_used=0
+35% increased Duration | local_flask_duration_+%=35 local_flask_consume_flask_duration_+%_when_used=0
+When Hit during effect, 25% of Life loss from Damage taken occurs over 4 seconds instead | local_life_loss_%_to_prevent_during_flask_effect_to_lose_over_time=25
+Used when Charges reach full | local_flask_use_on_full_charges=1
+Gain 3 Charges when you are Hit by an Enemy | local_flask_gain_X_charges_when_hit=3
+10% increased Movement Speed during Effect | local_flask_movement_speed_+%_while_healing=10
+Used when Charges reach full | local_flask_use_on_full_charges=1
+19% reduced Charges per use | local_charges_used_+%=-19 local_flask_consume_charges_used_+%_when_used=0
+59% reduced Effect of Curses on you during Effect | local_self_curse_effect_+%_during_flask_effect=-59
++7% to Physical Damage over Time Multiplier | physical_dot_multiplier_+=7
+15% increased Lightning Damage | lightning_damage_+%=15
+6% increased maximum Life | maximum_life_+%=6
+17% increased Damage with Bleeding | bleeding_damage_+%=17
++7% to Physical Damage over Time Multiplier | physical_dot_multiplier_+=7
+5% increased maximum Life | maximum_life_+%=5
+9% increased Totem Life | totem_life_+%=9
+19% increased Damage with Bleeding | bleeding_damage_+%=19
+22% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=22
+Adds 2 to 36 Lightning Damage | global_minimum_added_lightning_damage=2 global_maximum_added_lightning_damage=36 | 1 other readings
+10% increased Attack Speed | attack_speed_+%=10 | 1 other readings
++18 to Dexterity | additional_dexterity=18
+18% increased Critical Strike Chance | local_critical_strike_chance_+%=18
+Arrows Pierce an additional Target | arrow_base_number_of_targets_to_pierce=1
++52 to maximum Life | base_maximum_life=52
++24% to Cold Resistance | base_cold_damage_resistance_%=24
+Adds 1 to 17 Lightning Damage to Attacks | attack_minimum_added_lightning_damage=1 attack_maximum_added_lightning_damage=17
+15% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=15
+Adds 4 to 89 Lightning Damage | global_minimum_added_lightning_damage=4 global_maximum_added_lightning_damage=89 | 1 other readings
+Adds 13 to 25 Cold Damage | global_minimum_added_cold_damage=13 global_maximum_added_cold_damage=25 | 1 other readings
+15% increased Attack Speed | attack_speed_+%=15 | 1 other readings
++28 to Dexterity | additional_dexterity=28
+26% increased Critical Strike Chance | local_critical_strike_chance_+%=26
+25% increased Critical Strike Chance with Bows | bow_critical_strike_chance_+%=25
++71 to maximum Life | base_maximum_life=71
++31% to Cold Resistance | base_cold_damage_resistance_%=31
++29% to Lightning Resistance | base_lightning_damage_resistance_%=29
+Adds 2 to 40 Lightning Damage to Attacks | attack_minimum_added_lightning_damage=2 attack_maximum_added_lightning_damage=40
+20% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=20
+54% increased Evasion and Energy Shield | local_evasion_and_energy_shield_+%=54
++38 to maximum Energy Shield | base_maximum_energy_shield=38 | 1 other readings
++32% to Cold Resistance | base_cold_damage_resistance_%=32
++27% to Lightning Resistance | base_lightning_damage_resistance_%=27
++21 to Intelligence | additional_intelligence=21
++13 to all Attributes | additional_all_attributes=13
++62 to maximum Life | base_maximum_life=62
++26 to Intelligence | additional_intelligence=26
++24% to Fire Resistance | base_fire_damage_resistance_%=24
++25% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=25
++19% to Chaos Resistance | base_chaos_damage_resistance_%=19
++48 to maximum Life | base_maximum_life=48
++29% to Fire Resistance | base_fire_damage_resistance_%=29
++27 to Dexterity | additional_dexterity=27
+Adds 3 to 7 Cold Damage to Attacks | attack_minimum_added_cold_damage=3 attack_maximum_added_cold_damage=7
+(38-43)% increased Critical Strike Chance during Effect | no reading
+82% increased Evasion and Energy Shield | local_evasion_and_energy_shield_+%=82
++52 to maximum Energy Shield | base_maximum_energy_shield=52 | 1 other readings
++38% to Cold Resistance | base_cold_damage_resistance_%=38
++34% to Lightning Resistance | base_lightning_damage_resistance_%=34
++12% chance to Suppress Spell Damage | base_spell_suppression_chance_150%_of_value=8 | 1 other readings
+Has 1 Abyssal Socket | local_has_X_abyss_sockets=1
++95 to maximum Life | base_maximum_life=95
++42% to Lightning Resistance | base_lightning_damage_resistance_%=42
++38 to Strength | additional_strength=38
++37% to Cold Resistance | base_cold_damage_resistance_%=37
+(125-150)% increased Charges per use | no reading
+(40-60)% less Duration | no reading
+(10-20)% increased Area of Effect during Effect | no reading
+Skills fire 2 additional Projectiles during Effect | local_flask_number_of_additional_projectiles_during_flask_effect=2
+7% increased maximum Life | maximum_life_+%=7
++16% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=16
+15% increased Global Critical Strike Chance | critical_strike_chance_+%=15
++12% to Cold and Lightning Resistances | cold_and_lightning_damage_resistance_%=12
+7% increased maximum Life | maximum_life_+%=7
++15% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=15
+6% increased maximum Energy Shield | maximum_energy_shield_+%=6
++14% to Chaos Resistance | base_chaos_damage_resistance_%=14
+28% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=28
++108 to maximum Life | base_maximum_life=108
++44% to Lightning Resistance | base_lightning_damage_resistance_%=44
+Adds 5 to 89 Lightning Damage to Attacks | attack_minimum_added_lightning_damage=5 attack_maximum_added_lightning_damage=89
+Bow Attacks fire an additional Arrow | number_of_additional_arrows=1
++35% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=35
+42% increased Global Critical Strike Chance | critical_strike_chance_+%=42
+Adds 6 to 13 Physical Damage | global_minimum_added_physical_damage=6 global_maximum_added_physical_damage=13 | 1 other readings
+Adds 5 to 11 Chaos Damage | global_minimum_added_chaos_damage=5 global_maximum_added_chaos_damage=11 | 1 other readings
+12% increased Attack Speed | attack_speed_+%=12 | 1 other readings
+25% increased Damage with Poison | base_poison_damage_+%=25
+20% chance to Poison on Hit | base_chance_to_poison_on_hit_%=20 | 1 other readings
++18 to Intelligence | additional_intelligence=18
++18 to Dexterity and Intelligence | additional_dexterity_and_intelligence=18
++48 to maximum Life | base_maximum_life=48
++22% to Fire Resistance | base_fire_damage_resistance_%=22
++19% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=19
++20 to Intelligence | additional_intelligence=20
++22 to Dexterity and Intelligence | additional_dexterity_and_intelligence=22
++68 to maximum Life | base_maximum_life=68
++29% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=29
++31% to Cold Resistance | base_cold_damage_resistance_%=31
++26 to Intelligence | additional_intelligence=26
++32 to maximum Mana | base_maximum_mana=32
+7% increased maximum Life | maximum_life_+%=7
++6% to Chaos Damage over Time Multiplier | chaos_dot_multiplier_+=6
++12% to Lightning Resistance | base_lightning_damage_resistance_%=12
+30% increased Global Critical Strike Chance | critical_strike_chance_+%=30 | 1 other readings
+Adds 145 to 225 Physical Damage | global_minimum_added_physical_damage=145 global_maximum_added_physical_damage=225 | 1 other readings
+46% increased Critical Strike Chance | local_critical_strike_chance_+%=46
++21% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=21
++23% to Chaos Resistance | base_chaos_damage_resistance_%=23
+On Killing a Poisoned Enemy, Enemies within 3 metres are Poisoned | no reading
+and nearby Allies Regenerate 400 Life per second | no reading
++78 to maximum Energy Shield | base_maximum_energy_shield=78 | 1 other readings
++56 to maximum Energy Shield | base_maximum_energy_shield=56 | 1 other readings
++44% to Fire Resistance | base_fire_damage_resistance_%=44
++42% to Lightning Resistance | base_lightning_damage_resistance_%=42
++50 to Strength | additional_strength=50
+20% increased Flask Effect Duration | flask_duration_+%=20
+6% increased maximum Energy Shield | maximum_energy_shield_+%=6
+4% increased maximum Mana | maximum_mana_+%=4
+Gain 10% of Maximum Mana as Extra Maximum Energy Shield while affected by Clarity | maximum_mana_%_to_add_to_energy_shield_while_affected_by_clarity=10
+13% increased Spell Damage | spell_damage_+%=13
+Adds 5 to 10 Fire Damage to Spells | spell_minimum_added_fire_damage=5 spell_maximum_added_fire_damage=10
+19% increased Fire Damage | fire_damage_+%=19
++9% to Fire Damage over Time Multiplier | fire_dot_multiplier_+=9
++14 to Intelligence | additional_intelligence=14
++4% to all Elemental Resistances | base_resist_all_elements_%=4 | 1 other readings
++88 to maximum Life | base_maximum_life=88
+84% increased Armour and Energy Shield | local_armour_and_energy_shield_+%=84
++30% to Fire Resistance | base_fire_damage_resistance_%=30
++28% to Cold Resistance | base_cold_damage_resistance_%=28
++36 to Strength | additional_strength=36
++74 to maximum Life | base_maximum_life=74
++38% to Lightning Resistance | base_lightning_damage_resistance_%=38
++28% to Chaos Resistance | base_chaos_damage_resistance_%=28
++34 to Strength | additional_strength=34
+9% increased Area of Effect | base_skill_area_of_effect_+%=9
++22 to Strength and Dexterity | additional_strength_and_dexterity=22
++78 to maximum Life | base_maximum_life=78
++18% to Fire Damage over Time Multiplier | fire_dot_multiplier_+=18
++36% to Lightning Resistance | base_lightning_damage_resistance_%=36
++30 to Dexterity | additional_dexterity=30
+Used when Charges reach full | local_flask_use_on_full_charges=1
++12 to Maximum Charges | local_extra_max_charges=12 local_flask_consume_extra_max_charges_when_used=0
+Recharges 5 Charges when you Consume an Ignited corpse | local_flask_gain_X_charges_on_consuming_ignited_corpse=5
+Enemies Ignited by you during Effect have Malediction | local_flask_ignited_enemies_during_effect_have_malediction=1
+Enemies Ignited by you during Effect take 7% increased Damage | local_flask_enemies_ignited_during_flask_effect_damage_taken_+%=7
+Recover 2% of Life when you Kill an Enemy during Effect | local_flask_recover_%_maximum_life_on_kill_during_flask_effect=2
+40% increased Spell Damage | spell_damage_+%=40
+324% increased Physical Damage | local_physical_damage_+%=324 local_weapon_no_physical_damage=0
+Gain 49% of Physical Damage as Extra Fire Damage | physical_damage_%_to_add_as_fire=49
+Gain 43% of Physical Damage as Extra Cold Damage | physical_damage_%_to_add_as_cold=43
+Gain 41% of Physical Damage as Extra Lightning Damage | physical_damage_%_to_add_as_lightning=41
++1 to maximum number of Sacred Wisps / +1 to number of Sacred Wisps Summoned | base_number_of_sacred_wisps_allowed=1
+369% increased Armour and Energy Shield | local_armour_and_energy_shield_+%=369
++10% to all Elemental Resistances | base_resist_all_elements_%=10 | 1 other readings
++5% to maximum Cold Resistance | base_maximum_cold_damage_resistance_%=5
++6% Chance to Block | local_additional_block_chance_%=6
+Recover Energy Shield equal to 2% of Armour when you Block | energy_shield_%_of_armour_rating_gained_on_block=2
+16% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=16
++133 to Armour | base_physical_damage_reduction_rating=133 | 1 other readings
++48 to maximum Energy Shield | base_maximum_energy_shield=48 | 1 other readings
++48% to Cold Resistance | base_cold_damage_resistance_%=48
+Recover 5% of Life on Kill | recover_%_maximum_life_on_kill=5
+11% increased Area of Effect | base_skill_area_of_effect_+%=11
+77% increased Armour and Energy Shield | local_armour_and_energy_shield_+%=77
+-2 to Level of Socketed Support Gems | local_socketed_support_gem_level_+=-2
++2 to Level of Socketed Skill Gems | local_socketed_active_skill_gem_level_+=2
++2 to Level of Socketed AoE Gems | local_socketed_area_of_effect_gem_level_+=2
+Socketed Gems are Supported by Level 20 Burning Damage | local_display_socketed_gems_supported_by_level_x_increased_burning_damage=20
+Socketed Gems deal 30% more Elemental Damage | local_display_socketed_gems_elemental_damage_+%_final=30
++117 to maximum Life | base_maximum_life=117
++30% to Cold Resistance | base_cold_damage_resistance_%=30
+31% increased Burning Damage | burn_damage_+%=31
+8% increased Area of Effect | base_skill_area_of_effect_+%=8
+72% increased Armour and Energy Shield | local_armour_and_energy_shield_+%=72
+Inflict Fire Exposure on Hit, applying -13% to Fire Resistance | fire_exposure_on_hit_magnitude=-13
+Ignites you inflict spread to other Enemies within 1.5 metres | gloves_ignite_proliferation_radius=15 | 1 other readings
++41 to Armour | base_physical_damage_reduction_rating=41 | 1 other readings
++22 to maximum Energy Shield | base_maximum_energy_shield=22 | 1 other readings
++42% to Lightning Resistance | base_lightning_damage_resistance_%=42
++34% to Chaos Resistance | base_chaos_damage_resistance_%=34
+35% of Physical Damage Converted to Fire Damage | base_physical_damage_%_to_convert_to_fire=35
+11% increased Area of Effect | base_skill_area_of_effect_+%=11
+16% increased Area Damage | area_damage_+%=16
+Ignites you inflict deal Damage 10% faster | faster_burn_%=10
+Ignites you inflict deal Damage 7% faster | faster_burn_%=7
+41% chance to Avoid being Shocked | base_avoid_shock_%=41
++97 to maximum Life | base_maximum_life=97
+30% increased Rarity of Items found | item_found_rarity_+%=30 | 1 other readings
++26% to Chaos Resistance | base_chaos_damage_resistance_%=26
+29% increased Movement Speed | base_movement_velocity_+%=29
+60% chance to Avoid being Shocked | base_avoid_shock_%=60
+12% increased Movement Speed if you haven't been Hit Recently | movement_velocity_while_not_hit_+%=12 | 1 other readings
+18% increased Elemental Damage | elemental_damage_+%=18
+18% increased Global Critical Strike Chance | critical_strike_chance_+%=18
++24% to Fire Resistance | base_fire_damage_resistance_%=24
++22% to Cold Resistance | base_cold_damage_resistance_%=22
+16% increased Duration of Ailments on Enemies | base_all_ailment_duration_+%=16
+Left Ring slot: Cover Enemies in Ash for 5 seconds when you Ignite them | local_left_ring_slot_cover_in_ash_for_x_seconds_when_igniting_enemy=5
+Right Ring slot: Cover Enemies in Frost for 5 seconds when you Freeze them | local_right_ring_slot_cover_in_frost_for_x_seconds_when_freezing_enemy=5
+Corrupted | no reading
++24 to Strength and Dexterity | additional_strength_and_dexterity=24
++92 to maximum Life | base_maximum_life=92
++1 to Level of all Fire Skill Gems | fire_skill_gem_level_+=1
++24% to Fire Damage over Time Multiplier | fire_dot_multiplier_+=24
++38% to Lightning Resistance | base_lightning_damage_resistance_%=38
++40 to Dexterity | additional_dexterity=40
+Used when Charges reach full | local_flask_use_on_full_charges=1
+36% increased Charge Recovery | local_charges_added_+%=36
+Enemies you Kill during Effect have a 23% chance to Explode, dealing a tenth of their maximum Life as Damage of a Random Element | local_unique_flask_explode_enemies_for_10%_life_as_random_element_on_kill_chance_%_during_flask_effect=23
+Corrupted | no reading
+Gain 10% of Fire Damage as Extra Chaos Damage | fire_damage_%_to_add_as_chaos=10
+Passives granting Fire Resistance or all Elemental Resistances in Radius / also grant Chance to Block Attack Damage at 50% of its value | local_unique_jewel_fire_resistance_also_grants_block_chance_scaled_%=50
+Adds 1 to 10 Lightning Damage to Spells and Attacks | spell_and_attack_minimum_added_lightning_damage=1 spell_and_attack_maximum_added_lightning_damage=10
+Adds 8 to 15 Cold Damage | global_minimum_added_cold_damage=8 global_maximum_added_cold_damage=15 | 1 other readings
+Adds 6 to 12 Fire Damage | global_minimum_added_fire_damage=6 global_maximum_added_fire_damage=12 | 1 other readings
+14% increased Critical Strike Chance | local_critical_strike_chance_+%=14
++90 to Accuracy Rating | accuracy_rating=90 | 1 other readings
++24% to Lightning Resistance | base_lightning_damage_resistance_%=24
+Adds 4 to 8 Fire Damage to Attacks | attack_minimum_added_fire_damage=4 attack_maximum_added_fire_damage=8
++35 to maximum Life | base_maximum_life=35
++15 to Intelligence | additional_intelligence=15
+18% increased Global Physical Damage | physical_damage_+%=18
+Adds 15 to 31 Fire Damage to Attacks | attack_minimum_added_fire_damage=15 attack_maximum_added_fire_damage=31
+Adds 11 to 26 Cold Damage to Attacks | attack_minimum_added_cold_damage=11 attack_maximum_added_cold_damage=26
+Adds 1 to 64 Lightning Damage to Attacks | attack_minimum_added_lightning_damage=1 attack_maximum_added_lightning_damage=64
++11% to all Elemental Resistances | base_resist_all_elements_%=11 | 1 other readings
+30% increased Elemental Damage with Attack Skills during any Flask Effect | elemental_damage_with_attack_skills_+%_while_using_flask=30
+Cannot roll Caster Modifiers | item_generation_cannot_roll_caster_affixes=1 | 1 other readings
+Adds 28 to 52 Cold Damage | global_minimum_added_cold_damage=28 global_maximum_added_cold_damage=52 | 1 other readings
+Adds 22 to 44 Fire Damage | global_minimum_added_fire_damage=22 global_maximum_added_fire_damage=44 | 1 other readings
+20% increased Critical Strike Chance | local_critical_strike_chance_+%=20
++160 to Accuracy Rating | accuracy_rating=160 | 1 other readings
++420 to Accuracy Rating | accuracy_rating=420 | 1 other readings
+230% increased Energy Shield | local_energy_shield_+%=230
+25% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=25
+Increases and Reductions to Cast Speed apply to Attack Speed | unique_helmet_cast_speed_+%_applies_to_attack_speed_at_%_of_original_value=100
+Ancestral Bond | keystone_ancestral_bond=1
++95 to maximum Life | base_maximum_life=95
++60 to maximum Mana | base_maximum_mana=60
++29% to Fire Resistance | base_fire_damage_resistance_%=29
++27% to Lightning Resistance | base_lightning_damage_resistance_%=27
+30% increased Movement Speed | base_movement_velocity_+%=30
++14% to Lightning and Chaos Resistances | lightning_and_chaos_damage_resistance_%=14
++16 to all Attributes | additional_all_attributes=16
++47 to Dexterity | additional_dexterity=47
+25% increased Spell Damage | spell_damage_+%=25
++30% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=30
++90 to maximum Life | base_maximum_life=90
++13% to Cold and Chaos Resistances | cold_and_chaos_damage_resistance_%=13
+49% increased Critical Strike Chance during Effect | local_flask_critical_strike_chance_+%_during_flask_effect=49
+9% increased Spell Damage | spell_damage_+%=9
+73% increased Chance to Block | local_block_chance_+%=73
+44% increased Spell Damage | spell_damage_+%=44
++12% to all Elemental Resistances | base_resist_all_elements_%=12 | 1 other readings
++29% to Fire Resistance | base_fire_damage_resistance_%=29
++42% to Lightning Resistance | base_lightning_damage_resistance_%=42
++25 to Dexterity | additional_dexterity=25
++60 to maximum Life | base_maximum_life=60
+4% increased Action Speed | action_speed_-%=-4
++122 to maximum Life | base_maximum_life=122
++60 to maximum Mana | base_maximum_mana=60
++29% to Fire Resistance | base_fire_damage_resistance_%=29
++27% to Lightning Resistance | base_lightning_damage_resistance_%=27
+30% increased Movement Speed | base_movement_velocity_+%=30
++14% to Lightning and Chaos Resistances | lightning_and_chaos_damage_resistance_%=14
++23% to Chaos Resistance | base_chaos_damage_resistance_%=23
++46 to maximum Energy Shield | base_maximum_energy_shield=46 | 1 other readings
++98 to maximum Life | base_maximum_life=98
++31% to Cold Resistance | base_cold_damage_resistance_%=31
+32% increased Elemental Damage with Attack Skills | elemental_damage_with_attack_skills_+%=32
++1 to Minimum Endurance Charges | base_minimum_endurance_charges=1
+40% increased Global Accuracy Rating | accuracy_rating_+%=40
+Adds 6 to 11 Physical Damage | global_minimum_added_physical_damage=6 global_maximum_added_physical_damage=11 | 1 other readings
+Adds 2 to 31 Lightning Damage | global_minimum_added_lightning_damage=2 global_maximum_added_lightning_damage=31 | 1 other readings
+8% increased Attack Speed | attack_speed_+%=8 | 1 other readings
++14 to Strength | additional_strength=14
+50% reduced Amount Recovered | local_flask_amount_to_recover_+%=-50
+135% increased Recovery rate | local_flask_recovery_speed_+%=135
+50% of Recovery applied Instantly | local_flask_recovery_amount_%_to_recover_instantly=50
++475 to Accuracy Rating | accuracy_rating=475 | 1 other readings
+Adds 52 to 86 Physical Damage | global_minimum_added_physical_damage=52 global_maximum_added_physical_damage=86 | 1 other readings
+8% increased Attack Speed | attack_speed_+%=8 | 1 other readings
++190 to Armour | base_physical_damage_reduction_rating=190 | 1 other readings
+3% reduced Movement Speed | base_movement_velocity_+%=-3
++290 to Accuracy Rating | accuracy_rating=290 | 1 other readings
+1% increased Attack Damage per 450 Armour | attack_damage_+%_per_450_physical_damage_reduction_rating=1
+23% reduced Charges per use | local_charges_used_+%=-23 local_flask_consume_charges_used_+%_when_used=0
+18% additional Elemental Resistances during Effect | local_flask_resistances_+%_while_healing=18
++4 to Level of Socketed Aura Gems | local_socketed_aura_gem_level_+=4
+Socketed Gems are Supported by Level 25 Divine Blessing | local_display_socketed_gems_supported_by_level_x_aura_duration=25
+280% increased Armour and Energy Shield | local_armour_and_energy_shield_+%=280
++16% to all Elemental Resistances | base_resist_all_elements_%=16 | 1 other readings
+28% increased Movement Speed | base_movement_velocity_+%=28
+5% increased maximum Energy Shield | maximum_energy_shield_+%=5
+5% increased maximum Life | maximum_life_+%=5
+5% increased maximum Mana | maximum_mana_+%=5
++8% Chance to Block Attack Damage while affected by Determination | block_%_while_affected_by_determination=8
+Damage Penetrates 12% Lightning Resistance while affected by Wrath | reduce_enemy_lightning_resistance_%_while_affected_by_wrath=12
+-70% to all Elemental Resistances | base_resist_all_elements_%=-70 | 1 other readings
+-4% to all maximum Elemental Resistances | additional_maximum_all_elemental_resistances_%=-4
+Elemental Resistances are capped by your highest Maximum Elemental Resistance instead | elemental_resistances_are_limited_by_highest_maximum_elemental_resistance=1

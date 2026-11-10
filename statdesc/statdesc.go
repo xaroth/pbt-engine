@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Errors NewSet and Describe return; match them with errors.Is.
@@ -55,7 +56,7 @@ type Handler struct {
 // Set holds scopes by name.
 type Set struct {
 	scopes   map[string]*scope
-	handlers map[string]func(number) number
+	handlers map[string]handler
 }
 
 type scope struct {
@@ -63,6 +64,9 @@ type scope struct {
 
 	parent *scope
 	index  map[string]int
+	// texts indexes the variants by the skeleton of their first line, for Read; built on first
+	// use.
+	texts func() map[string][]textEntry
 }
 
 // NewSet indexes scopes. Every parent must be in scopes.
@@ -89,6 +93,7 @@ func NewSet(scopes []Scope) (*Set, error) {
 
 func newScope(sc Scope) (*scope, error) {
 	x := &scope{Scope: sc, index: map[string]int{}}
+	x.texts = sync.OnceValue(x.indexTexts)
 	for i, d := range sc.Descriptions {
 		if err := checkDescription(d); err != nil {
 			return nil, fmt.Errorf("scope %s description %d: %w", sc.Name, i, err)
@@ -192,8 +197,8 @@ func (s *Set) render(d Description, stats map[string]int32) (string, bool, error
 		if !ok {
 			return "", false, fmt.Errorf("%w %s", ErrUnknownHandler, h.Name)
 		}
-		if f != nil {
-			nums[h.Stat] = f(nums[h.Stat])
+		if f.apply != nil {
+			nums[h.Stat] = f.apply(nums[h.Stat])
 		}
 	}
 	text, err := format(v.Text, nums)
@@ -324,9 +329,24 @@ func writeTag(b *strings.Builder, text string, i int) (int, error) {
 // writePlaceholder writes the number the {index:flags} at text[i] names, or nums[next] when it
 // names none. It returns the index of the closing brace and the next implicit index.
 func writePlaceholder(b *strings.Builder, text string, i int, nums []number, next int) (int, int, error) {
+	end, n, flags, err := parsePlaceholder(text, i, next, len(nums))
+	if err != nil {
+		return 0, 0, err
+	}
+	s := nums[n].String()
+	if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {
+		s = "+" + s
+	}
+	b.WriteString(s)
+	return end, n + 1, nil
+}
+
+// parsePlaceholder parses the {index:flags} at text[i] of a description of stats stats: the
+// index of its closing brace, the stat it names (next when it names none) and its flags.
+func parsePlaceholder(text string, i, next, stats int) (int, int, string, error) {
 	end := strings.IndexByte(text[i:], '}')
 	if end < 0 {
-		return 0, 0, fmt.Errorf("unclosed { in %q: %w", text, ErrBadTemplate)
+		return 0, 0, "", fmt.Errorf("unclosed { in %q: %w", text, ErrBadTemplate)
 	}
 	spec := text[i+1 : i+end]
 	idx, flags, _ := strings.Cut(spec, ":")
@@ -334,16 +354,11 @@ func writePlaceholder(b *strings.Builder, text string, i int, nums []number, nex
 	if idx != "" {
 		var err error
 		if n, err = strconv.Atoi(idx); err != nil {
-			return 0, 0, fmt.Errorf("placeholder {%s} in %q: %w", spec, text, ErrBadTemplate)
+			return 0, 0, "", fmt.Errorf("placeholder {%s} in %q: %w", spec, text, ErrBadTemplate)
 		}
 	}
-	if n >= len(nums) {
-		return 0, 0, fmt.Errorf("placeholder {%s} has no stat in %q: %w", spec, text, ErrBadTemplate)
+	if n < 0 || n >= stats {
+		return 0, 0, "", fmt.Errorf("placeholder {%s} has no stat in %q: %w", spec, text, ErrBadTemplate)
 	}
-	s := nums[n].String()
-	if strings.HasPrefix(flags, "+") && !strings.HasPrefix(s, "-") {
-		s = "+" + s
-	}
-	b.WriteString(s)
-	return i + end, n + 1, nil
+	return i + end, n, flags, nil
 }
