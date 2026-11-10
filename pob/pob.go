@@ -14,8 +14,8 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/pob/internal/pobxml"
-	"github.com/xaroth/pbt-engine/rules/poe1"
 )
 
 // Errors FromXML returns; match them with errors.Is. A file that is not a PoE1 PoB build

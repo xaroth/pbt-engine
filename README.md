@@ -2,7 +2,11 @@
 
 A headless build simulation engine for Path of Exile. It takes a build and a game version and returns the numbers a player cares about, each with an explanation of where it came from.
 
-Status: early. Datasets (the game data the engine reads) can be written, read and inspected. The evaluator (`core`: stats, modifiers, contexts, actors, lazy incremental evaluation with revert) and the character sheet rules for a build without items (`rules/poe1`) exist.
+Status: early. Datasets (the game data the engine reads) can be written, read and inspected. The evaluator (`internal/core`: stats, modifiers, contexts, actors, lazy incremental evaluation with revert) and the character sheet rules for a build without items (`internal/poe1`) exist.
+
+## Layout
+
+Hosts and tools import the packages at the top level: `simulator` (the API), `build`, `config`, `output`, `pob`, `power`, `dataset` (with `dataset/remote`) and `statdesc`. The pipeline behind them is under `internal/`, so it can change without breaking anyone: `core` (the game-neutral evaluator), `resolve` (build to stat bundles), `semantics` (the table format) and one package per game, `poe1` (rules, output catalogue and semantics table).
 
 ## Datasets
 
@@ -31,19 +35,19 @@ Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests o
 
 ```sh
 go test -run '^$' -bench . -benchmem ./...          # every benchmark
-go test -run '^$' -bench . -count 10 ./core > new.txt # then benchstat old.txt new.txt
-PBT_DATASETS=/tmp/pbt-testdata go test -run '^$' -bench Nodes ./power   # node power on the real tree (see Develop)
+go test -run '^$' -bench . -count 10 ./internal/core > new.txt # then benchstat old.txt new.txt
+PBT_DATASETS=/tmp/pbt-data/poe1 go test -run '^$' -bench Nodes ./power   # node power on the real tree (see Develop)
 ```
 
 ## Semantics
 
-What a game stat id means in engine terms is authored by us from game data: stat ids, stat description text, object templates. The `semantics` package holds the table format: entries keyed by stat id and scope, with optional game version ranges, a status (`authored`, `unknown` or `display-only`), the sources each was authored from, and for unknown entries a typed reason (a scenario condition, equipped items, a rule still to write, and so on).
+What a game stat id means in engine terms is authored by us from game data: stat ids, stat description text, object templates. The `internal/semantics` package holds the table format: entries keyed by stat id and scope, with optional game version ranges, a status (`authored`, `unknown` or `display-only`), the sources each was authored from, and for unknown entries a typed reason (a scenario condition, equipped items, a rule still to write, and so on).
 
-The Path of Exile 1 table (`semantics/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `semantics/poe1/testdata` for review. `semantics.Cover` reports the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
+The Path of Exile 1 table (`internal/poe1/table.json`) has an entry for every stat on standard tree nodes, characters and campaign rewards that its predicate, which reads the English description text, finds can change a character sheet value: attributes, life, mana, energy shield, armour, evasion, resistances and their maximums, life and mana regeneration. Stats whose text names a sheet value but that the predicate rejects (enemy and minion stats, costs, reservation, penetration, recovery) are listed per dataset in `internal/poe1/testdata` for review. `semantics.Cover` reports the stats that feed the sheet with no entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
 
 ## Rules
 
-`rules/poe1` computes the character sheet of a resolved build: `Open(resolved, table)` turns each bundle stat into engine modifiers through the semantics table, adds the rules' own (attribute bonuses, conversions, resistance caps) and returns a `Sheet`. `Sheet.Output` reads the named outputs of `Outputs()`, the catalogue consumers render from: attributes, life, mana, energy shield, armour, evasion rating, resistances with their maximums and uncapped totals, and regeneration per second. Stats the table cannot apply are listed in `Sheet.Notes`, not errors. Where neither game text nor game data states a formula detail, such as rounding, it follows Path of Building as a starting point and is marked unvalidated.
+`internal/poe1` computes the character sheet of a resolved build: `Open(resolved, table)` turns each bundle stat into engine modifiers through the semantics table, adds the rules' own (attribute bonuses, conversions, resistance caps) and returns a `Sheet`. `Sheet.Output` reads the named outputs of `Outputs()`, the catalogue consumers render from: attributes, life, mana, energy shield, armour, evasion rating, resistances with their maximums and uncapped totals, and regeneration per second. Stats the table cannot apply are listed in `Sheet.Notes`, not errors. Where neither game text nor game data states a formula detail, such as rounding, it follows Path of Building as a starting point and is marked unvalidated.
 
 ## Develop
 
@@ -53,7 +57,7 @@ Requires Go 1.27.
 go build ./...
 go test ./...
 golangci-lint run
-go test ./core -run '^$' -bench .   # benchmarks
+go test ./internal/core -run '^$' -bench .   # benchmarks
 ```
 
 Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures) read the datasets under `$PBT_DATASETS` by exact version (3.28.0.16 and 3.29.3.3) and skip without it. Check out the pbt-data commit that holds those versions:
@@ -62,7 +66,7 @@ Tests that need real datasets (sheets, goldens, node power, the semantics table 
 git clone https://github.com/xaroth/pbt-data /tmp/pbt-data
 git -C /tmp/pbt-data checkout b2469fb6eda35983c21fbf8aec3debc0ee32d7bf
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./...
-PBT_DATASETS=/tmp/pbt-data/poe1 go test ./semantics/poe1 -update   # rewrite its fixtures and golden lists
+PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 -update   # rewrite its fixtures, golden lists and explanation goldens
 ```
 
 ## Licence

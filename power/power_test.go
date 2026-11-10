@@ -8,8 +8,8 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/power"
-	"github.com/xaroth/pbt-engine/rules/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
 )
 

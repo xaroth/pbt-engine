@@ -8,9 +8,9 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
-	"github.com/xaroth/pbt-engine/resolve"
-	"github.com/xaroth/pbt-engine/rules/poe1"
 )
 
 // Stats is the result of one simulation: output values, warnings and the config each key

@@ -12,11 +12,10 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/internal/semantics"
 	"github.com/xaroth/pbt-engine/output"
-	"github.com/xaroth/pbt-engine/resolve"
-	"github.com/xaroth/pbt-engine/rules/poe1"
-	"github.com/xaroth/pbt-engine/semantics"
-	sempoe1 "github.com/xaroth/pbt-engine/semantics/poe1"
 )
 
 // Errors of the simulator; match them with errors.Is.
@@ -77,7 +76,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 	if g := store.Manifest().Game; g != poe1.Game {
 		return nil, fmt.Errorf("%w: %s", ErrGame, g)
 	}
-	t, err := sempoe1.Load()
+	t, err := poe1.Load()
 	if err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}

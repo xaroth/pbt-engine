@@ -12,8 +12,8 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/pob"
-	"github.com/xaroth/pbt-engine/rules/poe1"
 )
 
 const marauder = "Metadata/Characters/Str/Str"
