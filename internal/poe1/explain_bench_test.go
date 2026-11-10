@@ -32,8 +32,8 @@ func benchSheet(b *testing.B) *poe1.Sheet {
 	return sh
 }
 
-// BenchmarkProportional is the core proportional view of one output (01-goals, explanation of
-// one output: < 1 ms native, < 3 ms WASM).
+// BenchmarkProportional is the core proportional view of one output (target: < 1 ms native,
+// < 3 ms WASM).
 func BenchmarkProportional(b *testing.B) {
 	sh := benchSheet(b)
 	for _, stat := range []string{"maximum_life", "fire_resistance_capped", "life_regeneration"} {
@@ -48,8 +48,8 @@ func BenchmarkProportional(b *testing.B) {
 	}
 }
 
-// BenchmarkExplain is Sheet.Explain per view on life, sources grouped and named (01-goals,
-// explanation of one output: < 1 ms native).
+// BenchmarkExplain is Sheet.Explain per view on life, sources grouped and named (target
+// per output: < 1 ms native).
 func BenchmarkExplain(b *testing.B) {
 	sh := benchSheet(b)
 	for _, v := range []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal} {

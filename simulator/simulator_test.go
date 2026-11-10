@@ -386,7 +386,7 @@ func TestUncheckedWarning(t *testing.T) {
 	st := simulate(t, newSim(t), marauderBuild(1, 12))
 	want := []build.Warning{{
 		Code: simulator.UncheckedCondition, Subject: "maximum_life_+%_if_no_life_tags_on_body_armour from node 12",
-		Message: "applied without checking: no Life Modifiers on Equipped Body Armour: builds hold no items yet (M4), " +
+		Message: "applied without checking: no Life Modifiers on Equipped Body Armour: builds hold no items yet, " +
 			"and an empty body armour slot meets the condition, verified in game",
 	}}
 	var got []build.Warning

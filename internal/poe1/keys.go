@@ -67,7 +67,7 @@ func (b BanditChoice) Valid() error {
 		ErrConfigValue, b, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak)
 }
 
-// Config keys. Names describe the game (D25), not PoB's options.
+// Config keys. Names describe the game, not PoB's options.
 const (
 	Campaign config.Key[CampaignStage] = "campaign"
 	Bandits  config.Key[BanditChoice]  = "bandits"

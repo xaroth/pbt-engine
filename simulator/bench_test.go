@@ -8,8 +8,8 @@ import (
 	"github.com/xaroth/pbt-engine/simulator"
 )
 
-// BenchmarkSimulate simulates a build on a warm sim, the sheet taken from the pool (01-goals,
-// full evaluation of a typical build: < 3 ms native).
+// BenchmarkSimulate simulates a build on a warm sim, the sheet taken from the pool (target for
+// a typical build: < 3 ms native).
 func BenchmarkSimulate(b *testing.B) {
 	s := newSim(b)
 	base := marauderBuild(90, 2, 3, 4)
@@ -21,7 +21,7 @@ func BenchmarkSimulate(b *testing.B) {
 	}
 }
 
-// BenchmarkSweepVariant sweeps single-node variants on the fast path (01-goals, one what-if:
+// BenchmarkSweepVariant sweeps single-node variants on the fast path (target per variant:
 // < 0.2 ms native; ns/variant).
 func BenchmarkSweepVariant(b *testing.B) {
 	s := newSim(b)
@@ -42,7 +42,7 @@ func BenchmarkSweepVariant(b *testing.B) {
 }
 
 // BenchmarkStatsExplain explains life in each view on Stats whose sheet is open already
-// (01-goals, explanation of one output: < 1 ms native).
+// (target per output: < 1 ms native).
 func BenchmarkStatsExplain(b *testing.B) {
 	st := simulate(b, newSim(b), marauderBuild(90, 2, 3))
 	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {

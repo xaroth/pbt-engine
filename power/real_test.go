@@ -64,7 +64,7 @@ func realChieftain(tb testing.TB) (*simulator.Sim, *build.Build) {
 }
 
 // Every alone and path result equals simulating the edited build; ranking by life equals
-// sorting those brute-force values (2.10 acceptance).
+// sorting those brute-force values.
 func TestRealChieftainEqualsBruteForce(t *testing.T) {
 	t.Parallel()
 	sim, base := realChieftain(t)
@@ -117,8 +117,8 @@ func TestRealChieftainEqualsBruteForce(t *testing.T) {
 	}
 }
 
-// BenchmarkNodes sweeps every candidate of the real level 90 Chieftain (01-goals, node power,
-// ~1500 nodes: < 0.3 s native); it needs $PBT_DATASETS.
+// BenchmarkNodes sweeps every candidate of the real level 90 Chieftain (~1500 nodes, target:
+// < 0.3 s native); it needs $PBT_DATASETS.
 func BenchmarkNodes(b *testing.B) {
 	sim, base := realChieftain(b)
 	for name, opts := range map[string][]power.Option{

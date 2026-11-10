@@ -648,7 +648,7 @@ func (w *sheetWorld) sheet(b *testing.B, s *core.Session) {
 }
 
 // BenchmarkAssemble builds a session from a sheet's worth of modifiers, part of opening a
-// session from a build (01-goals: < 10 ms native).
+// session from a build (target for the whole open: < 10 ms native).
 func BenchmarkAssemble(b *testing.B) {
 	w := newSheetWorld(b)
 	b.ReportAllocs()
@@ -658,8 +658,8 @@ func BenchmarkAssemble(b *testing.B) {
 	b.ReportMetric(float64(len(w.mods)), "mods")
 }
 
-// BenchmarkSheetCold evaluates every sheet output from cold caches (01-goals, full evaluation
-// of a typical build: < 3 ms native).
+// BenchmarkSheetCold evaluates every sheet output from cold caches (target for a typical
+// build: < 3 ms native).
 func BenchmarkSheetCold(b *testing.B) {
 	w := newSheetWorld(b)
 	s := w.session(b)
@@ -672,7 +672,7 @@ func BenchmarkSheetCold(b *testing.B) {
 }
 
 // BenchmarkNodePower disables each source in turn, reads life and reverts, as node power does
-// (01-goals, one what-if: < 0.2 ms native; ns/whatif).
+// (target per what-if: < 0.2 ms native; ns/whatif).
 func BenchmarkNodePower(b *testing.B) {
 	w := newSheetWorld(b)
 	s := w.session(b)
