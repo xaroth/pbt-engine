@@ -84,15 +84,6 @@ func resolveBuild(t *testing.T, s *dataset.Store, b *build.Build) (*resolve.Reso
 	return r, wrap(t, "checked build", err)
 }
 
-func dump(t *testing.T, r *resolve.Resolved) string {
-	t.Helper()
-	var out strings.Builder
-	if err := r.Dump(&out); err != nil {
-		t.Fatal(err)
-	}
-	return out.String()
-}
-
 func TestResolve(t *testing.T) {
 	t.Parallel()
 	s := open(t, testDataset())
@@ -100,37 +91,31 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//nolint:dupword // a level bundle header followed by its level stat
-	want := `dataset poe1 3.29.3.3
-constant life_per_strength = 1 per 2 (unvalidated)
-bundle player global character Metadata/Characters/Str/Str
-  base_strength = 32
-  base_dexterity = 14
-  base_intelligence = 14
-  base_maximum_life = 38
-  base_maximum_mana = 34
-  life_per_level = 12
-  base_maximum_all_resistances_% = 75
-bundle player global level
-  level = 90
-bundle player global quest a2q2
-  base_resist_all_elements_% = 15
-bundle player global quest a5q6
-  base_resist_all_elements_% = -30
-  base_chaos_damage_resistance_% = -30
-bundle player global quest a10q3
-  base_resist_all_elements_% = -30
-  base_chaos_damage_resistance_% = -30
-bundle player global node 4
-  additional_strength = 10
-bundle player global node 7
-  additional_strength = 20
-  maximum_life_+% = 8
-bundle player buff node 7
-  aura_damage_+% = 5
-`
-	if diff := cmp.Diff(want, dump(t, r)); diff != "" {
-		t.Errorf("dump (-want +got):\n%s", diff)
+	global := func(src resolve.Source, stats ...resolve.StatValue) resolve.Bundle {
+		return resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: src, Stats: stats}
+	}
+	resists := func(v float64) []resolve.StatValue {
+		return []resolve.StatValue{{"base_resist_all_elements_%", v}, {"base_chaos_damage_resistance_%", v}}
+	}
+	want := &resolve.Resolved{
+		Game: "poe1", Version: "3.29.3.3",
+		Constants: []resolve.Constant{{ID: "life_per_strength", Value: 1, Per: 2}},
+		Bundles: []resolve.Bundle{
+			global(resolve.CharacterSource{ID: "Metadata/Characters/Str/Str"},
+				resolve.StatValue{"base_strength", 32}, resolve.StatValue{"base_dexterity", 14}, resolve.StatValue{"base_intelligence", 14},
+				resolve.StatValue{"base_maximum_life", 38}, resolve.StatValue{"base_maximum_mana", 34}, resolve.StatValue{"life_per_level", 12},
+				resolve.StatValue{"base_maximum_all_resistances_%", 75}),
+			global(resolve.LevelSource{}, resolve.StatValue{"level", 90}),
+			global(resolve.QuestSource{ID: "a2q2", Flag: "a2q2-QuestRewardTaken"}, resolve.StatValue{"base_resist_all_elements_%", 15}),
+			global(resolve.QuestSource{ID: "a5q6", Flag: "a5q6-CompletedBoss"}, resists(-30)...),
+			global(resolve.QuestSource{ID: "a10q3", Flag: "EndGameAvailable"}, resists(-30)...),
+			global(resolve.NodeSource{ID: 4}, resolve.StatValue{"additional_strength", 10}),
+			global(resolve.NodeSource{ID: 7}, resolve.StatValue{"additional_strength", 20}, resolve.StatValue{"maximum_life_+%", 8}),
+			{Actor: resolve.Player, Scope: resolve.Buff, Source: resolve.NodeSource{ID: 7}, Stats: []resolve.StatValue{{"aura_damage_+%", 5}}},
+		},
+	}
+	if diff := cmp.Diff(want, r); diff != "" {
+		t.Errorf("resolved (-want +got):\n%s", diff)
 	}
 }
 
@@ -145,9 +130,8 @@ func TestResolveCapabilities(t *testing.T) {
 	if got := r.Capabilities["armour"]; got != 3 {
 		t.Errorf("armour version: got %d, want 3", got)
 	}
-	want := "dataset poe1 3.29.3.3\ncapability armour = 3\ncapability life-from-strength = 2\nconstant "
-	if got := dump(t, r); !strings.HasPrefix(got, want) {
-		t.Errorf("dump: got\n%s\nwant prefix\n%s", got, want)
+	if diff := cmp.Diff(d.Manifest.Capabilities, r.Capabilities); diff != "" {
+		t.Errorf("capabilities (-want +got):\n%s", diff)
 	}
 }
 
@@ -171,7 +155,7 @@ func TestResolveSources(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("sources (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]resolve.Constant{{ID: "life_per_strength", Value: 1, Per: 2, Validated: false}}, r.Constants); diff != "" {
+	if diff := cmp.Diff([]resolve.Constant{{ID: "life_per_strength", Value: 1, Per: 2}}, r.Constants); diff != "" {
 		t.Errorf("constants (-want +got):\n%s", diff)
 	}
 }
@@ -197,8 +181,8 @@ func TestResolveMasteries(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []resolve.NodeSource{{ID: 7}, {ID: 7}, {ID: 9, Effect: 1}}
-	if diff := cmp.Diff(want, nodeSources(r)); diff != "" || len(r.Notes) != 0 {
-		t.Errorf("node sources (-want +got):\n%s\nnotes %v", diff, r.Notes)
+	if diff := cmp.Diff(want, nodeSources(r)); diff != "" {
+		t.Errorf("node sources (-want +got):\n%s", diff)
 	}
 }
 

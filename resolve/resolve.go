@@ -7,7 +7,6 @@ package resolve
 import (
 	"cmp"
 	"fmt"
-	"io"
 	"maps"
 	"slices"
 	"strings"
@@ -116,9 +115,6 @@ type Bundle struct {
 type Constant struct {
 	ID         string
 	Value, Per int32
-	// Validated says the constant has a game source. Datasets record no source for
-	// constants, so it is false for every constant.
-	Validated bool
 }
 
 // Resolved is the output of the resolve stage. Bundles are in a fixed order: character,
@@ -133,8 +129,6 @@ type Resolved struct {
 	// Counters are the stats the tree counts rather than gives: each mastery group's count
 	// stat, which every mastery of the group carries at 1. Sorted.
 	Counters []string
-	// Notes lists build fields that were not resolved, with the reason.
-	Notes []string
 }
 
 // CharacterColumn is a Characters column and the stat id that carries it in a character's
@@ -405,33 +399,4 @@ func statValues(stats []dataset.Stat, svs []dataset.StatValue) []StatValue {
 		out = append(out, StatValue{Stat: stats[sv.Stat].ID, Value: float64(sv.Value)})
 	}
 	return out
-}
-
-// Dump writes r as text, one line per constant, bundle header and stat.
-func (r *Resolved) Dump(w io.Writer) error {
-	var b strings.Builder
-	fmt.Fprintf(&b, "dataset %s %s\n", r.Game, r.Version)
-	for _, name := range slices.Sorted(maps.Keys(r.Capabilities)) {
-		fmt.Fprintf(&b, "capability %s = %d\n", name, r.Capabilities[name])
-	}
-	for _, c := range r.Constants {
-		status := "unvalidated"
-		if c.Validated {
-			status = "validated"
-		}
-		fmt.Fprintf(&b, "constant %s = %d per %d (%s)\n", c.ID, c.Value, c.Per, status)
-	}
-	for _, bd := range r.Bundles {
-		fmt.Fprintf(&b, "bundle %s %s %s\n", bd.Actor, bd.Scope, bd.Source)
-		for _, sv := range bd.Stats {
-			fmt.Fprintf(&b, "  %s = %v\n", sv.Stat, sv.Value)
-		}
-	}
-	for _, n := range r.Notes {
-		fmt.Fprintf(&b, "note %s\n", n)
-	}
-	if _, err := io.WriteString(w, b.String()); err != nil {
-		return fmt.Errorf("resolve: write: %w", err)
-	}
-	return nil
 }
