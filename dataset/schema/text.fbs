@@ -57,6 +57,11 @@ table Text {
   // Keyed by character id.
   character_names: [Name] (required);
   ascendancy_names: [AscendancyName] (required);
+  // Keyed by ItemClass, ItemBase and Mod ids. A mod's name is its affix name, left out when
+  // empty.
+  item_class_names: [Name];
+  base_names: [Name];
+  mod_names: [Name];
 }
 
 root_type Text;

@@ -1,0 +1,48 @@
+namespace fb;
+
+file_identifier "PBMD";
+
+// stat is an index into Mods.stat_ids. The ruthless range equals min and max when the mod has
+// no values of its own for Ruthless.
+struct ModStat {
+  stat: uint32;
+  min: int32;
+  max: int32;
+  ruthless_min: int32;
+  ruthless_max: int32;
+}
+
+// tag is an index into Mods.tag_ids.
+struct TagWeight {
+  tag: uint32;
+  weight: int32;
+}
+
+table Mod {
+  // Mods.Id.
+  id: string (required);
+  // ModDomains and ModGenerationType names, such as "ITEM" and "PREFIX".
+  domain: string (required);
+  generation: string (required);
+  level: int32;
+  // ModType.Name.
+  type: string (required);
+  // ModFamily.Id; an item holds one mod per family.
+  families: [string];
+  // In game order.
+  stats: [ModStat];
+  // Indexes into tag_ids: the mod's own tags, and those it adds to its item.
+  tags: [uint32];
+  added_tags: [uint32];
+  spawn_weights: [TagWeight];
+  generation_weights: [TagWeight];
+}
+
+table Mods {
+  mods: [Mod] (required);
+  // Stat and tag ids the file uses, sorted, as in characters.fbs.
+  stat_ids: [string] (required);
+  tag_ids: [string] (required);
+}
+
+root_type Mods;
