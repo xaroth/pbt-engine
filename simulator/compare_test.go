@@ -126,7 +126,7 @@ func TestStatsExplain(t *testing.T) {
 	b := marauderBuild(90, 2, 3, 4)
 	b.Masteries = map[uint32]uint32{4: 7}
 	st := simulate(t, newSim(t), b)
-	for _, v := range []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal} {
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
 		ex, err := st.Explain(poe1.Life, v)
 		if err != nil {
 			t.Fatal(err)
@@ -135,7 +135,7 @@ func TestStatsExplain(t *testing.T) {
 			t.Errorf("%s: value %v, stats %v", v, ex.Value, get(t, st, poe1.Life))
 		}
 	}
-	ex, err := st.Explain(poe1.Life, poe1.Proportional)
+	ex, err := st.Explain(poe1.Life, simulator.Proportional)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestStatsExplain(t *testing.T) {
 	if math.Abs(sum-ex.Amount) > 1e-9 || len(ex.Lines) != 5 {
 		t.Errorf("lines %d sum %v, amount %v", len(ex.Lines), sum, ex.Amount)
 	}
-	if _, err := st.Explain("player.nothing", poe1.Tree); err == nil {
+	if _, err := st.Explain("player.nothing", simulator.Tree); err == nil {
 		t.Error("unknown output: no error")
 	}
 }
@@ -159,7 +159,7 @@ func TestStatsExplainConcurrent(t *testing.T) {
 	for g := range 6 {
 		wg.Go(func() {
 			for _, k := range []output.Key{poe1.Life, poe1.FireResistance, poe1.Mana} {
-				if _, err := st.Explain(k, []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal}[g%3]); err != nil {
+				if _, err := st.Explain(k, []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal}[g%3]); err != nil {
 					t.Error(err)
 				}
 			}

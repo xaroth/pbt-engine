@@ -151,8 +151,16 @@ func TestSimulate(t *testing.T) {
 	if v := get(t, st, poe1.FireResistance); v != -60 {
 		t.Errorf("fire resistance %v, want -60", v)
 	}
-	if len(st.Keys()) != len(poe1.Outputs()) || len(st.Warnings()) != 0 {
-		t.Errorf("keys %d, warnings %v", len(st.Keys()), st.Warnings())
+	outputs := s.Outputs()
+	catalogue := make([]output.Key, 0, len(outputs))
+	for _, o := range outputs {
+		catalogue = append(catalogue, o.Key)
+	}
+	if diff := cmp.Diff(catalogue, st.Keys()); diff != "" {
+		t.Errorf("keys against the catalogue (-want +got):\n%s", diff)
+	}
+	if len(st.Warnings()) != 0 {
+		t.Errorf("warnings %v", st.Warnings())
 	}
 	b.Nodes[0] = 5
 	if v := get(t, st, poe1.Life); v != 1327 {
