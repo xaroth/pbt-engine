@@ -42,6 +42,10 @@ func testStore(tb testing.TB) *dataset.Store {
 // testStoreWith is testStore at version with node 2 giving life2 life.
 func testStoreWith(tb testing.TB, version string, life2 int32) *dataset.Store {
 	tb.Helper()
+	return storeOf(tb, testDataset(version, life2))
+}
+
+func testDataset(version string, life2 int32) *dataset.Dataset {
 	d := &dataset.Dataset{
 		Manifest: dataset.Manifest{Game: "poe1", Version: version},
 		Characters: []dataset.Character{{
@@ -79,6 +83,11 @@ func testStoreWith(tb testing.TB, version string, life2 int32) *dataset.Store {
 	for _, id := range statIDs() {
 		d.Stats = append(d.Stats, dataset.Stat{ID: id})
 	}
+	return d
+}
+
+func storeOf(tb testing.TB, d *dataset.Dataset) *dataset.Store {
+	tb.Helper()
 	dir := tb.TempDir()
 	if _, err := dataset.Write(dir, d); err != nil {
 		tb.Fatal(err)

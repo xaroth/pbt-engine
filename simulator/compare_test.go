@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/rules/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
@@ -88,6 +89,35 @@ func TestDiffAcrossDatasets(t *testing.T) {
 	}
 	if before.Version() != "3.28.0.16" || after.Version() != "3.29.3.3" {
 		t.Errorf("versions %s, %s", before.Version(), after.Version())
+	}
+}
+
+// Builds on different tree variants have no data changes, even for a node only one tree has.
+func TestDiffAcrossVariants(t *testing.T) {
+	t.Parallel()
+	older, err := simulator.New(testStoreWith(t, "3.28.0.16", 10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := testDataset("3.29.3.3", 20)
+	alternate := d.Trees[0]
+	alternate.Variant = "alternate"
+	alternate.Nodes = slices.DeleteFunc(slices.Clone(alternate.Nodes), func(n dataset.Node) bool { return n.ID == 2 })
+	alternate.Nodes[0].Neighbours = []uint32{3, 4, 6, 8}
+	d.Trees = append(d.Trees, alternate)
+	newer, err := simulator.New(storeOf(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := simulate(t, older, marauderBuild(90, 2, 3))
+	b := marauderBuild(90, 3)
+	b.Variant = "alternate"
+	diff, err := before.Diff(simulate(t, newer, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.DataChanges) != 0 {
+		t.Errorf("data changes %+v, want none", diff.DataChanges)
 	}
 }
 

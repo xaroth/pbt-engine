@@ -24,6 +24,28 @@ const (
 	chieftainStart = 1
 )
 
+// standardOf reads the tables of s other than trees and texts, and its standard tree.
+func standardOf(tb testing.TB, s *dataset.Store) (*dataset.Dataset, *dataset.Tree) {
+	tb.Helper()
+	stats, err := s.Stats()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	characters, err := s.Characters()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	quests, err := s.Quests()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	standard, err := s.Tree("standard")
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return &dataset.Dataset{Stats: stats, Characters: characters, Quests: quests}, standard
+}
+
 // fixtureStore is the semantics fixture of version (the real standard tree's nodes with the
 // stats the table knows, so it runs without $PBT_DATASETS) plus a Marauder start joined to
 // every other node, a Chieftain start joined to the Chieftain nodes and the test constants: the
@@ -34,11 +56,8 @@ func fixtureStore(tb testing.TB, version string) *dataset.Store {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	d, err := fx.Dataset(dataset.Options{Trees: []string{"standard"}})
-	if err != nil {
-		tb.Fatal(err)
-	}
-	tree := d.Trees[0]
+	d, standard := standardOf(tb, fx)
+	tree := *standard
 	tree.Nodes = slices.Clone(tree.Nodes)
 	var main, chief []uint32
 	for i := range tree.Nodes {

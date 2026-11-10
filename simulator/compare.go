@@ -2,7 +2,6 @@ package simulator
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"slices"
 
@@ -36,7 +35,8 @@ type Diff struct {
 	// or tree variant).
 	Edits []build.Edit
 	// DataChanges are the nodes either build allocates whose data differs between the two
-	// datasets; empty when both ran on one dataset. A node listed may change no output.
+	// datasets; empty when both ran on one dataset or on different tree variants. A node
+	// listed may change no output.
 	DataChanges []NodeChange
 }
 
@@ -132,14 +132,14 @@ func (st *Stats) Diff(other *Stats) (*Diff, error) {
 	return d, nil
 }
 
-// nodeChanges lists the nodes either side allocates that dataset.Compare finds changed.
+// nodeChanges lists the nodes either side allocates whose data changed between the two
+// datasets. Builds on different tree variants have none: their nodes are not the same nodes.
 func nodeChanges(a, b *Stats) ([]NodeChange, error) {
 	variant := a.checked.Build().Variant
-	da, err := a.sim.store.Dataset(dataset.Options{Trees: []string{variant}})
-	if err != nil {
-		return nil, fmt.Errorf("simulator: diff: %w", err)
+	if b.checked.Build().Variant != variant {
+		return nil, nil
 	}
-	db, err := b.sim.store.Dataset(dataset.Options{Trees: []string{b.checked.Build().Variant}})
+	td, err := dataset.CompareTree(a.sim.store, b.sim.store, variant)
 	if err != nil {
 		return nil, fmt.Errorf("simulator: diff: %w", err)
 	}
@@ -148,25 +148,43 @@ func nodeChanges(a, b *Stats) ([]NodeChange, error) {
 		allocated[n.ID] = true
 	}
 	var out []NodeChange
-	for _, td := range dataset.Compare(da, db).Trees {
-		if td.Variant != variant {
+	for _, nd := range td.Changed {
+		if !allocated[nd.ID] {
 			continue
 		}
-		for _, nd := range td.Changed {
-			if allocated[nd.ID] {
-				out = append(out, NodeChange{Node: nd.ID, Fields: nd.Fields, Before: nodeStats(da, nd.ID), After: nodeStats(db, nd.ID)})
-			}
+		before, err := nodeStats(a.sim.store, variant, nd.ID)
+		if err != nil {
+			return nil, err
 		}
+		after, err := nodeStats(b.sim.store, variant, nd.ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, NodeChange{Node: nd.ID, Fields: nd.Fields, Before: before, After: after})
 	}
 	slices.SortFunc(out, func(x, y NodeChange) int { return int(x.Node) - int(y.Node) })
 	return out, nil
 }
 
-func nodeStats(d *dataset.Dataset, id uint32) map[string]int32 {
-	for _, n := range d.Trees[0].Nodes {
-		if n.ID == id {
-			return maps.Clone(d.StatMap(n.Stats))
-		}
+// nodeStats returns a node's stats by stat id.
+func nodeStats(s *dataset.Store, variant string, id uint32) (map[string]int32, error) {
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, fmt.Errorf("simulator: diff: %w", err)
 	}
-	return nil
+	tree, err := s.Tree(variant)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: diff: %w", err)
+	}
+	for _, n := range tree.Nodes {
+		if n.ID != id {
+			continue
+		}
+		out := make(map[string]int32, len(n.Stats))
+		for _, sv := range n.Stats {
+			out[stats[sv.Stat].ID] = sv.Value
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("simulator: diff: node %d in the %s tree: %w", id, variant, dataset.ErrNotInDataset)
 }
