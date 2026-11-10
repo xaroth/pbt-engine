@@ -11,8 +11,9 @@ import (
 )
 
 // loadBuild reads a build file: a Path of Building build when it starts with '<', else build
-// JSON. A PoB build's import warnings go to notes, folded per kind unless --warnings all.
-func loadBuild(in invocation, notes io.Writer, path string) (*build.Build, error) {
+// JSON. A PoB build's import warnings go to notes, folded per kind unless --warnings all, and
+// prefixed with path when named (a command reading more than one build).
+func loadBuild(in invocation, notes io.Writer, path string, named bool) (*build.Build, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read build: %w", err)
@@ -28,8 +29,12 @@ func loadBuild(in invocation, notes io.Writer, path string) (*build.Build, error
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	prefix := ""
+	if named {
+		prefix = path + ": "
+	}
 	p := &printer{w: notes}
-	printImportWarnings(p, ws, in.opts["warnings"] == warningsAll)
+	printImportWarnings(p, ws, in.opts["warnings"] == warningsAll, prefix)
 	return b, p.err
 }
 
@@ -47,11 +52,13 @@ func importPoB(in invocation, notes io.Writer, data []byte) (*build.Build, []bui
 	return b, ws, nil
 }
 
-// printImportWarnings prints import warnings; unless all, a kind seen more than once is one
-// line with its count.
-func printImportWarnings(p *printer, ws []build.Warning, all bool) {
+// printImportWarnings prints import warnings, each line after prefix; unless all, a kind seen
+// more than once is one line with its count.
+func printImportWarnings(p *printer, ws []build.Warning, all bool, prefix string) {
 	if all {
-		printWarnings(p, ws)
+		for _, w := range ws {
+			p.printf("%swarning %s\n", prefix, w)
+		}
 		return
 	}
 	var order []build.Code
@@ -67,10 +74,10 @@ func printImportWarnings(p *printer, ws []build.Warning, all bool) {
 	folded := false
 	for _, c := range order {
 		if count[c] == 1 {
-			p.printf("warning %s\n", first[c])
+			p.printf("%swarning %s\n", prefix, first[c])
 			continue
 		}
-		p.printf("warning %s: %d (%s, ...)\n", c, count[c], first[c].Subject)
+		p.printf("%swarning %s: %d (%s, ...)\n", prefix, c, count[c], first[c].Subject)
 		folded = true
 	}
 	if folded {

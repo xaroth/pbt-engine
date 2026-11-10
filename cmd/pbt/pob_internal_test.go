@@ -86,3 +86,29 @@ func TestCommandsTakePoB(t *testing.T) {
 		t.Errorf("--warnings all: %d item warnings, want 2:\n%s", got, notes.String())
 	}
 }
+
+// The dataset root opens once per command, so a skipped dataset is noted once; compare names
+// the file each import warning comes from.
+func TestCompareTwoPoBFiles(t *testing.T) {
+	t.Parallel()
+	root := writeSimRoot(t)
+	if err := os.MkdirAll(filepath.Join(root, "broken"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "broken", "manifest.json"), []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, b := writeFile(t, "a.xml", pobXML("None", "1,2")), writeFile(t, "b.xml", pobXML("None", "1"))
+	var out, notes bytes.Buffer
+	if err := run(t.Context(), []string{"compare", a, b, "--root", root}, &out, &notes); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(notes.String(), "pbt: skipped"); got != 1 {
+		t.Errorf("skipped dataset noted %d times, want 1:\n%s", got, notes.String())
+	}
+	for _, path := range []string{a, b} {
+		if !strings.Contains(notes.String(), path+": warning pob-item-ignored: 2 (Doom Crown, ...)") {
+			t.Errorf("notes lack %s's import warnings:\n%s", path, notes.String())
+		}
+	}
+}

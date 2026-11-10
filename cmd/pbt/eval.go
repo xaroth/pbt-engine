@@ -21,10 +21,10 @@ var (
 	errView = errors.New("--view wants tree, proportional or marginal")
 )
 
-// simFor reads a build file (see loadBuild) and returns it with a sim over the dataset its version (or
-// version, when set) resolves to.
-func simFor(in invocation, path, version string) (*build.Build, *simulator.Sim, error) {
-	b, err := loadBuild(in, in.notes, path)
+// simFor reads a build file (see loadBuild; named prefixes its import warnings with the path)
+// and returns it with a sim over the dataset its version (or version, when set) resolves to.
+func simFor(in invocation, path, version string, named bool) (*build.Build, *simulator.Sim, error) {
+	b, err := loadBuild(in, in.notes, path, named)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -73,7 +73,7 @@ func view(name string) (poe1.View, error) {
 }
 
 func eval(in invocation) error {
-	b, s, err := simFor(in, in.pos[1], in.opts["version"])
+	b, s, err := simFor(in, in.pos[1], in.opts["version"], false)
 	if err != nil {
 		return err
 	}
@@ -170,11 +170,11 @@ func explain(in invocation, p *printer, st *simulator.Stats) error {
 }
 
 func compare(in invocation) error {
-	a, sa, err := simFor(in, in.pos[1], in.opts["version"])
+	a, sa, err := simFor(in, in.pos[1], in.opts["version"], true)
 	if err != nil {
 		return err
 	}
-	b, sb, err := simFor(in, in.pos[2], cmp.Or(in.opts["version-b"], in.opts["version"]))
+	b, sb, err := simFor(in, in.pos[2], cmp.Or(in.opts["version-b"], in.opts["version"]), true)
 	if err != nil {
 		return err
 	}

@@ -152,7 +152,7 @@ func run(ctx context.Context, args []string, w, notes io.Writer) error {
 	if !ok || (cmd.args != anyArgs && len(pos) != cmd.args) {
 		return errUsage
 	}
-	return cmd.run(invocation{ctx: ctx, pos: pos, opts: opts, w: w, notes: notes})
+	return cmd.run(invocation{ctx: ctx, pos: pos, opts: opts, w: w, notes: notes, registries: map[string]*dataset.Registry{}})
 }
 
 // invocation is a parsed command line and where its output goes.
@@ -161,6 +161,8 @@ type invocation struct {
 	pos      []string
 	opts     map[string]string
 	w, notes io.Writer
+	// registries are the opened dataset roots by game, shared by every copy of the invocation.
+	registries map[string]*dataset.Registry
 }
 
 func dataShow(in invocation) error {
@@ -274,8 +276,12 @@ func (in invocation) resolve(notes io.Writer, game string, versions ...string) (
 	return out, p.err
 }
 
-// registry opens the datasets of game's root (see root), noting on notes each one skipped.
+// registry opens the datasets of game's root (see root) once per invocation, noting on notes
+// each one skipped.
 func (in invocation) registry(notes io.Writer, game string) (*dataset.Registry, error) {
+	if reg, ok := in.registries[game]; ok {
+		return reg, nil
+	}
 	root, err := in.root(notes, game)
 	if err != nil {
 		return nil, err
@@ -290,6 +296,7 @@ func (in invocation) registry(notes io.Writer, game string) (*dataset.Registry, 
 			p.printf("pbt: skipped %s/%s\n", root, line)
 		}
 	}
+	in.registries[game] = reg
 	return reg, p.err
 }
 
@@ -350,7 +357,7 @@ func printWarnings(p *printer, ws []build.Warning) {
 // checkBuild reads a build file and checks it against the dataset its version resolves to,
 // noting on notes as resolve does.
 func checkBuild(in invocation, notes io.Writer, path string) (*build.Checked, error) {
-	b, err := loadBuild(in, notes, path)
+	b, err := loadBuild(in, notes, path, false)
 	if err != nil {
 		return nil, err
 	}
