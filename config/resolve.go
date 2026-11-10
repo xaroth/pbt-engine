@@ -30,16 +30,25 @@ func (s Source) String() string {
 	return "source?"
 }
 
-// Spec describes one key to Resolve: its name, default and decoder.
+// Spec describes one key to Resolve: its name, default, values and decoder.
 type Spec struct {
 	Name    string
 	Default any
-	decode  func(json.RawMessage) (any, error)
+	// Values are the values the key takes, in display order; nil when it is not a closed set.
+	Values []any
+	decode func(json.RawMessage) (any, error)
 }
 
-// SpecOf returns the Spec of k with default def.
-func SpecOf[T any](k Key[T], def T) Spec {
-	return Spec{Name: k.Name(), Default: def, decode: func(raw json.RawMessage) (any, error) { return k.Decode(raw) }}
+// SpecOf returns the Spec of k with default def and, for a closed set, its values.
+func SpecOf[T any](k Key[T], def T, values ...T) Spec {
+	var vs []any
+	if len(values) > 0 {
+		vs = make([]any, len(values))
+		for i, v := range values {
+			vs[i] = v
+		}
+	}
+	return Spec{Name: k.Name(), Default: def, Values: vs, decode: func(raw json.RawMessage) (any, error) { return k.Decode(raw) }}
 }
 
 // Layer is one set of values and where it comes from.

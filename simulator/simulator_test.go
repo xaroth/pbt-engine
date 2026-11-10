@@ -209,6 +209,37 @@ func TestConfigLayers(t *testing.T) {
 	}
 }
 
+// Every value the catalogue lists is accepted without a warning.
+func TestConfigKeys(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	keys, err := s.ConfigKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := func(vs ...string) []json.RawMessage {
+		out := make([]json.RawMessage, 0, len(vs))
+		for _, v := range vs {
+			out = append(out, json.RawMessage(`"`+v+`"`))
+		}
+		return out
+	}
+	want := []simulator.ConfigKey{
+		{Name: "campaign", Default: raw("complete")[0], Values: raw("complete", "acts-6-10", "acts-1-5")},
+		{Name: "bandits", Default: raw("")[0], Values: raw("", "kill-all", "help-alira", "help-kraityn", "help-oak")},
+	}
+	if diff := cmp.Diff(want, keys); diff != "" {
+		t.Errorf("config keys (-want +got):\n%s", diff)
+	}
+	for _, k := range keys {
+		for _, v := range k.Values {
+			if st := simulate(t, s, marauderBuild(90), simulator.SetRaw(k.Name, v)); len(st.Warnings()) != 0 {
+				t.Errorf("%s = %s: warnings %v", k.Name, v, st.Warnings())
+			}
+		}
+	}
+}
+
 func TestWarnings(t *testing.T) {
 	t.Parallel()
 	s := newSim(t)

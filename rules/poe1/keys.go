@@ -3,6 +3,7 @@ package poe1
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/output"
@@ -26,10 +27,14 @@ const (
 	CampaignActs1To5 CampaignStage = "acts-1-5"
 )
 
+// campaignStages are the campaign stages, latest first.
+func campaignStages() []CampaignStage {
+	return []CampaignStage{CampaignComplete, CampaignActs6To10, CampaignActs1To5}
+}
+
 // Valid reports whether s is a campaign stage.
 func (s CampaignStage) Valid() error {
-	switch s {
-	case CampaignComplete, CampaignActs6To10, CampaignActs1To5:
+	if slices.Contains(campaignStages(), s) {
 		return nil
 	}
 	return fmt.Errorf("%w: campaign %q, want %s, %s or %s", ErrConfigValue, s, CampaignComplete, CampaignActs6To10, CampaignActs1To5)
@@ -48,10 +53,14 @@ const (
 	BanditsHelpOak      BanditChoice = "help-oak"
 )
 
+// banditChoices are the bandit quest outcomes, not completed first.
+func banditChoices() []BanditChoice {
+	return []BanditChoice{BanditsNotCompleted, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak}
+}
+
 // Valid reports whether b is a bandit quest outcome.
 func (b BanditChoice) Valid() error {
-	switch b {
-	case BanditsNotCompleted, BanditsKillAll, BanditsHelpAlira, BanditsHelpKraityn, BanditsHelpOak:
+	if slices.Contains(banditChoices(), b) {
 		return nil
 	}
 	return fmt.Errorf("%w: bandits %q, want %s, %s, %s, %s or empty (quest not completed)",
@@ -64,11 +73,11 @@ const (
 	Bandits  config.Key[BanditChoice]  = "bandits"
 )
 
-// ConfigSpecs returns every poe1 config key with its default.
+// ConfigSpecs returns every poe1 config key with its default and values.
 func ConfigSpecs() []config.Spec {
 	return []config.Spec{
-		config.SpecOf(Campaign, CampaignComplete),
-		config.SpecOf(Bandits, BanditsNotCompleted),
+		config.SpecOf(Campaign, CampaignComplete, campaignStages()...),
+		config.SpecOf(Bandits, BanditsNotCompleted, banditChoices()...),
 	}
 }
 
