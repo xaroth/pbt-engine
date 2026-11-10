@@ -33,7 +33,7 @@ type Stats struct {
 // Explain explains output k in view v. The first call opens a sheet from the build and config
 // the simulation used (about a millisecond); later calls reuse it. Safe for concurrent use;
 // explanations of one Stats run one at a time.
-func (st *Stats) Explain(k output.Key, v poe1.View) (*poe1.Explanation, error) {
+func (st *Stats) Explain(k output.Key, v View) (*Explanation, error) {
 	st.explainMu.Lock()
 	defer st.explainMu.Unlock()
 	if st.explainSheet == nil && st.explainErr == nil {

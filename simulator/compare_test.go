@@ -1,11 +1,14 @@
 package simulator_test
 
 import (
+	"cmp"
 	"math"
 	"math/rand/v2"
 	"slices"
 	"sync"
 	"testing"
+
+	gocmp "github.com/google/go-cmp/cmp"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -126,7 +129,7 @@ func TestStatsExplain(t *testing.T) {
 	b := marauderBuild(90, 2, 3, 4)
 	b.Masteries = map[uint32]uint32{4: 7}
 	st := simulate(t, newSim(t), b)
-	for _, v := range []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal} {
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
 		ex, err := st.Explain(poe1.Life, v)
 		if err != nil {
 			t.Fatal(err)
@@ -135,7 +138,7 @@ func TestStatsExplain(t *testing.T) {
 			t.Errorf("%s: value %v, stats %v", v, ex.Value, get(t, st, poe1.Life))
 		}
 	}
-	ex, err := st.Explain(poe1.Life, poe1.Proportional)
+	ex, err := st.Explain(poe1.Life, simulator.Proportional)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,8 +149,66 @@ func TestStatsExplain(t *testing.T) {
 	if math.Abs(sum-ex.Amount) > 1e-9 || len(ex.Lines) != 5 {
 		t.Errorf("lines %d sum %v, amount %v", len(ex.Lines), sum, ex.Amount)
 	}
-	if _, err := st.Explain("player.nothing", poe1.Tree); err == nil {
+	if _, err := st.Explain("player.nothing", simulator.Tree); err == nil {
 		t.Error("unknown output: no error")
+	}
+}
+
+// A host names an explanation's sources and walks its tree with simulator names only.
+func TestExplanationSources(t *testing.T) {
+	t.Parallel()
+	b := marauderBuild(90, 2, 3, 4)
+	b.Masteries = map[uint32]uint32{4: 7}
+	st := simulate(t, newSim(t), b)
+	ex, err := st.Explain("player.life", simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var nodes []simulator.NodeSource
+	kinds := map[string]bool{}
+	for _, l := range ex.Lines {
+		if l.Source.Bundle == nil {
+			kinds["rule"] = true
+			continue
+		}
+		switch src := l.Source.Bundle.Source.(type) {
+		case simulator.NodeSource:
+			nodes = append(nodes, src)
+		case simulator.CharacterSource:
+			kinds["character "+src.ID] = true
+		case simulator.LevelSource:
+			kinds["level"] = true
+		case simulator.QuestSource:
+			kinds["quest "+src.ID] = true
+		}
+	}
+	slices.SortFunc(nodes, func(a, b simulator.NodeSource) int { return cmp.Compare(a.ID, b.ID) })
+	if diff := gocmp.Diff([]simulator.NodeSource{{ID: 2}, {ID: 3}, {ID: 4, Effect: 7}}, nodes); diff != "" {
+		t.Errorf("node sources (-want +got):\n%s", diff)
+	}
+	if !kinds["character "+marauder] {
+		t.Errorf("other sources %v", kinds)
+	}
+
+	tree, err := st.Explain("player.life", simulator.Tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var walk func(n *simulator.TreeNode) int
+	walk = func(n *simulator.TreeNode) int {
+		terms := 0
+		for _, tt := range n.Terms {
+			if tt.Op == simulator.OpBase || tt.Op == simulator.OpInc {
+				terms++
+			}
+		}
+		for _, r := range n.Reads {
+			terms += walk(r)
+		}
+		return terms
+	}
+	if walk(tree.Tree) == 0 {
+		t.Error("tree: no base or increased terms")
 	}
 }
 
@@ -159,7 +220,7 @@ func TestStatsExplainConcurrent(t *testing.T) {
 	for g := range 6 {
 		wg.Go(func() {
 			for _, k := range []output.Key{poe1.Life, poe1.FireResistance, poe1.Mana} {
-				if _, err := st.Explain(k, []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal}[g%3]); err != nil {
+				if _, err := st.Explain(k, []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal}[g%3]); err != nil {
 					t.Error(err)
 				}
 			}

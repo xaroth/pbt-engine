@@ -45,7 +45,7 @@ func BenchmarkSweepVariant(b *testing.B) {
 // (01-goals, explanation of one output: < 1 ms native).
 func BenchmarkStatsExplain(b *testing.B) {
 	st := simulate(b, newSim(b), marauderBuild(90, 2, 3))
-	for _, v := range []poe1.View{poe1.Tree, poe1.Proportional, poe1.Marginal} {
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
 		if _, err := st.Explain(poe1.Life, v); err != nil {
 			b.Fatal(err)
 		}
