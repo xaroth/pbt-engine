@@ -28,6 +28,8 @@ type Store struct {
 	characters func() ([]Character, error)
 	constants  func() ([]Constant, error)
 	quests     func() ([]Quest, error)
+	items      func() (*Items, error)
+	mods       func() ([]Mod, error)
 	// trees and texts are keyed by variant and language, fixed by the manifest.
 	trees map[string]func() (*Tree, error)
 	texts map[string]func() (*Text, error)
@@ -39,7 +41,8 @@ type statsGroup struct {
 }
 
 // Open reads the manifest in fsys and reads no table group yet. It fails when ReadManifest
-// does, or the manifest lists an unknown file or misses stats, characters, constants or quests.
+// does, or the manifest lists an unknown file, misses stats, characters, constants or quests,
+// or lists only one of the items group's two files.
 func Open(fsys fs.FS) (*Store, error) {
 	m, err := ReadManifest(fsys)
 	if err != nil {
@@ -66,6 +69,12 @@ func Open(fsys fs.FS) (*Store, error) {
 	s.characters = sync.OnceValues(s.loadCharacters)
 	s.constants = sync.OnceValues(s.loadConstants)
 	s.quests = sync.OnceValues(s.loadQuests)
+	_, hasItems := s.files[itemsFile]
+	if _, hasMods := s.files[modsFile]; hasItems != hasMods {
+		return nil, fmt.Errorf("%s: items group needs both %s and %s: %w", ManifestName, itemsFile, modsFile, ErrInvalid)
+	}
+	s.items = sync.OnceValues(s.loadItems)
+	s.mods = sync.OnceValues(s.loadMods)
 	return s, nil
 }
 
@@ -124,8 +133,9 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 	return load()
 }
 
-// Text returns the display text of one language, such as "en", shared and read-only. Its node
-// and ascendancy names are not checked against trees, which it does not read; Write checks them.
+// Text returns the display text of one language, such as "en", shared and read-only. Its node,
+// ascendancy and item names are not checked against trees and items, which it does not read;
+// Write checks them.
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {
@@ -138,7 +148,8 @@ func (s *Store) Text(language string) (*Text, error) {
 func registerFile(s *Store, f File) error {
 	s.files[f.Name] = f
 	switch {
-	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile || f.Name == questsFile:
+	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile || f.Name == questsFile,
+		f.Name == itemsFile || f.Name == modsFile:
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })

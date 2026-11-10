@@ -15,6 +15,10 @@ type Dataset struct {
 	Trees []Tree
 	// Texts holds display text per language; nothing else in the dataset depends on them.
 	Texts []Text
+	// Items and Mods are the items group, written as items.fb and mods.fb. A nil Items writes
+	// no group, and Mods must then be empty.
+	Items *Items
+	Mods  []Mod
 }
 
 // Text is the display text of one language: stat description templates and names by id.
@@ -29,6 +33,9 @@ type Text struct {
 	// AscendancyNames are keyed by tree variant and Ascendancy.ID; the same id can have a
 	// different name in another variant.
 	AscendancyNames []AscendancyName
+	// ItemClassNames, BaseNames and ModNames are keyed by ItemClass.ID, ItemBase.ID and Mod.ID.
+	// A mod's name is its affix name, such as "Healthy"; mods without one have no entry.
+	ItemClassNames, BaseNames, ModNames []Name
 }
 
 // NodeName is the display name of a passive node.

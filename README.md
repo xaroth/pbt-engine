@@ -12,6 +12,8 @@ Hosts and tools import the packages at the top level: `simulator` (the API), `bu
 
 A dataset holds one game version: stats, characters, edition constants and the passive trees (standard, ruthless, alternate), which the simulation needs, plus one text file per language (`text-<lang>.fb`) with stat description templates and display names, which only display and text parsing need. The format is in the `dataset` package. [pbt-extract](https://github.com/xaroth/pbt-extract) builds datasets from game files.
 
+The items group is optional: `items.fb` holds the equippable base items with their item classes, tags, defences, block, weapon and flask values and implicit mods, and `mods.fb` the item mods with their stat ranges, generation type, level, families, tags and spawn weights, read only when asked for. Their display names are in the text files. A dataset without the group reads as before and returns a `dataset.MissingGroupError` when asked for items.
+
 A manifest can list capabilities: the rule version a mechanic needs in that dataset, such as `{"armour": 2}`. A mechanic not listed uses version 1. Rules choose formulas by these versions, never by game version, and read them only after checking the dataset against the versions they implement (`Capabilities.Check`), which rejects a dataset that needs one they do not.
 
 Published datasets live in [pbt-data](https://github.com/xaroth/pbt-data), one per league (its latest patch). `dataset/remote` keeps local copies current: `Pull` reads the source's `index.json`, and for each league whose manifest changed fetches the manifest and only the files whose SHA-256 differs, checking each against the index and the manifest, then swaps the league's directory in whole.

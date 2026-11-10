@@ -42,10 +42,18 @@ const (
 	charactersFile = "characters.fb"
 	constantsFile  = "constants.fb"
 	questsFile     = "quests.fb"
+	itemsFile      = "items.fb"
+	modsFile       = "mods.fb"
 	treePrefix     = "tree-"
 	textPrefix     = "text-"
 	fbSuffix       = ".fb"
 )
+
+// group is a table group file as Write writes it.
+type group struct {
+	name string
+	b    []byte
+}
 
 // filePerm is world-readable because datasets are published files.
 const filePerm = 0o644
@@ -62,10 +70,6 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	if err := d.Manifest.Capabilities.validate(); err != nil {
 		return Manifest{}, err
 	}
-	type group struct {
-		name string
-		b    []byte
-	}
 	groups := []group{
 		{statsFile, encodeStats(d.Stats)},
 		{charactersFile, encodeCharacters(d.Stats, d.Characters)},
@@ -78,6 +82,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	for _, t := range d.Texts {
 		groups = append(groups, group{textPrefix + t.Language + fbSuffix, encodeText(t)})
 	}
+	groups = append(groups, d.itemsGroup()...)
 	m := d.Manifest
 	m.Format = FormatVersion
 	m.Files = nil
