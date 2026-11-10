@@ -1,0 +1,575 @@
+//nolint:thelper // the steps run as subtests, so their failures belong to their own lines
+package simulator_test
+
+import (
+	"cmp"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	gocmp "github.com/google/go-cmp/cmp"
+
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/output"
+	"github.com/xaroth/pbt-engine/pob"
+	"github.com/xaroth/pbt-engine/simulator"
+)
+
+// The walkthrough is the public API as a host uses it, from loading a dataset to sweeping
+// edits, in order. A step the engine can do runs against the real 3.29.3.3 dataset; a step it
+// cannot do yet is kept as the code it should become, with the capability it waits for
+// (walkthrough_pending_test.go checks those). Running steps import only public packages, as a
+// host would.
+
+// Outputs as a host names them: by their wire strings, checked against Sim.Outputs.
+const (
+	life       output.Key = "player.life"
+	mana       output.Key = "player.mana"
+	strength   output.Key = "player.strength"
+	maxFireRes output.Key = "player.maximum_fire_resistance"
+)
+
+const walkVersion = "3.29.3.3"
+
+// walk is the state the running steps pass along.
+type walk struct {
+	reg        *dataset.Registry
+	res        dataset.Resolution
+	sim        *simulator.Sim
+	base, next *build.Build
+	stats      *simulator.Stats
+	// cut are the three nodes other than masteries that give the most life alone, by the
+	// marginal explanation.
+	cut []uint32
+}
+
+// step is one step of the walkthrough: run when the engine can do it, else pending.
+type step struct {
+	name    string
+	run     func(*testing.T, *walk)
+	pending *pending
+}
+
+func walkthrough() []step {
+	return slices.Concat(setupSteps(), editSteps(), readSteps(), compareSteps(), actorSteps())
+}
+
+func setupSteps() []step {
+	return []step{
+		{name: "open the datasets the host hands in", run: openDatasets},
+		{name: "resolve a league to its newest dataset", run: resolveLeague},
+		{name: "make a sim", run: makeSim},
+		{name: "make a sim against a pinnacle boss", pending: &pending{
+			needs: "an enemy actor", waitsOn: []string{"simulator.Enemy", "poe1.Pinnacle"},
+			code: `sim, err := simulator.New(res.Store, simulator.Enemy(poe1.Pinnacle))`,
+		}},
+		{name: "configure the sim and read its config", run: configureSim},
+		{name: "set the enemy's fire resistance on the sim", pending: &pending{
+			needs: "an enemy actor", waitsOn: []string{"poe1.EnemyFireResist"},
+			code: `sim.Configure(simulator.Set(poe1.EnemyFireResist, 40))`,
+		}},
+		{name: "import a Path of Building file", run: importPoB},
+		{name: "import a Path of Building share code", pending: &pending{
+			needs: "Path of Building share codes", waitsOn: []string{"build.FromCode"},
+			code: `base, warnings, err = build.FromCode(shareCode)`,
+		}},
+		{name: "parse a build file", run: parseBuildFile},
+		{name: "make a build from scratch", run: newBuild},
+	}
+}
+
+func editSteps() []step {
+	return []step{
+		{name: "clone a build to edit it", run: cloneBuild},
+		{name: "turn gem names into ids", pending: &pending{
+			needs: "gems in the dataset", waitsOn: []string{"simulator.Sim.Data"},
+			code: `fireball, _ := sim.Data().Gem("Fireball")
+inspiration, _ := sim.Data().Gem("Inspiration")`,
+		}},
+		{name: "edit the main skill group", pending: &pending{
+			needs: "skills on a build", waitsOn: []string{"build.Build.Skills"},
+			code: `group := next.Skills.Main()
+group.Gem(fireball).SetLevel(21).SetQuality(23)
+group.AddSupport(inspiration, 20, 20)`,
+		}},
+		{name: "deallocate nodes", run: deallocate},
+		{name: "equip an item from its text", pending: &pending{
+			needs: "items on a build", waitsOn: []string{"build.Build.Items", "slot.Helmet"},
+			code: `next.Items.Equip(slot.Helmet, rawItemText)`,
+		}},
+		{name: "set charges in the build's config", pending: &pending{
+			needs: "charges in config", waitsOn: []string{"poe1.PowerCharges"},
+			code: `next.Config.Set(poe1.PowerCharges, 3)`,
+		}},
+		{name: "simulate", run: simulateNext},
+		{name: "simulate against a map boss for one call", pending: &pending{
+			needs: "an enemy actor", waitsOn: []string{"simulator.Enemy", "poe1.Map"},
+			code: `stats, err := sim.Simulate(next, simulator.Enemy(poe1.Map(83)))`,
+		}},
+		{name: "a build the dataset cannot take is an error", run: unreconcilable},
+	}
+}
+
+func readSteps() []step {
+	return []step{
+		{name: "read an output", run: readOutput},
+		{name: "read a skill's average hit", pending: &pending{
+			needs: "skills on a build", waitsOn: []string{"simulator.Stats.Skill", "poe1.AverageHit"},
+			code: `stats.Skill(fireball).Get(poe1.AverageHit)`,
+		}},
+		{name: "read the warnings", run: readWarnings},
+		{name: "warn about a gem the dataset lacks", pending: &pending{
+			needs: "skills on a build", waitsOn: []string{"simulator.GemNotInDataset"},
+			code: `stats.Warnings() // {Code: GemNotInDataset, Subject: "Metadata/...", Message: "gem not in dataset, ignored"}`,
+		}},
+		{name: "read where a config value came from", run: readConfigSource},
+		{name: "read whether the enemy is shocked, and why", pending: &pending{
+			needs: "conditions derived from the build", waitsOn: []string{"poe1.EnemyShocked", "config.Derived"},
+			code: `v, _ := stats.Config(poe1.EnemyShocked)
+_ = v.Value  // true
+_ = v.Source // config.Derived`,
+		}},
+		{name: "explain an output", run: explainOutput},
+		{name: "compute only the listed outputs", run: listedOutputs},
+		{name: "force a condition off, then hand it back", pending: &pending{
+			needs: "conditions derived from the build", waitsOn: []string{"poe1.EnemyShocked"},
+			code: `sim.Configure(simulator.Set(poe1.EnemyShocked, false))
+sim.Configure(simulator.Clear(poe1.EnemyShocked))`,
+		}},
+		{name: "clear a sim value", run: clearSimValue},
+	}
+}
+
+func compareSteps() []step {
+	return []step{
+		{name: "compare two builds", run: compareBuilds},
+		{name: "compare damage per second", pending: &pending{
+			needs: "skills on a build", waitsOn: []string{"poe1.TotalDPS"},
+			code: `diff, err := sim.Compare(base, next)
+d := diff.Get(poe1.TotalDPS)`,
+		}},
+		{name: "diff one build across two leagues", run: diffAcrossLeagues},
+		{name: "sweep edits ranked by an output", run: sweep},
+		{name: "sweep a gem level ranked by damage per second", pending: &pending{
+			needs: "skills on a build", waitsOn: []string{"build.SetGemLevel", "poe1.TotalDPS"},
+			code: `results, err := sim.Sweep(base, [][]build.Edit{{build.SetGemLevel(fireball, 21)}}, simulator.RankBy(poe1.TotalDPS))`,
+		}},
+		{name: "stream a sweep", run: sweepEach},
+		{name: "make a second sim with the first one's config", run: secondSim},
+	}
+}
+
+func actorSteps() []step {
+	return []step{
+		{name: "read a minion's life and its skill's hit", pending: &pending{
+			needs: "minions", waitsOn: []string{"simulator.*.Minion"},
+			code: `zombie := stats.Skill(raiseZombie).Minion()
+zombie.Get(poe1.Life)
+zombie.Skill(zombieSlam).Get(poe1.AverageHit)`,
+		}},
+		{name: "place a skill with a totem", pending: &pending{
+			needs: "totems", waitsOn: []string{"poe1.TotemLife"},
+			code: `group.AddSupport(spellTotem, 20, 0)
+stats.Skill(fireball).Get(poe1.TotemLife)
+stats.Skill(fireball).Get(poe1.TotalDPS) // includes the totem count`,
+		}},
+		{name: "simulate with an ally whose aura reaches the player", pending: &pending{
+			needs: "a party", waitsOn: []string{"simulator.Party"},
+			code: `stats, err = sim.Simulate(next, simulator.Party(ally))
+stats.Explain(poe1.Life, simulator.Proportional) // sources name the ally's aura`,
+		}},
+	}
+}
+
+//nolint:tparallel // the steps build on each other's state, so they run in order
+func TestWalkthrough(t *testing.T) {
+	t.Parallel()
+	root := os.Getenv("PBT_DATASETS")
+	if root == "" {
+		t.Skip("PBT_DATASETS not set")
+	}
+	reg, err := dataset.OpenRoot(os.DirFS(root))
+	if reg == nil {
+		t.Fatal(err)
+	}
+	if res, err := reg.Resolve("poe1", walkVersion); err != nil || res.Store.Manifest().Version != walkVersion {
+		t.Skipf("PBT_DATASETS has no %s", walkVersion)
+	}
+	w := &walk{}
+	for _, s := range walkthrough() {
+		if s.run == nil {
+			continue
+		}
+		if !t.Run(s.name, func(t *testing.T) { s.run(t, w) }) {
+			return
+		}
+	}
+}
+
+func openDatasets(t *testing.T, w *walk) {
+	reg, err := dataset.OpenRoot(os.DirFS(os.Getenv("PBT_DATASETS")))
+	if reg == nil {
+		t.Fatal(err)
+	}
+	if n := len(reg.Stores("poe1")); n < 2 {
+		t.Fatalf("%d poe1 datasets, want 3.28 and 3.29", n)
+	}
+	w.reg = reg
+}
+
+func resolveLeague(t *testing.T, w *walk) {
+	res, err := w.reg.Resolve("poe1", "3.29")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Store.Manifest().Version; res.Match == dataset.MatchExact || !strings.HasPrefix(got, "3.29.") {
+		t.Fatalf("3.29 resolved to %s (match %v), want a 3.29 patch by prefix", got, res.Match)
+	}
+	w.res = res
+}
+
+func makeSim(t *testing.T, w *walk) {
+	sim, err := simulator.New(w.res.Store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []output.Key{life, mana, strength, maxFireRes} {
+		if !slices.ContainsFunc(sim.Outputs(), func(o simulator.Output) bool { return o.Key == k }) {
+			t.Errorf("sim has no output %s", k)
+		}
+	}
+	w.sim = sim
+}
+
+func configureSim(t *testing.T, w *walk) {
+	if err := w.sim.Configure(simulator.SetRaw("bandits", json.RawMessage(`"help-oak"`))); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(w.sim.Config()["bandits"]); got != `"help-oak"` {
+		t.Errorf("sim config bandits %s, want \"help-oak\"", got)
+	}
+	keys, err := w.sim.ConfigKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(keys, func(k simulator.ConfigKey) bool { return k.Name == "bandits" }) {
+		t.Error("config keys lack bandits")
+	}
+}
+
+// chieftainXML is the level 90 Chieftain of the explanation goldens as a Path of Building file,
+// with the bandits killed and a helmet, which the import leaves out.
+func chieftainXML(t *testing.T) []byte {
+	nodes, err := os.ReadFile(filepath.Join("..", "internal", "poe1", "testdata", "explain", "chieftain-L90-3.29.nodes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const masteries = "{4139,47642},{11505,36313},{12125,21468},{12382,64381},{25011,31822},{27193,45653},{27733,23471},{32241,34242},{41415,38454}"
+	return fmt.Appendf(nil, `<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain" bandit="None"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes="%s" masteryEffects="%s"/></Tree>
+	<Items><Item id="1">Rarity: RARE
+Doom Crown
+Royal Burgonet</Item></Items>
+</PathOfBuilding>`, strings.TrimSpace(string(nodes)), masteries)
+}
+
+func importPoB(t *testing.T, w *walk) {
+	b, warnings, err := pob.FromXML(chieftainXML(t), w.reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Class != "Metadata/Characters/Str/Str" || b.Ascendancy != "Chieftain" || b.Level != 90 || b.Version != "3.29" {
+		t.Errorf("imported %s %s level %d on %s, want the level 90 Chieftain on 3.29", b.Class, b.Ascendancy, b.Level, b.Version)
+	}
+	if len(b.Nodes) < 100 || len(b.Masteries) != 9 {
+		t.Errorf("imported %d nodes and %d mastery choices, want over 100 and 9", len(b.Nodes), len(b.Masteries))
+	}
+	if !slices.ContainsFunc(warnings, func(x build.Warning) bool { return x.Code == pob.ItemIgnored }) {
+		t.Errorf("warnings %v, want the helmet ignored", warnings)
+	}
+	w.base = b
+}
+
+func parseBuildFile(t *testing.T, w *walk) {
+	data, err := w.base.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := build.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(b.Nodes, w.base.Nodes) || b.Class != w.base.Class || string(b.Config["bandits"]) != string(w.base.Config["bandits"]) {
+		t.Errorf("build file round trip changed the build:\n%s", data)
+	}
+}
+
+func newBuild(t *testing.T, w *walk) {
+	b := &build.Build{Game: "poe1", Version: "3.29", Class: "Metadata/Characters/Int/Int", Ascendancy: "Elementalist", Level: 1}
+	// A level 1 Witch with no nodes has the class's 14 strength.
+	if got := get(t, simulate(t, w.sim, b), strength); got != 14 {
+		t.Errorf("level 1 Witch strength %v, want 14", got)
+	}
+}
+
+func cloneBuild(t *testing.T, w *walk) {
+	w.next = w.base.Clone()
+	w.next.Masteries[4139] = 0
+	if w.base.Masteries[4139] == 0 {
+		t.Fatal("editing the clone changed the base")
+	}
+	w.next.Masteries[4139] = w.base.Masteries[4139]
+}
+
+// nodeOf returns the passive node a line is credited to.
+func nodeOf(l simulator.Line) (simulator.NodeSource, bool) {
+	if l.Source.Bundle == nil {
+		return simulator.NodeSource{}, false
+	}
+	n, ok := l.Source.Bundle.Source.(simulator.NodeSource)
+	return n, ok
+}
+
+// marginalLife returns the life each node other than a mastery gives alone, largest first.
+func marginalLife(t *testing.T, sim *simulator.Sim, b *build.Build) ([]uint32, map[uint32]float64) {
+	ex, err := simulate(t, sim, b).Explain(life, simulator.Marginal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loss := map[uint32]float64{}
+	var nodes []uint32
+	for _, l := range ex.Lines {
+		if n, ok := nodeOf(l); ok && b.Masteries[n.ID] == 0 {
+			loss[n.ID] = l.Value
+			nodes = append(nodes, n.ID)
+		}
+	}
+	slices.SortStableFunc(nodes, func(a, b uint32) int { return cmp.Compare(loss[b], loss[a]) })
+	return nodes, loss
+}
+
+func deallocate(t *testing.T, w *walk) {
+	nodes, _ := marginalLife(t, w.sim, w.base)
+	if len(nodes) < 3 {
+		t.Fatalf("marginal life names %d nodes, want at least 3", len(nodes))
+	}
+	w.cut = nodes[:3]
+	if err := w.next.Apply(build.Deallocate(w.cut...)); err != nil {
+		t.Fatal(err)
+	}
+	if len(w.next.Nodes) != len(w.base.Nodes)-3 {
+		t.Errorf("%d nodes after deallocating 3 of %d", len(w.next.Nodes), len(w.base.Nodes))
+	}
+}
+
+func simulateNext(t *testing.T, w *walk) {
+	w.stats = simulate(t, w.sim, w.next)
+	if got, want := w.stats.Version(), w.res.Store.Manifest().Version; got != want {
+		t.Errorf("simulated on %s, want %s", got, want)
+	}
+}
+
+func unreconcilable(t *testing.T, w *walk) {
+	b := w.base.Clone()
+	b.Class = "Metadata/Characters/NoSuchClass"
+	if _, err := w.sim.Simulate(b); !errors.Is(err, simulator.ErrUnreconcilable) {
+		t.Errorf("unknown class: %v, want ErrUnreconcilable", err)
+	}
+}
+
+func readOutput(t *testing.T, w *walk) {
+	before, after := get(t, simulate(t, w.sim, w.base), life), get(t, w.stats, life)
+	if after >= before {
+		t.Errorf("life %v after removing three life nodes, %v before", after, before)
+	}
+}
+
+// readWarnings: the warnings are stats the engine leaves out or applies unchecked, and nodes the
+// removal cut off the tree; none names a removed node.
+func readWarnings(t *testing.T, w *walk) {
+	known := []build.Code{simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected}
+	unmodelled := 0
+	for _, x := range w.stats.Warnings() {
+		if !slices.Contains(known, x.Code) || x.Message == "" {
+			t.Errorf("warning %v", x)
+		}
+		if x.Code == simulator.UnmodelledStat {
+			unmodelled++
+		}
+		for _, n := range w.cut {
+			if strings.Contains(x.Subject, fmt.Sprintf("node %d", n)) {
+				t.Errorf("warning %v names removed node %d", x, n)
+			}
+		}
+	}
+	if unmodelled == 0 {
+		t.Error("no unmodelled stat on a level 90 tree")
+	}
+}
+
+// configOf returns the value key name resolved to and its source.
+func configOf(st *simulator.Stats, name string) (string, config.Source) {
+	e, _ := st.Config(config.Key[string](name))
+	return fmt.Sprint(e.Value), e.Source
+}
+
+func readConfigSource(t *testing.T, w *walk) {
+	// The sim's help-oak wins over the build's kill-all.
+	if v, src := configOf(w.stats, "bandits"); v != "help-oak" || src != config.FromSim {
+		t.Errorf("bandits %s from %v, want help-oak from the sim", v, src)
+	}
+	if v, src := configOf(w.stats, "campaign"); src != config.Default {
+		t.Errorf("campaign %s from %v, want the default", v, src)
+	}
+}
+
+func explainOutput(t *testing.T, w *walk) {
+	ex, err := w.stats.Explain(life, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := 0.0
+	for _, l := range ex.Lines {
+		sum += l.Value
+	}
+	if math.Abs(sum-ex.Amount) > 1e-6*ex.Amount || len(ex.Lines) < 10 {
+		t.Errorf("%d lines sum to %v, want %v", len(ex.Lines), sum, ex.Amount)
+	}
+}
+
+func listedOutputs(t *testing.T, w *walk) {
+	st := simulate(t, w.sim, w.next, simulator.Outputs(life, mana))
+	if !slices.Equal(st.Keys(), []output.Key{life, mana}) {
+		t.Errorf("computed %v, want life and mana", st.Keys())
+	}
+	if _, ok := st.Get(strength); ok {
+		t.Error("strength computed though not listed")
+	}
+	if got, want := get(t, st, life), get(t, w.stats, life); got != want {
+		t.Errorf("life %v with the outputs listed, %v without", got, want)
+	}
+}
+
+func clearSimValue(t *testing.T, w *walk) {
+	if err := w.sim.Configure(simulator.Clear("bandits")); err != nil {
+		t.Fatal(err)
+	}
+	// Path of Building's "None" is killing all three bandits.
+	if v, src := configOf(simulate(t, w.sim, w.next, simulator.Outputs(life)), "bandits"); v != "kill-all" || src != config.FromBuild {
+		t.Errorf("bandits %s from %v after clearing the sim's, want kill-all from the build", v, src)
+	}
+}
+
+func compareBuilds(t *testing.T, w *walk) {
+	diff, err := w.sim.Compare(w.base, w.next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := diff.Get(life); !d.Has || d.Abs >= 0 || d.Abs != d.After-d.Before || d.Pct != 100*d.Abs/d.Before {
+		t.Errorf("life change %+v", d)
+	}
+	changed := diff.Changed()
+	if !slices.Contains(changed, life) || slices.Contains(changed, maxFireRes) {
+		t.Errorf("changed %v, want life and not maximum fire resistance", changed)
+	}
+	if slices.ContainsFunc(changed, func(k output.Key) bool { return diff.Get(k).Abs == 0 }) {
+		t.Errorf("changed %v lists an output with no change", changed)
+	}
+	want := []build.Edit{build.Deallocate(slices.Sorted(slices.Values(w.cut))...)}
+	if d := gocmp.Diff(want, diff.Edits); d != "" {
+		t.Errorf("edits (-want +got):\n%s", d)
+	}
+}
+
+func diffAcrossLeagues(t *testing.T, w *walk) {
+	old, err := w.reg.Resolve("poe1", "3.28")
+	if err != nil {
+		t.Fatal(err)
+	}
+	simOld, err := simulator.New(old.Store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diff, err := simulate(t, simOld, w.base).Diff(simulate(t, w.sim, w.base))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff.Before.Version() == diff.After.Version() || len(diff.Edits) != 0 {
+		t.Errorf("diff of one build on %s and %s: %d edits", diff.Before.Version(), diff.After.Version(), len(diff.Edits))
+	}
+	if slices.ContainsFunc(diff.DataChanges, func(c simulator.NodeChange) bool { return !slices.Contains(w.base.Nodes, c.Node) || len(c.Fields) == 0 }) {
+		t.Errorf("data changes %+v: one is not an allocated node or has no field", diff.DataChanges)
+	}
+}
+
+// sweep removes each of the three nodes on its own: each loses what the marginal view says,
+// and the results rank by life.
+func sweep(t *testing.T, w *walk) {
+	_, loss := marginalLife(t, w.sim, w.base)
+	variants := make([][]build.Edit, 0, len(w.cut))
+	for _, n := range w.cut {
+		variants = append(variants, []build.Edit{build.Deallocate(n)})
+	}
+	results, err := w.sim.Sweep(w.base, variants, simulator.Outputs(life), simulator.RankBy(life))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, r := range results {
+		n := r.Edits[0].Nodes[0]
+		if c := r.Changes[life]; r.Err != nil || -c.Abs != loss[n] {
+			t.Errorf("node %d: life changes by %v (%v), marginal loss %v", n, c.Abs, r.Err, loss[n])
+		}
+		if i > 0 && r.Changes[life].Abs > results[i-1].Changes[life].Abs {
+			t.Errorf("result %d ranks above a larger change", i)
+		}
+	}
+}
+
+func sweepEach(t *testing.T, w *walk) {
+	variants := [][]build.Edit{{build.Deallocate(w.cut[0])}, {build.SetLevel(80)}}
+	seq, err := w.sim.SweepEach(w.base, variants, simulator.Outputs(life))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	for r := range seq {
+		if r.Err != nil || r.Changes[life].Abs >= 0 {
+			t.Errorf("variant %d: %+v, want life to drop", r.Index, r)
+		}
+		seen++
+	}
+	if seen != len(variants) {
+		t.Errorf("%d results, want %d", seen, len(variants))
+	}
+}
+
+func secondSim(t *testing.T, w *walk) {
+	if err := w.sim.Configure(simulator.SetRaw("campaign", json.RawMessage(`"acts-6-10"`))); err != nil {
+		t.Fatal(err)
+	}
+	cfg := w.sim.Config()
+	opts := make([]simulator.Option, 0, len(cfg))
+	for _, name := range cfg.Names() {
+		opts = append(opts, simulator.SetRaw(name, cfg[name]))
+	}
+	sim2, err := simulator.New(w.res.Store, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, b := simulate(t, w.sim, w.next, simulator.Outputs(life)), simulate(t, sim2, w.next, simulator.Outputs(life))
+	if get(t, a, life) != get(t, b, life) {
+		t.Errorf("life %v on the second sim, %v on the first", get(t, b, life), get(t, a, life))
+	}
+	if v, src := configOf(b, "campaign"); v != "acts-6-10" || src != config.FromSim {
+		t.Errorf("campaign %s from %v on the second sim", v, src)
+	}
+}
