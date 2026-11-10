@@ -152,7 +152,7 @@ func TestRun(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			var out, notes strings.Builder
-			if err := run(testCase.args, &out, &notes); err != nil {
+			if err := run(t.Context(), testCase.args, &out, &notes); err != nil {
 				t.Fatalf("run: %v", err)
 			}
 			wantLines(t, "stdout", out.String(), testCase.want)
@@ -187,7 +187,7 @@ func TestRunSkipsBadDataset(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, notes strings.Builder
-	if err := run([]string{"data", "show", "stat", "aura_damage_+%", "--version", "3.29", "--root", root}, &out, &notes); err != nil {
+	if err := run(t.Context(), []string{"data", "show", "stat", "aura_damage_+%", "--version", "3.29", "--root", root}, &out, &notes); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	wantLines(t, "stdout", out.String(), []string{"aura_damage_+% (handle 1 of 4)"})
@@ -222,7 +222,7 @@ func TestRunErrors(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			var out strings.Builder
-			if err := run(testCase.args, &out, &out); err == nil {
+			if err := run(t.Context(), testCase.args, &out, &out); err == nil {
 				t.Errorf("run(%q): got nil error, want an error", testCase.args)
 			}
 		})
@@ -261,7 +261,7 @@ func TestBuildCheck(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			var out, notes strings.Builder
-			if err := run([]string{"build", "check", writeBuild(t, testCase.data), "--root", root}, &out, &notes); err != nil {
+			if err := run(t.Context(), []string{"build", "check", writeBuild(t, testCase.data), "--root", root}, &out, &notes); err != nil {
 				t.Fatal(err)
 			}
 			if out.String() != testCase.want {
@@ -278,7 +278,7 @@ func TestBuildCheckWarns(t *testing.T) {
 	t.Parallel()
 	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","level":1,"nodes":[2]}`)
 	var out strings.Builder
-	if err := run([]string{"build", "check", path, "--root", writeRoot(t)}, &out, io.Discard); err != nil {
+	if err := run(t.Context(), []string{"build", "check", path, "--root", writeRoot(t)}, &out, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(out.String(), "warning node-unknown node 2: not in the standard tree of 3.29; dropped\nok: ") {
@@ -300,14 +300,14 @@ func TestBuildCheckErrors(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			path := writeBuild(t, testCase.data)
-			err := run([]string{"build", "check", path, "--root", root}, io.Discard, io.Discard)
+			err := run(t.Context(), []string{"build", "check", path, "--root", root}, io.Discard, io.Discard)
 			if err == nil || !strings.HasPrefix(err.Error(), path+": ") {
 				t.Errorf("got %v, want an error starting with the build file path", err)
 			}
 		})
 	}
 	missing := filepath.Join(t.TempDir(), "missing.json")
-	if err := run([]string{"build", "check", missing, "--root", root}, io.Discard, io.Discard); err == nil {
+	if err := run(t.Context(), []string{"build", "check", missing, "--root", root}, io.Discard, io.Discard); err == nil {
 		t.Error("missing file: got nil error, want error")
 	}
 }
@@ -329,7 +329,7 @@ func TestBuildResolve(t *testing.T) {
 	path := writeBuild(t, `{"format":1,"game":"poe1","version":"3.29","class":"Metadata/Characters/Str/Str","ascendancy":"Juggernaut","level":90,
 		"nodes":[1,12345],"config":{"campaign":"acts-1-5"}}`)
 	var out, notes strings.Builder
-	if err := run([]string{"build", "resolve", path, "--root", root}, &out, &notes); err != nil {
+	if err := run(t.Context(), []string{"build", "resolve", path, "--root", root}, &out, &notes); err != nil {
 		t.Fatal(err)
 	}
 	//nolint:dupword // a level bundle header followed by its level stat
@@ -362,7 +362,7 @@ bundle player buff node 12345
 	}
 
 	// The shared test datasets lack the base column stats, which resolve requires.
-	err := run([]string{"build", "resolve", path, "--root", writeRoot(t)}, io.Discard, io.Discard)
+	err := run(t.Context(), []string{"build", "resolve", path, "--root", writeRoot(t)}, io.Discard, io.Discard)
 	if err == nil || !strings.HasPrefix(err.Error(), path+": resolve: ") {
 		t.Errorf("got %v, want a resolve error prefixed with the build file path", err)
 	}

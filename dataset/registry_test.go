@@ -131,6 +131,21 @@ func TestOpenRootSkipsBadDatasets(t *testing.T) {
 	}
 }
 
+// A directory whose name starts with a dot, such as an interrupted pull's stage, is not opened.
+func TestOpenRootSkipsDotDirectories(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeVersion(t, root, "3.29", "poe1", "3.29.3.5")
+	writeVersion(t, root, ".3.29-123.old", "poe1", "3.29.3.3")
+	r, err := dataset.OpenRoot(os.DirFS(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := r.Resolve("poe1", "3.29"); err != nil || res.Store.Manifest().Version != "3.29.3.5" {
+		t.Errorf("Resolve(3.29): got %v, want 3.29.3.5", err)
+	}
+}
+
 func TestResolveMalformedVersion(t *testing.T) {
 	t.Parallel()
 	var r dataset.Registry

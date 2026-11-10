@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -30,7 +31,8 @@ func compareEntries(a, b entry) int {
 }
 
 // OpenRoot opens every dataset in a direct subdirectory of root that holds a manifest. Other
-// subdirectories are skipped. A dataset that fails to open or add, such as one in an older
+// subdirectories are skipped, as are those whose name starts with a dot, such as an
+// interrupted pull's staging directory. A dataset that fails to open or add, such as one in an older
 // format, is skipped too, so one bad directory does not hide the others: OpenRoot then returns
 // the registry of the rest together with the joined errors of the skipped ones, each prefixed
 // with its directory. The registry is nil only when root cannot be read.
@@ -42,7 +44,7 @@ func OpenRoot(root fs.FS) (*Registry, error) {
 	r := &Registry{}
 	var skipped []error
 	for _, e := range ents {
-		if !e.IsDir() {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
 		sub, err := fs.Sub(root, e.Name())

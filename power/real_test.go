@@ -17,19 +17,33 @@ import (
 	"github.com/xaroth/pbt-engine/simulator"
 )
 
-// realChieftain is the level 90 Chieftain of pbt-conformance on 3.29.3.3 with its mastery
-// choices, and a sim over $PBT_DATASETS; it skips without the variable.
-func realChieftain(tb testing.TB) (*simulator.Sim, *build.Build) {
+// openVersion opens the dataset of exactly version among the datasets under $PBT_DATASETS
+// (one per directory: pulled from pbt-data, or one per version), and skips without it.
+func openVersion(tb testing.TB, version string) *dataset.Store {
 	tb.Helper()
 	root := os.Getenv("PBT_DATASETS")
 	if root == "" {
 		tb.Skip("PBT_DATASETS not set")
 	}
-	s, err := dataset.Open(os.DirFS(filepath.Join(root, "3.29.3.3")))
-	if err != nil {
+	reg, err := dataset.OpenRoot(os.DirFS(root))
+	if reg == nil {
 		tb.Fatal(err)
 	}
-	sim, err := simulator.New(s)
+	res, err := reg.Resolve("poe1", version)
+	if err != nil {
+		tb.Fatalf("dataset %s: %v", version, err)
+	}
+	if got := res.Store.Manifest().Version; got != version {
+		tb.Skipf("PBT_DATASETS has %s, not %s", got, version)
+	}
+	return res.Store
+}
+
+// realChieftain is the level 90 Chieftain of pbt-conformance on 3.29.3.3 with its mastery
+// choices, and a sim over that dataset.
+func realChieftain(tb testing.TB) (*simulator.Sim, *build.Build) {
+	tb.Helper()
+	sim, err := simulator.New(openVersion(tb, "3.29.3.3"))
 	if err != nil {
 		tb.Fatal(err)
 	}

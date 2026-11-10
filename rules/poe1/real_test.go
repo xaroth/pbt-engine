@@ -2,7 +2,6 @@ package poe1_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
@@ -12,18 +11,39 @@ import (
 	rules "github.com/xaroth/pbt-engine/rules/poe1"
 )
 
-// realSheet opens the sheet of b on the real dataset of version under $PBT_DATASETS, a
-// directory with one dataset per version, and skips the test when the variable is not set.
-func realSheet(t *testing.T, version string, b *build.Build) *rules.Sheet {
-	t.Helper()
+// openVersion opens the dataset of exactly version among the datasets under $PBT_DATASETS
+// (one per directory: pulled from pbt-data, or one per version), and skips without it.
+func openVersion(tb testing.TB, version string) *dataset.Store {
+	tb.Helper()
 	root := os.Getenv("PBT_DATASETS")
 	if root == "" {
-		t.Skip("PBT_DATASETS not set")
+		tb.Skip("PBT_DATASETS not set")
 	}
-	s, err := dataset.Open(os.DirFS(filepath.Join(root, version)))
+	reg, err := dataset.OpenRoot(os.DirFS(root))
+	if reg == nil {
+		tb.Fatal(err)
+	}
+	res, err := reg.Resolve("poe1", version)
 	if err != nil {
-		t.Fatalf("dataset %s: %v", version, err)
+		tb.Fatalf("dataset %s: %v", version, err)
 	}
+	if got := res.Store.Manifest().Version; got != version {
+		tb.Skipf("PBT_DATASETS has %s, not %s", got, version)
+	}
+	return res.Store
+}
+
+// realSheet opens the sheet of b on the real dataset of version (see openVersion).
+func realSheet(t *testing.T, version string, b *build.Build) *rules.Sheet {
+	t.Helper()
+	sh, _ := realSheetStore(t, version, b)
+	return sh
+}
+
+// realSheetStore is realSheet with the dataset.
+func realSheetStore(t *testing.T, version string, b *build.Build) (*rules.Sheet, *dataset.Store) {
+	t.Helper()
+	s := openVersion(t, version)
 	c, _, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +52,7 @@ func realSheet(t *testing.T, version string, b *build.Build) *rules.Sheet {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return open(t, r)
+	return open(t, r), s
 }
 
 // TestRealSheets are mechanic cases on the real 3.28.0.16 and 3.29.3.3 datasets. Each value is

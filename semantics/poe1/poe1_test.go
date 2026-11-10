@@ -27,19 +27,26 @@ func versions() []string {
 	return []string{"3.28.0.16", "3.29.3.3"}
 }
 
-// openReal opens a real dataset under $PBT_DATASETS, a directory with one dataset per
-// version, and skips the test when the variable is not set.
-func openReal(t *testing.T, version string) *dataset.Store {
-	t.Helper()
+// openReal opens the dataset of exactly version among the datasets under $PBT_DATASETS
+// (one per directory: pulled from pbt-data, or one per version), and skips without it.
+func openReal(tb testing.TB, version string) *dataset.Store {
+	tb.Helper()
 	root := os.Getenv("PBT_DATASETS")
 	if root == "" {
-		t.Skip("PBT_DATASETS not set")
+		tb.Skip("PBT_DATASETS not set")
 	}
-	s, err := dataset.Open(os.DirFS(filepath.Join(root, version)))
+	reg, err := dataset.OpenRoot(os.DirFS(root))
+	if reg == nil {
+		tb.Fatal(err)
+	}
+	res, err := reg.Resolve("poe1", version)
 	if err != nil {
-		t.Fatalf("dataset %s: %v", version, err)
+		tb.Fatalf("dataset %s: %v", version, err)
 	}
-	return s
+	if got := res.Store.Manifest().Version; got != version {
+		tb.Skipf("PBT_DATASETS has %s, not %s", got, version)
+	}
+	return res.Store
 }
 
 func TestLoad(t *testing.T) {
