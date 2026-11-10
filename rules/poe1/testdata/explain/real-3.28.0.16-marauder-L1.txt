@@ -1,49 +1,49 @@
 Life: 66  [tree, dataset 3.28.0.16]
   maximum_life = 66 [conversion and gain as extra]
-    base 38  Marauder (character)
-    base 12  Marauder (character)
+    base 38  character Metadata/Characters/Str/Str
+    base 12  character Metadata/Characters/Str/Str
     base 16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
     level = 1
       base 1  level
     no_strength_bonus_to_maximum_life = 0
     strength = 32
-      base 32  Marauder (character)
-      base 0  Marauder (character)
+      base 32  character Metadata/Characters/Str/Str
+      base 0  character Metadata/Characters/Str/Str
       level = 1 (above)
     convert.maximum_life.maximum_energy_shield.% = 0
 
 Life: 66  [proportional, dataset 3.28.0.16]
-          50  Marauder (character) (base)
+          50  character Metadata/Characters/Str/Str (base)
           16  Strength bonus to maximum life (1 per 2, constant life_per_strength) (base)
 
 Life: 66  [marginal, dataset 3.28.0.16]
   change without each source: value (total before caps)
-         -65  Marauder (character) (total -66)
+         -65  character Metadata/Characters/Str/Str (total -66)
          -16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
          -12  level
 
 Mana Regeneration: 0.8/s  [tree, dataset 3.28.0.16]
   mana_regeneration = 0.8 [regeneration]
     maximum_mana = 47 [conversion and gain as extra]
-      base 34  Marauder (character)
-      base 6  Marauder (character)
+      base 34  character Metadata/Characters/Str/Str
+      base 6  character Metadata/Characters/Str/Str
       base 7  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence)
       level = 1
         base 1  level
       no_intelligence_bonus_to_maximum_mana = 0
       intelligence = 14
-        base 14  Marauder (character)
-        base 0  Marauder (character)
+        base 14  character Metadata/Characters/Str/Str
+        base 0  character Metadata/Characters/Str/Str
         level = 1 (above)
     percent_of_mana_regenerated_per_second = 1.75
-      base 1.75  Marauder (character)
+      base 1.75  character Metadata/Characters/Str/Str
 
 Mana Regeneration: 0.8/s  [proportional, dataset 3.28.0.16]
-        0.82  Marauder (character) (base)
+        0.82  character Metadata/Characters/Str/Str (base)
 
 Mana Regeneration: 0.8/s  [marginal, dataset 3.28.0.16]
   change without each source: value (total before caps)
-        -0.8  Marauder (character) (total -0.82)
+        -0.8  character Metadata/Characters/Str/Str (total -0.82)
         -0.1  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) (total -0.12)
         -0.1  level
 

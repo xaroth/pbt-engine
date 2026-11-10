@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"strings"
 
 	"github.com/xaroth/pbt-engine/core"
 	"github.com/xaroth/pbt-engine/output"
@@ -366,12 +365,4 @@ func (sh *Sheet) explainMarginal(ex *Explanation, n core.Node) error {
 // sortLines orders lines by the absolute value of key, largest first; ties keep source order.
 func sortLines(lines []Line, key func(Line) float64) {
 	slices.SortStableFunc(lines, func(a, b Line) int { return cmp.Compare(math.Abs(key(b)), math.Abs(key(a))) })
-}
-
-// overCap is how far Amount exceeds Effective, 0 when it does not.
-func (ex *Explanation) overCap() float64 {
-	if d := ex.Amount - ex.Effective; d > 0 && strings.HasSuffix(ex.Output.Unit, UnitPercent) {
-		return d
-	}
-	return 0
 }

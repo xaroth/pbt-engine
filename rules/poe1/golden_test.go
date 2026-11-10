@@ -23,12 +23,12 @@ const goldenDir = "testdata/explain"
 
 // golden renders outputs of sh in every view and compares the text with testdata/explain/name.txt,
 // or rewrites it with -update.
-func golden(t *testing.T, name string, sh *rules.Sheet, nm rules.Namer, outputs ...output.Key) {
+func golden(t *testing.T, name string, sh *rules.Sheet, outputs ...output.Key) {
 	t.Helper()
 	var b strings.Builder
 	for _, o := range outputs {
 		for _, v := range []rules.View{rules.Tree, rules.Proportional, rules.Marginal} {
-			b.WriteString(render(t, explainOf(t, sh, o, v), nm))
+			b.WriteString(render(t, explainOf(t, sh, o, v)))
 			b.WriteString("\n")
 		}
 	}
@@ -86,7 +86,7 @@ func TestGoldenExplanations(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			golden(t, testCase.name, open(t, resolved(testCase.bundles...)), rules.PlainNamer{}, testCase.outputs...)
+			golden(t, testCase.name, open(t, resolved(testCase.bundles...)), testCase.outputs...)
 		})
 	}
 }
@@ -124,16 +124,8 @@ func TestGoldenRealExplanations(t *testing.T) {
 				if testCase.name == "chieftain-L90" {
 					b.Nodes = treeNodes(t, version)
 				}
-				sh, store := realSheetStore(t, version, &b)
-				text, err := store.Text("en")
-				if err != nil {
-					t.Fatal(err)
-				}
-				nm, err := rules.NewNamer(text)
-				if err != nil {
-					t.Fatal(err)
-				}
-				golden(t, "real-"+version+"-"+testCase.name, sh, nm, testCase.outputs...)
+				sh, _ := realSheetStore(t, version, &b)
+				golden(t, "real-"+version+"-"+testCase.name, sh, testCase.outputs...)
 			})
 		}
 	}

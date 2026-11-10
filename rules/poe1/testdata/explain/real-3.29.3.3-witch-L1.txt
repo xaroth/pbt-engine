@@ -1,23 +1,23 @@
 Mana: 56  [tree, dataset 3.29.3.3]
   maximum_mana = 56 [conversion and gain as extra]
-    base 34  Witch (character)
-    base 6  Witch (character)
+    base 34  character Metadata/Characters/Int/Int
+    base 6  character Metadata/Characters/Int/Int
     base 16  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence)
     level = 1
       base 1  level
     no_intelligence_bonus_to_maximum_mana = 0
     intelligence = 32
-      base 32  Witch (character)
-      base 0  Witch (character)
+      base 32  character Metadata/Characters/Int/Int
+      base 0  character Metadata/Characters/Int/Int
       level = 1 (above)
 
 Mana: 56  [proportional, dataset 3.29.3.3]
-          40  Witch (character) (base)
+          40  character Metadata/Characters/Int/Int (base)
           16  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) (base)
 
 Mana: 56  [marginal, dataset 3.29.3.3]
   change without each source: value (total before caps)
-         -56  Witch (character)
+         -56  character Metadata/Characters/Int/Int
          -16  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence)
           -6  level
 
