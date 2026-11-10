@@ -268,10 +268,20 @@ func (w *randWorld) session(tb testing.TB) *core.Session {
 	return s
 }
 
+// numStats counts the stats of m.
+func numStats(m *core.Model) int {
+	n := 0
+	for ; ; n++ {
+		if _, ok := m.StatDef(core.StatID(n)); !ok {
+			return n
+		}
+	}
+}
+
 // snapshot reads every node, in forward or reverse order.
 func snapshot(tb testing.TB, s *core.Session, reverse bool) []uint64 {
 	tb.Helper()
-	nStats := s.Model().NumStats()
+	nStats := numStats(s.Model())
 	n := s.NumActors() * nStats * s.NumContexts()
 	out := make([]uint64, n)
 	for k := range n {

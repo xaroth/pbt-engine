@@ -6,8 +6,6 @@ import (
 	"math"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/xaroth/pbt-engine/core"
 )
 
@@ -47,7 +45,7 @@ func addAll(tb testing.TB, s *core.Session, mods []core.Modifier) []core.ModID {
 
 func get(tb testing.TB, s *core.Session, actor core.ActorID, stat core.StatID, ctx core.CtxID) float64 {
 	tb.Helper()
-	v, err := s.Get(actor, stat, ctx)
+	v, err := s.Get(core.Node{Actor: actor, Stat: stat, Ctx: ctx})
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -105,34 +103,6 @@ func TestInternContext(t *testing.T) {
 	}
 }
 
-func TestTerms(t *testing.T) {
-	t.Parallel()
-	var b core.ModelBuilder
-	str := b.MustAddStat(core.StatDef{Name: "str"})
-	dmg := b.MustAddStat(core.StatDef{Name: "damage", Round: core.RoundFloor})
-	s := newSession(t, b.Build(), 1)
-	ids := addAll(t, s, []core.Modifier{
-		{Stat: str, Op: core.OpBase, Value: 25, Source: 0},
-		{Stat: dmg, Op: core.OpInc, Value: 3, Source: 5, Scales: []core.Scale{{Ref: core.SelfRef(str), Step: 10}}},
-		{Stat: dmg, Op: core.OpBase, Value: 10.5, Source: 2},
-		{Stat: dmg, Op: core.OpMore, Value: 50, Source: 7, Conds: []core.Cond{{Ref: core.SelfRef(str), Cmp: core.CmpGT, Threshold: 30}}},
-	})
-	terms, v, err := s.Terms(core.Node{Stat: dmg})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantTerms := []core.Term{
-		{Mod: ids[2], Source: 2, Op: core.OpBase, Value: 10.5, Stat: dmg, Rate: 1, Held: true},
-		{Mod: ids[1], Source: 5, Op: core.OpInc, Value: 6, Stat: dmg, Rate: 1, Held: true},
-	}
-	if diff := cmp.Diff(wantTerms, terms, cmp.Comparer(func(a, b core.ModID) bool { return a == b })); diff != "" {
-		t.Errorf("terms (-want +got):\n%s", diff)
-	}
-	if v != 11 {
-		t.Errorf("value: got %v, want 11", v)
-	}
-}
-
 func TestBadHandles(t *testing.T) {
 	t.Parallel()
 	var b core.ModelBuilder
@@ -151,18 +121,18 @@ func TestBadHandles(t *testing.T) {
 		name string
 		call func(s *core.Session) error
 	}{
-		{"get actor", func(s *core.Session) error { _, err := s.Get(1, x, core.GlobalCtx); return wrap(t, "get", err) }},
-		{"get stat", func(s *core.Session) error { _, err := s.Get(0, 5, core.GlobalCtx); return wrap(t, "get", err) }},
-		{"get context", func(s *core.Session) error { _, err := s.Get(0, x, 3); return wrap(t, "get", err) }},
-		{"terms", func(s *core.Session) error { _, _, err := s.Terms(core.Node{Stat: 5}); return wrap(t, "terms", err) }},
+		{"get actor", func(s *core.Session) error { _, err := s.Get(core.Node{Actor: 1, Stat: x}); return wrap(t, "get", err) }},
+		{"get stat", func(s *core.Session) error { _, err := s.Get(core.Node{Stat: 5}); return wrap(t, "get", err) }},
+		{"get context", func(s *core.Session) error { _, err := s.Get(core.Node{Stat: x, Ctx: 3}); return wrap(t, "get", err) }},
 		{"explain", func(s *core.Session) error { _, err := s.Explain(core.Node{Stat: 5}); return wrap(t, "explain", err) }},
-		{"formula read actor", func(s *core.Session) error { _, err := s.Get(0, readActor, core.GlobalCtx); return wrap(t, "get", err) }},
+		{"explain", func(s *core.Session) error { _, err := s.Explain(core.Node{Stat: 5}); return wrap(t, "explain", err) }},
+		{"formula read actor", func(s *core.Session) error { _, err := s.Get(core.Node{Stat: readActor}); return wrap(t, "get", err) }},
 		{"formula read actor past ActorID", func(s *core.Session) error {
-			_, err := s.Get(0, readWideActor, core.GlobalCtx)
+			_, err := s.Get(core.Node{Stat: readWideActor})
 			return wrap(t, "get", err)
 		}},
 		{"formula read context past CtxID", func(s *core.Session) error {
-			_, err := s.Get(0, readWideCtx, core.GlobalCtx)
+			_, err := s.Get(core.Node{Stat: readWideCtx})
 			return wrap(t, "get", err)
 		}},
 		{"remove zero id", func(s *core.Session) error { return s.RemoveModifier(core.ModID{}) }},

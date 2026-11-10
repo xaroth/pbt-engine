@@ -86,11 +86,8 @@ func TestBuildCopies(t *testing.T) {
 	if _, err := b.AddDimension("d", "a"); err != nil {
 		t.Fatal(err)
 	}
-	if n := m.NumStats(); n != 1 {
-		t.Errorf("NumStats: got %d, want 1", n)
-	}
-	if _, ok := m.Stat("y"); ok {
-		t.Error("Stat(y): got found, want not found")
+	if _, ok := m.StatDef(1); ok {
+		t.Error("StatDef(1): got found, want not found")
 	}
 	if _, ok := m.Bit("d.a"); ok {
 		t.Error("Bit(d.a): got found, want not found")

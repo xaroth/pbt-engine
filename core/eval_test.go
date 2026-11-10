@@ -463,7 +463,7 @@ func TestCycleError(t *testing.T) {
 			s := newSession(t, m, 2)
 			addAll(t, s, testCase.mods)
 			for range 2 { // a failed read leaves no partial state behind
-				_, err := s.Get(0, testCase.get, core.GlobalCtx)
+				_, err := s.Get(core.Node{Stat: testCase.get})
 				ce, ok := errors.AsType[*core.CycleError](err)
 				if !ok {
 					t.Fatalf("got %v, want CycleError", err)
@@ -486,12 +486,12 @@ func TestFormulaPanic(t *testing.T) {
 		read func(s *core.Session, x core.StatID) error
 	}{
 		{"Get", func(s *core.Session, x core.StatID) error {
-			_, err := s.Get(0, x, core.GlobalCtx)
+			_, err := s.Get(core.Node{Stat: x})
 			return wrap(t, "get", err)
 		}},
-		{"Terms", func(s *core.Session, x core.StatID) error {
-			_, _, err := s.Terms(core.Node{Stat: x})
-			return wrap(t, "terms", err)
+		{"Explain", func(s *core.Session, x core.StatID) error {
+			_, err := s.Explain(core.Node{Stat: x})
+			return wrap(t, "explain", err)
 		}},
 	}
 	for _, testCase := range testCases {
@@ -641,7 +641,7 @@ func (w *sheetWorld) session(b *testing.B) *core.Session {
 func (w *sheetWorld) sheet(b *testing.B, s *core.Session) {
 	b.Helper()
 	for _, o := range w.outputs {
-		if _, err := s.Get(0, o, core.GlobalCtx); err != nil {
+		if _, err := s.Get(core.Node{Stat: o}); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -685,7 +685,7 @@ func BenchmarkNodePower(b *testing.B) {
 			if err := s.SetSourceEnabled(src, false); err != nil {
 				b.Fatal(err)
 			}
-			if _, err := s.Get(0, w.life, core.GlobalCtx); err != nil {
+			if _, err := s.Get(core.Node{Stat: w.life}); err != nil {
 				b.Fatal(err)
 			}
 			if err := s.Revert(cp); err != nil {

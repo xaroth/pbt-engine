@@ -130,7 +130,7 @@ func (a *Attributor) Node(ref Ref) Node {
 
 // Stat returns the value of stat on the node's actor and context, as its formula reads it.
 func (a *Attributor) Stat(stat StatID) float64 {
-	v, err := a.p.s.GetNode(a.Node(SelfRef(stat)))
+	v, err := a.p.s.Get(a.Node(SelfRef(stat)))
 	a.fail(err)
 	return v
 }

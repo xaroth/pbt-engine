@@ -260,7 +260,6 @@ func (b *ModelBuilder) AddDimension(name string, values ...string) (Dimension, e
 func (b *ModelBuilder) Build() *Model {
 	return &Model{
 		stats:    slices.Clone(b.stats),
-		byName:   maps.Clone(b.byName),
 		bitNames: maps.Clone(b.bitNames),
 	}
 }
@@ -269,14 +268,7 @@ func (b *ModelBuilder) Build() *Model {
 // sessions and goroutines can share it. The zero Model has no stats and no dimensions.
 type Model struct {
 	stats    []StatDef
-	byName   map[string]StatID
 	bitNames map[string]Bit
-}
-
-// Stat looks up a stat by name.
-func (m *Model) Stat(name string) (StatID, bool) {
-	id, ok := m.byName[name]
-	return id, ok
 }
 
 // StatDef returns a copy of a stat's definition, and false for an unknown id.
@@ -289,9 +281,6 @@ func (m *Model) StatDef(id StatID) (StatDef, bool) {
 	def.Shares = slices.Clone(def.Shares)
 	return def, true
 }
-
-// NumStats returns the number of stats; ids run from 0 to NumStats()-1.
-func (m *Model) NumStats() int { return len(m.stats) }
 
 // Bit looks up a context bit by "dimension.value".
 func (m *Model) Bit(name string) (Bit, bool) {

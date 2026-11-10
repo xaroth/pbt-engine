@@ -92,7 +92,7 @@ func TestExplainLeavesMemo(t *testing.T) {
 		t.Fatal(err)
 	}
 	add(t, s, core.Modifier{Stat: x, Op: core.OpBase, Value: 4, Source: 2})
-	if v, err := s.Get(0, y, core.GlobalCtx); err != nil || v != 7 {
+	if v, err := s.Get(core.Node{Stat: y}); err != nil || v != 7 {
 		t.Errorf("y after explain and edit: got %v, %v, want 7", v, err)
 	}
 }
