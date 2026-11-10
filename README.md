@@ -34,6 +34,8 @@ A build file (`build` package) names a game, version, tree variant, class (`Char
  "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "config": {"bandits": "help-oak"}}
 ```
 
+Path of Building build files (PoE1) import with `pob.FromXML`: the active tree's version, variant, nodes and mastery choices, class and ascendancy (names mapped through the dataset's English text), level, bandits and the campaign stage from PoB's resistance penalty. Everything else in the file gives a `pob-*` warning: other trees, cluster jewel nodes (dropped), jewels, tattoos, config inputs, items, skill groups, pantheon. `pbt build import pob.xml > build.json` writes the build JSON and lists every warning; `pbt build check`, `eval`, `compare` and `power` also take a PoB file directly (it starts with `<`), folding repeated warnings unless `--warnings all`.
+
 ## Benchmarks
 
 Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests only. Each benchmark's doc comment names the target from `plan/01-goals.md` it measures.

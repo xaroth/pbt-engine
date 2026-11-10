@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"slices"
 	"strings"
 
@@ -22,16 +21,12 @@ var (
 	errView = errors.New("--view wants tree, proportional or marginal")
 )
 
-// simFor reads a build file and returns it with a sim over the dataset its version (or
+// simFor reads a build file (see loadBuild) and returns it with a sim over the dataset its version (or
 // version, when set) resolves to.
 func simFor(in invocation, path, version string) (*build.Build, *simulator.Sim, error) {
-	data, err := os.ReadFile(path)
+	b, err := loadBuild(in, in.notes, path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read build: %w", err)
-	}
-	b, err := build.Parse(data)
-	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", path, err)
+		return nil, nil, err
 	}
 	res, err := in.resolve(in.notes, b.Game, cmp.Or(version, b.Version))
 	if err != nil {
@@ -94,7 +89,7 @@ func eval(in invocation) error {
 	p.printf("%s %s on dataset %s\n", b.Game, cmp.Or(b.Version, "?"), st.Version())
 	printSheet(p, st)
 	printConfig(p, st)
-	printSimWarnings(p, st.Warnings(), in.opts["warnings"] == "all")
+	printSimWarnings(p, st.Warnings(), in.opts["warnings"] == warningsAll)
 	if in.opts["explain"] != "" {
 		if err := explain(in, p, st); err != nil {
 			return err
@@ -196,7 +191,7 @@ func compare(in invocation) error {
 	if err != nil {
 		return fmt.Errorf("compare: %w", err)
 	}
-	return printDiff(in.w, d, in.opts["warnings"] == "all")
+	return printDiff(in.w, d, in.opts["warnings"] == warningsAll)
 }
 
 func diffAcross(sa, sb *simulator.Sim, a, b *build.Build, opts []simulator.Option) (*simulator.Diff, error) {
