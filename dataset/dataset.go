@@ -31,7 +31,7 @@ var (
 	errMalformed   = fmt.Errorf("malformed: %w", ErrInvalid)
 )
 
-// FormatVersion is the dataset format written by this package. Read rejects other versions.
+// FormatVersion is the dataset format written by this package. Open rejects other versions.
 const FormatVersion = 1
 
 // ManifestName is the manifest's file name inside a dataset directory.
@@ -56,7 +56,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	if _, err := statIndex(d.Stats); err != nil {
 		return Manifest{}, err
 	}
-	if err := d.validate(true); err != nil {
+	if err := d.validate(); err != nil {
 		return Manifest{}, err
 	}
 	if err := d.Manifest.Capabilities.validate(); err != nil {
@@ -97,15 +97,6 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("write manifest: %w", err)
 	}
 	return m, nil
-}
-
-// Options selects the groups Read loads besides stats, characters, constants and quests, which it
-// always loads. ReadManifest lists what a dataset holds.
-type Options struct {
-	// Trees are tree variants, such as "standard".
-	Trees []string
-	// Languages are display text languages, such as "en".
-	Languages []string
 }
 
 // ReadManifest reads the manifest of the dataset in fsys. It fails when the format version
@@ -168,17 +159,6 @@ func (m Manifest) tagged(prefix string) []string {
 		}
 	}
 	return out
-}
-
-// Read reads the dataset in fsys with the groups o selects; files not selected are not read.
-// It is Open followed by Store.Dataset, and fails when either does. The Store is not kept, so
-// the Dataset belongs to the caller.
-func Read(fsys fs.FS, o Options) (*Dataset, error) {
-	s, err := Open(fsys)
-	if err != nil {
-		return nil, err
-	}
-	return s.Dataset(o)
 }
 
 // decodeSafely turns a panic from reading a malformed buffer into an error; the Go FlatBuffers

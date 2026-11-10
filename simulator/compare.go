@@ -2,7 +2,6 @@ package simulator
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"slices"
 
@@ -134,39 +133,58 @@ func (st *Stats) Diff(other *Stats) (*Diff, error) {
 
 // nodeChanges lists the nodes either side allocates that dataset.Compare finds changed.
 func nodeChanges(a, b *Stats) ([]NodeChange, error) {
+	diff, err := dataset.Compare(a.sim.store, b.sim.store)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: diff: %w", err)
+	}
 	variant := a.checked.Build().Variant
-	da, err := a.sim.store.Dataset(dataset.Options{Trees: []string{variant}})
-	if err != nil {
-		return nil, fmt.Errorf("simulator: diff: %w", err)
-	}
-	db, err := b.sim.store.Dataset(dataset.Options{Trees: []string{b.checked.Build().Variant}})
-	if err != nil {
-		return nil, fmt.Errorf("simulator: diff: %w", err)
-	}
 	allocated := map[uint32]bool{}
 	for _, n := range slices.Concat(a.checked.Nodes(), b.checked.Nodes()) {
 		allocated[n.ID] = true
 	}
 	var out []NodeChange
-	for _, td := range dataset.Compare(da, db).Trees {
+	for _, td := range diff.Trees {
 		if td.Variant != variant {
 			continue
 		}
 		for _, nd := range td.Changed {
-			if allocated[nd.ID] {
-				out = append(out, NodeChange{Node: nd.ID, Fields: nd.Fields, Before: nodeStats(da, nd.ID), After: nodeStats(db, nd.ID)})
+			if !allocated[nd.ID] {
+				continue
 			}
+			before, err := nodeStats(a.sim.store, variant, nd.ID)
+			if err != nil {
+				return nil, err
+			}
+			after, err := nodeStats(b.sim.store, b.checked.Build().Variant, nd.ID)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, NodeChange{Node: nd.ID, Fields: nd.Fields, Before: before, After: after})
 		}
 	}
 	slices.SortFunc(out, func(x, y NodeChange) int { return int(x.Node) - int(y.Node) })
 	return out, nil
 }
 
-func nodeStats(d *dataset.Dataset, id uint32) map[string]int32 {
-	for _, n := range d.Trees[0].Nodes {
-		if n.ID == id {
-			return maps.Clone(d.StatMap(n.Stats))
-		}
+// nodeStats returns a node's stats by stat id.
+func nodeStats(s *dataset.Store, variant string, id uint32) (map[string]int32, error) {
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, fmt.Errorf("simulator: diff: %w", err)
 	}
-	return nil
+	tree, err := s.Tree(variant)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: diff: %w", err)
+	}
+	for _, n := range tree.Nodes {
+		if n.ID != id {
+			continue
+		}
+		out := make(map[string]int32, len(n.Stats))
+		for _, sv := range n.Stats {
+			out[stats[sv.Stat].ID] = sv.Value
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("simulator: diff: node %d in the %s tree: %w", id, variant, dataset.ErrNotInDataset)
 }

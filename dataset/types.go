@@ -2,8 +2,8 @@ package dataset
 
 import "github.com/xaroth/pbt-engine/statdesc"
 
-// Dataset holds the tables of one game version. A Dataset from Read belongs to the caller; one
-// from Store.Dataset shares its tables with the Store and every other caller, so it is read-only.
+// Dataset holds the tables of one game version, as Write takes them. Readers use Open, which
+// returns a Store that reads each group on first use.
 type Dataset struct {
 	Manifest   Manifest
 	Stats      []Stat
@@ -13,8 +13,7 @@ type Dataset struct {
 	Quests []Quest
 	// Trees has one entry per tree variant, such as standard and ruthless.
 	Trees []Tree
-	// Texts holds display text per language. Read loads only the languages asked for; nothing
-	// else in the dataset depends on them.
+	// Texts holds display text per language; nothing else in the dataset depends on them.
 	Texts []Text
 }
 

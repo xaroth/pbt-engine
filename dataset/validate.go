@@ -11,9 +11,8 @@ import (
 // maxDescriptionStats is what a handler's byte stat index can address.
 const maxDescriptionStats = 256
 
-// validate checks d. allTrees says every tree variant is loaded; text names of nodes are
-// checked against the trees only then, since names are shared across variants.
-func (d *Dataset) validate(allTrees bool) error {
+// validate checks d.
+func (d *Dataset) validate() error {
 	n := len(d.Stats)
 	if err := validateCharacters(n, d.Characters); err != nil {
 		return err
@@ -44,7 +43,7 @@ func (d *Dataset) validate(allTrees bool) error {
 			return err
 		}
 	}
-	return validateNames(d.Texts, d.Trees, allTrees)
+	return validateNames(d.Texts, d.Trees)
 }
 
 func errVariant(v string) error {
@@ -224,20 +223,14 @@ func checkDescriptionSizes(t Text) error {
 	return nil
 }
 
-// validateNames checks text names of ascendancies against the trees given, and names of nodes
-// only when allTrees says those are every tree of the dataset.
-func validateNames(texts []Text, trees []Tree, allTrees bool) error {
+// validateNames checks text names of nodes and ascendancies against the trees.
+func validateNames(texts []Text, trees []Tree) error {
 	names := collectTreeNames(trees)
 	for _, t := range texts {
-		if allTrees {
-			if err := checkNodeNames(t, names.nodes); err != nil {
-				return err
-			}
+		if err := checkNodeNames(t, names.nodes); err != nil {
+			return err
 		}
 		for _, n := range t.AscendancyNames {
-			if !allTrees && !names.variants[n.Variant] {
-				continue // tree not loaded
-			}
 			if !names.ascendancies[n.Variant+"/"+n.ID] {
 				return fmt.Errorf("text %s: name for unknown ascendancy %s in tree %s: %w", t.Language, n.ID, n.Variant, ErrInvalid)
 			}
@@ -250,13 +243,11 @@ func validateNames(texts []Text, trees []Tree, allTrees bool) error {
 type treeNames struct {
 	nodes        map[uint32]bool
 	ascendancies map[string]bool // "<variant>/<id>"
-	variants     map[string]bool
 }
 
 func collectTreeNames(trees []Tree) treeNames {
-	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, variants: map[string]bool{}}
+	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}}
 	for _, t := range trees {
-		names.variants[t.Variant] = true
 		for _, n := range t.Nodes {
 			names.nodes[n.ID] = true
 		}
