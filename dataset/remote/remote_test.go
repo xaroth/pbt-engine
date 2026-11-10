@@ -222,6 +222,45 @@ func TestPullKeepsOldCopyOnError(t *testing.T) {
 	}
 }
 
+// A league that fails does not stop the others.
+func TestPullContinuesPastFailure(t *testing.T) {
+	t.Parallel()
+	s := &source{}
+	s.publish(t, "3.28", dataset1("3.28.0.16"))
+	s.publish(t, "3.29", dataset1("3.29.3.5"))
+	delete(s.files, "poe1/3.28/stats.fb")
+	dir := t.TempDir()
+	rs, err := remote.Pull(t.Context(), s, dir, "poe1", "3.27", "3.28", "3.29")
+	if !errors.Is(err, remote.ErrUnknownLeague) || !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("got %v, want the unknown league and the missing file joined", err)
+	}
+	if len(rs) != 1 || rs[0].League != "3.29" || !rs[0].Updated {
+		t.Errorf("results %+v, want 3.29 updated", rs)
+	}
+	if got := versions(t, dir); !slices.Equal(got, []string{"3.29.3.5"}) {
+		t.Errorf("pulled versions %v", got)
+	}
+}
+
+// What an interrupted pull left behind is removed by the next pull of the league, also when
+// the league is current.
+func TestPullRemovesLeftovers(t *testing.T) {
+	t.Parallel()
+	s := &source{}
+	s.publish(t, "3.29", dataset1("3.29.3.5"))
+	dir := t.TempDir()
+	pull(t, s, dir)
+	for _, left := range []string{".3.29-123", ".3.29-456.old"} {
+		if err := os.MkdirAll(filepath.Join(dir, left), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pull(t, s, dir)
+	if left := strayEntries(t, dir); len(left) != 0 {
+		t.Errorf("left behind %v", left)
+	}
+}
+
 func TestPullErrors(t *testing.T) {
 	t.Parallel()
 	s := &source{}

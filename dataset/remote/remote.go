@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/xaroth/pbt-engine/dataset"
 )
@@ -61,11 +62,15 @@ type Fetcher interface {
 	Fetch(ctx context.Context, name string) ([]byte, error)
 }
 
-// HTTP fetches from Base, a URL ending in a slash.
+// HTTP fetches from Base, a URL ending in a slash, with Client, or without one a client that
+// gives up on a request after fetchTimeout.
 type HTTP struct {
 	Base   string
 	Client *http.Client
 }
+
+// fetchTimeout bounds one file's request: the largest is about 1 MB.
+const fetchTimeout = 2 * time.Minute
 
 // Fetch gets Base+name and fails on any status but 200.
 func (h HTTP) Fetch(ctx context.Context, name string) ([]byte, error) {
@@ -75,7 +80,7 @@ func (h HTTP) Fetch(ctx context.Context, name string) ([]byte, error) {
 	}
 	c := h.Client
 	if c == nil {
-		c = http.DefaultClient
+		c = &http.Client{Timeout: fetchTimeout}
 	}
 	resp, err := c.Do(req)
 	if err != nil {
@@ -106,7 +111,9 @@ type Result struct {
 // league of game in the index. A league whose manifest matches the index is left alone;
 // otherwise the new manifest is fetched and checked against the index, each file it lists is
 // reused from the local copy when its SHA-256 matches or fetched and checked otherwise, and
-// the complete dataset replaces the league's directory. A failed league keeps its old copy.
+// the complete dataset replaces the league's directory. A league that fails keeps its old copy
+// and does not stop the others: Pull returns the results of the leagues pulled together with
+// the joined errors of those that failed.
 func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) ([]Result, error) {
 	ib, err := f.Fetch(ctx, IndexName)
 	if err != nil {
@@ -124,27 +131,33 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 		return nil, fmt.Errorf("pull: %w", err)
 	}
 	out := make([]Result, 0, len(leagues))
+	var errs []error
 	for _, league := range leagues {
 		e, ok := entries[league]
 		if !ok || !validName(league) {
-			return out, fmt.Errorf("%w: %s %s", ErrUnknownLeague, game, league)
+			errs = append(errs, fmt.Errorf("%w: %s %s", ErrUnknownLeague, game, league))
+			continue
 		}
 		r, err := pullLeague(ctx, f, dir, game, league, e)
 		if err != nil {
-			return out, fmt.Errorf("pull %s %s: %w", game, league, err)
+			errs = append(errs, fmt.Errorf("pull %s %s: %w", game, league, err))
+			continue
 		}
 		out = append(out, r)
 	}
-	return out, nil
+	return out, errors.Join(errs...)
 }
 
 func pullLeague(ctx context.Context, f Fetcher, dir, game, league string, e Entry) (Result, error) {
 	r := Result{League: league, Version: e.Version}
+	if err := removeStages(dir, league); err != nil {
+		return r, err
+	}
 	local := filepath.Join(dir, league)
 	if b, err := os.ReadFile(filepath.Join(local, dataset.ManifestName)); err == nil && sum(b) == e.Manifest {
 		return r, nil
 	}
-	stage, err := os.MkdirTemp(dir, "."+league+"-")
+	stage, err := os.MkdirTemp(dir, stagePrefix(league))
 	if err != nil {
 		return r, fmt.Errorf("stage: %w", err)
 	}
@@ -216,6 +229,22 @@ func stageFile(ctx context.Context, f Fetcher, src, local, stage string, file da
 }
 
 func matches(b []byte, file dataset.File) bool { return len(b) == file.Size && sum(b) == file.SHA256 }
+
+func stagePrefix(league string) string { return "." + league + "-" }
+
+// removeStages removes what an interrupted pull of league left in dir.
+func removeStages(dir, league string) error {
+	left, err := filepath.Glob(filepath.Join(dir, stagePrefix(league)+"*"))
+	if err != nil {
+		return fmt.Errorf("stage: %w", err)
+	}
+	for _, l := range left {
+		if err := os.RemoveAll(l); err != nil {
+			return fmt.Errorf("stage: %w", err)
+		}
+	}
+	return nil
+}
 
 // replace swaps the complete stage in for local, restoring local when that fails.
 func replace(local, stage string) error {

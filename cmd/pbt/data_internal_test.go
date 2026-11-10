@@ -53,7 +53,7 @@ func TestDataPull(t *testing.T) {
 	t.Parallel()
 	src, root := serveSource(t), t.TempDir()
 	var out, notes bytes.Buffer
-	if err := run([]string{"data", "pull", "--root", root, "--source", src}, &out, &notes); err != nil {
+	if err := run(t.Context(), []string{"data", "pull", "--root", root, "--source", src}, &out, &notes); err != nil {
 		t.Fatal(err)
 	}
 	want := "poe1 3.28: 3.28.0.16 (updated, 7 files fetched)\npoe1 3.29: 3.29.3.5 (updated, 7 files fetched)\n"
@@ -61,20 +61,20 @@ func TestDataPull(t *testing.T) {
 		t.Errorf("first pull:\n%s\nwant:\n%s", out.String(), want)
 	}
 	out.Reset()
-	if err := run([]string{"data", "pull", "3.29", "--root", root, "--source", src}, &out, &notes); err != nil {
+	if err := run(t.Context(), []string{"data", "pull", "3.29", "--root", root, "--source", src}, &out, &notes); err != nil {
 		t.Fatal(err)
 	}
 	if want := "poe1 3.29: 3.29.3.5 (current)\n"; out.String() != want {
 		t.Errorf("second pull: %q, want %q", out.String(), want)
 	}
 	out.Reset()
-	if err := run([]string{"data", "show", "stat", "base_strength", "--version", "3.29", "--root", root}, &out, &notes); err != nil {
+	if err := run(t.Context(), []string{"data", "show", "stat", "base_strength", "--version", "3.29", "--root", root}, &out, &notes); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "base_strength") {
 		t.Errorf("show from pulled data: %q", out.String())
 	}
-	if err := run([]string{"data", "pull", "3.30", "--root", root, "--source", src}, &out, &notes); err == nil {
+	if err := run(t.Context(), []string{"data", "pull", "3.30", "--root", root, "--source", src}, &out, &notes); err == nil {
 		t.Error("pull of an unknown league: got nil error")
 	}
 }
@@ -87,7 +87,7 @@ func TestCachePulledOnFirstUse(t *testing.T) {
 	t.Setenv("HOME", cache)
 	for i, wantNote := range []bool{true, false} {
 		var out, notes bytes.Buffer
-		if err := run([]string{"data", "show", "stat", "base_strength", "--version", "3.28", "--source", src}, &out, &notes); err != nil {
+		if err := run(t.Context(), []string{"data", "show", "stat", "base_strength", "--version", "3.28", "--source", src}, &out, &notes); err != nil {
 			t.Fatal(err)
 		}
 		if got := strings.Contains(notes.String(), "pulling from"); got != wantNote {

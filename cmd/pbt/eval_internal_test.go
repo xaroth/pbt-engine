@@ -66,7 +66,7 @@ func writeSimRoot(t *testing.T) string {
 func runOut(t *testing.T, args ...string) string {
 	t.Helper()
 	var out strings.Builder
-	if err := run(args, &out, io.Discard); err != nil {
+	if err := run(t.Context(), args, &out, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	return out.String()
@@ -110,11 +110,11 @@ func TestEval(t *testing.T) {
 		"unknown view":   {"--explain", "player.life", "--view", "pie"},
 		"unknown output": {"--explain", "player.nothing"},
 	} {
-		if err := run(append([]string{"eval", path, "--root", root}, args...), io.Discard, io.Discard); err == nil {
+		if err := run(t.Context(), append([]string{"eval", path, "--root", root}, args...), io.Discard, io.Discard); err == nil {
 			t.Errorf("%s: no error", name)
 		}
 	}
-	if err := run([]string{"eval", path, "--root", root, "--set", "x"}, io.Discard, io.Discard); !errors.Is(err, errSet) {
+	if err := run(t.Context(), []string{"eval", path, "--root", root, "--set", "x"}, io.Discard, io.Discard); !errors.Is(err, errSet) {
 		t.Errorf("--set x: %v", err)
 	}
 }
@@ -162,7 +162,7 @@ func TestPower(t *testing.T) {
 		"bad distance": {"--max-distance", "x"},
 		"bad output":   {"--by", "player.nothing"},
 	} {
-		if err := run(append([]string{"power", path, "--root", root}, args...), io.Discard, io.Discard); err == nil {
+		if err := run(t.Context(), append([]string{"power", path, "--root", root}, args...), io.Discard, io.Discard); err == nil {
 			t.Errorf("%s: no error", name)
 		}
 	}

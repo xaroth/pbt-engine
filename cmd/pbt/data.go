@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/dataset/remote"
@@ -29,7 +29,7 @@ func dataPull(in invocation) error {
 }
 
 func pull(in invocation, w io.Writer, dir, game string, leagues ...string) error {
-	rs, err := remote.Pull(context.Background(), remote.HTTP{Base: in.opts["source"]}, dir, game, leagues...)
+	rs, err := remote.Pull(in.ctx, remote.HTTP{Base: in.opts["source"]}, dir, game, leagues...)
 	p := &printer{w: w}
 	for _, r := range rs {
 		state := "current"
@@ -77,7 +77,7 @@ func hasDataset(dir string) bool {
 		return false
 	}
 	for _, e := range entries {
-		if _, err := os.Stat(filepath.Join(dir, e.Name(), dataset.ManifestName)); e.IsDir() && err == nil {
+		if _, err := os.Stat(filepath.Join(dir, e.Name(), dataset.ManifestName)); e.IsDir() && !strings.HasPrefix(e.Name(), ".") && err == nil {
 			return true
 		}
 	}

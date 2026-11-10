@@ -23,11 +23,13 @@ package main
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
 	"os"
+	"os/signal"
 	"slices"
 	"strconv"
 	"strings"
@@ -72,7 +74,10 @@ const (
 )
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	stop()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "pbt:", err)
 		os.Exit(1)
 	}
@@ -109,7 +114,7 @@ func parseArgs(args []string, known map[string]string) ([]string, map[string]str
 }
 
 // run writes results to w and notes about how they were found to notes.
-func run(args []string, w, notes io.Writer) error {
+func run(ctx context.Context, args []string, w, notes io.Writer) error {
 	pos, opts, err := parseArgs(args, map[string]string{
 		"version": "", "variant": build.DefaultVariant, "root": "", "source": remote.DefaultSource, "limit": "20", "language": "en", "game": "poe1",
 		"set": "", "explain": "", "view": "tree", "version-b": "", "warnings": "short",
@@ -140,11 +145,12 @@ func run(args []string, w, notes io.Writer) error {
 	if !ok || (cmd.args != anyArgs && len(pos) != cmd.args) {
 		return errUsage
 	}
-	return cmd.run(invocation{pos: pos, opts: opts, w: w, notes: notes})
+	return cmd.run(invocation{ctx: ctx, pos: pos, opts: opts, w: w, notes: notes})
 }
 
 // invocation is a parsed command line and where its output goes.
 type invocation struct {
+	ctx      context.Context //nolint:containedctx // an invocation is one command's call
 	pos      []string
 	opts     map[string]string
 	w, notes io.Writer
