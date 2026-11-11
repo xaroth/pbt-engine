@@ -219,8 +219,20 @@ func (rcv *Mod) GenerationWeightsLength() int {
 	return 0
 }
 
+func (rcv *Mod) GameMode() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Mod) MutateGameMode(n int32) bool {
+	return rcv._tab.MutateInt32Slot(26, n)
+}
+
 func ModStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(12)
 }
 func ModAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -272,6 +284,9 @@ func ModAddGenerationWeights(builder *flatbuffers.Builder, generationWeights fla
 }
 func ModStartGenerationWeightsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(8, numElems, 4)
+}
+func ModAddGameMode(builder *flatbuffers.Builder, gameMode int32) {
+	builder.PrependInt32Slot(11, gameMode, 0)
 }
 func ModEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
