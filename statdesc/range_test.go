@@ -79,7 +79,10 @@ func TestReadRangeVariants(t *testing.T) {
 		want  []statdesc.RangeReading
 	}{
 		"ends in two scopes": {[]string{"(5-20)% increased Area"}, []statdesc.RangeReading{}},
-		"one scope":          {[]string{"(15-20)% increased Area"}, []statdesc.RangeReading{{Stats: []string{"parent_area"}, Min: []int32{15}, Max: []int32{20}, Lines: 1}}},
+		"one scope": {
+			[]string{"(15-20)% increased Area"},
+			[]statdesc.RangeReading{{Stats: []string{"parent_area"}, Min: []int32{15}, Max: []int32{20}, Lines: 1}},
+		},
 		"two variants alike": {[]string{"(3-5)% increased Speed"}, []statdesc.RangeReading{{Stats: []string{"speed"}, Min: []int32{3}, Max: []int32{5}, Lines: 1}}},
 	} {
 		t.Run(name, func(t *testing.T) {
