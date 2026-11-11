@@ -86,7 +86,7 @@ func samePtr[T comparable](a, b *T) bool {
 // sameMod compares m of a with n of b, stats by stat id.
 func sameMod(a, b *tables, m, n Mod) bool {
 	return m.Domain == n.Domain && m.Generation == n.Generation && m.Level == n.Level && m.Type == n.Type &&
-		slices.Equal(m.Families, n.Families) && sameModStats(a, b, m.Stats, n.Stats) && sameModTags(m, n)
+		m.GameMode == n.GameMode && slices.Equal(m.Families, n.Families) && sameModStats(a, b, m.Stats, n.Stats) && sameModTags(m, n)
 }
 
 func sameModStats(a, b *tables, x, y []ModStat) bool {

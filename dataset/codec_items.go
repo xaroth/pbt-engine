@@ -247,6 +247,7 @@ func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32,
 	fb.ModAddAddedTags(b, added)
 	fb.ModAddSpawnWeights(b, spawn)
 	fb.ModAddGenerationWeights(b, generationWeights)
+	fb.ModAddGameMode(b, m.GameMode)
 	return fb.ModEnd(b)
 }
 
@@ -290,6 +291,7 @@ func decodeMod(m *fb.Mod, h []uint32, tagIDs []string, intern interner) (Mod, er
 		ID:         string(m.Id()),
 		Domain:     m.Domain(),
 		Generation: m.Generation(),
+		GameMode:   m.GameMode(),
 		Level:      m.Level(),
 		Type:       intern.string(m.Type()),
 	}

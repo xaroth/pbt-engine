@@ -107,6 +107,9 @@ type Mod struct {
 	// Tags are the mod's own tags; AddedTags are those it adds to its item.
 	Tags, AddedTags                 []string
 	SpawnWeights, GenerationWeights []TagWeight
+	// GameMode is Mods.GameMode as the game numbers it: 0 when the mod exists in every game
+	// mode, 1 in standard only, 2 in Ruthless only.
+	GameMode int32
 }
 
 // ModStat is a stat handle of a mod with its range. The Ruthless range equals Min and Max when
