@@ -229,3 +229,28 @@ func TestFromXMLMainGroupClamped(t *testing.T) {
 		}
 	}
 }
+
+// A gem without a level, as older files may have, or with one below 1 imports at level 1.
+func TestFromXMLGemLevelMissing(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t, gemSpec{name: "Frostblink"})
+	for _, level := range []string{``, `level="0"`} {
+		file := strings.Replace(`<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills><Skill><Gem nameSpec="Frostblink" LEVEL/></Skill></Skills>
+</PathOfBuilding>`, "LEVEL", level, 1)
+		b, warnings, err := pob.FromXML([]byte(file), reg)
+		if err != nil {
+			t.Fatalf("%q: %v", level, err)
+		}
+		want := build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{gem("Frostblink", 1, 0)}}}}
+		if diff := cmp.Diff(want, b.Skills); diff != "" {
+			t.Errorf("%q: skills (-want +got):\n%s", level, diff)
+		}
+		wantWarnings := []build.Warning{{Code: pob.GemLevelMissing, Subject: "Frostblink", Message: "level missing or below 1; level 1 used"}}
+		if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
+			t.Errorf("%q: warnings (-want +got):\n%s", level, diff)
+		}
+	}
+}

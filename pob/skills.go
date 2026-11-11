@@ -110,6 +110,11 @@ func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills
 		im.warnf(GemToggleIgnored, g.Name, "one of the Vaal gem's two skills is switched off; the switch is not imported")
 	}
 	out := build.Gem{ID: dg.ID, Level: g.Level, Quality: g.Quality, Support: dg.Support, Disabled: !g.Enabled}
+	// Older files may omit the level, which reads as 0; PoB fails to load such a gem.
+	if out.Level < 1 {
+		out.Level = 1
+		im.warnf(GemLevelMissing, cmp.Or(g.Name, g.GemID, g.SkillID), "level missing or below 1; level 1 used")
+	}
 	if effect != &dg.Effects[0] {
 		out.Effect = effect.ID
 	}

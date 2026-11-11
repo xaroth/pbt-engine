@@ -43,6 +43,7 @@ const (
 	GemUnknown         build.Code = "pob-gem-unknown"
 	GemToggleIgnored   build.Code = "pob-gem-toggle-ignored"
 	GemAmbiguous       build.Code = "pob-gem-ambiguous"
+	GemLevelMissing    build.Code = "pob-gem-level-missing"
 	MainSkillIgnored   build.Code = "pob-main-skill-ignored"
 	PantheonIgnored    build.Code = "pob-pantheon-ignored"
 	AscendancyIgnored  build.Code = "pob-ascendancy-ignored"
