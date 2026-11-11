@@ -18,6 +18,9 @@ type Diff struct {
 	// Items is empty when neither dataset has the items group; a dataset without it compares
 	// as one with an empty group.
 	Items ItemsDiff
+	// Skills is empty when neither dataset has the skills group; a dataset without it compares
+	// as one with an empty group.
+	Skills SkillsDiff
 }
 
 // TreeDiff lists node changes in one tree variant present in both datasets.
@@ -40,8 +43,9 @@ type NodeDiff struct {
 	StatsBefore, StatsAfter map[string]int32
 }
 
-// Compare returns the changes from a to b in stats, characters, constants, trees and items. It
-// loads every tree and the items group of both; CompareTree compares one tree.
+// Compare returns the changes from a to b in stats, characters, constants, trees, items and
+// skills. It loads every tree and the items and skills groups of both; CompareTree compares one
+// tree.
 func Compare(a, b *Store) (Diff, error) {
 	x, err := tablesOf(a, a.Manifest().Trees())
 	if err != nil {
@@ -57,6 +61,9 @@ func Compare(a, b *Store) (Diff, error) {
 	compareConstants(&d, x, y)
 	compareTreeGroups(&d, x, y)
 	if d.Items, err = compareItemGroups(a, b, x, y); err != nil {
+		return Diff{}, err
+	}
+	if d.Skills, err = compareSkillGroups(a, b, x, y); err != nil {
 		return Diff{}, err
 	}
 	return d, nil
