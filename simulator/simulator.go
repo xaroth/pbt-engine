@@ -15,6 +15,7 @@ import (
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
+	"github.com/xaroth/pbt-engine/items"
 	"github.com/xaroth/pbt-engine/output"
 )
 
@@ -58,6 +59,8 @@ const maxIdle = 16
 type Sim struct {
 	store *dataset.Store
 	table *semantics.Table
+	// items reads item text; made on first use, since most uses of a sim read none.
+	items func() (*items.Reader, error)
 
 	mu  sync.Mutex
 	cfg config.Values
@@ -87,6 +90,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
 	s := &Sim{store: store, table: t, cfg: config.Values{}}
+	s.items = sync.OnceValues(func() (*items.Reader, error) { return items.NewReader(store) })
 	if err := s.Configure(opts...); err != nil {
 		return nil, err
 	}

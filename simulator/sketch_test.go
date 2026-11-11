@@ -16,6 +16,7 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/items"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
 	"github.com/xaroth/pbt-engine/poe1"
@@ -45,10 +46,6 @@ func (n need) missing(s symbolSet) bool {
 		return true
 	}
 	return slices.ContainsFunc(n.waitsOn, func(sym string) bool { return !s.has(sym) })
-}
-
-func needItems() need {
-	return need{what: "items on a build", waitsOn: []string{"simulator.Data.Item", "build.Equip"}}
 }
 
 func needSkillSim(syms ...string) need { return need{what: "skill simulation", waitsOn: syms} }
@@ -135,10 +132,7 @@ func sketchLoad() []sketchPart {
 func sketchEdit() []sketchPart {
 	return []sketchPart{
 		{name: "clone and apply edits", run: sketchApply},
-		{
-			name: "equip an item from its text", needs: []need{needItems()},
-			code: "item, warnings, err := sim.Data().Item(rawItemText)\nerr = next.Apply(build.Equip(build.SlotHelmet, item))",
-		},
+		{name: "equip an item from its text", run: sketchEquip},
 		{name: "set charges in the build's config", code: `err = config.Set(&next.Config, poe1.PowerCharges, 3)`, needs: []need{needCharges()}},
 		{name: "look gems up by name", run: sketchGems},
 		{name: "edit the main skill group", run: sketchGroup},
@@ -379,6 +373,40 @@ func sketchApply(t *testing.T, s *sketchState) {
 	}
 	if s.next.Level != 95 || len(s.next.Nodes) != len(s.base.Nodes)-3 || s.base.Level != 90 {
 		t.Errorf("after the edits: level %d with %d nodes, base level %d with %d", s.next.Level, len(s.next.Nodes), s.base.Level, len(s.base.Nodes))
+	}
+}
+
+// rawItemText is a rare helmet as Path of Building writes it.
+const rawItemText = `Rarity: RARE
+Foe Horn
+Conqueror's Helmet
+Armour: 767
+Item Level: 85
+Quality: 20
+Sockets: R-R-R-R
+Implicits: 0
++68 to Armour
++101 to maximum Life
+82% increased Armour
++33% to Fire Resistance
+{crafted}+28% to Physical Damage over Time Multiplier
+`
+
+func sketchEquip(t *testing.T, s *sketchState) {
+	item, warnings, err := s.sim.Data().Item(rawItemText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range warnings {
+		if x.Code != items.LineAmbiguous {
+			t.Errorf("read the item: %v", x)
+		}
+	}
+	if err := s.next.Apply(build.Equip(build.SlotHelmet, item)); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.next.Items[build.SlotHelmet]; got.Base == "" || len(got.Mods) != 5 {
+		t.Errorf("equipped %+v", got)
 	}
 }
 

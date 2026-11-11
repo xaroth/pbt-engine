@@ -27,7 +27,6 @@ func capabilities() []string {
 		"an enemy actor",
 		"Path of Building share codes",
 		"skills on a build",
-		"items on a build",
 		"charges in config",
 		"conditions derived from the build",
 		"minions",

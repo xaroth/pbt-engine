@@ -7,6 +7,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/items"
 )
 
 // ErrAmbiguousName is a name of more than one gem that dataset.Store.GemByName cannot choose
@@ -16,10 +17,11 @@ var ErrAmbiguousName = errors.New("simulator: name of more than one gem")
 // Data looks up the ids a build holds by the names players know, in the sim's dataset.
 type Data struct {
 	store *dataset.Store
+	items func() (*items.Reader, error)
 }
 
 // Data returns the sim's name lookups.
-func (s *Sim) Data() *Data { return &Data{store: s.store} }
+func (s *Sim) Data() *Data { return &Data{store: s.store, items: s.items} }
 
 // Gem returns the id of the gem named name in English, such as "Fireball", "Inspiration" or
 // the transfigured "Fireball of Splitting", chosen among gems of one name as
@@ -39,4 +41,21 @@ func (d *Data) Gem(name string) (build.GemID, error) {
 		id.Effect = m.Effect.ID
 	}
 	return id, nil
+}
+
+// Item reads item text, as Path of Building writes and copies it, into an item for
+// build.Equip: its base by name and each mod line as the stats it reads as (see
+// items.Reader.Parse). A line no stat description reads is a warning and stays on the item
+// without stats. A dataset without the items group returns a *dataset.MissingGroupError; text
+// that is not an item items.ErrFormat, and an unknown base items.ErrUnknownBase.
+func (d *Data) Item(text string) (build.Item, []Warning, error) {
+	r, err := d.items()
+	if err != nil {
+		return build.Item{}, nil, fmt.Errorf("simulator: %w", err)
+	}
+	it, warnings, err := r.Parse(text)
+	if err != nil {
+		return build.Item{}, nil, fmt.Errorf("simulator: %w", err)
+	}
+	return it, warnings, nil
 }
