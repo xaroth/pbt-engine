@@ -32,7 +32,8 @@ var update = flag.Bool("update", false, "rewrite testdata/sketch-skipped.golden"
 // testdata/sketch-skipped.golden and fails once a need is met.
 
 // need is a feature a skipped part waits for. It is missing while any symbol in waitsOn is
-// undeclared or probe reports true.
+// undeclared or probe reports true. Symbols are the sketch's names: a feature that lands under
+// another name goes unnoticed until the part is updated.
 type need struct {
 	what    string
 	waitsOn []string
@@ -50,9 +51,7 @@ func needItems() need { return need{what: "items on a build", waitsOn: []string{
 
 func needSkillSim(syms ...string) need { return need{what: "skill simulation", waitsOn: syms} }
 
-func needEnemy(syms ...string) need {
-	return need{what: "enemy", waitsOn: append([]string{"simulator.Enemy"}, syms...)}
-}
+func needEnemy(syms ...string) need { return need{what: "enemy", waitsOn: syms} }
 
 func needDerived(syms ...string) need { return need{what: "derived conditions", waitsOn: syms} }
 
@@ -69,14 +68,18 @@ func needCharges() need {
 // needTypedClear: Clear takes a key name today, not a typed key.
 func needTypedClear() need {
 	return need{what: "typed Clear", probe: func() bool {
-		return reflect.TypeOf(simulator.Clear).In(0).Kind() == reflect.String
+		f := reflect.TypeOf(simulator.Clear)
+		return f.NumIn() != 1 || f.In(0).Kind() == reflect.String
 	}}
 }
 
 func needConfigOptions() need {
 	return need{what: "Config().Options()", probe: func() bool {
-		m, _ := reflect.TypeFor[*simulator.Sim]().MethodByName("Config")
-		_, ok := m.Type.Out(0).MethodByName("Options")
+		m, ok := reflect.TypeFor[*simulator.Sim]().MethodByName("Config")
+		if !ok || m.Type.NumOut() != 1 {
+			return true
+		}
+		_, ok = m.Type.Out(0).MethodByName("Options")
 		return !ok
 	}}
 }
@@ -109,7 +112,7 @@ func sketchSetup() []sketchPart {
 		{name: "open the datasets", run: sketchOpen},
 		{name: "resolve a league", run: sketchResolve},
 		{name: "make a sim against a pinnacle boss", code: `sim, err := simulator.New(res.Store, simulator.Enemy(poe1.Pinnacle))`,
-			needs: []need{needEnemy("poe1.Pinnacle")}},
+			needs: []need{needEnemy("simulator.Enemy", "poe1.Pinnacle")}},
 		// The rest of the sketch needs a sim, so this one has no enemy.
 		{name: "make a sim", run: sketchNew},
 		{name: "set the enemy's fire resistance", code: `sim.Configure(simulator.Set(poe1.EnemyFireResist, 40))`,
@@ -141,7 +144,7 @@ func sketchEdit() []sketchPart {
 func sketchRun() []sketchPart {
 	return []sketchPart{
 		{name: "simulate against a map boss", code: `stats, err := sim.Simulate(next, simulator.Enemy(poe1.Map(83)))`,
-			needs: []need{needEnemy("poe1.Map")}},
+			needs: []need{needEnemy("simulator.Enemy", "poe1.Map")}},
 		// The rest of the sketch needs stats, so this call has no enemy.
 		{name: "simulate", run: sketchSimulate},
 		{name: "a build the dataset cannot take is ErrUnreconcilable", run: sketchUnreconcilable},
@@ -225,7 +228,12 @@ func TestSketchSkipped(t *testing.T) {
 	t.Parallel()
 	symbols := sourceSymbols(t)
 	var b strings.Builder
+	names := map[string]bool{}
 	for _, p := range sketch() {
+		if names[p.name] {
+			t.Errorf("part %q: name repeated", p.name)
+		}
+		names[p.name] = true
 		if (p.run == nil) == (p.code == "") || (p.code == "") != (len(p.needs) == 0) {
 			t.Errorf("part %q: want either run, or code and needs", p.name)
 			continue
@@ -236,6 +244,7 @@ func TestSketchSkipped(t *testing.T) {
 		if _, err := parser.ParseFile(token.NewFileSet(), "", "package p\nfunc _() {\n"+p.code+"\n}", 0); err != nil {
 			t.Errorf("part %q: code does not parse: %v", p.name, err)
 		}
+		checkWaitsOn(t, p, symbols)
 		r := p.skipReason(symbols)
 		if r == "" {
 			t.Errorf("part %q: every need is met; turn the code into a running part", p.name)
@@ -254,6 +263,22 @@ func TestSketchSkipped(t *testing.T) {
 	}
 	if got := b.String(); got != string(want) {
 		t.Errorf("skipped parts differ from %s (run with -update after checking):\ngot:\n%swant:\n%s", path, got, want)
+	}
+}
+
+// checkWaitsOn: a symbol in a package the index does not parse, or one the code does not use,
+// would keep its part skipped forever.
+func checkWaitsOn(t *testing.T, p sketchPart, symbols symbolSet) {
+	t.Helper()
+	for _, n := range p.needs {
+		for _, sym := range n.waitsOn {
+			if pkg, _, _ := strings.Cut(sym, "."); !symbols.has(pkg) {
+				t.Errorf("part %q: waits on %s, in a package the symbol index does not parse", p.name, sym)
+			}
+			if !strings.Contains(p.code, sym[strings.LastIndex(sym, ".")+1:]) {
+				t.Errorf("part %q: waits on %s, which its code does not use", p.name, sym)
+			}
+		}
 	}
 }
 
@@ -419,8 +444,9 @@ func sketchExplain(t *testing.T, s *sketchState) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if ex.Value != life || len(ex.Lines) == 0 && ex.Tree == nil {
-			t.Errorf("view %v: %d lines, tree %v, value %v, want lines or a tree for %v", v, len(ex.Lines), ex.Tree != nil, ex.Value, life)
+		// The tree view fills Tree, the others Lines.
+		if ex.Value != life || (v == simulator.Tree) != (ex.Tree != nil) || (v == simulator.Tree) != (len(ex.Lines) == 0) {
+			t.Errorf("view %v: %d lines, tree %v, value %v for life %v", v, len(ex.Lines), ex.Tree != nil, ex.Value, life)
 		}
 	}
 }
@@ -469,7 +495,9 @@ func sketchDataDiff(t *testing.T, s *sketchState) {
 	if diff.Before.Version() == diff.After.Version() {
 		t.Errorf("both sides on %s", diff.Before.Version())
 	}
-	_ = diff.DataChanges
+	if len(diff.DataChanges) == 0 {
+		t.Error("no data changes between 3.28 and 3.29 for a level 90 tree")
+	}
 }
 
 func sketchSweepEach(t *testing.T, s *sketchState) {
@@ -480,8 +508,8 @@ func sketchSweepEach(t *testing.T, s *sketchState) {
 	}
 	n := 0
 	for r := range seq {
-		if r.Err != nil {
-			t.Errorf("variant %d: %v", r.Index, r.Err)
+		if c := r.Changes[poe1.Life]; r.Err != nil || !c.Has {
+			t.Errorf("variant %d: life %+v, %v", r.Index, c, r.Err)
 		}
 		n++
 	}
