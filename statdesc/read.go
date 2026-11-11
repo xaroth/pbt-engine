@@ -30,6 +30,29 @@ type Reading struct {
 // a global stat; the first is the one the game's order prefers: descriptions spanning more
 // lines first, then the named scope before its parents, then position in the scope.
 func (s *Set) Read(scopeName string, lines []string) ([]Reading, error) {
+	ms, err := s.matches(scopeName, lines)
+	if err != nil {
+		return nil, err
+	}
+	var out []Reading
+	for _, m := range ms {
+		r := m.reading
+		if !slices.ContainsFunc(out, func(o Reading) bool { return slices.Equal(o.Stats, r.Stats) && slices.Equal(o.Values, r.Values) }) {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+
+// variantMatch is a reading with the variant that gave it.
+type variantMatch struct {
+	reading       Reading
+	scope         *scope
+	desc, variant int
+}
+
+// matches returns every variant's reading of lines, sorted as Read sorts them.
+func (s *Set) matches(scopeName string, lines []string) ([]variantMatch, error) {
 	root, ok := s.scopes[scopeName]
 	if !ok {
 		return nil, fmt.Errorf("unknown scope %s: %w", scopeName, ErrUnknownScope)
@@ -38,7 +61,7 @@ func (s *Set) Read(scopeName string, lines []string) ([]Reading, error) {
 		return nil, nil
 	}
 	key := skeleton(lines[0])
-	var out []Reading
+	var out []variantMatch
 	for sc := root; sc != nil; sc = sc.parent {
 		for _, e := range sc.texts()[key] {
 			if e.lines > len(lines) {
@@ -49,13 +72,10 @@ func (s *Set) Read(scopeName string, lines []string) ([]Reading, error) {
 			if !ok || !renders(root, sc, e.desc, d.Stats, vals) {
 				continue
 			}
-			r := Reading{Stats: slices.Clone(d.Stats), Values: vals, Lines: e.lines}
-			if !slices.ContainsFunc(out, func(o Reading) bool { return slices.Equal(o.Stats, r.Stats) && slices.Equal(o.Values, r.Values) }) {
-				out = append(out, r)
-			}
+			out = append(out, variantMatch{reading: Reading{Stats: slices.Clone(d.Stats), Values: vals, Lines: e.lines}, scope: sc, desc: e.desc, variant: e.variant})
 		}
 	}
-	slices.SortStableFunc(out, func(a, b Reading) int { return cmp.Compare(b.Lines, a.Lines) })
+	slices.SortStableFunc(out, func(a, b variantMatch) int { return cmp.Compare(b.reading.Lines, a.reading.Lines) })
 	return out, nil
 }
 
@@ -91,17 +111,11 @@ func (s *Set) read(d Description, e textEntry, text string) ([]int32, bool) {
 		if shown[i] == "" {
 			continue
 		}
-		if vals[i], ok = s.invert(v.Handlers, i, shown[i]); !ok {
+		if vals[i], ok = s.invert(v.Handlers, i, shown[i], false); !ok {
 			return nil, false
 		}
 	}
-	// Stats that are all 0 render nothing, so then the hidden ones cannot be 0.
-	nonZero := slices.ContainsFunc(vals, func(x int32) bool { return x != 0 })
-	for i := range d.Stats {
-		if shown[i] == "" {
-			vals[i] = nearestZero(v.Limits[i], nonZero)
-		}
-	}
+	s.avoidZeros(v, shown, vals)
 	stats := make(map[string]int32, len(d.Stats))
 	for i, st := range d.Stats {
 		stats[st] = vals[i]
@@ -110,9 +124,26 @@ func (s *Set) read(d Description, e textEntry, text string) ([]int32, bool) {
 	return vals, ok && err == nil && got == text
 }
 
+// avoidZeros sets the values of stats the text does not show. Stats that are all 0 render
+// nothing: a shown stat whose display hides small values, as "0%", takes the nearest other
+// value, and else the hidden ones cannot be 0.
+func (s *Set) avoidZeros(v Variant, shown []string, vals []int32) {
+	nonZero := slices.ContainsFunc(vals, func(x int32) bool { return x != 0 })
+	for i := range vals {
+		if !nonZero && shown[i] != "" {
+			vals[i], nonZero = s.invert(v.Handlers, i, shown[i], true)
+		}
+	}
+	for i := range vals {
+		if shown[i] == "" {
+			vals[i] = nearestZero(v.Limits[i], nonZero)
+		}
+	}
+}
+
 // invert returns the value of stat i whose display through handlers is shown: the integer
-// nearest the exact inverse whose display matches.
-func (s *Set) invert(handlers []Handler, i int, shown string) (int32, bool) {
+// nearest the exact inverse whose display matches, other than 0 with nonZero.
+func (s *Set) invert(handlers []Handler, i int, shown string, nonZero bool) (int32, bool) {
 	shown = strings.TrimPrefix(shown, "+")
 	x, err := strconv.ParseFloat(shown, 64)
 	if err != nil {
@@ -134,16 +165,16 @@ func (s *Set) invert(handlers []Handler, i int, shown string) (int32, bool) {
 	if n := forward(hs, 0); n.set {
 		window += int(math.Ceil(math.Abs(inverse(hs, x+math.Pow10(-n.dp)) - exact)))
 	}
-	return nearestShown(hs, exact, window, shown)
+	return nearestShown(hs, exact, window, shown, nonZero)
 }
 
 // nearestShown returns the integer within window of exact, nearest first, that hs display as
-// shown.
-func nearestShown(hs []handler, exact float64, window int, shown string) (int32, bool) {
+// shown, other than 0 with nonZero.
+func nearestShown(hs []handler, exact float64, window int, shown string, nonZero bool) (int32, bool) {
 	c := math.Round(exact)
 	for k := range window + 1 {
 		for _, cand := range nearestFirst(c, float64(k), exact) {
-			if cand >= math.MinInt32 && cand <= math.MaxInt32 && forward(hs, cand).String() == shown {
+			if cand >= math.MinInt32 && cand <= math.MaxInt32 && (cand != 0 || !nonZero) && forward(hs, cand).String() == shown {
 				return int32(cand), true
 			}
 		}

@@ -12,9 +12,10 @@ import (
 )
 
 // TestReadRangeRoundTrip renders every variant of the main description file at two values per
-// stat, writes the numbers that differ as ranges, and reads the line back with ReadRange: each
-// end must give what Read gives for that end's text. Variants that Read does not read back are
-// left out; those that read back alone but not as a range are listed in the golden file.
+// stat, writes the numbers that differ as ranges, and reads the line back with ReadRange: one
+// reading must have the variant's stats, and every reading must render its Min and Max back to
+// the two texts. Variants that Read does not read back at both ends are left out; the rest that
+// fail are listed in the golden file.
 func TestReadRangeRoundTrip(t *testing.T) {
 	t.Parallel()
 	set, sc := realText(t)
@@ -26,8 +27,7 @@ func TestReadRangeRoundTrip(t *testing.T) {
 			if why != "" {
 				continue
 			}
-			want, has := endsOf(t, set, d, lo, hi)
-			if !has {
+			if !readsBack(t, set, d, lo) || !readsBack(t, set, d, hi) {
 				continue
 			}
 			tried++
@@ -43,8 +43,8 @@ func TestReadRangeRoundTrip(t *testing.T) {
 			switch {
 			case k < 0:
 				failed = append(failed, fmt.Sprintf("%d/%d %s | no reading | %q", i, j, strings.Join(d.Stats, ","), text))
-			case !cmp.Equal(got[k], want):
-				failed = append(failed, fmt.Sprintf("%d/%d %s | read as %v | %q", i, j, strings.Join(d.Stats, ","), got[k], text))
+			case slices.ContainsFunc(got, func(r statdesc.RangeReading) bool { return !rendersEnds(set, r, lo, hi) }):
+				failed = append(failed, fmt.Sprintf("%d/%d %s | a reading does not render back | %q", i, j, strings.Join(d.Stats, ","), text))
 			default:
 				ok++
 			}
@@ -98,31 +98,40 @@ func renderStats(set *statdesc.Set, d statdesc.Description, stats map[string]int
 	return "", "another description of its stats renders them"
 }
 
-// endsOf returns what Read gives for d at each end as a range reading, false when either end
-// does not read back to d.
-func endsOf(t *testing.T, set *statdesc.Set, d statdesc.Description, lo, hi string) (statdesc.RangeReading, bool) {
+// readsBack reports whether Read reads text back to d's stats.
+func readsBack(t *testing.T, set *statdesc.Set, d statdesc.Description, text string) bool {
 	t.Helper()
-	own := func(text string) (statdesc.Reading, bool) {
-		rs, err := set.Read(mainScope, strings.Split(text, "\n"))
-		if err != nil {
-			t.Fatal(err)
+	rs, err := set.Read(mainScope, strings.Split(text, "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return slices.ContainsFunc(rs, func(r statdesc.Reading) bool { return slices.Equal(r.Stats, d.Stats) })
+}
+
+// rendersEnds reports whether r renders the lines of lo and hi it spans with each stat at its
+// Min or its Max: stats can range in opposite directions, and a "reduced" line's low text is
+// its Max.
+func rendersEnds(set *statdesc.Set, r statdesc.RangeReading, lo, hi string) bool {
+	lo, hi = firstLines(lo, r.Lines), firstLines(hi, r.Lines)
+	seenLo, seenHi := false, false
+	for mask := range 1 << len(r.Stats) {
+		stats := make(map[string]int32, len(r.Stats))
+		for i, st := range r.Stats {
+			stats[st] = r.Min[i]
+			if mask&(1<<i) != 0 {
+				stats[st] = r.Max[i]
+			}
 		}
-		k := slices.IndexFunc(rs, func(r statdesc.Reading) bool { return slices.Equal(r.Stats, d.Stats) })
-		if k < 0 {
-			return statdesc.Reading{}, false
-		}
-		return rs[k], true
+		text, _ := renderStats(set, statdesc.Description{Stats: r.Stats}, stats)
+		seenLo = seenLo || text == lo
+		seenHi = seenHi || text == hi
 	}
-	a, okA := own(lo)
-	b, okB := own(hi)
-	if !okA || !okB {
-		return statdesc.RangeReading{}, false
-	}
-	r := statdesc.RangeReading{Stats: a.Stats, Min: make([]int32, len(a.Stats)), Max: make([]int32, len(a.Stats)), Lines: a.Lines}
-	for i := range a.Stats {
-		r.Min[i], r.Max[i] = min(a.Values[i], b.Values[i]), max(a.Values[i], b.Values[i])
-	}
-	return r, true
+	return seenLo && seenHi
+}
+
+func firstLines(text string, n int) string {
+	lines := strings.Split(text, "\n")
+	return strings.Join(lines[:min(n, len(lines))], "\n")
 }
 
 // joinRanges writes lo with each number that differs in hi as "(lo-hi)"; texts with another
@@ -158,8 +167,8 @@ func tokens(s string) []string {
 }
 
 // TestReadForms reads one real line of each form an item shows: value ranges, several stats on
-// a line, the negated ("reduced") variant, a description with reminder text, and a line more than
-// one description renders, which keeps every reading.
+// a line, the negated ("reduced") variant, a description with reminder text, and lines more than
+// one description or variant renders, which keep every reading.
 func TestReadForms(t *testing.T) {
 	t.Parallel()
 	set, _ := realText(t)
@@ -190,6 +199,16 @@ func TestReadForms(t *testing.T) {
 			[]string{"Bathed in the blood of 180 sacrificed in the name of Xibaqua", "Passives in radius are Conquered by the Vaal"},
 			[]statdesc.RangeReading{conquered},
 		},
+		// Two variants of one description read the line; each keeps its own value.
+		"ambiguous within a description": {[]string{"Area contains Einhar"}, []statdesc.RangeReading{
+			rr([]string{"display_map_mission_id"}, 1, 1), rr([]string{"display_map_mission_id"}, 2, 2),
+		}},
+		"ambiguous within a description, range": {
+			[]string{"Socketed Gems have +(3.5-4.5)% Critical Strike Chance"},
+			[]statdesc.RangeReading{rr([]string{"local_display_socketed_gems_additional_critical_strike_chance_%"}, 350, 450)},
+		},
+		// 0 renders nothing, so the shown "0" is the smallest value that rounds to it.
+		"shown 0": {[]string{"Lose 0% Life per Second per Minion"}, []statdesc.RangeReading{rr([]string{"life_degeneration_permyriad_per_minute_per_minion"}, 1, 1)}},
 		"ambiguous, every reading": {[]string{"+12% chance to Suppress Spell Damage"}, []statdesc.RangeReading{
 			rr([]string{"base_spell_suppression_chance_150%_of_value"}, 8, 8), rr([]string{"base_spell_suppression_chance_%"}, 12, 12),
 		}},

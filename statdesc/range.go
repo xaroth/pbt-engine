@@ -18,38 +18,48 @@ type RangeReading struct {
 }
 
 // ReadRange returns the readings of lines as Read does, where any number may be written as a
-// range "(low-high)", such as "Adds (5-7) to (10-12) Fire Damage". The lines at the low ends
-// and at the high ends are read, and a reading is kept when both ends read to its stats over
-// the same lines; ranges whose ends render under different descriptions, such as one that
-// crosses 0 on an "increased" line, have none. Lines without a range read as with Read, with
-// Min equal to Max.
+// range "(low-high)". The low ends and the high ends are read separately and paired by the
+// variant that reads them, so a range never mixes two descriptions or two variants; a range
+// whose ends need different variants, such as one crossing 0, has no reading. Ambiguous lines
+// keep every reading, in Read's order.
 func (s *Set) ReadRange(scopeName string, lines []string) ([]RangeReading, error) {
 	low, high, ranged := splitRanges(lines)
-	lo, err := s.Read(scopeName, low)
+	lo, err := s.matches(scopeName, low)
 	if err != nil {
 		return nil, err
 	}
 	hi := lo
 	if ranged {
-		if hi, err = s.Read(scopeName, high); err != nil {
+		if hi, err = s.matches(scopeName, high); err != nil {
 			return nil, err
 		}
 	}
 	out := make([]RangeReading, 0, len(lo))
 	for _, a := range lo {
-		i := slices.IndexFunc(hi, func(b Reading) bool { return b.Lines == a.Lines && slices.Equal(b.Stats, a.Stats) })
+		i := slices.IndexFunc(hi, func(b variantMatch) bool { return b.scope == a.scope && b.desc == a.desc && b.variant == a.variant })
 		if i < 0 {
 			continue
 		}
-		b := hi[i]
-		r := RangeReading{Stats: a.Stats, Min: make([]int32, len(a.Stats)), Max: make([]int32, len(a.Stats)), Lines: a.Lines}
-		for k := range a.Stats {
-			// A "reduced" line's high end is the more negative value.
-			r.Min[k], r.Max[k] = min(a.Values[k], b.Values[k]), max(a.Values[k], b.Values[k])
+		r := ends(a.reading, hi[i].reading)
+		if !slices.ContainsFunc(out, r.equal) {
+			out = append(out, r)
 		}
-		out = append(out, r)
 	}
 	return out, nil
+}
+
+// ends joins the readings of a range's two ends; a "reduced" line's high end is the more
+// negative value.
+func ends(a, b Reading) RangeReading {
+	r := RangeReading{Stats: a.Stats, Min: make([]int32, len(a.Stats)), Max: make([]int32, len(a.Stats)), Lines: a.Lines}
+	for k := range a.Stats {
+		r.Min[k], r.Max[k] = min(a.Values[k], b.Values[k]), max(a.Values[k], b.Values[k])
+	}
+	return r
+}
+
+func (r RangeReading) equal(o RangeReading) bool {
+	return slices.Equal(o.Stats, r.Stats) && slices.Equal(o.Min, r.Min) && slices.Equal(o.Max, r.Max)
 }
 
 // splitRanges returns lines with each range "(low-high)" replaced by its low end and by its
