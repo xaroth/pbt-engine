@@ -18,6 +18,7 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/items"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
 	"github.com/xaroth/pbt-engine/poe1"
@@ -85,10 +86,7 @@ func editSteps() []step {
 		{name: "turn gem names into ids", run: gemNames},
 		{name: "edit the main skill group", run: editMainGroup},
 		{name: "deallocate nodes", run: deallocate},
-		{name: "equip an item from its text", pending: &pending{
-			needs: "items on a build", waitsOn: []string{"simulator.Data.Item"},
-			code: `item, _, _ := sim.Data().Item(rawItemText); next.Apply(build.Equip(build.SlotHelmet, item))`,
-		}},
+		{name: "equip an item from its text", run: equipItem},
 		{name: "set charges in the build's config", pending: &pending{
 			needs: "charges in config", waitsOn: []string{"poe1.PowerCharges"},
 			code: `next.Config.Set(poe1.PowerCharges, 3)`,
@@ -388,6 +386,21 @@ func deallocate(t *testing.T, w *walk) {
 	}
 }
 
+func equipItem(t *testing.T, w *walk) {
+	item, warnings, err := w.sim.Data().Item(rawItemText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range warnings {
+		if x.Code != items.LineAmbiguous {
+			t.Errorf("read the item: %v", x)
+		}
+	}
+	if err := w.next.Apply(build.Equip(build.SlotHelmet, item)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func simulateNext(t *testing.T, w *walk) {
 	w.stats = simulate(t, w.sim, w.next)
 	if got, want := w.stats.Version(), w.res.Store.Manifest().Version; got != want {
@@ -425,11 +438,13 @@ func readOutput(t *testing.T, w *walk) {
 	}
 }
 
-// readWarnings: the warnings are stats the engine leaves out or applies unchecked, and nodes the
-// removal cut off the tree; none names a removed node.
+// readWarnings: the warnings are stats the engine leaves out or applies unchecked, nodes the
+// removal cut off the tree, and the skills and the helmet not simulated yet; none names a removed
+// node.
 func readWarnings(t *testing.T, w *walk) {
 	known := []build.Code{
 		simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected, build.SkillsUnchecked, simulator.SkillsNotSimulated,
+		simulator.ItemsNotSimulated,
 	}
 	unmodelled := 0
 	for _, x := range w.stats.Warnings() {
@@ -521,7 +536,10 @@ func compareBuilds(t *testing.T, w *walk) {
 	if slices.ContainsFunc(changed, func(k output.Key) bool { return diff.Get(k).Abs == 0 }) {
 		t.Errorf("changed %v lists an output with no change", changed)
 	}
-	want := []build.Edit{build.Deallocate(slices.Sorted(slices.Values(w.cut))...), build.AddSkillGroup(w.next.Skills.Groups[0])}
+	want := []build.Edit{
+		build.Deallocate(slices.Sorted(slices.Values(w.cut))...), build.AddSkillGroup(w.next.Skills.Groups[0]),
+		build.Equip(build.SlotHelmet, w.next.Items[build.SlotHelmet]),
+	}
 	if d := gocmp.Diff(want, diff.Edits); d != "" {
 		t.Errorf("edits (-want +got):\n%s", d)
 	}

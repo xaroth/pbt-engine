@@ -113,3 +113,12 @@ func TestSimulateUnknownGem(t *testing.T) {
 		t.Errorf("Stats.Build changed the build's gems: %+v", got)
 	}
 }
+
+// Reading item text needs the dataset's items group; the sketch and walkthrough read a real item.
+func TestDataItemWithoutItems(t *testing.T) {
+	t.Parallel()
+	_, _, err := newSim(t).Data().Item("Rarity: NORMAL\nIron Hat\nImplicits: 0\n")
+	if _, ok := errors.AsType[*dataset.MissingGroupError](err); !ok {
+		t.Errorf("got %v, want a missing items group", err)
+	}
+}
