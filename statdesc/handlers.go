@@ -1,14 +1,21 @@
 package statdesc
 
-// handlers maps handler names to value transforms. A nil entry changes nothing; it marks
-// handlers that only affect reminder text or tooling.
+// handler transforms a stat value for display. invert undoes apply up to its rounding, so
+// reading text back finds the value; a zero handler changes nothing.
+type handler struct {
+	apply  func(number) number
+	invert func(float64) float64
+}
+
+// handlers maps handler names to value transforms. Zero entries mark handlers that only affect
+// reminder text or tooling.
 //
 //nolint:mnd // each handler name states its factor, so a named constant would only repeat it
-func handlers() map[string]func(number) number {
-	return map[string]func(number) number{
-		"canonical_line": nil,
-		"canonical_stat": nil,
-		"reminderstring": nil,
+func handlers() map[string]handler {
+	return map[string]handler{
+		"canonical_line": {},
+		"canonical_stat": {},
+		"reminderstring": {},
 
 		"negate":                         scale(-1, 0),
 		"negate_and_double":              scale(-2, 0),
@@ -36,10 +43,13 @@ func handlers() map[string]func(number) number {
 		"divide_by_one_hundred_2dp":             decimals(scale(1.0/100, 0), 2, true),
 		"divide_by_one_hundred_2dp_if_required": decimals(scale(1.0/100, 0), 2, false),
 		"divide_by_one_hundred_and_negate":      scale(-1.0/100, 0),
-		"divide_by_twenty_then_double_0dp": func(n number) number {
-			n = decimals(scale(1.0/20, 0), 0, false)(n)
-			n.v = roundTo(n.v, 0) * 2
-			return n
+		"divide_by_twenty_then_double_0dp": {
+			apply: func(n number) number {
+				n = decimals(scale(1.0/20, 0), 0, false).apply(n)
+				n.v = roundTo(n.v, 0) * 2
+				return n
+			},
+			invert: func(v float64) float64 { return v * 10 },
 		},
 
 		"per_minute_to_per_second":                 decimals(scale(1.0/60, 0), 1, false),
@@ -59,18 +69,25 @@ func handlers() map[string]func(number) number {
 	}
 }
 
-func scale(mul, add float64) func(number) number {
-	return func(n number) number {
-		n.v = n.v*mul + add
-		return n
+func scale(mul, add float64) handler {
+	return handler{
+		apply: func(n number) number {
+			n.v = n.v*mul + add
+			return n
+		},
+		invert: func(v float64) float64 { return (v - add) / mul },
 	}
 }
 
-func decimals(f func(number) number, dp int, fixed bool) func(number) number {
-	return func(n number) number {
-		n = f(n)
-		n.dp, n.fixed, n.set = dp, fixed, true
-		return n
+// decimals rounds h's result to dp decimals for display, keeping trailing zeros if fixed.
+func decimals(h handler, dp int, fixed bool) handler {
+	return handler{
+		apply: func(n number) number {
+			n = h.apply(n)
+			n.dp, n.fixed, n.set = dp, fixed, true
+			return n
+		},
+		invert: h.invert,
 	}
 }
 
