@@ -224,7 +224,9 @@ func (c *Checked) EditWarnings(edits []Edit) []Warning {
 			if w, bad := c.effectProblem(e.Node, e.Effect, allocated[e.Node]); bad {
 				out = append(out, w)
 			}
-		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetConfig, OpClearConfig:
+		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetConfig, OpClearConfig,
+			OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
+			OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled:
 		}
 	}
 	return out

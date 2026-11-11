@@ -49,6 +49,15 @@ type Edit struct {
 	// Key and Value for set-config, Key for clear-config.
 	Key   string          `json:"key,omitzero"`
 	Value json.RawMessage `json:"value,omitzero"`
+	// Skill addresses the group, and the gem, of a skill edit. SkillGroup for add-skill-group,
+	// Gem for add-gem; Slot, Quality and Enabled for the edits of that name, and Level for
+	// set-gem-level.
+	Skill      *SkillAt    `json:"skill,omitzero"`
+	SkillGroup *SkillGroup `json:"group,omitzero"`
+	Gem        *Gem        `json:"gem,omitzero"`
+	Slot       Slot        `json:"slot,omitzero"`
+	Quality    int         `json:"quality,omitzero"`
+	Enabled    bool        `json:"enabled,omitzero"`
 }
 
 // Allocate allocates nodes.
@@ -84,8 +93,8 @@ func SetConfig[T any](k config.Key[T], v T) (Edit, error) {
 // ClearConfig removes the named config key.
 func ClearConfig(name string) Edit { return Edit{Op: OpClearConfig, Key: name} }
 
-// Apply applies edits to b in order. It stops at an edit with an unknown op, after applying the
-// ones before it.
+// Apply applies edits to b in order. It stops at an edit with an unknown op, or a skill edit
+// addressing a group or gem b does not have (ErrEditTarget), after applying the ones before it.
 func (b *Build) Apply(edits ...Edit) error {
 	for i, e := range edits {
 		if err := b.apply(e); err != nil {
@@ -110,6 +119,9 @@ func (b *Build) apply(e Edit) error {
 	case OpSetAscendancy:
 		b.Ascendancy = e.Ascendancy
 	default:
+		if slices.Contains(skillOps(), e.Op) {
+			return b.Skills.apply(e)
+		}
 		return fmt.Errorf("%w %q", ErrEditOp, e.Op)
 	}
 	return nil
@@ -149,7 +161,7 @@ func (b *Build) applyConfig(e Edit) {
 
 // Diff returns the edits that turn a into b: class, ascendancy, level, nodes deallocated then
 // allocated, mastery choices cleared then set, config keys cleared then set, each in sorted
-// order. Version and format are not compared. Builds of another game or tree variant cannot be
+// order, then the skill groups. Version and format are not compared. Builds of another game or tree variant cannot be
 // turned into each other.
 func Diff(a, b *Build) ([]Edit, error) {
 	if a.Game != b.Game || a.Variant != b.Variant {
@@ -172,7 +184,8 @@ func Diff(a, b *Build) ([]Edit, error) {
 		out = append(out, Allocate(added...))
 	}
 	out = append(out, masteryDiff(a.Masteries, b.Masteries)...)
-	return append(out, configDiff(a.Config, b.Config)...), nil
+	out = append(out, configDiff(a.Config, b.Config)...)
+	return append(out, skillsDiff(a.Skills, b.Skills)...), nil
 }
 
 // minus returns the ids in x and not in y, sorted and unique.

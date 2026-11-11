@@ -38,6 +38,9 @@ const (
 	// UncheckedCondition is a stat applied without checking a condition of its text: unlike a
 	// stat left out, it can over-apply.
 	UncheckedCondition build.Code = "unchecked-condition"
+	// SkillsNotSimulated is a build with skill groups: outputs leave them out until skills are
+	// simulated.
+	SkillsNotSimulated build.Code = "skills-not-simulated"
 )
 
 // Warning is something a simulation went on without; its message says what was done.
@@ -167,6 +170,9 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if w, ok := versionWarning(b.Version, s.store.Manifest().Version); ok {
 		r.warnings = append(r.warnings, w)
 	}
+	if w, ok := skillsWarning(cb.Skills); ok {
+		r.warnings = append(r.warnings, w)
+	}
 	sim = sim.Clone()
 	for k := range co.cleared {
 		sim.Clear(k)
@@ -284,6 +290,18 @@ func versionWarning(want, have string) (Warning, bool) {
 		return Warning{}, false
 	}
 	return Warning{Code: VersionMismatch, Subject: "version", Message: fmt.Sprintf("build for %s, simulated on dataset %s", want, have)}, true
+}
+
+func skillsWarning(s build.Skills) (Warning, bool) {
+	gems := 0
+	for _, g := range s.Groups {
+		gems += len(g.Gems)
+	}
+	if gems == 0 {
+		return Warning{}, false
+	}
+	msg := fmt.Sprintf("%d gems in %d groups not simulated yet; outputs leave them out", gems, len(s.Groups))
+	return Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg}, true
 }
 
 func configWarning(p config.Problem) Warning {
