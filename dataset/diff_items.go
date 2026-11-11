@@ -1,6 +1,7 @@
 package dataset
 
 import (
+	"cmp"
 	"errors"
 	"slices"
 )
@@ -57,7 +58,7 @@ func compareItemGroups(a, b *Store, x, y *tables) (ItemsDiff, error) {
 }
 
 // changes returns the ids only in b, only in a, and in both but not the same, each sorted.
-func changes[T any](a, b []T, id func(T) string, same func(T, T) bool) (added, removed, changed []string) {
+func changes[T any, K cmp.Ordered](a, b []T, id func(T) K, same func(T, T) bool) (added, removed, changed []K) {
 	ak, bk := byKey(a, id), byKey(b, id)
 	added, removed = setDiff(keys(ak), keys(bk))
 	for _, k := range sortedUnion(ak, bk) {
