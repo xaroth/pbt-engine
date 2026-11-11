@@ -47,7 +47,9 @@ type Reader struct {
 	firstStat map[*dataset.Mod]string
 	// implicit holds the ids of mods some base has as an implicit.
 	implicit map[string]bool
-	version  string
+	// tags holds every tag the items group names.
+	tags    map[string]bool
+	version string
 }
 
 // modStat is a mod with the range of one of its stats.
@@ -81,7 +83,10 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		mods: map[string][]modStat{}, firstStat: map[*dataset.Mod]string{}, implicit: map[string]bool{}, version: s.Manifest().Version,
+		mods: map[string][]modStat{}, firstStat: map[*dataset.Mod]string{}, implicit: map[string]bool{}, tags: map[string]bool{}, version: s.Manifest().Version,
+	}
+	for _, t := range it.Tags {
+		r.tags[t] = true
 	}
 	r.index(it.Bases, text.BaseNames, mods, stats)
 	return r, nil
@@ -128,7 +133,8 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 	return it, warnings, nil
 }
 
-// index indexes bases by id and English name, and mods by stat id.
+// index indexes bases by id and English name, and mods by stat id. Mods of Ruthless only are
+// left out: items are read for the standard game.
 func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name, mods []dataset.Mod, stats []dataset.Stat) {
 	for i := range bases {
 		r.bases[bases[i].ID] = &bases[i]
@@ -142,6 +148,9 @@ func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name, mods []da
 		}
 	}
 	for i := range mods {
+		if mods[i].GameMode == gameModeRuthless {
+			continue
+		}
 		if len(mods[i].Stats) > 0 {
 			r.firstStat[&mods[i]] = stats[mods[i].Stats[0].Stat].ID
 		}

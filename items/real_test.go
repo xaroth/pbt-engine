@@ -108,14 +108,24 @@ func TestSampleReadings(t *testing.T) {
 	r, set := realReader(t)
 	want := ambiguousGolden(t)
 	used := map[string]bool{}
-	lines, ambiguous, unread, warned := 0, 0, 0, 0
+	// Bases of one name, told apart by their implicits.
+	bases := map[string]string{
+		"rare Two-Stone Ring (Fire/Cold)": "Metadata/Items/Rings/Ring14",
+		"rare Two-Stone Ring":             "Metadata/Items/Rings/Ring12",
+	}
+	lines, ambiguous := 0, 0
+	warned := map[build.Code]int{}
 	for _, s := range sampleItems(t) {
 		it, warnings, err := r.Parse(s.text)
 		if err != nil {
 			t.Fatalf("%s: %v", s.label, err)
 		}
-		unread += count(warnings, items.LineUnread)
-		warned += count(warnings, items.LineAmbiguous)
+		for _, w := range warnings {
+			warned[w.Code]++
+		}
+		if want, ok := bases[s.label]; ok && it.Base != want {
+			t.Errorf("%s: base %s, want %s", s.label, it.Base, want)
+		}
 		for _, m := range it.Mods {
 			lines++
 			if len(m.Stats) == 0 {
@@ -145,17 +155,14 @@ func TestSampleReadings(t *testing.T) {
 			t.Errorf("golden file line %q matches no ambiguous line of the sample", key)
 		}
 	}
-	t.Logf("%d lines, %d unread, %d with several readings, %d of them still ambiguous", lines, unread, ambiguous, warned)
-}
-
-func count(warnings []build.Warning, code build.Code) int {
-	n := 0
-	for _, w := range warnings {
-		if w.Code == code {
-			n++
-		}
+	t.Logf("%d lines, %d with several readings", lines, ambiguous)
+	// Lines the description reader cannot read; lines left ambiguous; ranges such as "(38-43)%";
+	// and values no mod the item can have rolls, alone or as two mods of one stat. The conformance
+	// items were made in Path of Building, which allows lines no roll of the game gives.
+	wantWarned := map[build.Code]int{items.LineUnread: 6, items.LineAmbiguous: 2, items.RollAssumed: 4, items.RollOutOfRange: 25}
+	if diff := cmp.Diff(wantWarned, warned); diff != "" {
+		t.Errorf("warnings by code (-want +got):\n%s", diff)
 	}
-	return n
 }
 
 // expected returns the stats a line should read as: its only reading's, or golden when it has
@@ -213,7 +220,7 @@ func sampleItems(t *testing.T) []sampleItem {
 	if err != nil {
 		t.Fatal(err)
 	}
-	head := regexp.MustCompile(`(?m)^# (normal|magic|rare|unique) (.+), (\d+) implicits?$`)
+	head := regexp.MustCompile(`(?m)^# (normal|magic|rare|unique) (.+?), (\d+) implicits?((?:, [^,\n]+ Item)*)$`)
 	var out []sampleItem
 	for p := range strings.SplitSeq(string(data), "\n\n") {
 		m := head.FindStringSubmatch(p)
@@ -230,6 +237,7 @@ func sampleItems(t *testing.T) []sampleItem {
 		if m[1] == "rare" || m[1] == "unique" {
 			name = "Sample\n" + name
 		}
+		name += strings.ReplaceAll(m[4], ", ", "\n")
 		text := fmt.Sprintf("Rarity: %s\n%s\nImplicits: %s\n%s\n", strings.ToUpper(m[1]), name, m[3], strings.Join(mods, "\n"))
 		out = append(out, sampleItem{label: m[1] + " " + m[2], text: text})
 	}
