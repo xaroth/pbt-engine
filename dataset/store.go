@@ -31,6 +31,7 @@ type Store struct {
 	items      func() (*Items, error)
 	mods       func() ([]Mod, error)
 	skills     func() (*Skills, error)
+	buffs      func() (*Buffs, error)
 	// trees and texts are keyed by variant and language, fixed by the manifest.
 	trees map[string]func() (*Tree, error)
 	texts map[string]func() (*Text, error)
@@ -77,6 +78,7 @@ func Open(fsys fs.FS) (*Store, error) {
 	s.items = sync.OnceValues(s.loadItems)
 	s.mods = sync.OnceValues(s.loadMods)
 	s.skills = sync.OnceValues(s.loadSkills)
+	s.buffs = sync.OnceValues(s.loadBuffs)
 	return s, nil
 }
 
@@ -136,8 +138,8 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 }
 
 // Text returns the display text of one language, such as "en", shared and read-only. Its node,
-// ascendancy, item and skill names are not checked against trees, items and skills, which it
-// does not read; Write checks them.
+// ascendancy, item, skill and buff names are not checked against trees, items, skills and
+// buffs, which it does not read; Write checks them.
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {
@@ -150,8 +152,7 @@ func (s *Store) Text(language string) (*Text, error) {
 func registerFile(s *Store, f File) error {
 	s.files[f.Name] = f
 	switch {
-	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile || f.Name == questsFile,
-		f.Name == itemsFile || f.Name == modsFile || f.Name == skillsFile:
+	case isSingleFile(f.Name):
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
@@ -162,6 +163,15 @@ func registerFile(s *Store, f File) error {
 		return fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
 	}
 	return nil
+}
+
+// isSingleFile reports whether name is the file of a group that has one file per dataset.
+func isSingleFile(name string) bool {
+	switch name {
+	case statsFile, charactersFile, constantsFile, questsFile, itemsFile, modsFile, skillsFile, buffsFile:
+		return true
+	}
+	return false
 }
 
 func (s *Store) loadStats() (statsGroup, error) {

@@ -45,6 +45,7 @@ const (
 	itemsFile      = "items.fb"
 	modsFile       = "mods.fb"
 	skillsFile     = "skills.fb"
+	buffsFile      = "buffs.fb"
 	treePrefix     = "tree-"
 	textPrefix     = "text-"
 	fbSuffix       = ".fb"
@@ -85,6 +86,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	}
 	groups = append(groups, d.itemsGroup()...)
 	groups = append(groups, d.skillsGroup()...)
+	groups = append(groups, d.buffsGroup()...)
 	m := d.Manifest
 	m.Format = FormatVersion
 	m.Files = nil
