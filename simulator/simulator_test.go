@@ -422,3 +422,22 @@ func TestSkillsNotSimulated(t *testing.T) {
 		t.Errorf("groups without gems: codes %v", got)
 	}
 }
+
+// Items are not simulated yet: a build with an item warns once and gives the same outputs. The
+// test dataset has no items group, so the item is also unchecked.
+func TestItemsNotSimulated(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	plain := marauderBuild(90)
+	withItem := plain.Clone()
+	if err := withItem.Apply(build.Equip(build.SlotHelmet, build.Item{Rarity: build.Normal, Base: "Metadata/Items/Armours/Helmets/HelmetStr1"})); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, s, withItem)
+	if got, want := codes(st), []build.Code{build.ItemsUnchecked, simulator.ItemsNotSimulated}; !slices.Equal(got, want) {
+		t.Errorf("codes %v, want %v", got, want)
+	}
+	if got, want := get(t, st, poe1.Life), get(t, simulate(t, s, plain), poe1.Life); got != want {
+		t.Errorf("life %v with an item, %v without", got, want)
+	}
+}

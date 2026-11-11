@@ -50,6 +50,8 @@ type Build struct {
 	Config config.Values `json:"config,omitzero"`
 	// Skills are the skill groups.
 	Skills Skills `json:"skills,omitzero"`
+	// Items are the equipped items by slot.
+	Items Items `json:"items,omitzero"`
 }
 
 // Parse decodes a build file. Unknown fields, another format and trailing data are errors.
@@ -95,6 +97,7 @@ func (b *Build) Clone() *Build {
 	c.Masteries = maps.Clone(b.Masteries)
 	c.Config = b.Config.Clone()
 	c.Skills = b.Skills.clone()
+	c.Items = b.Items.clone()
 	return &c
 }
 

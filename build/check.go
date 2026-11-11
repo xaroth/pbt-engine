@@ -115,9 +115,11 @@ type MasteryChoice struct {
 // clears unknown variants and slots without sockets, corrects which gems are supports, clamps
 // gem levels and quality, and moves a main skill or active gem that does not fit to the first,
 // each with a warning; a dataset without the group gets one warning and the skills stay as
-// they are. It returns a *CheckError when the game, tree variant or class does not fit, or
-// the error of a dataset group that fails to load. The point budget depends on the game's
-// quests; the rules check it.
+// they are. Against the items group it leaves out items in no item slot, of an unknown base
+// or of a class the slot does not take, and stats the dataset does not have, and warns about
+// mod lines not read as stats; a dataset without the group gets one warning. It returns a
+// *CheckError when the game, tree variant or class does not fit, or the error of a dataset
+// group that fails to load. The point budget depends on the game's quests; the rules check it.
 func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	var ps problems
 	m := s.Manifest()
@@ -153,6 +155,9 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	c.checkConnected()
 	c.checkMasteries()
 	if err := c.checkSkills(); err != nil {
+		return nil, nil, err
+	}
+	if err := c.checkItems(); err != nil {
 		return nil, nil, err
 	}
 	return c, slices.Clone(c.warnings), nil
@@ -233,7 +238,7 @@ func (c *Checked) EditWarnings(edits []Edit) []Warning {
 			}
 		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetConfig, OpClearConfig,
 			OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
-			OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled:
+			OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip:
 		}
 	}
 	return out
