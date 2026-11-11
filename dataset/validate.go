@@ -44,7 +44,7 @@ func (d *Dataset) validate() error {
 			return err
 		}
 	}
-	return errors.Join(validateNames(d.Texts, d.Trees), d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup())
+	return errors.Join(validateNames(d.Texts, d.Trees), d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup(), d.validateMonstersGroup())
 }
 
 func errVariant(v string) error {

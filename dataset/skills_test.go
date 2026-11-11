@@ -166,8 +166,10 @@ func TestTextWithoutSkillNamesUnchanged(t *testing.T) {
 
 // renumberedSkills returns withSkills with its stats reversed, as a later game version might
 // number them.
-func renumberedSkills() *dataset.Dataset {
-	d := withSkills()
+func renumberedSkills() *dataset.Dataset { return reversedStats(withSkills()) }
+
+// reversedStats returns d, which has a skills group, with its stats reversed.
+func reversedStats(d *dataset.Dataset) *dataset.Dataset {
 	n := uint32(len(d.Stats))
 	h := func(x uint32) uint32 { return n - 1 - x }
 	reversed := make([]dataset.Stat, n)
@@ -192,6 +194,9 @@ func renumberedSkills() *dataset.Dataset {
 		}
 	}
 	renumberSkills(d.Skills, h)
+	if d.Monsters != nil {
+		renumberMonsters(d.Monsters, h)
+	}
 	return d
 }
 

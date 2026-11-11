@@ -267,3 +267,11 @@ func (d *skillDecoder) activeSkill(a *fb.ActiveSkill) ActiveSkill {
 		TransfigureBase:    string(a.TransfigureBase()),
 	}
 }
+
+// optStat returns the handle of an optional file stat index, or nil for noStat.
+func (d *skillDecoder) optStat(i uint32) *uint32 {
+	if i == noStat {
+		return nil
+	}
+	return new(d.stat(i))
+}

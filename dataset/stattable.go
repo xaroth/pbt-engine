@@ -117,3 +117,11 @@ func (t statTable) handlesToLocal(hs []uint32) []uint32 {
 	}
 	return out
 }
+
+// optLocal returns the file index of an optional stat handle, or noStat for nil.
+func (t statTable) optLocal(h *uint32) uint32 {
+	if h == nil {
+		return noStat
+	}
+	return t.local[*h]
+}

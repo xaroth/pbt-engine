@@ -117,6 +117,7 @@ func encodeText(t Text) []byte {
 	addSkills := optionalNames(b, nameList{fb.TextStartGemNamesVector, fb.TextAddGemNames, t.GemNames},
 		nameList{fb.TextStartSkillNamesVector, fb.TextAddSkillNames, t.SkillNames})
 	addBuffs := optionalNames(b, nameList{fb.TextStartBuffNamesVector, fb.TextAddBuffNames, t.BuffNames})
+	addMonsters := optionalNames(b, nameList{fb.TextStartMonsterNamesVector, fb.TextAddMonsterNames, t.MonsterNames})
 	lang := b.CreateString(t.Language)
 	fb.TextStart(b)
 	fb.TextAddLanguage(b, lang)
@@ -127,6 +128,7 @@ func encodeText(t Text) []byte {
 	addItems()
 	addSkills()
 	addBuffs()
+	addMonsters()
 	fb.FinishTextBuffer(b, fb.TextEnd(b))
 	return b.FinishedBytes()
 }
@@ -149,6 +151,7 @@ func decodeText(buf []byte) (Text, error) {
 	t.GemNames = decodeNames(root.GemNamesLength(), root.GemNames)
 	t.SkillNames = decodeNames(root.SkillNamesLength(), root.SkillNames)
 	t.BuffNames = decodeNames(root.BuffNamesLength(), root.BuffNames)
+	t.MonsterNames = decodeNames(root.MonsterNamesLength(), root.MonsterNames)
 	var an fb.AscendancyName
 	for i := range root.AscendancyNamesLength() {
 		root.AscendancyNames(&an, i)

@@ -82,12 +82,6 @@ func encodeBuffDefinition(b *flatbuffers.Builder, st statTable, d BuffDefinition
 		}
 		return uint32Vector(b, start, st.handlesToLocal(hs))
 	}
-	local := func(h *uint32) uint32 {
-		if h == nil {
-			return noStat
-		}
-		return st.local[*h]
-	}
 	stats := handles(fb.BuffDefinitionStartStatsVector, d.Stats)
 	extra := handles(fb.BuffDefinitionStartExtraStatsVector, d.ExtraStats)
 	flags := handles(fb.BuffDefinitionStartFlagsVector, d.Flags)
@@ -101,9 +95,9 @@ func encodeBuffDefinition(b *flatbuffers.Builder, st statTable, d BuffDefinition
 	fb.BuffDefinitionAddExtraStats(b, extra)
 	fb.BuffDefinitionAddFlags(b, flags)
 	fb.BuffDefinitionAddConditionStats(b, conditions)
-	fb.BuffDefinitionAddMaximumStat(b, local(d.MaximumStat))
-	fb.BuffDefinitionAddCurrentStat(b, local(d.CurrentStat))
-	fb.BuffDefinitionAddMinimumStat(b, local(d.MinimumStat))
+	fb.BuffDefinitionAddMaximumStat(b, st.optLocal(d.MaximumStat))
+	fb.BuffDefinitionAddCurrentStat(b, st.optLocal(d.CurrentStat))
+	fb.BuffDefinitionAddMinimumStat(b, st.optLocal(d.MinimumStat))
 	fb.BuffDefinitionAddLimit(b, d.Limit)
 	fb.BuffDefinitionAddSkillBuff(b, d.SkillBuff)
 	fb.BuffDefinitionAddInvisible(b, d.Invisible)
@@ -128,12 +122,6 @@ func decodeBuffs(buf []byte, index map[string]uint32) (Buffs, error) {
 		Flasks:      make([]FlaskBuff, root.FlasksLength()),
 		Tinctures:   make([]Tincture, root.TincturesLength()),
 	}
-	stat := func(i uint32) *uint32 {
-		if i == noStat {
-			return nil
-		}
-		return new(d.stat(i))
-	}
 	var def fb.BuffDefinition
 	for i := range out.Definitions {
 		root.Definitions(&def, i)
@@ -143,7 +131,7 @@ func decodeBuffs(buf []byte, index map[string]uint32) (Buffs, error) {
 			ExtraStats:     d.handles(def.ExtraStatsLength(), def.ExtraStats),
 			Flags:          d.handles(def.FlagsLength(), def.Flags),
 			ConditionStats: d.handles(def.ConditionStatsLength(), def.ConditionStats),
-			MaximumStat:    stat(def.MaximumStat()), CurrentStat: stat(def.CurrentStat()), MinimumStat: stat(def.MinimumStat()),
+			MaximumStat:    d.optStat(def.MaximumStat()), CurrentStat: d.optStat(def.CurrentStat()), MinimumStat: d.optStat(def.MinimumStat()),
 			Limit: def.Limit(), SkillBuff: def.SkillBuff(), Invisible: def.Invisible(), Removable: def.Removable(),
 			CancelOnDeath: def.CancelOnDeath(), Recovery: def.Recovery(),
 		}
