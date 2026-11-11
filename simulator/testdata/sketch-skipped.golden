@@ -1,0 +1,15 @@
+make a sim against a pinnacle boss: enemy
+set the enemy's fire resistance: enemy
+import a share code: share codes
+make a build from scratch: build.New
+equip an item from its text: items on a build
+set charges in the build's config: charge config keys
+simulate against a map boss: enemy
+read a skill's average hit: skill simulation
+a condition with no source warns: derived conditions
+read a derived condition and its source: derived conditions
+force a condition off: derived conditions
+hand a condition back: derived conditions, typed Clear
+read the change of damage per second: skill simulation
+sweep variants ranked by damage per second: skill simulation
+a new sim with the first one's config: Config().Options()
