@@ -164,7 +164,6 @@ func TestParseErrors(t *testing.T) {
 		{"bad main group", `<PathOfBuilding><Build mainSocketGroup="x"/><Tree><Spec/></Tree></PathOfBuilding>`, pobxml.ErrMalformed},
 		{"bad gem level", `<PathOfBuilding><Build/><Tree><Spec/></Tree><Skills><Skill><Gem level="20.5"/></Skill></Skills></PathOfBuilding>`, pobxml.ErrMalformed},
 		{"bad gem quality", `<PathOfBuilding><Build/><Tree><Spec/></Tree><Skills><Skill><Gem quality="nil"/></Skill></Skills></PathOfBuilding>`, pobxml.ErrMalformed},
-		{"bad main active skill", `<PathOfBuilding><Build/><Tree><Spec/></Tree><Skills><Skill mainActiveSkill="a"/></Skills></PathOfBuilding>`, pobxml.ErrMalformed},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
