@@ -68,6 +68,8 @@ table Text {
   // Keyed by buff definition id; absent in datasets without buff names. A buff's name is
   // BuffDefinitions.Name, left out when empty.
   buff_names: [Name];
+  // Keyed by monster variety id; absent in datasets without monster names.
+  monster_names: [Name];
 }
 
 root_type Text;

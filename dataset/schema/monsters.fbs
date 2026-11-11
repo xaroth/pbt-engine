@@ -1,0 +1,148 @@
+include "characters.fbs";
+include "mods.fbs";
+
+namespace fb;
+
+file_identifier "PBMN";
+
+struct Resistances {
+  fire: int32;
+  cold: int32;
+  lightning: int32;
+  chaos: int32;
+}
+
+// MonsterResistances row: resistances in percent per difficulty.
+table MonsterResistance {
+  id: string (required);
+  normal: Resistances;
+  cruel: Resistances;
+  merciless: Resistances;
+}
+
+// MonsterTypes row.
+table MonsterType {
+  id: string (required);
+  // As the game holds them.
+  armour: int32;
+  evasion: int32;
+  energy_shield: int32;
+  accuracy: int32;
+  damage_spread: int32;
+  // MonsterResistance id; absent for none.
+  resistances: string;
+  player_minion: bool;
+  base_damage_ignores_attack_speed: bool;
+  alt_life1: bool;
+  alt_life2: bool;
+}
+
+// MonsterVarieties row. Mod lists are Mod ids, one list per game column.
+table MonsterVariety {
+  id: string (required);
+  // MonsterType id.
+  type: string (required);
+  // Percent.
+  life_multiplier: int32;
+  damage_multiplier: int32;
+  ailment_threshold: int32;
+  // Milliseconds per attack, the game's AttackSpeed.
+  attack_time: int32;
+  // ItemClasses ids.
+  main_hand: string;
+  off_hand: string;
+  // Indexes into tag_ids.
+  tags: [uint32];
+  // GrantedEffect ids in skills.fb.
+  granted_effects: [string];
+  mods: [string];
+  mods2: [string];
+  special_mods: [string];
+  part1_mods: [string];
+  part2_mods: [string];
+  endgame_mods: [string];
+}
+
+// DefaultMonsterStats row.
+table MonsterLevel {
+  level: int32;
+  // Selects the MonsterResistance column: 1 normal, 2 cruel, 3 merciless.
+  difficulty: int32;
+  life: int32;
+  ally_life: int32;
+  alt_life1: int32;
+  alt_life2: int32;
+  damage: float32;
+  ally_damage: float32;
+  alt_damage1: float32;
+  alt_damage2: float32;
+  armour: int32;
+  evasion: int32;
+  evasive_evasion: int32;
+  accuracy: int32;
+  ailment_threshold: int32;
+  physical_conversion: int32;
+}
+
+// DisplayMinionMonsterType row; a skill's display_minion_monster_type stat names its id.
+table DisplayMinion {
+  id: int32;
+  variety: string (required);
+}
+
+table TotemSkin {
+  skin: int32;
+  variety: string (required);
+}
+
+// The SkillTotemVariations rows of one SkillTotemsKey, the key ActiveSkill.totem names.
+table Totem {
+  key: int32;
+  skins: [TotemSkin] (required);
+}
+
+// SpectreOverrides row: raising monster as a spectre gives spectre.
+table SpectreOverride {
+  monster: string (required);
+  spectre: string (required);
+}
+
+// MinionType row; the stats are indexes into stat_ids, absent when the row has none.
+table MinionType {
+  id: string (required);
+  limit_stat: uint32 = 4294967295;
+  active_count_stat: uint32 = 4294967295;
+}
+
+// A link the game data does not hold: the totem a support's totems use, with where it comes
+// from.
+table EditionTotem {
+  // GrantedEffect id in skills.fb.
+  granted_effect: string (required);
+  // Totem key.
+  totem: int32;
+  source: string (required);
+}
+
+// Ids are unique within each list.
+table Monsters {
+  types: [MonsterType] (required);
+  resistances: [MonsterResistance] (required);
+  varieties: [MonsterVariety] (required);
+  // Sorted by level.
+  levels: [MonsterLevel] (required);
+  // Stats block of Metadata/Monsters/Monster.ot, sorted by stat.
+  base_stats: [StatValue] (required);
+  // Mods of the game's monster domain; their tags index tag_ids.
+  mods: [Mod] (required);
+  display_minions: [DisplayMinion] (required);
+  totems: [Totem] (required);
+  spectre_overrides: [SpectreOverride] (required);
+  minion_types: [MinionType] (required);
+  edition_totems: [EditionTotem] (required);
+  // Stat and tag ids the file uses, sorted, as in characters.fbs.
+  stat_ids: [string] (required);
+  tag_ids: [string] (required);
+}
+
+root_type Monsters;
