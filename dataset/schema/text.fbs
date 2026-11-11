@@ -65,6 +65,9 @@ table Text {
   // Keyed by gem id and active skill id; both absent in datasets without skill names.
   gem_names: [Name];
   skill_names: [Name];
+  // Keyed by buff definition id; absent in datasets without buff names. A buff's name is
+  // BuffDefinitions.Name, left out when empty.
+  buff_names: [Name];
 }
 
 root_type Text;
