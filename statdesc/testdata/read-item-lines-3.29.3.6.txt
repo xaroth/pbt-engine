@@ -250,7 +250,7 @@ Adds 2 to 40 Lightning Damage to Attacks | attack_minimum_added_lightning_damage
 +29% to Fire Resistance | base_fire_damage_resistance_%=29
 +27 to Dexterity | additional_dexterity=27
 Adds 3 to 7 Cold Damage to Attacks | attack_minimum_added_cold_damage=3 attack_maximum_added_cold_damage=7
-(38-43)% increased Critical Strike Chance during Effect | no reading
+(38-43)% increased Critical Strike Chance during Effect | local_flask_critical_strike_chance_+%_during_flask_effect=38..43
 82% increased Evasion and Energy Shield | local_evasion_and_energy_shield_+%=82
 +52 to maximum Energy Shield | base_maximum_energy_shield=52 | 1 other readings
 +38% to Cold Resistance | base_cold_damage_resistance_%=38
@@ -261,9 +261,9 @@ Has 1 Abyssal Socket | local_has_X_abyss_sockets=1
 +42% to Lightning Resistance | base_lightning_damage_resistance_%=42
 +38 to Strength | additional_strength=38
 +37% to Cold Resistance | base_cold_damage_resistance_%=37
-(125-150)% increased Charges per use | no reading
-(40-60)% less Duration | no reading
-(10-20)% increased Area of Effect during Effect | no reading
+(125-150)% increased Charges per use | local_charges_used_+%=125..150 local_flask_consume_charges_used_+%_when_used=0
+(40-60)% less Duration | local_flask_duration_+%_final=-60..-40
+(10-20)% increased Area of Effect during Effect | local_flask_area_of_effect_+%_during_flask_effect=10..20
 Skills fire 2 additional Projectiles during Effect | local_flask_number_of_additional_projectiles_during_flask_effect=2
 7% increased maximum Life | maximum_life_+%=7
 +16% to Global Critical Strike Multiplier | base_critical_strike_multiplier_+=16

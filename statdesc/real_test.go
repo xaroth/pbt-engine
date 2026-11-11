@@ -108,16 +108,11 @@ func renderVariant(set *statdesc.Set, d statdesc.Description, v statdesc.Variant
 	for i, st := range d.Stats {
 		stats[st] = sample(v.Limits[i], i)
 	}
-	lines, err := set.Describe(mainScope, stats)
-	if err != nil {
-		return "", "not rendered: " + err.Error()
+	text, why := renderStats(set, d, stats)
+	if why != "" {
+		return "", "not rendered: " + why
 	}
-	for _, l := range lines {
-		if slices.Equal(l.Stats, d.Stats) {
-			return l.Text, ""
-		}
-	}
-	return "", "not rendered: another description of its stats renders them"
+	return text, ""
 }
 
 // sample returns a value inside l for stat i: a multiple of 60, so most handlers that round
@@ -167,8 +162,8 @@ func golden(t *testing.T, name, got string) {
 	}
 }
 
-// TestReadItemLines reads the mod lines of real items, one item per paragraph of the sample,
-// and lists the first reading of each line or lines, and how many others they have.
+// TestReadItemLines reads the mod lines of real items with ReadRange, one item per paragraph of
+// the sample, and lists the first reading of each line or lines, and how many others they have.
 func TestReadItemLines(t *testing.T) {
 	t.Parallel()
 	set, _ := realText(t)
@@ -186,7 +181,7 @@ func TestReadItemLines(t *testing.T) {
 			}
 		}
 		for i := 0; i < len(mods); {
-			readings, err := set.Read(mainScope, mods[i:])
+			readings, err := set.ReadRange(mainScope, mods[i:])
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -212,10 +207,13 @@ func TestReadItemLines(t *testing.T) {
 	golden(t, "read-item-lines-"+realVersion+".txt", "# lines | first reading | readings beside it\n"+strings.Join(out, "\n")+"\n")
 }
 
-func describe(r statdesc.Reading) string {
+func describe(r statdesc.RangeReading) string {
 	parts := make([]string, len(r.Stats))
 	for i, st := range r.Stats {
-		parts[i] = fmt.Sprintf("%s=%d", st, r.Values[i])
+		parts[i] = fmt.Sprintf("%s=%d", st, r.Min[i])
+		if r.Max[i] != r.Min[i] {
+			parts[i] += fmt.Sprintf("..%d", r.Max[i])
+		}
 	}
 	return strings.Join(parts, " ")
 }

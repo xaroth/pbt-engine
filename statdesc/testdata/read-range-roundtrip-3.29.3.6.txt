@@ -1,0 +1,3 @@
+# Variants of Metadata/StatDescriptions/stat_descriptions.txt on 3.29.3.6 that read back at each end but not as a range (description/variant stats | reason | text).
+# 15697 variants read back at two values, 11699 of them written with a range, 15697 read back.
+
