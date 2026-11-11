@@ -111,9 +111,13 @@ type MasteryChoice struct {
 // another class, clamps the level to 1 to 100, drops unknown, repeated and other classes' or
 // ascendancies' nodes and mastery choices that do not fit, each with a warning. It warns
 // without a fix about nodes not connected to the class or ascendancy start and about
-// allocated masteries with no choice. It returns a *CheckError when the game, tree variant or
-// class does not fit, or the error of a dataset group that fails to load. The point budget
-// depends on the game's quests; the rules check it.
+// allocated masteries with no choice. Against the dataset's skills group it drops unknown gems,
+// clears unknown variants and slots without sockets, corrects which gems are supports, clamps
+// gem levels and quality, and moves a main skill or active gem that does not fit to the first,
+// each with a warning; a dataset without the group gets one warning and the skills stay as
+// they are. It returns a *CheckError when the game, tree variant or class does not fit, or
+// the error of a dataset group that fails to load. The point budget depends on the game's
+// quests; the rules check it.
 func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	var ps problems
 	m := s.Manifest()
@@ -148,6 +152,9 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	c.checkChoices()
 	c.checkConnected()
 	c.checkMasteries()
+	if err := c.checkSkills(); err != nil {
+		return nil, nil, err
+	}
 	return c, slices.Clone(c.warnings), nil
 }
 

@@ -52,8 +52,12 @@ Crimson Jewel
 	</Items>
 	<Skills activeSkillSet="1">
 		<SkillSet id="1">
-			<Skill label="RF" enabled="true" slot="Body Armour"><Gem nameSpec="Righteous Fire"/><Gem nameSpec="Burning Damage"/></Skill>
-			<Skill label="" enabled="false"><Gem nameSpec="Flame Dash"/></Skill>
+			<Skill label="RF" enabled="true" slot="Body Armour" mainActiveSkill="1">
+				<Gem nameSpec="Righteous Fire" skillId="RighteousFire" gemId="Metadata/Items/Gems/SkillGemRighteousFire" variantId="RighteousFire"
+					level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="false" count="1"/>
+				<Gem nameSpec="Burning Damage" level="20" quality="0" enabled="false"/>
+			</Skill>
+			<Skill label="" enabled="false" source="Item:3:Corruption Spark"><Gem nameSpec="Flame Dash"/></Skill>
 		</SkillSet>
 	</Skills>
 	<Notes>notes</Notes>
@@ -67,7 +71,10 @@ func TestParse(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := &pobxml.File{
-		Build: pobxml.Build{Level: 90, Class: "Marauder", Ascendancy: "Chieftain", Bandit: "Alira", PantheonMajor: "Arakaali", PantheonMinor: "None"},
+		Build: pobxml.Build{
+			Level: 90, Class: "Marauder", Ascendancy: "Chieftain", Bandit: "Alira", PantheonMajor: "Arakaali", PantheonMinor: "None",
+			MainSocketGroup: 1,
+		},
 		Specs: []pobxml.Spec{
 			{Title: "Leveling", TreeVersion: "3_28", ClassID: 1},
 			{
@@ -86,8 +93,14 @@ func TestParse(t *testing.T) {
 		},
 		Items: []pobxml.Item{{1, "Doom Crown"}, {2, "Seething Divine Life Flask of Staunching"}, {3, "Corruption Spark"}},
 		Skills: []pobxml.SkillGroup{
-			{Label: "RF", Enabled: true, Gems: []string{"Righteous Fire", "Burning Damage"}},
-			{Enabled: false, Gems: []string{"Flame Dash"}},
+			{Label: "RF", Slot: "Body Armour", Enabled: true, MainActiveSkill: 1, Gems: []pobxml.Gem{
+				{
+					Name: "Righteous Fire", GemID: "Metadata/Items/Gems/SkillGemRighteousFire", SkillID: "RighteousFire", VariantID: "RighteousFire",
+					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true,
+				},
+				{Name: "Burning Damage", Level: 20, EnableGlobal1: true, EnableGlobal2: true},
+			}},
+			{Source: "Item:3:Corruption Spark", Gems: []pobxml.Gem{{Name: "Flame Dash", Enabled: true, EnableGlobal1: true, EnableGlobal2: true}}},
 		},
 	}
 	if !reflect.DeepEqual(f, want) {
@@ -99,7 +112,7 @@ func TestParse(t *testing.T) {
 func TestParseWithoutSets(t *testing.T) {
 	t.Parallel()
 	f, err := pobxml.Parse([]byte(`<PathOfBuilding>
-		<Build level="12" className="Witch" ascendClassName="None"/>
+		<Build level="12" className="Witch" ascendClassName="None" mainSkillIndex="2"/>
 		<Tree><Spec treeVersion="3_10" nodes="1,2"/></Tree>
 		<Config><Input name="resistancePenalty" number="-30"/></Config>
 		<Skills><Skill><Gem nameSpec="Fireball"/></Skill></Skills>
@@ -113,8 +126,9 @@ func TestParseWithoutSets(t *testing.T) {
 	if want := []pobxml.Input{{"resistancePenalty", "number", "-30"}}; !reflect.DeepEqual(f.Config, want) {
 		t.Errorf("config %+v, want %+v", f.Config, want)
 	}
-	if want := []pobxml.SkillGroup{{Enabled: true, Gems: []string{"Fireball"}}}; !reflect.DeepEqual(f.Skills, want) {
-		t.Errorf("skills %+v, want %+v", f.Skills, want)
+	want := []pobxml.SkillGroup{{Enabled: true, Gems: []pobxml.Gem{{Name: "Fireball", Enabled: true, EnableGlobal1: true, EnableGlobal2: true}}}}
+	if !reflect.DeepEqual(f.Skills, want) || f.Build.MainSocketGroup != 2 {
+		t.Errorf("skills %+v, main %d, want %+v, main 2", f.Skills, f.Build.MainSocketGroup, want)
 	}
 }
 
@@ -147,6 +161,10 @@ func TestParseErrors(t *testing.T) {
 		{"active spec past the end", `<PathOfBuilding><Build/><Tree activeSpec="2"><Spec/></Tree></PathOfBuilding>`, pobxml.ErrMissing},
 		{"bad node", `<PathOfBuilding><Build/><Tree><Spec nodes="1,x"/></Tree></PathOfBuilding>`, pobxml.ErrMalformed},
 		{"bad mastery", `<PathOfBuilding><Build/><Tree><Spec masteryEffects="{1}"/></Tree></PathOfBuilding>`, pobxml.ErrMalformed},
+		{"bad main group", `<PathOfBuilding><Build mainSocketGroup="x"/><Tree><Spec/></Tree></PathOfBuilding>`, pobxml.ErrMalformed},
+		{"bad gem level", `<PathOfBuilding><Build/><Tree><Spec/></Tree><Skills><Skill><Gem level="20.5"/></Skill></Skills></PathOfBuilding>`, pobxml.ErrMalformed},
+		{"bad gem quality", `<PathOfBuilding><Build/><Tree><Spec/></Tree><Skills><Skill><Gem quality="nil"/></Skill></Skills></PathOfBuilding>`, pobxml.ErrMalformed},
+		{"bad main active skill", `<PathOfBuilding><Build/><Tree><Spec/></Tree><Skills><Skill mainActiveSkill="a"/></Skills></PathOfBuilding>`, pobxml.ErrMalformed},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<!-- The skills of pbt-conformance builds/3.29/05-marauder-L90-chieftain-righteous-fire/pob.xml, with its <Build> line and an empty tree. -->
+	<Build level="90" targetVersion="3_0" className="Marauder" ascendClassName="Chieftain" bandit="None" mainSocketGroup="1" viewMode="ITEMS" characterLevelAutoMode="false"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills activeSkillSet="1" defaultGemLevel="normalMaximum" defaultGemQuality="0">
+		<SkillSet id="1">
+			<Skill enabled="true" slot="Helmet" label="" mainActiveSkill="1" mainActiveSkillCalcs="1" includeInFullDPS="true">
+				<Gem nameSpec="Righteous Fire" skillId="RighteousFire" gemId="Metadata/Items/Gems/SkillGemRighteousFire" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+				<Gem nameSpec="Swift Affliction" skillId="SupportSwiftAffliction" gemId="Metadata/Items/Gems/SkillGemSupportSwiftAffliction" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+				<Gem nameSpec="Elemental Focus" skillId="SupportElementalFocus" gemId="Metadata/Items/Gems/SkillGemSupportElementalFocus" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+				<Gem nameSpec="Burning Damage" skillId="SupportBurningDamage" gemId="Metadata/Items/Gems/SkillGemSupportBurningDamage" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Gloves" label="" includeInFullDPS="false">
+				<Gem nameSpec="Malevolence" skillId="Malevolence" gemId="Metadata/Items/Gems/SkillGemMalevolence" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+				<Gem nameSpec="Eternal Blessing" skillId="SupportEternalBlessing" gemId="Metadata/Items/Gems/SkillGemSupportEternalBlessing" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+				<Gem nameSpec="Blood Rage" skillId="BloodRage" gemId="Metadata/Items/Gems/SkillGemBloodRage" level="11" quality="0" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Boots" label="" includeInFullDPS="false">
+				<Gem nameSpec="Shield Charge" skillId="ShieldCharge" gemId="Metadata/Items/Gems/SkillGemShieldCharge" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+				<Gem nameSpec="Frostblink" skillId="Frostblink" gemId="Metadata/Items/Gems/SkillGemFrostblink" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Weapon 1" label="" includeInFullDPS="false">
+				<Gem nameSpec="Punishment" skillId="Punishment" gemId="Metadata/Items/Gems/SkillGemPunishment" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Weapon 2" label="" includeInFullDPS="false">
+				<Gem nameSpec="Enduring Cry" skillId="EnduringCry" gemId="Metadata/Items/Gems/SkillGemEnduringCry" level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="true"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+</PathOfBuilding>

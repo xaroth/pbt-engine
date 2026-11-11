@@ -22,7 +22,11 @@ const marauder = "Metadata/Characters/Str/Str"
 // Chieftain as named in the standard and alternate trees.
 func registry(t *testing.T) *dataset.Registry {
 	t.Helper()
-	d := &dataset.Dataset{
+	return registryOf(t, testDataset())
+}
+
+func testDataset() *dataset.Dataset {
+	return &dataset.Dataset{
 		Manifest:   dataset.Manifest{Game: "poe1", Version: "3.29.3.5"},
 		Characters: []dataset.Character{{ID: marauder}},
 		Trees:      []dataset.Tree{tree("standard"), tree("ruthless"), tree("alternate")},
@@ -36,6 +40,10 @@ func registry(t *testing.T) *dataset.Registry {
 			},
 		}},
 	}
+}
+
+func registryOf(t *testing.T, d *dataset.Dataset) *dataset.Registry {
+	t.Helper()
 	dir := t.TempDir()
 	if _, err := dataset.Write(dir, d); err != nil {
 		t.Fatal(err)
@@ -115,6 +123,8 @@ func TestFromXML(t *testing.T) {
 	wantWarnings := []build.Warning{
 		{Code: pob.ClusterNodeDropped, Subject: "nodes 65601,65602", Message: "2 cluster jewel nodes dropped; cluster jewels are not imported"},
 		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input not modelled (true)"},
+		{Code: pob.SkillIgnored, Subject: "RF", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
+		{Code: pob.SkillIgnored, Subject: "Flame Dash", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SpecIgnored, Subject: "Leveling", Message: "only the active tree is imported"},
 		{Code: pob.AscendancyIgnored, Subject: "2", Message: "secondary ascendancy not imported"},
 		{Code: pob.PantheonIgnored, Subject: "Arakaali", Message: "pantheon not imported"},
@@ -122,8 +132,6 @@ func TestFromXML(t *testing.T) {
 		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "items are not imported"},
 		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "items are not imported"},
 		{Code: pob.JewelIgnored, Subject: "node 26725", Message: `jewel "Corruption Spark" not imported`},
-		{Code: pob.SkillIgnored, Subject: "RF", Message: "skills are not imported (Righteous Fire)"},
-		{Code: pob.SkillIgnored, Subject: "Flame Dash", Message: "skills are not imported (Flame Dash)"},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)

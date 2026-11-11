@@ -400,7 +400,8 @@ func TestUncheckedWarning(t *testing.T) {
 	}
 }
 
-// Skills are not simulated yet: a build with gems warns once and gives the same outputs.
+// Skills are not simulated yet: a build with gems warns once and gives the same outputs. The
+// test dataset has no skills group, so the gems are also unchecked.
 func TestSkillsNotSimulated(t *testing.T) {
 	t.Parallel()
 	s := newSim(t)
@@ -409,7 +410,7 @@ func TestSkillsNotSimulated(t *testing.T) {
 	withSkills.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20}}})
 	withSkills.Skills.AddGroup(build.SkillGroup{})
 	st := simulate(t, s, withSkills)
-	if got, want := codes(st), []build.Code{simulator.SkillsNotSimulated}; !slices.Equal(got, want) {
+	if got, want := codes(st), []build.Code{build.SkillsUnchecked, simulator.SkillsNotSimulated}; !slices.Equal(got, want) {
 		t.Errorf("codes %v, want %v", got, want)
 	}
 	if got, want := get(t, st, poe1.Life), get(t, simulate(t, s, plain), poe1.Life); got != want {
