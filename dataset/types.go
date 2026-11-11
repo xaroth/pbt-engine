@@ -19,6 +19,8 @@ type Dataset struct {
 	// no group, and Mods must then be empty.
 	Items *Items
 	Mods  []Mod
+	// Skills is the skills group, written as skills.fb; nil writes no group.
+	Skills *Skills
 }
 
 // Text is the display text of one language: stat description templates and names by id.
@@ -36,6 +38,8 @@ type Text struct {
 	// ItemClassNames, BaseNames and ModNames are keyed by ItemClass.ID, ItemBase.ID and Mod.ID.
 	// A mod's name is its affix name, such as "Healthy"; mods without one have no entry.
 	ItemClassNames, BaseNames, ModNames []Name
+	// GemNames are keyed by Gem.ID and SkillNames by ActiveSkill.ID.
+	GemNames, SkillNames []Name
 }
 
 // NodeName is the display name of a passive node.

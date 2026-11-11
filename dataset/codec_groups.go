@@ -112,14 +112,9 @@ func encodeText(t Text) []byte {
 		ascOffs[i] = fb.AscendancyNameEnd(b)
 	}
 	ascs := tableVector(b, fb.TextStartAscendancyNamesVector, ascOffs)
-	// Item names are left out when empty, so a text without them keeps the bytes it had before
-	// the items group existed.
-	var classes, bases, mods flatbuffers.UOffsetT
-	if len(t.ItemClassNames)+len(t.BaseNames)+len(t.ModNames) > 0 {
-		classes = nameVector(b, fb.TextStartItemClassNamesVector, t.ItemClassNames)
-		bases = nameVector(b, fb.TextStartBaseNamesVector, t.BaseNames)
-		mods = nameVector(b, fb.TextStartModNamesVector, t.ModNames)
-	}
+	items := optionalNames(b, nameList{fb.TextStartItemClassNamesVector, t.ItemClassNames},
+		nameList{fb.TextStartBaseNamesVector, t.BaseNames}, nameList{fb.TextStartModNamesVector, t.ModNames})
+	skills := optionalNames(b, nameList{fb.TextStartGemNamesVector, t.GemNames}, nameList{fb.TextStartSkillNamesVector, t.SkillNames})
 	lang := b.CreateString(t.Language)
 	fb.TextStart(b)
 	fb.TextAddLanguage(b, lang)
@@ -127,10 +122,14 @@ func encodeText(t Text) []byte {
 	fb.TextAddNodeNames(b, nodes)
 	fb.TextAddCharacterNames(b, chars)
 	fb.TextAddAscendancyNames(b, ascs)
-	if classes != 0 {
-		fb.TextAddItemClassNames(b, classes)
-		fb.TextAddBaseNames(b, bases)
-		fb.TextAddModNames(b, mods)
+	if items != nil {
+		fb.TextAddItemClassNames(b, items[0])
+		fb.TextAddBaseNames(b, items[1])
+		fb.TextAddModNames(b, items[2])
+	}
+	if skills != nil {
+		fb.TextAddGemNames(b, skills[0])
+		fb.TextAddSkillNames(b, skills[1])
 	}
 	fb.FinishTextBuffer(b, fb.TextEnd(b))
 	return b.FinishedBytes()
@@ -151,12 +150,32 @@ func decodeText(buf []byte) (Text, error) {
 	t.ItemClassNames = decodeNames(root.ItemClassNamesLength(), root.ItemClassNames)
 	t.BaseNames = decodeNames(root.BaseNamesLength(), root.BaseNames)
 	t.ModNames = decodeNames(root.ModNamesLength(), root.ModNames)
+	t.GemNames = decodeNames(root.GemNamesLength(), root.GemNames)
+	t.SkillNames = decodeNames(root.SkillNamesLength(), root.SkillNames)
 	var an fb.AscendancyName
 	for i := range root.AscendancyNamesLength() {
 		root.AscendancyNames(&an, i)
 		t.AscendancyNames = append(t.AscendancyNames, AscendancyName{Variant: string(an.Variant()), ID: string(an.Id()), Name: string(an.Name())})
 	}
 	return t, nil
+}
+
+type nameList struct {
+	start startFunc
+	names []Name
+}
+
+// optionalNames writes the lists of one group, all of them or, when every list is empty, none,
+// so a text without them keeps the bytes it had before the group existed.
+func optionalNames(b *flatbuffers.Builder, lists ...nameList) []flatbuffers.UOffsetT {
+	if !slices.ContainsFunc(lists, func(l nameList) bool { return len(l.names) > 0 }) {
+		return nil
+	}
+	out := make([]flatbuffers.UOffsetT, len(lists))
+	for i, l := range lists {
+		out[i] = nameVector(b, l.start, l.names)
+	}
+	return out
 }
 
 func nameVector(b *flatbuffers.Builder, start startFunc, names []Name) flatbuffers.UOffsetT {
