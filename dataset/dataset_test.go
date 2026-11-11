@@ -133,7 +133,19 @@ func readAll(fsys fs.FS) (*dataset.Dataset, error) {
 		}
 		d.Texts = append(d.Texts, *t)
 	}
-	return d, errors.Join(readItems(s, d), readSkills(s, d), readBuffs(s, d))
+	return d, errors.Join(readItems(s, d), readSkills(s, d), readBuffs(s, d), readMonsters(s, d))
+}
+
+func readMonsters(s *dataset.Store, d *dataset.Dataset) error {
+	m, err := s.Monsters()
+	switch {
+	case errors.Is(err, dataset.ErrNotInDataset):
+	case err != nil:
+		return fmt.Errorf("read: %w", err)
+	default:
+		d.Monsters = m
+	}
+	return nil
 }
 
 // readSkills reads s's skills group into d, or nothing when s has none.

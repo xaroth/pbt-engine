@@ -32,6 +32,7 @@ type Store struct {
 	mods       func() ([]Mod, error)
 	skills     func() (*Skills, error)
 	buffs      func() (*Buffs, error)
+	monsters   func() (*Monsters, error)
 	// trees and texts are keyed by variant and language, fixed by the manifest.
 	trees map[string]func() (*Tree, error)
 	texts map[string]func() (*Text, error)
@@ -44,7 +45,7 @@ type statsGroup struct {
 
 // Open reads the manifest in fsys and reads no table group yet. It fails when ReadManifest
 // does, or the manifest lists an unknown file, misses stats, characters, constants or quests,
-// or lists only one of the items group's two files.
+// lists only one of the items group's two files, or lists monsters without skills.
 func Open(fsys fs.FS) (*Store, error) {
 	m, err := ReadManifest(fsys)
 	if err != nil {
@@ -79,6 +80,10 @@ func Open(fsys fs.FS) (*Store, error) {
 	s.mods = sync.OnceValues(s.loadMods)
 	s.skills = sync.OnceValues(s.loadSkills)
 	s.buffs = sync.OnceValues(s.loadBuffs)
+	if err := s.checkMonstersFiles(); err != nil {
+		return nil, err
+	}
+	s.monsters = sync.OnceValues(s.loadMonsters)
 	return s, nil
 }
 
@@ -138,8 +143,8 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 }
 
 // Text returns the display text of one language, such as "en", shared and read-only. Its node,
-// ascendancy, item, skill and buff names are not checked against trees, items, skills and
-// buffs, which it does not read; Write checks them.
+// ascendancy, item, skill, buff and monster names are not checked against the groups they
+// name, which it does not read; Write checks them.
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {
@@ -168,7 +173,7 @@ func registerFile(s *Store, f File) error {
 // isSingleFile reports whether name is the file of a group that has one file per dataset.
 func isSingleFile(name string) bool {
 	switch name {
-	case statsFile, charactersFile, constantsFile, questsFile, itemsFile, modsFile, skillsFile, buffsFile:
+	case statsFile, charactersFile, constantsFile, questsFile, itemsFile, modsFile, skillsFile, buffsFile, monstersFile:
 		return true
 	}
 	return false

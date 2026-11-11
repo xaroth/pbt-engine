@@ -24,6 +24,9 @@ type Dataset struct {
 	// Buffs is the buffs group, written as buffs.fb; nil writes no group. Its flasks and
 	// tinctures need the items group.
 	Buffs *Buffs
+	// Monsters is the monsters group, written as monsters.fb; nil writes no group. It needs
+	// the skills group.
+	Monsters *Monsters
 }
 
 // Text is the display text of one language: stat description templates and names by id.
@@ -45,6 +48,8 @@ type Text struct {
 	GemNames, SkillNames []Name
 	// BuffNames are keyed by BuffDefinition.ID.
 	BuffNames []Name
+	// MonsterNames are keyed by MonsterVariety.ID.
+	MonsterNames []Name
 }
 
 // NodeName is the display name of a passive node.
