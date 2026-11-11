@@ -1,6 +1,7 @@
 # The mod lines of real 3.29 items in Path of Building's text, one item per paragraph, chosen so every
 # line shape found in those items appears; tags such as {crafted} removed. Each paragraph starts with
-# the item's rarity, its base name (a magic item's full name) and how many of its lines are implicit.
+# the item's rarity, its base name (a magic item's full name), how many of its lines are implicit,
+# and its influences.
 # rare Shadow Sceptre, 1 implicit
 22% increased Elemental Damage
 24% increased Fire Damage
@@ -506,7 +507,7 @@ Gain 41% of Physical Damage as Extra Lightning Damage
 +1 to maximum number of Sacred Wisps
 +1 to number of Sacred Wisps Summoned
 
-# unique Champion Kite Shield, 0 implicits
+# unique Champion Kite Shield, 0 implicits, Shaper Item, Hunter Item
 369% increased Armour and Energy Shield
 +10% to all Elemental Resistances
 +5% to maximum Cold Resistance
@@ -522,7 +523,7 @@ Recover 5% of Life on Kill
 11% increased Area of Effect
 77% increased Armour and Energy Shield
 
-# rare Archdemon Crown, 2 implicits
+# rare Archdemon Crown, 2 implicits, Elder Item
 -2 to Level of Socketed Support Gems
 +2 to Level of Socketed Skill Gems
 +2 to Level of Socketed AoE Gems
@@ -534,7 +535,7 @@ Socketed Gems deal 30% more Elemental Damage
 8% increased Area of Effect
 72% increased Armour and Energy Shield
 
-# rare Paladin Gloves, 2 implicits
+# rare Paladin Gloves, 2 implicits, Searing Exarch Item, Eater of Worlds Item
 Inflict Fire Exposure on Hit, applying -13% to Fire Resistance
 Ignites you inflict spread to other Enemies within 1.5 metres
 +41 to Armour
@@ -546,7 +547,7 @@ Ignites you inflict spread to other Enemies within 1.5 metres
 16% increased Area Damage
 Ignites you inflict deal Damage 10% faster
 
-# rare Paladin Boots, 2 implicits
+# rare Paladin Boots, 2 implicits, Searing Exarch Item, Eater of Worlds Item
 Ignites you inflict deal Damage 7% faster
 41% chance to Avoid being Shocked
 +97 to maximum Life
