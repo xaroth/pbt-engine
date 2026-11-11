@@ -48,7 +48,7 @@ type Build struct {
 	// Config holds config values by key name, such as {"campaign": "acts-6-10"}. Keys and
 	// values are the game rules'; Check does not read them.
 	Config config.Values `json:"config,omitzero"`
-	// Skills are the skill groups. Check does not read them yet.
+	// Skills are the skill groups.
 	Skills Skills `json:"skills,omitzero"`
 }
 

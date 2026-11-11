@@ -4,7 +4,9 @@
 // The elements read, as PoB writes them:
 //
 //	<PathOfBuilding>
-//	  <Build level className ascendClassName bandit pantheonMajorGod pantheonMinorGod/>
+//	  <Build level className ascendClassName bandit pantheonMajorGod pantheonMinorGod
+//	         mainSocketGroup/>                1-based index of the main skill's group; older
+//	                                          files: mainSkillIndex
 //	  <Tree activeSpec>                       1-based index of the active spec
 //	    <Spec title treeVersion classId ascendClassId secondaryAscendClassId
 //	          nodes="id,id"                   allocated nodes; cluster jewel nodes are above 65535
@@ -19,7 +21,12 @@
 //	  </Config>
 //	  <Items><Item id>item text</Item></Items>
 //	  <Skills activeSkillSet>
-//	    <SkillSet id><Skill label enabled><Gem nameSpec/></Skill></SkillSet>
+//	    <SkillSet id>
+//	      <Skill label enabled slot source    source: the item or tree node granting the group
+//	             mainActiveSkill>             1-based, among the group's active skills
+//	        <Gem nameSpec gemId skillId variantId level quality enabled enableGlobal1 enableGlobal2/>
+//	      </Skill>
+//	    </SkillSet>
 //	    <Skill .../>                          older files: groups without sets
 //	  </Skills>
 //	</PathOfBuilding>
@@ -29,6 +36,7 @@
 package pobxml
 
 import (
+	"cmp"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -69,6 +77,8 @@ type Build struct {
 	Level                        int
 	Class, Ascendancy, Bandit    string
 	PantheonMajor, PantheonMinor string
+	// MainSocketGroup is the 1-based index of the main skill's group in Skills; 0 when unset.
+	MainSocketGroup int
 }
 
 // Spec is one passive tree.
@@ -106,11 +116,23 @@ type Item struct {
 	Name string
 }
 
-// SkillGroup is a socket group; Gems are the gems' names.
+// SkillGroup is a socket group.
 type SkillGroup struct {
-	Label   string
-	Enabled bool
-	Gems    []string
+	Label, Slot, Source string
+	Enabled             bool
+	// MainActiveSkill is the 1-based index of the main skill among the group's active skills;
+	// 0 when unset.
+	MainActiveSkill int
+	Gems            []Gem
+}
+
+// Gem is a gem in a group. GemID is the gem's metadata path, SkillID its granted effect,
+// VariantID its gem effect; older files have only the name. EnableGlobal1 and EnableGlobal2
+// toggle a Vaal gem's two skills.
+type Gem struct {
+	Name, GemID, SkillID, VariantID       string
+	Level, Quality                        int
+	Enabled, EnableGlobal1, EnableGlobal2 bool
 }
 
 type xmlFile struct {
@@ -122,6 +144,8 @@ type xmlFile struct {
 		Bandit        string `xml:"bandit,attr"`
 		PantheonMajor string `xml:"pantheonMajorGod,attr"`
 		PantheonMinor string `xml:"pantheonMinorGod,attr"`
+		MainGroup     string `xml:"mainSocketGroup,attr"`
+		MainSkill     string `xml:"mainSkillIndex,attr"`
 	} `xml:"Build"`
 	Tree *struct {
 		Active int       `xml:"activeSpec,attr"`
@@ -177,16 +201,27 @@ type xmlInput struct {
 }
 
 type xmlSkill struct {
-	Label   string `xml:"label,attr"`
-	Enabled string `xml:"enabled,attr"`
-	Gems    []struct {
-		Name string `xml:"nameSpec,attr"`
+	Label      string `xml:"label,attr"`
+	Enabled    string `xml:"enabled,attr"`
+	Slot       string `xml:"slot,attr"`
+	Source     string `xml:"source,attr"`
+	MainActive string `xml:"mainActiveSkill,attr"`
+	Gems       []struct {
+		Name          string `xml:"nameSpec,attr"`
+		GemID         string `xml:"gemId,attr"`
+		SkillID       string `xml:"skillId,attr"`
+		VariantID     string `xml:"variantId,attr"`
+		Level         string `xml:"level,attr"`
+		Quality       string `xml:"quality,attr"`
+		Enabled       string `xml:"enabled,attr"`
+		EnableGlobal1 string `xml:"enableGlobal1,attr"`
+		EnableGlobal2 string `xml:"enableGlobal2,attr"`
 	} `xml:"Gem"`
 }
 
 // Parse reads a PoE1 build file. It fails on XML it cannot decode, another root (ErrNotPoB,
 // or ErrPoE2 for a PoE2 build), no <Build> or no active spec (ErrMissing), and node or mastery
-// lists that are not numbers (ErrMalformed).
+// lists, gem levels and quality, and group indexes that are not numbers (ErrMalformed).
 func Parse(data []byte) (*File, error) {
 	var x xmlFile
 	if err := xml.Unmarshal(data, &x); err != nil {
@@ -202,7 +237,13 @@ func Parse(data []byte) (*File, error) {
 		},
 		Active: max(x.Tree.Active, 1) - 1,
 		Config: inputs(x),
-		Skills: skills(x),
+	}
+	var err error
+	if f.Build.MainSocketGroup, err = number("mainSocketGroup", cmp.Or(x.Build.MainGroup, x.Build.MainSkill)); err != nil {
+		return nil, err
+	}
+	if f.Skills, err = skills(x); err != nil {
+		return nil, err
 	}
 	if f.Active >= len(x.Tree.Specs) {
 		return nil, fmt.Errorf("%w: active spec %d of %d", ErrMissing, x.Tree.Active, len(x.Tree.Specs))
@@ -322,8 +363,9 @@ func inputs(x xmlFile) []Input {
 	return out
 }
 
-// skills are the active skill set's groups, the first set's when none is active, or the flat list.
-func skills(x xmlFile) []SkillGroup {
+// skills are the active skill set's groups, the first set's when none is active, or the flat
+// list. Levels, quality and indexes that are not integers are ErrMalformed.
+func skills(x xmlFile) ([]SkillGroup, error) {
 	list := x.Skills.Groups
 	if len(x.Skills.Sets) > 0 {
 		list = x.Skills.Sets[0].Groups
@@ -335,13 +377,42 @@ func skills(x xmlFile) []SkillGroup {
 	}
 	out := make([]SkillGroup, 0, len(list))
 	for _, g := range list {
-		sg := SkillGroup{Label: g.Label, Enabled: g.Enabled != "false"}
-		for _, gem := range g.Gems {
-			sg.Gems = append(sg.Gems, gem.Name)
+		sg := SkillGroup{Label: g.Label, Slot: g.Slot, Source: g.Source, Enabled: flag(g.Enabled)}
+		var err error
+		if sg.MainActiveSkill, err = number("mainActiveSkill", g.MainActive); err != nil {
+			return nil, err
+		}
+		for _, xg := range g.Gems {
+			gem := Gem{
+				Name: xg.Name, GemID: xg.GemID, SkillID: xg.SkillID, VariantID: xg.VariantID,
+				Enabled: flag(xg.Enabled), EnableGlobal1: flag(xg.EnableGlobal1), EnableGlobal2: flag(xg.EnableGlobal2),
+			}
+			if gem.Level, err = number("gem level", xg.Level); err != nil {
+				return nil, err
+			}
+			if gem.Quality, err = number("gem quality", xg.Quality); err != nil {
+				return nil, err
+			}
+			sg.Gems = append(sg.Gems, gem)
 		}
 		out = append(out, sg)
 	}
-	return out
+	return out, nil
+}
+
+// flag reads a boolean attribute that is true unless it says false.
+func flag(s string) bool { return s != "false" }
+
+// number reads an integer attribute; empty is 0.
+func number(what, s string) (int, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %s %q", ErrMalformed, what, s)
+	}
+	return n, nil
 }
 
 // itemName is the first non-empty line of an item's text after its "Rarity:" line.

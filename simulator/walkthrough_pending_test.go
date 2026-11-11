@@ -26,7 +26,6 @@ func capabilities() []string {
 	return []string{
 		"an enemy actor",
 		"Path of Building share codes",
-		"gems in the dataset",
 		"skills on a build",
 		"items on a build",
 		"charges in config",

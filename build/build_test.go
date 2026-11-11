@@ -27,7 +27,11 @@ const (
 // through mastery 4; 6 joins nothing. Juggernaut's 13 is a choice node with options 14 and 15.
 func testStore(t *testing.T) *dataset.Store {
 	t.Helper()
-	d := &dataset.Dataset{
+	return openStore(t, testDataset())
+}
+
+func testDataset() *dataset.Dataset {
+	return &dataset.Dataset{
 		Manifest:   dataset.Manifest{Game: "poe1", Version: "3.29.3.3"},
 		Stats:      []dataset.Stat{{ID: "base_maximum_life"}},
 		Characters: []dataset.Character{{ID: marauder}, {ID: ranger}, {ID: "Metadata/Characters/NotInTree"}},
@@ -55,6 +59,10 @@ func testStore(t *testing.T) *dataset.Store {
 			},
 		}},
 	}
+}
+
+func openStore(t *testing.T, d *dataset.Dataset) *dataset.Store {
+	t.Helper()
 	dir := t.TempDir()
 	if _, err := dataset.Write(dir, d); err != nil {
 		t.Fatal(err)

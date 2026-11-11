@@ -39,6 +39,11 @@ const (
 	ConfigIgnored      build.Code = "pob-config-ignored"
 	ItemIgnored        build.Code = "pob-item-ignored"
 	SkillIgnored       build.Code = "pob-skill-ignored"
+	SlotIgnored        build.Code = "pob-slot-ignored"
+	GemUnknown         build.Code = "pob-gem-unknown"
+	GemToggleIgnored   build.Code = "pob-gem-toggle-ignored"
+	GemAmbiguous       build.Code = "pob-gem-ambiguous"
+	MainSkillIgnored   build.Code = "pob-main-skill-ignored"
 	PantheonIgnored    build.Code = "pob-pantheon-ignored"
 	AscendancyIgnored  build.Code = "pob-ascendancy-ignored"
 )
@@ -61,9 +66,14 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // mastery choices; the class and ascendancy names map to ids through the English text of the
 // dataset reg resolves for that version, or of the newest poe1 dataset when it has none
 // (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
-// and the campaign stage from PoB's resistance penalty. Everything else in the file gives a
-// warning: other specs, cluster jewel nodes (dropped), jewels, node overrides, config inputs,
-// items, skill groups, pantheon and a secondary ascendancy.
+// and the campaign stage from PoB's resistance penalty. The active skill set's groups, with
+// their gems resolved through the dataset's skills group (see build.Skills). Everything else in
+// the file gives a warning: other specs, cluster jewel nodes (dropped), jewels, node overrides,
+// config inputs, items, pantheon, a secondary ascendancy, and of the skills: groups an item or
+// the tree grants (and the main skill when it is one of them), gems the dataset lacks, gems of
+// a name or skill id the dataset cannot choose between (imported as the first), slots without
+// sockets, the switches of a Vaal gem's two skills, and every group when the dataset has no
+// skills group.
 func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning, error) {
 	f, err := pobxml.Parse(data)
 	switch {
@@ -88,6 +98,9 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	b.Nodes = im.nodes()
 	b.Masteries = im.masteries()
 	if b.Config, err = im.config(); err != nil {
+		return nil, nil, err
+	}
+	if b.Skills, err = im.skills(store); err != nil {
 		return nil, nil, err
 	}
 	im.leftOut()
@@ -250,13 +263,6 @@ func stageOf(penalty string) (poe1.CampaignStage, bool) {
 func (im *importer) leftOut() {
 	im.treeLeftOut()
 	im.itemsLeftOut()
-	for i, g := range im.file.Skills {
-		subject := cmp.Or(g.Label, "skill group "+strconv.Itoa(i+1))
-		if g.Label == "" && len(g.Gems) > 0 {
-			subject = g.Gems[0]
-		}
-		im.warnf(SkillIgnored, subject, "skills are not imported (%s)", strings.Join(g.Gems, ", "))
-	}
 }
 
 func (im *importer) treeLeftOut() {

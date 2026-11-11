@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	gocmp "github.com/google/go-cmp/cmp"
 
@@ -41,6 +42,8 @@ const walkVersion = "3.29.3.3"
 
 // walk is the state the running steps pass along.
 type walk struct {
+	// skillSim is a sim over the dataset with a skills group the walkthrough adds.
+	skillSim *simulator.Sim
 	// fireball and inspiration are the gems the skill steps use.
 	fireball, inspiration build.GemID
 	reg                   *dataset.Registry
@@ -91,11 +94,7 @@ func setupSteps() []step {
 func editSteps() []step {
 	return []step{
 		{name: "clone a build to edit it", run: cloneBuild},
-		{name: "turn gem names into ids", pending: &pending{
-			needs: "gems in the dataset", waitsOn: []string{"simulator.Sim.Data"},
-			code: `fireball, _ := sim.Data().Gem("Fireball")
-inspiration, _ := sim.Data().Gem("Inspiration")`,
-		}},
+		{name: "turn gem names into ids", run: gemNames},
 		{name: "edit the main skill group", run: editMainGroup},
 		{name: "deallocate nodes", run: deallocate},
 		{name: "equip an item from its text", pending: &pending{
@@ -123,10 +122,7 @@ func readSteps() []step {
 			code: `stats.Skill(fireball).Get(poe1.AverageHit)`,
 		}},
 		{name: "read the warnings", run: readWarnings},
-		{name: "warn about a gem the dataset lacks", pending: &pending{
-			needs: "skills on a build", waitsOn: []string{"simulator.GemNotInDataset"},
-			code: `stats.Warnings() // {Code: GemNotInDataset, Subject: "Metadata/...", Message: "gem not in dataset, ignored"}`,
-		}},
+		{name: "warn about a gem the dataset lacks", run: unknownGem},
 		{name: "warn about a condition whose source the build lacks", pending: &pending{
 			needs: "conditions derived from the build", waitsOn: []string{"simulator.NoConditionSource"},
 			code: `stats.Warnings() // {Code: NoConditionSource, Subject: "enemy.shocked", Message: "could not detect source, assuming external"}`,
@@ -331,11 +327,111 @@ func cloneBuild(t *testing.T, w *walk) {
 	w.next.Masteries[4139] = w.base.Masteries[4139]
 }
 
-// editMainGroup: the build file of the Path of Building import holds no skills yet, so the step
-// first adds a Fireball group, the main skill of a build with one group.
+// gemNames: the published datasets have no skills group yet, so the step makes a copy of the
+// dataset with a small one, Fireball and Inspiration, and a sim over it.
+func gemNames(t *testing.T, w *walk) {
+	w.skillSim = withSkillsGroup(t, w.res.Store)
+	sim := w.skillSim
+	fireball, _ := sim.Data().Gem("Fireball")
+	inspiration, _ := sim.Data().Gem("Inspiration")
+
+	if fireball.ID != gemFireball || inspiration.ID != gemInspiration {
+		t.Fatalf("Fireball %+v, Inspiration %+v", fireball, inspiration)
+	}
+	if _, err := w.sim.Data().Gem("Fireball"); !errors.As(err, new(*dataset.MissingGroupError)) {
+		t.Errorf("gem on a dataset without skills: %v, want a MissingGroupError", err)
+	}
+	w.fireball, w.inspiration = fireball, inspiration
+}
+
+// withSkillsGroup returns a sim over a copy of s with a skills group of Fireball and
+// Inspiration, named in English.
+func withSkillsGroup(t *testing.T, s *dataset.Store) *simulator.Sim {
+	d := copyDataset(t, s)
+	d.Texts[0].GemNames = []dataset.Name{{ID: gemFireball, Name: "Fireball"}, {ID: gemInspiration, Name: "Inspiration Support"}}
+	levels := []dataset.EffectLevel{{Level: 1}, {Level: 40}}
+	d.Skills = &dataset.Skills{
+		Types: []string{"Spell"},
+		Gems: []dataset.Gem{
+			{ID: gemFireball, Colour: dataset.Blue, Effects: []dataset.GemEffect{{ID: "Fireball", GrantedEffect: "Fireball", Style: dataset.DefaultStyle}}},
+			{ID: gemInspiration, Colour: dataset.Blue, Support: true, Effects: []dataset.GemEffect{
+				{ID: "SupportInspiration", GrantedEffect: "SupportInspiration", Style: dataset.DefaultStyle},
+			}},
+		},
+		GrantedEffects: []dataset.GrantedEffect{
+			{ID: "Fireball", ActiveSkill: "fireball", Levels: levels},
+			{ID: "SupportInspiration", Support: true, Levels: levels},
+		},
+		ActiveSkills: []dataset.ActiveSkill{{ID: "fireball", Types: []uint16{0}}},
+	}
+	sim, err := simulator.New(memStore(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sim
+}
+
+// copyDataset returns the groups of s the simulation reads, and its English text.
+func copyDataset(t *testing.T, s *dataset.Store) *dataset.Dataset {
+	d := &dataset.Dataset{Manifest: dataset.Manifest{Game: s.Manifest().Game, Version: s.Manifest().Version, Capabilities: s.Manifest().Capabilities}}
+	var err error
+	if d.Stats, err = s.Stats(); err != nil {
+		t.Fatal(err)
+	}
+	if d.Characters, err = s.Characters(); err != nil {
+		t.Fatal(err)
+	}
+	if d.Constants, err = s.Constants(); err != nil {
+		t.Fatal(err)
+	}
+	if d.Quests, err = s.Quests(); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range s.Manifest().Trees() {
+		tree, err := s.Tree(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Trees = append(d.Trees, *tree)
+	}
+	text, err := s.Text("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Texts = []dataset.Text{*text}
+	return d
+}
+
+// memStore writes d and opens it from memory: a step's temporary directory goes when the step
+// ends, and later steps use the store.
+func memStore(t *testing.T, d *dataset.Dataset) *dataset.Store {
+	dir := t.TempDir()
+	if _, err := dataset.Write(dir, d); err != nil {
+		t.Fatal(err)
+	}
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fsys := fstest.MapFS{}
+	for _, f := range files {
+		data, err := os.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fsys[f.Name()] = &fstest.MapFile{Data: data}
+	}
+	store, err := dataset.Open(fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
+}
+
+// editMainGroup: the build file of the Path of Building import holds no skills (the published
+// datasets cannot resolve its gems yet), so the step first adds a Fireball group, the main
+// skill of a build with one group.
 func editMainGroup(t *testing.T, w *walk) {
-	w.fireball = build.GemID{ID: "Metadata/Items/Gems/SkillGemFireball"}
-	w.inspiration = build.GemID{ID: "Metadata/Items/Gems/SkillGemSupportInspiration"}
 	w.next.Skills.AddGroup(build.SkillGroup{Slot: build.SlotHelmet, Gems: []build.Gem{{GemID: w.fireball, Level: 20}}})
 
 	group := w.next.Skills.Main()
@@ -418,6 +514,21 @@ func unreconcilable(t *testing.T, w *walk) {
 	}
 }
 
+// unknownGem: a gem the dataset lacks is dropped with a warning naming it.
+func unknownGem(t *testing.T, w *walk) {
+	b := w.next.Clone()
+	b.Skills.Main().AddSupport(build.GemID{ID: "Metadata/Items/Gems/SkillGemSupportNothing"}, 20, 0)
+	stats := simulate(t, w.skillSim, b)
+	warnings := stats.Warnings()
+	i := slices.IndexFunc(warnings, func(x build.Warning) bool { return x.Code == build.GemUnknown })
+	if i < 0 || !strings.Contains(warnings[i].Message, "SkillGemSupportNothing") || !strings.Contains(warnings[i].Message, "dropped") {
+		t.Errorf("warnings %v, want the unknown support dropped", warnings)
+	}
+	if slices.ContainsFunc(warnings, func(x build.Warning) bool { return x.Code == build.SkillsUnchecked }) {
+		t.Errorf("warnings %v: the skills were not checked", warnings)
+	}
+}
+
 func readOutput(t *testing.T, w *walk) {
 	before, after := get(t, simulate(t, w.sim, w.base), life), get(t, w.stats, life)
 	if after >= before {
@@ -428,7 +539,9 @@ func readOutput(t *testing.T, w *walk) {
 // readWarnings: the warnings are stats the engine leaves out or applies unchecked, and nodes the
 // removal cut off the tree; none names a removed node.
 func readWarnings(t *testing.T, w *walk) {
-	known := []build.Code{simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected, simulator.SkillsNotSimulated}
+	known := []build.Code{
+		simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected, build.SkillsUnchecked, simulator.SkillsNotSimulated,
+	}
 	unmodelled := 0
 	for _, x := range w.stats.Warnings() {
 		if !slices.Contains(known, x.Code) || x.Message == "" {
