@@ -14,6 +14,7 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
@@ -157,7 +158,7 @@ func sameOutputs(tb testing.TB, what string, a, b *poe1.Sheet) {
 
 func TestWholeTreeSheetEqualsBuildSheet(t *testing.T) {
 	t.Parallel()
-	for _, version := range []string{"3.28.0.16", "3.29.3.3"} {
+	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			s := fixtureStore(t, version)
@@ -178,7 +179,7 @@ func TestWholeTreeSheetEqualsBuildSheet(t *testing.T) {
 // opened fresh for each build.
 func TestWholeTreeSheetEdits(t *testing.T) {
 	t.Parallel()
-	const version = "3.29.3.3"
+	const version = realdata.Current
 	s := fixtureStore(t, version)
 	base := chieftain(t, s, version)
 	tree := sheetOf(t, checked(t, base, s), true, poe1.DefaultConfig())
@@ -217,7 +218,7 @@ func TestWholeTreeSheetEdits(t *testing.T) {
 // build and over the whole tree, resolved beforehand (target: < 10 ms
 // native).
 func BenchmarkOpenSheet(b *testing.B) {
-	const version = "3.29.3.3"
+	const version = realdata.Current
 	s := fixtureStore(b, version)
 	c := checked(b, chieftain(b, s, version), s)
 	tbl, err := poe1.Load()
@@ -244,7 +245,7 @@ func BenchmarkOpenSheet(b *testing.B) {
 // reverts, as a sweep's fast path does (target per what-if: < 0.2 ms native), and switches
 // a whole allocation with SetNodes.
 func BenchmarkSwitchNode(b *testing.B) {
-	const version = "3.29.3.3"
+	const version = realdata.Current
 	s := fixtureStore(b, version)
 	c := checked(b, chieftain(b, s, version), s)
 	sh := sheetOf(b, c, true, poe1.DefaultConfig())
@@ -299,7 +300,7 @@ func outputs(tb testing.TB, sh *poe1.Sheet) []uint64 {
 // gives back the bits before.
 func TestSetNodeAndRevert(t *testing.T) {
 	t.Parallel()
-	const version = "3.29.3.3"
+	const version = realdata.Current
 	s := fixtureStore(t, version)
 	base := checked(t, chieftain(t, s, version), s)
 	sh := sheetOf(t, base, true, poe1.DefaultConfig())
@@ -346,7 +347,7 @@ func TestSetNodeAndRevert(t *testing.T) {
 // SetLevel(37), Revert, Commit, SetLevel(37)) now gives level 37.
 func TestSetLevelInCheckpoint(t *testing.T) {
 	t.Parallel()
-	const version = "3.29.3.3"
+	const version = realdata.Current
 	s := fixtureStore(t, version)
 	c := checked(t, chieftain(t, s, version), s)
 	sh := sheetOf(t, c, true, poe1.DefaultConfig())

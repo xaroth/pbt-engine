@@ -68,13 +68,13 @@ golangci-lint run
 go test ./internal/core -run '^$' -bench .   # benchmarks
 ```
 
-Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures) read the datasets under `$PBT_DATASETS` by exact version (3.28.0.16 and 3.29.3.3) and skip without it. Check out the pbt-data commit that holds those versions:
+Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures, the dataset groups, the walkthrough) read the datasets under `$PBT_DATASETS` by exact version and dataset id, pinned in `internal/realdata` (3.28.0.16 and 3.29.3.6). They skip without `$PBT_DATASETS` and fail when it lacks a pinned dataset. Check out the pbt-data commit that holds them:
 
 ```sh
 git clone https://github.com/xaroth/pbt-data /tmp/pbt-data
-git -C /tmp/pbt-data checkout b2469fb6eda35983c21fbf8aec3debc0ee32d7bf
+git -C /tmp/pbt-data checkout 09cc68e78b87f3b6ff1894052f211e509359738c
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./...
-PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 -update   # rewrite its fixtures, coverage reports, golden lists and explanation goldens
+PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 ./statdesc -update   # rewrite the fixtures, coverage reports, golden lists and explanation and read goldens
 ```
 
 ## Licence

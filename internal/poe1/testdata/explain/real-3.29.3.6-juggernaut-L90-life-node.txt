@@ -1,4 +1,4 @@
-Life: 1150  [tree, dataset 3.29.3.3]
+Life: 1150  [tree, dataset 3.29.3.6]
   maximum_life = 1150 [conversion and gain as extra]
     base 38  character Metadata/Characters/Str/Str
     base 1080  character Metadata/Characters/Str/Str
@@ -13,12 +13,12 @@ Life: 1150  [tree, dataset 3.29.3.3]
       level = 90 (above)
     convert.maximum_life.maximum_energy_shield.% = 0
 
-Life: 1150  [proportional, dataset 3.29.3.3]
+Life: 1150  [proportional, dataset 3.29.3.6]
         1118  character Metadata/Characters/Str/Str (base)
           16  node 31628 (base)
           16  Strength bonus to maximum life (1 per 2, constant life_per_strength) (base)
 
-Life: 1150  [marginal, dataset 3.29.3.3]
+Life: 1150  [marginal, dataset 3.29.3.6]
   change without each source: value (total before caps)
        -1134  character Metadata/Characters/Str/Str
        -1080  level

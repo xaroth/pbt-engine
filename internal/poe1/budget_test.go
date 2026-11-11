@@ -8,6 +8,7 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 )
 
 // budgetStore has campaign quests worth 1 (act 1), 1 (the bandit kill, act 2), 1 (act 7) and
@@ -126,7 +127,7 @@ func must(t *testing.T, err error) {
 // The level 90 Chieftain tree from pbt-conformance (tree only, bandits killed) fits its budget.
 func TestPointBudgetRealTree(t *testing.T) {
 	t.Parallel()
-	for _, version := range []string{"3.28.0.16", "3.29.3.3"} {
+	for _, version := range realdata.Versions() {
 		b := &build.Build{Format: 1, Game: "poe1", Version: version, Class: "Metadata/Characters/Str/Str", Ascendancy: "Chieftain",
 			Level: 90, Nodes: treeNodes(t, version)}
 		_, s := realSheetStore(t, version, b)

@@ -1,4 +1,4 @@
-# Variants of Metadata/StatDescriptions/stat_descriptions.txt on 3.29.3.3 that do not read back to their stats (description/variant stats | reason | text),
+# Variants of Metadata/StatDescriptions/stat_descriptions.txt on 3.29.3.6 that do not read back to their stats (description/variant stats | reason | text),
 # then those read back but not first. 15773 variants, 15713 rendered, 15697 read back, 15300 first.
 133/1 local_unique_hungry_loop_number_of_gems_to_consume,local_unique_hungry_loop_has_consumed_gem | no reading | "Consumes Socketed Uncorrupted Support Gems when they reach Maximum Level\nCan Consume 1 additional Uncorrupted Support Gem"
 133/3 local_unique_hungry_loop_number_of_gems_to_consume,local_unique_hungry_loop_has_consumed_gem | no reading | "Consumes Socketed Uncorrupted Support Gems when they reach Maximum Level\nCan Consume 120 additional Uncorrupted Support Gems"

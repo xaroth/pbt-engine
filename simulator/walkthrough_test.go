@@ -11,13 +11,13 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
 
 	gocmp "github.com/google/go-cmp/cmp"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
 	"github.com/xaroth/pbt-engine/poe1"
@@ -25,17 +25,13 @@ import (
 )
 
 // The walkthrough is the public API as a host uses it, from loading a dataset to sweeping
-// edits, in order. A step the engine can do runs against the real 3.29.3.3 dataset; a step it
+// edits, in order. A step the engine can do runs against the real pinned datasets; a step it
 // cannot do yet is kept as the code it should become, with the capability it waits for
 // (walkthrough_pending_test.go checks those). Running steps import only public packages, as a
 // host would.
 
-const walkVersion = "3.29.3.3"
-
 // walk is the state the running steps pass along.
 type walk struct {
-	// skillSim is a sim over the dataset with a skills group the walkthrough adds.
-	skillSim *simulator.Sim
 	// fireball and inspiration are the gems the skill steps use.
 	fireball, inspiration build.GemID
 	reg                   *dataset.Registry
@@ -181,16 +177,8 @@ stats.Explain(poe1.Life, simulator.Proportional) // sources name the ally's aura
 //nolint:tparallel // the steps build on each other's state, so they run in order
 func TestWalkthrough(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("PBT_DATASETS")
-	if root == "" {
-		t.Skip("PBT_DATASETS not set")
-	}
-	reg, err := dataset.OpenRoot(os.DirFS(root))
-	if reg == nil {
-		t.Fatal(err)
-	}
-	if res, err := reg.Resolve("poe1", walkVersion); err != nil || res.Store.Manifest().Version != walkVersion {
-		t.Skipf("PBT_DATASETS has no %s", walkVersion)
+	for _, v := range realdata.Versions() {
+		realdata.Open(t, v)
 	}
 	w := &walk{}
 	for _, s := range walkthrough() {
@@ -319,105 +307,15 @@ func cloneBuild(t *testing.T, w *walk) {
 	w.next.Masteries[4139] = w.base.Masteries[4139]
 }
 
-// gemNames: the published datasets have no skills group yet, so the step makes a copy of the
-// dataset with a small one, Fireball and Inspiration, and a sim over it.
+// gemNames: gem names from the dataset's skills group become the ids a build holds.
 func gemNames(t *testing.T, w *walk) {
-	w.skillSim = withSkillsGroup(t, w.res.Store)
-	sim := w.skillSim
-	fireball, _ := sim.Data().Gem("Fireball")
-	inspiration, _ := sim.Data().Gem("Inspiration")
+	fireball, _ := w.sim.Data().Gem("Fireball")
+	inspiration, _ := w.sim.Data().Gem("Inspiration")
 
-	if fireball.ID != gemFireball || inspiration.ID != gemInspiration {
+	if fireball.ID != gemFireball || inspiration.ID != "Metadata/Items/Gems/SupportGemReducedMana" {
 		t.Fatalf("Fireball %+v, Inspiration %+v", fireball, inspiration)
 	}
-	if _, err := w.sim.Data().Gem("Fireball"); !errors.As(err, new(*dataset.MissingGroupError)) {
-		t.Errorf("gem on a dataset without skills: %v, want a MissingGroupError", err)
-	}
 	w.fireball, w.inspiration = fireball, inspiration
-}
-
-// withSkillsGroup returns a sim over a copy of s with a skills group of Fireball and
-// Inspiration, named in English.
-func withSkillsGroup(t *testing.T, s *dataset.Store) *simulator.Sim {
-	d := copyDataset(t, s)
-	d.Texts[0].GemNames = []dataset.Name{{ID: gemFireball, Name: "Fireball"}, {ID: gemInspiration, Name: "Inspiration Support"}}
-	levels := []dataset.EffectLevel{{Level: 1}, {Level: 40}}
-	d.Skills = &dataset.Skills{
-		Types: []string{"Spell"},
-		Gems: []dataset.Gem{
-			{ID: gemFireball, Colour: dataset.Blue, Effects: []dataset.GemEffect{{ID: "Fireball", GrantedEffect: "Fireball", Style: dataset.DefaultStyle}}},
-			{ID: gemInspiration, Colour: dataset.Blue, Support: true, Effects: []dataset.GemEffect{
-				{ID: "SupportInspiration", GrantedEffect: "SupportInspiration", Style: dataset.DefaultStyle},
-			}},
-		},
-		GrantedEffects: []dataset.GrantedEffect{
-			{ID: "Fireball", ActiveSkill: "fireball", Levels: levels},
-			{ID: "SupportInspiration", Support: true, Levels: levels},
-		},
-		ActiveSkills: []dataset.ActiveSkill{{ID: "fireball", Types: []uint16{0}}},
-	}
-	sim, err := simulator.New(memStore(t, d))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return sim
-}
-
-// copyDataset returns the groups of s the simulation reads, and its English text.
-func copyDataset(t *testing.T, s *dataset.Store) *dataset.Dataset {
-	d := &dataset.Dataset{Manifest: dataset.Manifest{Game: s.Manifest().Game, Version: s.Manifest().Version, Capabilities: s.Manifest().Capabilities}}
-	var err error
-	if d.Stats, err = s.Stats(); err != nil {
-		t.Fatal(err)
-	}
-	if d.Characters, err = s.Characters(); err != nil {
-		t.Fatal(err)
-	}
-	if d.Constants, err = s.Constants(); err != nil {
-		t.Fatal(err)
-	}
-	if d.Quests, err = s.Quests(); err != nil {
-		t.Fatal(err)
-	}
-	for _, v := range s.Manifest().Trees() {
-		tree, err := s.Tree(v)
-		if err != nil {
-			t.Fatal(err)
-		}
-		d.Trees = append(d.Trees, *tree)
-	}
-	text, err := s.Text("en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	d.Texts = []dataset.Text{*text}
-	return d
-}
-
-// memStore writes d and opens it from memory: a step's temporary directory goes when the step
-// ends, and later steps use the store.
-func memStore(t *testing.T, d *dataset.Dataset) *dataset.Store {
-	dir := t.TempDir()
-	if _, err := dataset.Write(dir, d); err != nil {
-		t.Fatal(err)
-	}
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fsys := fstest.MapFS{}
-	for _, f := range files {
-		data, err := os.ReadFile(filepath.Join(dir, f.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		fsys[f.Name()] = &fstest.MapFile{Data: data}
-	}
-	store, err := dataset.Open(fsys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return store
 }
 
 // editMainGroup: the build file of the Path of Building import holds no skills (the published
@@ -510,7 +408,7 @@ func unreconcilable(t *testing.T, w *walk) {
 func unknownGem(t *testing.T, w *walk) {
 	b := w.next.Clone()
 	b.Skills.Main().AddSupport(build.GemID{ID: "Metadata/Items/Gems/SkillGemSupportNothing"}, 20, 0)
-	stats := simulate(t, w.skillSim, b)
+	stats := simulate(t, w.sim, b)
 	warnings := stats.Warnings()
 	i := slices.IndexFunc(warnings, func(x build.Warning) bool { return x.Code == build.GemUnknown })
 	if i < 0 || !strings.Contains(warnings[i].Message, "SkillGemSupportNothing") || !strings.Contains(warnings[i].Message, "dropped") {
