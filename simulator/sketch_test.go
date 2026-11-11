@@ -16,7 +16,6 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
-	"github.com/xaroth/pbt-engine/items"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
 	"github.com/xaroth/pbt-engine/poe1"
@@ -394,13 +393,8 @@ Implicits: 0
 
 func sketchEquip(t *testing.T, s *sketchState) {
 	item, warnings, err := s.sim.Data().Item(rawItemText)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, x := range warnings {
-		if x.Code != items.LineAmbiguous {
-			t.Errorf("read the item: %v", x)
-		}
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the item: %v, %v", warnings, err)
 	}
 	if err := s.next.Apply(build.Equip(build.SlotHelmet, item)); err != nil {
 		t.Fatal(err)

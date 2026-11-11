@@ -94,15 +94,15 @@ func TestParse(t *testing.T) {
 		codes      []build.Code
 	}{
 		{
-			"rare helmet: properties, tags, a flag",
+			"rare helmet: properties, tags, local armour, a flag",
 			"Rarity: RARE\nDoom Cap\nIron Hat\nShaper Item\nArmour: 80\nItem Level: 70\nQuality: 20\nSockets: R-R\nLevelReq: 40\n" +
-				"Implicits: 1\n{enchant}+20 to maximum Life\n+30 to maximum Life\n{crafted}+40 to maximum Life\n{fractured}{range:0.5}+12 to maximum Life\nCorrupted\n",
+				"Implicits: 1\n{enchant}+20 to maximum Life\n+30 to Armour\n{crafted}+40 to maximum Life\n{fractured}{range:0.5}+12 to maximum Life\nCorrupted\n",
 			build.Item{
 				Rarity: build.Rare, Name: "Doom Cap", Base: hatBase, ItemLevel: 70, Quality: 20, Sockets: "R-R", Armour: 80,
 				Flags: []string{"Shaper Item", "Corrupted"},
 				Mods: []build.ModLine{
 					line(build.Enchant, "+20 to maximum Life", "base_maximum_life", 20),
-					line(build.Explicit, "+30 to maximum Life", "base_maximum_life", 30),
+					line(build.Explicit, "+30 to Armour", "local_armour", 30),
 					line(build.Crafted, "+40 to maximum Life", "base_maximum_life", 40),
 					line(build.Fractured, "+12 to maximum Life", "base_maximum_life", 12),
 				},
@@ -110,19 +110,31 @@ func TestParse(t *testing.T) {
 			nil,
 		},
 		{
-			"magic ring: base inside the name, a range, an unread line",
-			"Rarity: MAGIC\nSturdy Iron Ring of Life\nImplicits: 0\n+(20-30) to maximum Life\nGrants a wish\n",
+			"magic ring: base inside the name, global armour, a range, an unread line",
+			"Rarity: MAGIC\nSturdy Iron Ring of Life\nImplicits: 0\n+(20-30) to Armour\nGrants a wish\n",
 			build.Item{
 				Rarity: build.Magic, Name: "Sturdy Iron Ring of Life", Base: ringBase,
-				Mods: []build.ModLine{line(build.Explicit, "+(20-30) to maximum Life", "base_maximum_life", 30), {Kind: build.Explicit, Text: "Grants a wish"}},
+				Mods: []build.ModLine{line(build.Explicit, "+(20-30) to Armour", "armour", 30), {Kind: build.Explicit, Text: "Grants a wish"}},
 			},
 			[]build.Code{items.RollAssumed, items.LineUnread},
 		},
 		{
-			"a line of two readings: the game's order, with a warning",
-			"Rarity: NORMAL\nSuperior Iron Hat\nImplicits: 0\n+30 to Armour\n",
-			build.Item{Rarity: build.Normal, Base: hatBase, Mods: []build.ModLine{line(build.Explicit, "+30 to Armour", "armour", 30)}},
+			"armour out of the ring mod's range: read as it, an older roll",
+			"Rarity: NORMAL\nSuperior Iron Ring\nImplicits: 0\n+90 to Armour\n",
+			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+90 to Armour", "armour", 90)}},
+			nil,
+		},
+		{
+			"armour no mod of the belt has: the game's order, with a warning",
+			"Rarity: NORMAL\nIron Belt\nImplicits: 0\n+30 to Armour\n",
+			build.Item{Rarity: build.Normal, Base: beltBase, Mods: []build.ModLine{line(build.Explicit, "+30 to Armour", "armour", 30)}},
 			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"a unique's mod only on a unique",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+20 to Spirit\n",
+			build.Item{Rarity: build.Rare, Name: "X", Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+20 to Spirit", "spirit", 20)}},
+			nil,
 		},
 	}
 	for _, testCase := range testCases {

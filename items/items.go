@@ -24,8 +24,8 @@ var (
 const (
 	// LineUnread is a mod line no stat description reads; the item keeps its text, no stats.
 	LineUnread = build.ItemLineUnread
-	// LineAmbiguous is a mod line read as stats of more than one meaning; the first in the
-	// game's order is kept.
+	// LineAmbiguous is a mod line read in more than one way the item could have; the first in
+	// the game's order is kept.
 	LineAmbiguous build.Code = "item-line-ambiguous"
 	// RollAssumed is a mod line with a range of values, such as "(30-50)"; the highest is kept.
 	RollAssumed build.Code = "item-roll-assumed"
@@ -36,16 +36,33 @@ const statScope = "Metadata/StatDescriptions/stat_descriptions.txt"
 
 // Reader reads item text with one dataset. It is safe for concurrent use.
 type Reader struct {
-	set     *statdesc.Set
-	bases   map[string]*dataset.ItemBase
-	byName  map[string][]*dataset.ItemBase
-	version string
+	set    *statdesc.Set
+	bases  map[string]*dataset.ItemBase
+	byName map[string][]*dataset.ItemBase
+	// mods are by stat id, each mod once per stat it has.
+	mods      map[string][]modStat
+	firstStat map[*dataset.Mod]string
+	version   string
+}
+
+// modStat is a mod with the range of one of its stats.
+type modStat struct {
+	mod      *dataset.Mod
+	min, max int32
 }
 
 // NewReader indexes the items group, the stats and the English stat descriptions of s. A
 // dataset without the items group returns a *dataset.MissingGroupError.
 func NewReader(s *dataset.Store) (*Reader, error) {
 	it, err := s.Items()
+	if err != nil {
+		return nil, fmt.Errorf("items: %w", err)
+	}
+	mods, err := s.Mods()
+	if err != nil {
+		return nil, fmt.Errorf("items: %w", err)
+	}
+	stats, err := s.Stats()
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
@@ -59,9 +76,9 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		version: s.Manifest().Version,
+		mods: map[string][]modStat{}, firstStat: map[*dataset.Mod]string{}, version: s.Manifest().Version,
 	}
-	r.index(it.Bases, text.BaseNames)
+	r.index(it.Bases, text.BaseNames, mods, stats)
 	return r, nil
 }
 
@@ -69,8 +86,8 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 // properties such as "Quality: 20" up to "Implicits: N", then the mod lines, the first N of
 // them implicit, each optionally tagged "{crafted}", "{fractured}" or "{enchant}". The base is
 // found by its English name; a magic item's base is the longest base name in its name. Each mod
-// line is read through the stat descriptions; a line that reads in several ways is read as the
-// first in the game's order, with a warning. A line nothing reads is a warning and stays without stats.
+// line is read through the stat descriptions; a line that reads in several ways is read as one
+// the item can have (see choose). A line nothing reads is a warning and stays without stats.
 // Properties Path of Building adds for itself, such as "LevelReq" or "Prefix", are ignored. It
 // fails with ErrFormat on text without a rarity, name or implicit count, and ErrUnknownBase.
 func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
@@ -106,14 +123,23 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 	return it, warnings, nil
 }
 
-// index indexes bases by id and English name.
-func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name) {
+// index indexes bases by id and English name, and mods by stat id.
+func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name, mods []dataset.Mod, stats []dataset.Stat) {
 	for i := range bases {
 		r.bases[bases[i].ID] = &bases[i]
 	}
 	for _, n := range names {
 		if b, ok := r.bases[n.ID]; ok {
 			r.byName[n.Name] = append(r.byName[n.Name], b)
+		}
+	}
+	for i := range mods {
+		if len(mods[i].Stats) > 0 {
+			r.firstStat[&mods[i]] = stats[mods[i].Stats[0].Stat].ID
+		}
+		for _, st := range mods[i].Stats {
+			id := stats[st.Stat].ID
+			r.mods[id] = append(r.mods[id], modStat{mod: &mods[i], min: min(st.Min, st.Max), max: max(st.Min, st.Max)})
 		}
 	}
 }
@@ -160,10 +186,47 @@ func (r *Reader) base(p parsed) (*dataset.ItemBase, error) {
 	}
 	bases := r.byName[name]
 	if len(bases) == 0 {
+		// Path of Building tells bases of one name apart by their implicits, as in
+		// "Two-Stone Ring (Fire/Cold)".
+		if i := strings.LastIndex(name, " ("); i > 0 && strings.HasSuffix(name, ")") {
+			bases = r.byName[name[:i]]
+		}
+	}
+	if len(bases) == 0 {
 		return nil, fmt.Errorf("%w: %q in %s", ErrUnknownBase, p.baseName, r.version)
 	}
-	// Bases of one name are the same item kept twice by the game, such as for another game mode.
-	return bases[0], nil
+	return r.byImplicits(bases, p), nil
+}
+
+// byImplicits returns the base among bases of one name whose implicit mods read the most of the
+// item's implicit lines, the first in the game's order on a tie.
+func (r *Reader) byImplicits(bases []*dataset.ItemBase, p parsed) *dataset.ItemBase {
+	best, most := bases[0], 0
+	for _, b := range bases[1:] {
+		if n := r.implicitsRead(b, p); n > most {
+			best, most = b, n
+		}
+	}
+	if most > 0 && r.implicitsRead(bases[0], p) >= most {
+		return bases[0]
+	}
+	return best
+}
+
+// implicitsRead counts the item's implicit lines that read as an implicit mod of b.
+func (r *Reader) implicitsRead(b *dataset.ItemBase, p parsed) int {
+	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
+	n := 0
+	for _, l := range p.lines {
+		if l.kind != build.Implicit {
+			continue
+		}
+		rs, err := r.set.ReadRange(statScope, []string{l.text})
+		if err == nil && slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.fits(rd, true, ofBase) }) {
+			n++
+		}
+	}
+	return n
 }
 
 // longestBaseName returns the longest base name in a magic item's name, or "".
@@ -323,15 +386,4 @@ func tagged(l string) (build.ModKind, string) {
 		l = l[end+1:]
 	}
 	return kind, l
-}
-
-// choose returns the first of the readings in the game's order, and the stats of the others.
-func (r *Reader) choose(_ *build.Item, _ *dataset.ItemBase, _ build.ModKind, rs []statdesc.RangeReading) (statdesc.RangeReading, []string) {
-	var others []string
-	for _, rd := range rs[1:] {
-		if !slices.Equal(rd.Stats, rs[0].Stats) {
-			others = append(others, strings.Join(rd.Stats, ", "))
-		}
-	}
-	return rs[0], others
 }
