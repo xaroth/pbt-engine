@@ -6,7 +6,7 @@ Status: early. Datasets (the game data the engine reads) can be written, read an
 
 ## Layout
 
-Hosts and tools import the packages at the top level: `simulator` (the API), `build`, `config`, `output`, `pob`, `power`, `dataset` (with `dataset/remote`) and `statdesc`. The pipeline behind them is under `internal/`, so it can change without breaking anyone: `core` (the game-neutral evaluator), `resolve` (build to stat bundles), `semantics` (the table format) and one package per game, `poe1` (rules, output catalogue and semantics table).
+Hosts and tools import the packages at the top level: `simulator` (the API), `poe1` (the Path of Exile 1 output keys, config keys and config values, such as `poe1.Life` and `poe1.Bandits`), `build`, `config`, `output`, `pob`, `power`, `dataset` (with `dataset/remote`) and `statdesc`. The pipeline behind them is under `internal/`, so it can change without breaking anyone: `core` (the game-neutral evaluator), `resolve` (build to stat bundles), `semantics` (the table format) and one package per game, `poe1` (rules, output catalogue and semantics table), whose names for hosts the top-level package of the same name re-exports.
 
 ## Datasets
 
