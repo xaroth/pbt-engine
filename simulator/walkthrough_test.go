@@ -207,8 +207,8 @@ func resolveLeague(t *testing.T, w *walk) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := res.Store.Manifest().Version; res.Match == dataset.MatchExact || !strings.HasPrefix(got, "3.29.") {
-		t.Fatalf("3.29 resolved to %s (match %v), want a 3.29 patch by prefix", got, res.Match)
+	if got := res.Store.Manifest().Version; res.Match == dataset.MatchExact || got != realdata.Current {
+		t.Fatalf("3.29 resolved to %s (match %v), want %s by prefix", got, res.Match, realdata.Current)
 	}
 	w.res = res
 }
@@ -318,9 +318,8 @@ func gemNames(t *testing.T, w *walk) {
 	w.fireball, w.inspiration = fireball, inspiration
 }
 
-// editMainGroup: the build file of the Path of Building import holds no skills (the published
-// datasets cannot resolve its gems yet), so the step first adds a Fireball group, the main
-// skill of a build with one group.
+// editMainGroup: the imported file has no skill groups, so the step first adds a Fireball group,
+// the main skill of a build with one group.
 func editMainGroup(t *testing.T, w *walk) {
 	w.next.Skills.AddGroup(build.SkillGroup{Slot: build.SlotHelmet, Gems: []build.Gem{{GemID: w.fireball, Level: 20}}})
 
