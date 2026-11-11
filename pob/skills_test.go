@@ -230,12 +230,12 @@ func TestFromXMLMainGroupClamped(t *testing.T) {
 	}
 }
 
-// A main active skill that is not a number, such as poe.ninja's "nil", is the group's first,
-// as in PoB.
-func TestFromXMLMainActiveSkillNotNumber(t *testing.T) {
+// As in PoB, a main active skill that is not a number, such as poe.ninja's "nil", is the
+// group's first, and one past the group's last is its last.
+func TestFromXMLMainActiveSkill(t *testing.T) {
 	t.Parallel()
 	reg := skillsRegistry(t, gemSpec{name: "Frostblink"}, gemSpec{name: "Punishment"})
-	for main, want := range map[string]int{"nil": 0, "x": 0, "2": 1} {
+	for main, want := range map[string]int{"nil": 0, "x": 0, "2": 1, "9": 1} {
 		file := strings.Replace(`<PathOfBuilding>
 	<Build level="90" className="Marauder" ascendClassName="Chieftain"/>
 	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
