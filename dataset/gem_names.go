@@ -30,10 +30,10 @@ type GemMatch struct {
 //
 // The game's files hold more than one gem for some names: the gems of the Royale mode, which
 // take no quality, and older items it has replaced. Among such gems the lookup keeps, in turn,
-// the ones whose effect takes quality, the ones whose effect id does not end in "Old", and the
-// ones with the most variants (transfigured versions). Gems left that share one gem effect are
-// the same skill, and the first in the game's order is returned; gems left with different
-// effects are listed in GemMatch.Others.
+// the ones whose effect takes quality, then the ones whose effect id does not end in "Old".
+// Gems left that share one gem effect are the same skill, such as the two Arctic Armour items,
+// and the first in the game's order is returned; gems left with different effects are listed
+// in GemMatch.Others.
 func (s *Store) GemByName(name string) (GemMatch, error) {
 	sk, err := s.Skills()
 	if err != nil {
@@ -132,11 +132,6 @@ func (s *Skills) choose(candidates []GemMatch) (GemMatch, bool) {
 	}
 	candidates = narrow(candidates, func(c GemMatch) bool { return quality[c.Effect.GrantedEffect] })
 	candidates = narrow(candidates, func(c GemMatch) bool { return !strings.HasSuffix(c.Effect.ID, supersededSuffix) })
-	most := 0
-	for _, c := range candidates {
-		most = max(most, len(c.Gem.Effects))
-	}
-	candidates = narrow(candidates, func(c GemMatch) bool { return len(c.Gem.Effects) == most })
 	m := candidates[0]
 	for _, c := range candidates[1:] {
 		// Effects of the first gem, such as a Vaal gem's variants of one granted effect, are

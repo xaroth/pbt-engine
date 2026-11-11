@@ -74,7 +74,8 @@ func withDuplicates() *dataset.Dataset {
 		// Two items of one gem effect.
 		{"SkillGemNewArcticArmour", "Arctic Armour", []string{"ArcticArmour"}, true},
 		{"SkillGemArcticArmour", "Arctic Armour", []string{"ArcticArmour"}, true},
-		// The item with the transfigured variants, a copy of its first, and the Royale gem.
+		// The item with the transfigured variants, a second item of its first effect, and the
+		// Royale gem. The two items are the same skill; the game's order picks between them.
 		{"SkillGemLightningTendrils", "Lightning Tendrils", []string{"LightningTendrils", "LightningTendrilsAltX", "LightningTendrilsAltY"}, true},
 		{"SkillGemLightningTendrilsChannelled", "Lightning Tendrils", []string{"LightningTendrils"}, true},
 		{"SkillGemLightningTendrilsRoyale", "Lightning Tendrils", []string{"LightningTendrilsRoyale"}, false},
