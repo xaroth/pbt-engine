@@ -1,6 +1,7 @@
 package items
 
 import (
+	"maps"
 	"slices"
 	"strings"
 
@@ -32,55 +33,94 @@ const (
 	weaponTag       = "weapon"
 )
 
-// choose returns the reading of a line of kind on item it of base b, and the stats of other
-// readings that remain possible, which make the line ambiguous. Readings are kept in turn while
-// any is left: for an implicit line, those of an implicit mod of the base; those whose stats
-// are in a mod that can be on the item with the values in its range, else with any values, as
-// for an older roll; on armour and weapons, those with a local stat that a mod rolling on the
-// base has, since a unique's local stat can read the same as a global one the unique has; then
-// the first in the game's order.
-func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading) (statdesc.RangeReading, []string) {
-	keep := rs
-	if kind == build.Implicit {
-		keep = narrow(keep, func(rd statdesc.RangeReading) bool {
-			return r.fits(rd, true, func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) })
-		})
-	}
-	unique := it.Rarity == build.Unique
-	onItem := func(m *dataset.Mod) bool { return r.canBeOn(m, b, unique) }
-	keep = narrow(keep,
-		func(rd statdesc.RangeReading) bool { return r.fits(rd, true, onItem) },
-		func(rd statdesc.RangeReading) bool { return r.fits(rd, false, onItem) })
-	if b.Armour != nil || b.Weapon != nil {
-		rolls := func(m *dataset.Mod) bool { return len(m.SpawnWeights) > 0 && onItem(m) }
-		keep = narrow(keep, func(rd statdesc.RangeReading) bool {
-			return slices.ContainsFunc(rd.Stats, func(s string) bool { return strings.HasPrefix(s, localStatPrefix) }) && r.fits(rd, false, rolls)
-		})
-	}
-	var others []string
-	for _, rd := range keep[1:] {
-		if !slices.Equal(rd.Stats, keep[0].Stats) {
-			others = append(others, strings.Join(rd.Stats, ", "))
-		}
-	}
-	return keep[0], others
+// choice is the reading chosen for a line.
+type choice struct {
+	statdesc.RangeReading
+
+	// others are the stats of other readings that remain possible, which make the line ambiguous.
+	others []string
+	// outOfRange is set when no mod the item can have rolls the line's values.
+	outOfRange bool
 }
 
-// narrow returns the readings that pass the first of tests any reading passes, or all of them
-// when none does.
-func narrow(rs []statdesc.RangeReading, tests ...func(statdesc.RangeReading) bool) []statdesc.RangeReading {
-	for _, test := range tests {
+// test is one step of narrowing readings down: the readings it keeps, and whether keeping them
+// means a value outside every mod's range.
+type test struct {
+	keep       func(statdesc.RangeReading) bool
+	outOfRange bool
+}
+
+// choose returns the reading of a line of kind on item it of base b. Readings are narrowed in
+// turn by the first test some reading passes:
+//   - for an implicit line: an implicit mod of the base with the values in its range; else a
+//     former implicit (a mod no base has, which spawns nowhere) with the values in its range and
+//     other stats than the base's implicit, as on an older item; else the base's implicit with
+//     any values;
+//   - a mod the item can have, with the values in its range; else a retired mod of the item
+//     (spawn weights all 0) with the values in its range; else, as a last resort, a mod the item
+//     can have with any values.
+//
+// Then, on armour and weapons, readings with a local stat that a mod rolling on the base has,
+// since a unique's local stat can read the same as a global one the unique has; then the first
+// in the game's order.
+func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading) choice {
+	unique := it.Rarity == build.Unique
+	onItem := func(m *dataset.Mod) bool { return r.canBeOn(m, b, unique) }
+	retired := func(m *dataset.Mod) bool { return r.retired(m, b, unique) }
+	var tests []test
+	if kind == build.Implicit {
+		tests = r.implicitTests(b, unique)
+	}
+	tests = append(tests,
+		test{keep: func(rd statdesc.RangeReading) bool { return r.fits(rd, true, onItem) }},
+		test{keep: func(rd statdesc.RangeReading) bool { return r.fits(rd, true, retired) }},
+		test{keep: func(rd statdesc.RangeReading) bool { return r.fits(rd, false, onItem) }, outOfRange: true})
+	keep, outOfRange := narrow(rs, tests)
+	if b.Armour != nil || b.Weapon != nil {
+		rolls := func(m *dataset.Mod) bool { return len(m.SpawnWeights) > 0 && onItem(m) }
+		keep, _ = narrow(keep, []test{{keep: func(rd statdesc.RangeReading) bool {
+			return slices.ContainsFunc(rd.Stats, isLocal) && r.fits(rd, false, rolls)
+		}}})
+	}
+	c := choice{RangeReading: keep[0], outOfRange: outOfRange}
+	for _, rd := range keep[1:] {
+		if !slices.Equal(rd.Stats, keep[0].Stats) {
+			c.others = append(c.others, strings.Join(rd.Stats, ", "))
+		}
+	}
+	return c
+}
+
+// implicitTests are the tests of an implicit line on an item of base b.
+func (r *Reader) implicitTests(b *dataset.ItemBase, unique bool) []test {
+	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
+	former := func(m *dataset.Mod) bool {
+		return ofDomain(m, b, unique) && !r.implicit[m.ID] && !slices.ContainsFunc(m.SpawnWeights, positive)
+	}
+	return []test{
+		{keep: func(rd statdesc.RangeReading) bool { return r.fits(rd, true, ofBase) }},
+		{keep: func(rd statdesc.RangeReading) bool { return r.fits(rd, true, former) && !r.fits(rd, false, ofBase) }},
+		{keep: func(rd statdesc.RangeReading) bool { return r.fits(rd, false, ofBase) }, outOfRange: true},
+	}
+}
+
+func isLocal(stat string) bool { return strings.HasPrefix(stat, localStatPrefix) }
+
+// narrow returns the readings that pass the first of tests any reading passes, and that test's
+// outOfRange, or all of them when none does.
+func narrow(rs []statdesc.RangeReading, tests []test) ([]statdesc.RangeReading, bool) {
+	for _, t := range tests {
 		var out []statdesc.RangeReading
 		for _, rd := range rs {
-			if test(rd) {
+			if t.keep(rd) {
 				out = append(out, rd)
 			}
 		}
 		if len(out) > 0 {
-			return out
+			return out, t.outOfRange
 		}
 	}
-	return rs
+	return rs, false
 }
 
 // fits reports whether a mod that passes ok has every stat rd shows, with rd's values in the
@@ -105,8 +145,11 @@ func (r *Reader) fits(rd statdesc.RangeReading, inRange bool, ok func(*dataset.M
 }
 
 // has reports whether m has each stat rd shows, with rd's values in its range when inRange is
-// set.
+// set. A value out of range still fits when the mod at its own values renders the same text, as
+// for a stat the text shows as fixed words, such as "30%" written into the description.
 func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) bool {
+	own := map[string]int32{}
+	out := false
 	for k, st := range rd.Stats {
 		if rd.Min[k] == 0 && rd.Max[k] == 0 {
 			continue
@@ -115,11 +158,26 @@ func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) boo
 		if i < 0 {
 			return false
 		}
-		if ms := r.mods[st][i]; inRange && (rd.Min[k] < ms.min || rd.Max[k] > ms.max) {
-			return false
-		}
+		ms := r.mods[st][i]
+		own[st] = ms.min
+		out = out || rd.Min[k] < ms.min || rd.Max[k] > ms.max
 	}
-	return true
+	return !inRange || !out || r.sameText(rd, own)
+}
+
+// sameText reports whether rd's stats render the same text at their low values and with the
+// values in own put in.
+func (r *Reader) sameText(rd statdesc.RangeReading, own map[string]int32) bool {
+	read := make(map[string]int32, len(rd.Stats))
+	for k, st := range rd.Stats {
+		read[st] = rd.Min[k]
+	}
+	put := maps.Clone(read)
+	maps.Copy(put, own)
+	a, errA := r.set.Describe(statScope, read)
+	b, errB := r.set.Describe(statScope, put)
+	return errA == nil && errB == nil && len(a) > 0 &&
+		slices.EqualFunc(a, b, func(x, y statdesc.Line) bool { return x.Text == y.Text })
 }
 
 // canBeOn reports whether mod m can be on an item of base b: one of its implicits, or a mod of
@@ -137,6 +195,31 @@ func (r *Reader) canBeOn(m *dataset.Mod, b *dataset.ItemBase, unique bool) bool 
 	}
 	return spawnsOn(m, b)
 }
+
+// retired reports whether m is a mod of the item that no longer spawns: of the item's domain,
+// not a crafting one (bench crafts have zero weights too), with
+// spawn weights that are all 0 and name no tag but the item's and "default", and one of the
+// item's unless the domain is the item's own kind, such as flasks.
+func (r *Reader) retired(m *dataset.Mod, b *dataset.ItemBase, unique bool) bool {
+	if m.Domain != classDomain(b.Class) || !ofDomain(m, b, unique) || len(m.SpawnWeights) == 0 || slices.ContainsFunc(m.SpawnWeights, positive) {
+		return false
+	}
+	inherited := classTags(b.Class)
+	named := false
+	for _, w := range m.SpawnWeights {
+		if w.Tag == defaultTag {
+			continue
+		}
+		if !slices.Contains(b.Tags, w.Tag) && !slices.Contains(inherited, w.Tag) {
+			return false
+		}
+		named = true
+	}
+	// Weights on "default" alone say nothing of the item's kind unless the domain does.
+	return named || m.Domain != domainItem
+}
+
+func positive(w dataset.TagWeight) bool { return w.Weight > 0 }
 
 // ofDomain reports whether m is of the mod domain of items of b's class or a crafting domain,
 // and not a unique's mod unless the item is unique.

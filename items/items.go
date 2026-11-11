@@ -27,6 +27,9 @@ const (
 	// LineAmbiguous is a mod line read in more than one way the item could have; the first in
 	// the game's order is kept.
 	LineAmbiguous build.Code = "item-line-ambiguous"
+	// RollOutOfRange is a mod line whose values no mod the item can have rolls; it is read as
+	// the stats of a mod the item can have.
+	RollOutOfRange build.Code = "item-roll-out-of-range"
 	// RollAssumed is a mod line with a range of values, such as "(30-50)"; the highest is kept.
 	RollAssumed build.Code = "item-roll-assumed"
 )
@@ -42,7 +45,9 @@ type Reader struct {
 	// mods are by stat id, each mod once per stat it has.
 	mods      map[string][]modStat
 	firstStat map[*dataset.Mod]string
-	version   string
+	// implicit holds the ids of mods some base has as an implicit.
+	implicit map[string]bool
+	version  string
 }
 
 // modStat is a mod with the range of one of its stats.
@@ -76,7 +81,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		mods: map[string][]modStat{}, firstStat: map[*dataset.Mod]string{}, version: s.Manifest().Version,
+		mods: map[string][]modStat{}, firstStat: map[*dataset.Mod]string{}, implicit: map[string]bool{}, version: s.Manifest().Version,
 	}
 	r.index(it.Bases, text.BaseNames, mods, stats)
 	return r, nil
@@ -127,6 +132,9 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name, mods []dataset.Mod, stats []dataset.Stat) {
 	for i := range bases {
 		r.bases[bases[i].ID] = &bases[i]
+		for _, m := range bases[i].Implicits {
+			r.implicit[m] = true
+		}
 	}
 	for _, n := range names {
 		if b, ok := r.bases[n.ID]; ok {
@@ -155,13 +163,19 @@ func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.Mod
 		w := build.Warning{Code: LineUnread, Subject: texts[0], Message: "no stat description reads it; left out"}
 		return build.ModLine{Kind: kind, Text: texts[0]}, []build.Warning{w}, 1, nil
 	}
-	rd, others := r.choose(it, base, kind, readings)
+	rd := r.choose(it, base, kind, readings)
 	line := build.ModLine{Kind: kind, Text: strings.Join(texts[:rd.Lines], "\n")}
 	var warnings []build.Warning
-	if len(others) > 0 {
+	if len(rd.others) > 0 {
 		warnings = append(warnings, build.Warning{
 			Code: LineAmbiguous, Subject: line.Text,
-			Message: fmt.Sprintf("read as %s, could also be %s", strings.Join(rd.Stats, ", "), strings.Join(others, "; ")),
+			Message: fmt.Sprintf("read as %s, could also be %s", strings.Join(rd.Stats, ", "), strings.Join(rd.others, "; ")),
+		})
+	}
+	if rd.outOfRange {
+		warnings = append(warnings, build.Warning{
+			Code: RollOutOfRange, Subject: line.Text,
+			Message: fmt.Sprintf("read as %s; no mod the item can have rolls this value", strings.Join(rd.Stats, ", ")),
 		})
 	}
 	ranged := false

@@ -1,10 +1,10 @@
 # The sample's mod lines that read in more than one way (statdesc/testdata/item-lines.txt), with
 # the stats each should be read as, written by hand: item | line | stats; the lines of one
 # description joined with " / ". Armour and weapons take the local stat where the base rolls it;
-# a stat with mods beats a retired or passive-tree one; a unique weapon's armour is global. A
-# flask immunity "for 4 seconds" is today's mod with an older roll where that mod can be on the
-# flask (life flasks), and the older fixed-duration mod where it cannot (utility flasks). The old
-# dagger implicit reads as the stat of the base's implicit today.
+# a stat with mods beats a retired or passive-tree one; a unique weapon's armour is global. An
+# exact retired mod beats a current one the value is out of range for: the flask immunities "for
+# 4 seconds" are the older fixed-duration mods (today's roll 6 to 17 seconds, and not on utility
+# flasks), and the dagger implicit "30%" the older one (today's base implicit rolls 40 to 45).
 unique Leather Cap | +40 to Evasion Rating | local_base_evasion_rating
 unique Leather Cap | 10% increased Rarity of Items found | base_item_found_rarity_+%
 unique Leather Cap | +35% to all Elemental Resistances | base_resist_all_elements_%
@@ -16,7 +16,7 @@ unique Prismatic Ring | 31% increased Light Radius | light_radius_+%
 magic Experimenter's Granite Flask of Staunching | Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood
 magic Experimenter's Silver Flask of the Conger | Grants Immunity to Shock for 4 seconds if used while Shocked | local_flask_shock_immunity_if_shocked
 magic Seething Divine Life Flask of Staunching | Instant Recovery | local_flask_recovers_instantly
-magic Seething Divine Life Flask of Staunching | Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood_s
+magic Seething Divine Life Flask of Staunching | Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood
 rare Ancient Gauntlets | +45 to Armour | local_base_physical_damage_reduction_rating
 rare Shadow Axe | Adds 9 to 17 Physical Damage | local_minimum_added_physical_damage, local_maximum_added_physical_damage
 rare Shadow Axe | 10% increased Attack Speed | local_attack_speed_+%
@@ -42,7 +42,7 @@ rare Skean | Adds 6 to 13 Physical Damage | local_minimum_added_physical_damage,
 rare Skean | Adds 5 to 11 Chaos Damage | local_minimum_added_chaos_damage, local_maximum_added_chaos_damage
 rare Skean | 12% increased Attack Speed | local_attack_speed_+%
 rare Skean | 20% chance to Poison on Hit | local_poison_on_hit_%
-unique Slaughter Knife | 30% increased Global Critical Strike Chance | critical_strike_chance_+%
+unique Slaughter Knife | 30% increased Global Critical Strike Chance | old_dagger_implicit_critical_strike_chance_+30%
 unique Slaughter Knife | Adds 145 to 225 Physical Damage | local_minimum_added_physical_damage, local_maximum_added_physical_damage
 rare Crystal Belt | +78 to maximum Energy Shield | base_maximum_energy_shield
 rare Crystal Belt | +56 to maximum Energy Shield | base_maximum_energy_shield

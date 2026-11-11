@@ -24,7 +24,8 @@ const (
 // iron belt.
 // "+N to Armour" reads as a local and as a global stat: the local one rolls on strength armour,
 // the global one on rings. "+N to maximum Life" rolls on anything; "+N to Spirit" only on a
-// unique.
+// unique. "+N to Ward" reads as a current stat rolling 10 to 50 on rings and as a retired one,
+// fixed at 60.
 func testReader(t *testing.T) *items.Reader {
 	t.Helper()
 	anyValue := []statdesc.Limit{{Min: math.MinInt32, Max: math.MaxInt32}}
@@ -39,7 +40,7 @@ func testReader(t *testing.T) *items.Reader {
 	}
 	d := &dataset.Dataset{
 		Manifest: dataset.Manifest{Game: "poe1", Version: "3.29.3.3"},
-		Stats:    []dataset.Stat{{ID: "base_maximum_life"}, {ID: "armour"}, {ID: "local_armour"}, {ID: "spirit"}},
+		Stats:    []dataset.Stat{{ID: "base_maximum_life"}, {ID: "armour"}, {ID: "local_armour"}, {ID: "spirit"}, {ID: "ward"}, {ID: "old_ward"}},
 		Items: &dataset.Items{
 			Classes: []dataset.ItemClass{{ID: "Helmet"}, {ID: "Ring"}, {ID: "Belt"}},
 			Tags:    []string{"str_armour", "default", "ring"},
@@ -54,6 +55,8 @@ func testReader(t *testing.T) *items.Reader {
 			mod("Armour", 1, 1, dataset.TagWeight{Tag: "ring", Weight: 1000}, dataset.TagWeight{Tag: "default", Weight: 0}),
 			mod("LocalArmour", 2, 1, dataset.TagWeight{Tag: "str_armour", Weight: 1000}, dataset.TagWeight{Tag: "default", Weight: 0}),
 			mod("SpiritUnique", 3, 3),
+			mod("Ward", 4, 1, dataset.TagWeight{Tag: "ring", Weight: 1000}, dataset.TagWeight{Tag: "default", Weight: 0}),
+			retiredWard(),
 		},
 		Texts: []dataset.Text{{
 			Language: "en",
@@ -62,6 +65,8 @@ func testReader(t *testing.T) *items.Reader {
 				desc("armour", "+{0} to Armour"),
 				desc("local_armour", "+{0} to Armour"),
 				desc("spirit", "+{0} to Spirit"),
+				desc("ward", "+{0} to Ward"),
+				desc("old_ward", "+{0} to Ward"),
 			}}},
 			BaseNames: []dataset.Name{{ID: hatBase, Name: "Iron Hat"}, {ID: ringBase, Name: "Iron Ring"}, {ID: beltBase, Name: "Iron Belt"}},
 		}},
@@ -79,6 +84,15 @@ func testReader(t *testing.T) *items.Reader {
 		t.Fatal(err)
 	}
 	return r
+}
+
+// retiredWard is a ring mod that spawns no more, fixed at 60.
+func retiredWard() dataset.Mod {
+	return dataset.Mod{
+		ID: "OldWard", Domain: 1, Generation: 1, Type: "OldWard",
+		Stats:        []dataset.ModStat{{Stat: 5, Min: 60, Max: 60, RuthlessMin: 60, RuthlessMax: 60}},
+		SpawnWeights: []dataset.TagWeight{{Tag: "ring", Weight: 0}, {Tag: "default", Weight: 0}},
+	}
 }
 
 func line(kind build.ModKind, text, stat string, v int32) build.ModLine {
@@ -119,10 +133,22 @@ func TestParse(t *testing.T) {
 			[]build.Code{items.RollAssumed, items.LineUnread},
 		},
 		{
-			"armour out of the ring mod's range: read as it, an older roll",
+			"armour out of the ring mod's range: read as it, with a warning",
 			"Rarity: NORMAL\nSuperior Iron Ring\nImplicits: 0\n+90 to Armour\n",
 			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+90 to Armour", "armour", 90)}},
+			[]build.Code{items.RollOutOfRange},
+		},
+		{
+			"an exact retired mod over a current one out of range",
+			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+60 to Ward\n",
+			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+60 to Ward", "old_ward", 60)}},
 			nil,
+		},
+		{
+			"neither in range: the current mod, with a warning",
+			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+70 to Ward\n",
+			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+70 to Ward", "ward", 70)}},
+			[]build.Code{items.RollOutOfRange},
 		},
 		{
 			"armour no mod of the belt has: the game's order, with a warning",
