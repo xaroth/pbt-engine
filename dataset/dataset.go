@@ -2,7 +2,7 @@
 // JSON manifest.
 package dataset
 
-//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs schema/items.fbs schema/mods.fbs
+//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs schema/items.fbs schema/mods.fbs schema/skills.fbs
 
 import (
 	"bytes"
@@ -44,6 +44,7 @@ const (
 	questsFile     = "quests.fb"
 	itemsFile      = "items.fb"
 	modsFile       = "mods.fb"
+	skillsFile     = "skills.fb"
 	treePrefix     = "tree-"
 	textPrefix     = "text-"
 	fbSuffix       = ".fb"
@@ -83,6 +84,7 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 		groups = append(groups, group{textPrefix + t.Language + fbSuffix, encodeText(t)})
 	}
 	groups = append(groups, d.itemsGroup()...)
+	groups = append(groups, d.skillsGroup()...)
 	m := d.Manifest
 	m.Format = FormatVersion
 	m.Files = nil

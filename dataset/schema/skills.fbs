@@ -1,0 +1,139 @@
+include "characters.fbs";
+
+namespace fb;
+
+file_identifier "PBSK";
+
+// Skill types are indexes into Skills.skill_types; item classes, gem tags, cost types and
+// interpolation bases are indexes into the string tables of the same name.
+
+table GemEffect {
+  id: string (required);
+  granted_effect: string (required);
+  secondary_granted_effect: string;
+  hardmode_granted_effect: string;
+  hardmode_secondary_granted_effect: string;
+  tags: [uint16];
+  style: ubyte;
+}
+
+table Gem {
+  // BaseItemTypes.Id of the gem item.
+  id: string (required);
+  colour: ubyte;
+  strength_percent: int32;
+  dexterity_percent: int32;
+  intelligence_percent: int32;
+  support: bool;
+  vaal: bool;
+  vaal_gem: string;
+  regular_gem: string;
+  awakened_gem: string;
+  effects: [GemEffect] (required);
+}
+
+struct Cost {
+  type: uint16;
+  amount: int32;
+}
+
+table EffectLevel {
+  level: int32;
+  player_level: int32;
+  costs: [Cost];
+  cost_multiplier: int32;
+  cooldown: int32;
+  cooldown_group: int32;
+  stored_uses: int32;
+  vaal_souls: int32;
+  vaal_stored_uses: int32;
+  soul_gain_prevention: int32;
+  attack_speed_multiplier: int32;
+  attack_time: int32;
+  mana_reservation_flat: int32;
+  mana_reservation_percent: int32;
+  life_reservation_flat: int32;
+  life_reservation_percent: int32;
+}
+
+table GrantedEffect {
+  id: string (required);
+  support: bool;
+  active_skill: string;
+  cast_time: int32;
+  stat_sets: [string] (required);
+  quality_stats: [StatValue];
+  allowed_types: [uint16];
+  excluded_types: [uint16];
+  added_types: [uint16];
+  added_minion_types: [uint16];
+  support_weapon_restrictions: [uint16];
+  supports_gems_only: bool;
+  cannot_be_supported: bool;
+  // Sorted by level.
+  levels: [EffectLevel] (required);
+}
+
+// stat is an index into the file's stat_ids; base indexes interpolation_bases.
+struct FloatStat {
+  stat: uint32;
+  value: float32;
+  resolved: int32;
+  interpolation: ubyte;
+  base: uint16;
+}
+
+struct LevelStat {
+  stat: uint32;
+  value: int32;
+  interpolation: ubyte;
+}
+
+table StatSetLevel {
+  level: int32;
+  player_level: int32;
+  spell_crit_chance: int32;
+  attack_crit_chance: int32;
+  damage_effectiveness: int32;
+  base_multiplier: int32;
+  float_stats: [FloatStat];
+  stats: [LevelStat];
+  flags: [uint32];
+}
+
+table StatSet {
+  id: string (required);
+  implicit_stats: [uint32];
+  constant_stats: [StatValue];
+  base_effectiveness: float32;
+  incremental_effectiveness: float32;
+  // Sorted by level.
+  levels: [StatSetLevel] (required);
+}
+
+table ActiveSkill {
+  id: string (required);
+  types: [uint16];
+  minion_types: [uint16];
+  weapon_restrictions: [uint16];
+  totem: int32;
+  mine: int32;
+  transfigure_base: string;
+}
+
+// Ids are unique within each list.
+table Skills {
+  skill_types: [string] (required);
+  gems: [Gem] (required);
+  granted_effects: [GrantedEffect] (required);
+  stat_sets: [StatSet] (required);
+  active_skills: [ActiveSkill] (required);
+  item_classes: [string] (required);
+  gem_tags: [string] (required);
+  cost_types: [string] (required);
+  interpolation_bases: [string] (required);
+  // Stat ids the file uses, sorted, as in characters.fbs.
+  stat_ids: [string] (required);
+}
+
+root_type Skills;

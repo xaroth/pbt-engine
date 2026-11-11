@@ -62,6 +62,9 @@ table Text {
   item_class_names: [Name];
   base_names: [Name];
   mod_names: [Name];
+  // Keyed by gem id and active skill id; both absent in datasets without skill names.
+  gem_names: [Name];
+  skill_names: [Name];
 }
 
 root_type Text;

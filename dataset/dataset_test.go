@@ -133,7 +133,20 @@ func readAll(fsys fs.FS) (*dataset.Dataset, error) {
 		}
 		d.Texts = append(d.Texts, *t)
 	}
-	return d, readItems(s, d)
+	return d, errors.Join(readItems(s, d), readSkills(s, d))
+}
+
+// readSkills reads s's skills group into d, or nothing when s has none.
+func readSkills(s *dataset.Store, d *dataset.Dataset) error {
+	sk, err := s.Skills()
+	switch {
+	case errors.Is(err, dataset.ErrNotInDataset):
+	case err != nil:
+		return fmt.Errorf("read: %w", err)
+	default:
+		d.Skills = sk
+	}
+	return nil
 }
 
 // readItems reads s's items group into d, or nothing when s has none.
@@ -151,21 +164,21 @@ func readItems(s *dataset.Store, d *dataset.Dataset) error {
 }
 
 // written writes d and returns the dataset files as a MapFS.
-func written(t *testing.T, d *dataset.Dataset) fstest.MapFS {
-	t.Helper()
-	dir := t.TempDir()
+func written(tb testing.TB, d *dataset.Dataset) fstest.MapFS {
+	tb.Helper()
+	dir := tb.TempDir()
 	if _, err := dataset.Write(dir, d); err != nil {
-		t.Fatalf("Write: %v", err)
+		tb.Fatalf("Write: %v", err)
 	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	fsys := fstest.MapFS{}
 	for _, e := range ents {
 		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 		fsys[e.Name()] = &fstest.MapFile{Data: b}
 	}

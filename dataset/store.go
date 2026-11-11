@@ -30,6 +30,7 @@ type Store struct {
 	quests     func() ([]Quest, error)
 	items      func() (*Items, error)
 	mods       func() ([]Mod, error)
+	skills     func() (*Skills, error)
 	// trees and texts are keyed by variant and language, fixed by the manifest.
 	trees map[string]func() (*Tree, error)
 	texts map[string]func() (*Text, error)
@@ -75,6 +76,7 @@ func Open(fsys fs.FS) (*Store, error) {
 	}
 	s.items = sync.OnceValues(s.loadItems)
 	s.mods = sync.OnceValues(s.loadMods)
+	s.skills = sync.OnceValues(s.loadSkills)
 	return s, nil
 }
 
@@ -134,8 +136,8 @@ func (s *Store) Tree(variant string) (*Tree, error) {
 }
 
 // Text returns the display text of one language, such as "en", shared and read-only. Its node,
-// ascendancy and item names are not checked against trees and items, which it does not read;
-// Write checks them.
+// ascendancy, item and skill names are not checked against trees, items and skills, which it
+// does not read; Write checks them.
 func (s *Store) Text(language string) (*Text, error) {
 	load, ok := s.texts[language]
 	if !ok {
@@ -149,7 +151,7 @@ func registerFile(s *Store, f File) error {
 	s.files[f.Name] = f
 	switch {
 	case f.Name == statsFile || f.Name == charactersFile || f.Name == constantsFile || f.Name == questsFile,
-		f.Name == itemsFile || f.Name == modsFile:
+		f.Name == itemsFile || f.Name == modsFile || f.Name == skillsFile:
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })

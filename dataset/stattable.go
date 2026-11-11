@@ -24,6 +24,11 @@ func newStatTable(stats []Stat, lists ...[]StatValue) statTable {
 			used[sv.Stat] = true
 		}
 	}
+	return statTableOf(stats, used)
+}
+
+// statTableOf returns the table of the used stat handles.
+func statTableOf(stats []Stat, used map[uint32]bool) statTable {
 	handles := slices.SortedFunc(maps.Keys(used), func(a, b uint32) int { return strings.Compare(stats[a].ID, stats[b].ID) })
 	t := statTable{ids: make([]string, len(handles)), local: make(map[uint32]uint32, len(handles))}
 	for i, h := range handles {
@@ -102,4 +107,13 @@ func fromLocal(src statValueSource, h []uint32, sorted bool) ([]StatValue, error
 		slices.SortFunc(out, byStat)
 	}
 	return out, nil
+}
+
+// handlesToLocal returns stat handles as file indexes, in the same order.
+func (t statTable) handlesToLocal(hs []uint32) []uint32 {
+	out := make([]uint32, len(hs))
+	for i, h := range hs {
+		out[i] = t.local[h]
+	}
+	return out
 }
