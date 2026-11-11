@@ -20,7 +20,7 @@ func TestCompareItems(t *testing.T) {
 	b.Items.Bases[0].Block = 25
 	b.Items.Bases = append(b.Items.Bases, dataset.ItemBase{ID: "Ring", Class: "Shield"})
 	b.Mods[0].Stats[0].RuthlessMax = 21
-	b.Mods = append(b.Mods, dataset.Mod{ID: "New", Domain: "ITEM", Generation: "SUFFIX", Type: "New"})
+	b.Mods = append(b.Mods, dataset.Mod{ID: "New", Domain: 1, Generation: 2, Type: "New"})
 	// Moving stat handles changes nothing; mods compare by stat id.
 	b.Stats = append([]dataset.Stat{{ID: "new_stat"}}, b.Stats...)
 	for _, c := range b.Characters {
