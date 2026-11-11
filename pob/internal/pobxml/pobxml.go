@@ -121,7 +121,7 @@ type SkillGroup struct {
 	Label, Slot, Source string
 	Enabled             bool
 	// MainActiveSkill is the 1-based index of the main skill among the group's active skills;
-	// 0 when unset.
+	// 0 when unset or not a number, such as the "nil" poe.ninja writes.
 	MainActiveSkill int
 	Gems            []Gem
 }
@@ -364,7 +364,7 @@ func inputs(x xmlFile) []Input {
 }
 
 // skills are the active skill set's groups, the first set's when none is active, or the flat
-// list. Levels, quality and indexes that are not integers are ErrMalformed.
+// list. Levels and quality that are not integers are ErrMalformed.
 func skills(x xmlFile) ([]SkillGroup, error) {
 	list := x.Skills.Groups
 	if len(x.Skills.Sets) > 0 {
@@ -378,10 +378,11 @@ func skills(x xmlFile) ([]SkillGroup, error) {
 	out := make([]SkillGroup, 0, len(list))
 	for _, g := range list {
 		sg := SkillGroup{Label: g.Label, Slot: g.Slot, Source: g.Source, Enabled: flag(g.Enabled)}
-		var err error
-		if sg.MainActiveSkill, err = number("mainActiveSkill", g.MainActive); err != nil {
-			return nil, err
+		// PoB takes a value that is not a number as unset, so it is not ErrMalformed.
+		if n, err := strconv.Atoi(g.MainActive); err == nil {
+			sg.MainActiveSkill = n
 		}
+		var err error
 		for _, xg := range g.Gems {
 			gem := Gem{
 				Name: xg.Name, GemID: xg.GemID, SkillID: xg.SkillID, VariantID: xg.VariantID,

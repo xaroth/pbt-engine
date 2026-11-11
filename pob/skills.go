@@ -120,14 +120,12 @@ func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills
 	return out, skills, true
 }
 
-// activeGem returns the gem of PoB's 1-based main active skill n among skills, else the first
-// enabled active gem, else the first active gem, else 0.
+// activeGem returns the gem of PoB's 1-based main active skill n among skills, the first when n
+// is below 1 and the last when it is past the end, as PoB caps it (CalcSetup.lua); without
+// skills, the first active gem, else 0.
 func activeGem(gems []build.Gem, skills []int, n int) int {
-	switch {
-	case n >= 1 && n <= len(skills):
-		return skills[n-1]
-	case len(skills) > 0:
-		return skills[0]
+	if len(skills) > 0 {
+		return skills[min(max(n, 1), len(skills))-1]
 	}
 	return max(slices.IndexFunc(gems, func(x build.Gem) bool { return !x.Support }), 0)
 }
