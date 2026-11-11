@@ -22,32 +22,88 @@ func withheld() map[string]string { return map[string]string{} }
 // config key, config value type and config value of the rules not withheld, and nothing else.
 func TestNamesMatchRules(t *testing.T) {
 	t.Parallel()
-	internal := ruleNames(t)
-	public := publicNames(t)
-	withheld := withheld()
+	for _, p := range drift(ruleNames(t), declaredNames(parseDir(t, ".")), withheld()) {
+		t.Error(p)
+	}
+}
+
+// TestDriftReports checks that drift reports each kind of mismatch: the package with one
+// declaration added, and the rules with one name added.
+func TestDriftReports(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name, source, rule, want string
+	}{
+		{name: "function", source: `func Extra() string { return "" }`, want: "exports Extra, which is not"},
+		{name: "variable", source: `var Extra = "x"`, want: "exports Extra, which is not"},
+		{name: "type that is not an alias", source: `type Extra string`, want: "type Extra is not an alias"},
+		{name: "alias of another name", source: `const Life = rules.Mana`, want: "exports Life as rules.Mana"},
+		{name: "rules name not exported", rule: "Vigour", want: "rules define Vigour"},
+	}
+	files := parseDir(t, ".")
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			internal := ruleNames(t)
+			if testCase.rule != "" {
+				internal[testCase.rule] = "output key"
+			}
+			all := files
+			if testCase.source != "" {
+				extra, err := parser.ParseFile(token.NewFileSet(), "extra.go", "package poe1\n"+testCase.source, parser.SkipObjectResolution)
+				if err != nil {
+					t.Fatal(err)
+				}
+				all = append(slices.Clone(files), extra)
+			}
+			problems := drift(internal, declaredNames(all), withheld())
+			if !slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, testCase.want) }) {
+				t.Errorf("problems %q, want one containing %q", problems, testCase.want)
+			}
+		})
+	}
+}
+
+// drift returns how the names declared in this package, each with the rules name it aliases
+// ("" when it aliases none), differ from the rules' names not withheld.
+func drift(internal, public, withheld map[string]string) []string {
+	var out []string
 	for name := range internal {
 		_, isPublic := public[name]
 		_, isWithheld := withheld[name]
 		switch {
 		case isPublic && isWithheld:
-			t.Errorf("%s is both exported and withheld", name)
+			out = append(out, name+" is both exported and withheld")
 		case !isPublic && !isWithheld:
-			t.Errorf("rules define %s (%s); export it or list it as withheld", name, internal[name])
+			out = append(out, fmt.Sprintf("rules define %s (%s); export it or list it as withheld", name, internal[name]))
 		}
 	}
 	for name, target := range public {
-		if internal[name] == "" {
-			t.Errorf("exports %s, which is not an output key, config key or config value of the rules", name)
-		}
-		if target != name {
-			t.Errorf("exports %s as rules.%s, want the same name", name, target)
+		if p := publicProblem(internal, name, target); p != "" {
+			out = append(out, p)
 		}
 	}
 	for name := range withheld {
 		if internal[name] == "" {
-			t.Errorf("withholds %s, which the rules do not define", name)
+			out = append(out, "withholds "+name+", which the rules do not define")
 		}
 	}
+	slices.Sort(out)
+	return out
+}
+
+// publicProblem returns what is wrong with the package declaring name as an alias of rules
+// name target, or "".
+func publicProblem(internal map[string]string, name, target string) string {
+	switch {
+	case target == notAlias:
+		return "type " + name + " is not an alias"
+	case internal[name] == "":
+		return "exports " + name + ", which is not an output key, config key or config value of the rules"
+	case target != name:
+		return "exports " + name + " as rules." + target + ", want the same name"
+	}
+	return ""
 }
 
 // TestRuleNamesComplete checks the source scan against the rules' own lists, so a key declared
@@ -109,7 +165,7 @@ func ruleNames(t *testing.T) map[string]string {
 func ruleDecls(t *testing.T) (consts map[string]string, types map[string]bool) {
 	t.Helper()
 	consts, types = map[string]string{}, map[string]bool{}
-	for _, d := range genDecls(t, filepath.Join("..", "internal", "poe1")) {
+	for _, d := range genDecls(parseDir(t, filepath.Join("..", "internal", "poe1"))) {
 		for _, spec := range d.Specs {
 			switch spec := spec.(type) {
 			case *ast.TypeSpec:
@@ -129,30 +185,45 @@ func ruleDecls(t *testing.T) (consts map[string]string, types map[string]bool) {
 	return consts, types
 }
 
-// publicNames returns the names this package declares, each with the rules name it aliases.
-func publicNames(t *testing.T) map[string]string {
-	t.Helper()
+// notAlias marks a declared type that is not an alias in declaredNames.
+const notAlias = "!"
+
+// declaredNames returns the names files declare at the top level, each with the rules name it
+// aliases: "" for a function, a method or a value that aliases none, notAlias for a type that
+// is not an alias.
+func declaredNames(files []*ast.File) map[string]string {
 	out := map[string]string{}
-	for _, d := range genDecls(t, ".") {
-		for _, spec := range d.Specs {
-			switch spec := spec.(type) {
-			case *ast.TypeSpec:
-				out[spec.Name.Name] = ruleTarget(spec.Type)
-				if !spec.Assign.IsValid() {
-					t.Errorf("type %s is not an alias", spec.Name.Name)
-				}
-			case *ast.ValueSpec:
-				for i, n := range spec.Names {
-					target := ""
-					if i < len(spec.Values) && spec.Type == nil {
-						target = ruleTarget(spec.Values[i])
-					}
-					out[n.Name] = target
-				}
+	for _, f := range files {
+		for _, d := range f.Decls {
+			switch d := d.(type) {
+			case *ast.FuncDecl:
+				out[d.Name.Name] = ""
+			case *ast.GenDecl:
+				addDeclared(out, d)
 			}
 		}
 	}
 	return out
+}
+
+func addDeclared(out map[string]string, d *ast.GenDecl) {
+	for _, spec := range d.Specs {
+		switch spec := spec.(type) {
+		case *ast.TypeSpec:
+			out[spec.Name.Name] = ruleTarget(spec.Type)
+			if !spec.Assign.IsValid() {
+				out[spec.Name.Name] = notAlias
+			}
+		case *ast.ValueSpec:
+			for i, n := range spec.Names {
+				target := ""
+				if i < len(spec.Values) && spec.Type == nil {
+					target = ruleTarget(spec.Values[i])
+				}
+				out[n.Name] = target
+			}
+		}
+	}
 }
 
 // ruleTarget returns X for the expression rules.X, else "".
@@ -167,24 +238,34 @@ func ruleTarget(e ast.Expr) string {
 	return sel.Sel.Name
 }
 
-func genDecls(t *testing.T, dir string) []*ast.GenDecl {
+// genDecls returns the declarations of files other than functions and methods.
+func genDecls(files []*ast.File) []*ast.GenDecl {
+	var out []*ast.GenDecl
+	for _, f := range files {
+		for _, d := range f.Decls {
+			if g, ok := d.(*ast.GenDecl); ok {
+				out = append(out, g)
+			}
+		}
+	}
+	return out
+}
+
+// parseDir parses the non-test Go files of dir.
+func parseDir(t *testing.T, dir string) []*ast.File {
 	t.Helper()
 	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out []*ast.GenDecl
+	out := make([]*ast.File, 0, len(files))
 	fset := token.NewFileSet()
 	for _, f := range slices.DeleteFunc(files, func(f string) bool { return strings.HasSuffix(f, "_test.go") }) {
 		file, err := parser.ParseFile(fset, f, nil, parser.SkipObjectResolution)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, d := range file.Decls {
-			if g, ok := d.(*ast.GenDecl); ok {
-				out = append(out, g)
-			}
-		}
+		out = append(out, file)
 	}
 	return out
 }
