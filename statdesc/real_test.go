@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
@@ -17,7 +17,7 @@ import (
 var update = flag.Bool("update", false, "rewrite the read golden files from $PBT_DATASETS")
 
 const (
-	realVersion = "3.29.3.3"
+	realVersion = realdata.Current
 	mainScope   = "Metadata/StatDescriptions/stat_descriptions.txt"
 )
 
@@ -25,19 +25,7 @@ const (
 // it.
 func realText(tb testing.TB) (*statdesc.Set, statdesc.Scope) {
 	tb.Helper()
-	root := os.Getenv("PBT_DATASETS")
-	if root == "" {
-		tb.Skip("PBT_DATASETS not set")
-	}
-	reg, err := dataset.OpenRoot(os.DirFS(root))
-	if reg == nil {
-		tb.Fatal(err)
-	}
-	res, err := reg.Resolve("poe1", realVersion)
-	if err != nil || res.Store.Manifest().Version != realVersion {
-		tb.Skipf("PBT_DATASETS has no %s", realVersion)
-	}
-	text, err := res.Store.Text("en")
+	text, err := realdata.Open(tb, realVersion).Text("en")
 	if err != nil {
 		tb.Fatal(err)
 	}

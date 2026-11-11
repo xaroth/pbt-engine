@@ -14,6 +14,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
 	"github.com/xaroth/pbt-engine/statdesc"
@@ -21,33 +22,6 @@ import (
 
 //nolint:gochecknoglobals // the testing package parses flags before any test runs, so the flag must exist at package init
 var update = flag.Bool("update", false, "rewrite the explanation goldens, the golden files of excluded stats and the fixture datasets from $PBT_DATASETS")
-
-// versions are the real datasets the tests read from $PBT_DATASETS.
-func versions() []string {
-	return []string{"3.28.0.16", "3.29.3.3"}
-}
-
-// openReal opens the dataset of exactly version among the datasets under $PBT_DATASETS
-// (one per directory: pulled from pbt-data, or one per version), and skips without it.
-func openReal(tb testing.TB, version string) *dataset.Store {
-	tb.Helper()
-	root := os.Getenv("PBT_DATASETS")
-	if root == "" {
-		tb.Skip("PBT_DATASETS not set")
-	}
-	reg, err := dataset.OpenRoot(os.DirFS(root))
-	if reg == nil {
-		tb.Fatal(err)
-	}
-	res, err := reg.Resolve("poe1", version)
-	if err != nil {
-		tb.Fatalf("dataset %s: %v", version, err)
-	}
-	if got := res.Store.Manifest().Version; got != version {
-		tb.Skipf("PBT_DATASETS has %s, not %s", got, version)
-	}
-	return res.Store
-}
 
 func TestLoad(t *testing.T) {
 	t.Parallel()
@@ -84,10 +58,10 @@ func checkTable(t *testing.T, s *dataset.Store) {
 
 func TestTableAgainstDatasets(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions() {
+	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
-			checkTable(t, openReal(t, version))
+			checkTable(t, realdata.Open(t, version))
 		})
 	}
 }
@@ -96,7 +70,7 @@ func TestTableAgainstDatasets(t *testing.T) {
 // $PBT_DATASETS. TestFixtures keeps the fixtures in step with the real datasets.
 func TestTableAgainstFixtures(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions() {
+	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			s, err := dataset.Open(os.DirFS(filepath.Join("testdata", "fixture", version)))
@@ -120,10 +94,10 @@ func TestFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range versions() {
+	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
-			d := fixture(t, tbl, openReal(t, version))
+			d := fixture(t, tbl, realdata.Open(t, version))
 			dir := filepath.Join("testdata", "fixture", version)
 			if *update {
 				if err := os.RemoveAll(dir); err != nil {
@@ -335,10 +309,10 @@ func quotedOf(file string, desc statdesc.Description, quoted map[quote][]string)
 // a change to the exclusions shows in review. Rewrite the files with -update.
 func TestExcluded(t *testing.T) {
 	t.Parallel()
-	for _, version := range versions() {
+	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
-			s := openReal(t, version)
+			s := realdata.Open(t, version)
 			excluded, err := poe1.Excluded(s)
 			if err != nil {
 				t.Fatal(err)
@@ -369,10 +343,10 @@ func TestCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range versions() {
+	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
-			s := openReal(t, version)
+			s := realdata.Open(t, version)
 			feeds, err := poe1.FeedsSheet(s)
 			if err != nil {
 				t.Fatal(err)

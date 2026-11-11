@@ -1,10 +1,10 @@
 {
   "format": 1,
   "game": "poe1",
-  "version": "3.29.3.3",
-  "id": "3ec8a1112b08d3cfde60b1a386dbe583be12108d4e6e5f215b4ee0a90776da46",
+  "version": "3.29.3.6",
+  "id": "78c44720930211d0a2cbefecefdbcbce8531fe02fd609e74b8b5887b95878b1a",
   "source": {
-    "fixtureOf": "02d18523184806240adcca6ce2a3d2154cf4beeaf5b4741ab86d507f02b64cfc"
+    "fixtureOf": "e289097d0083987692a916fe008bed5b87b9265dcc880523bcea391251c974a1"
   },
   "files": [
     {

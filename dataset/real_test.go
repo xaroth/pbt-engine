@@ -7,33 +7,38 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 )
 
-// TestRewriteRealDatasets reads every group of the 3.28.0.16 and 3.29.3.3 datasets under
-// $PBT_DATASETS and writes them again: each file and the id come out unchanged.
+// TestRewriteRealDatasets reads every group of the pinned datasets under $PBT_DATASETS, which
+// must include items, skills, buffs and monsters, and writes them again: each file and the id
+// come out unchanged.
 func TestRewriteRealDatasets(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("PBT_DATASETS")
-	if root == "" {
-		t.Skip("PBT_DATASETS not set")
-	}
+	root := realdata.Root(t)
 	ents, err := os.ReadDir(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := 0
+	dirs := map[string]string{}
 	for _, e := range ents {
 		dir := filepath.Join(root, e.Name())
-		m, err := dataset.ReadManifest(os.DirFS(dir))
-		if err != nil || (m.Version != "3.28.0.16" && m.Version != "3.29.3.3") {
-			continue
+		if m, err := dataset.ReadManifest(os.DirFS(dir)); err == nil {
+			dirs[m.Version] = dir
 		}
-		found++
-		t.Run(m.Version, func(t *testing.T) {
+	}
+	for _, version := range realdata.Versions() {
+		t.Run(version, func(t *testing.T) {
 			t.Parallel()
+			m := realdata.Open(t, version).Manifest()
+			dir := dirs[version]
 			d, err := readAll(os.DirFS(dir))
 			if err != nil {
 				t.Fatal(err)
+			}
+			if d.Items == nil || len(d.Mods) == 0 || d.Skills == nil || d.Buffs == nil || d.Monsters == nil {
+				t.Errorf("groups: items %t, mods %d, skills %t, buffs %t, monsters %t; want all",
+					d.Items != nil, len(d.Mods), d.Skills != nil, d.Buffs != nil, d.Monsters != nil)
 			}
 			out := t.TempDir()
 			got, err := dataset.Write(out, d)
@@ -51,8 +56,5 @@ func TestRewriteRealDatasets(t *testing.T) {
 				}
 			}
 		})
-	}
-	if found == 0 {
-		t.Skip("PBT_DATASETS has neither 3.28.0.16 nor 3.29.3.3")
 	}
 }

@@ -1,37 +1,15 @@
 package poe1_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 )
-
-// openVersion opens the dataset of exactly version among the datasets under $PBT_DATASETS
-// (one per directory: pulled from pbt-data, or one per version), and skips without it.
-func openVersion(tb testing.TB, version string) *dataset.Store {
-	tb.Helper()
-	root := os.Getenv("PBT_DATASETS")
-	if root == "" {
-		tb.Skip("PBT_DATASETS not set")
-	}
-	reg, err := dataset.OpenRoot(os.DirFS(root))
-	if reg == nil {
-		tb.Fatal(err)
-	}
-	res, err := reg.Resolve("poe1", version)
-	if err != nil {
-		tb.Fatalf("dataset %s: %v", version, err)
-	}
-	if got := res.Store.Manifest().Version; got != version {
-		tb.Skipf("PBT_DATASETS has %s, not %s", got, version)
-	}
-	return res.Store
-}
 
 // realSheet opens the sheet of b on the real dataset of version (see openVersion).
 func realSheet(t *testing.T, version string, b *build.Build) *poe1.Sheet {
@@ -43,7 +21,7 @@ func realSheet(t *testing.T, version string, b *build.Build) *poe1.Sheet {
 // realSheetStore is realSheet with the dataset.
 func realSheetStore(t *testing.T, version string, b *build.Build) (*poe1.Sheet, *dataset.Store) {
 	t.Helper()
-	s := openVersion(t, version)
+	s := realdata.Open(t, version)
 	c, _, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +33,7 @@ func realSheetStore(t *testing.T, version string, b *build.Build) (*poe1.Sheet, 
 	return open(t, r), s
 }
 
-// TestRealSheets are mechanic cases on the real 3.28.0.16 and 3.29.3.3 datasets. Each value is
+// TestRealSheets are mechanic cases on the real pinned datasets. Each value is
 // worked out by hand from the dataset tables and the formulas: life 38 + 12 per level + strength / 2,
 // mana 34 + 6 per level + intelligence / 2, 15 evasion with 1% increased per 5 dexterity, mana
 // regeneration 1.75% of mana per second, and -60% to every resistance after both Kitava quests
@@ -100,7 +78,7 @@ func TestRealSheets(t *testing.T) {
 			want:  map[output.Key]float64{"player.life": 1150, "player.strength": 32},
 		},
 	}
-	for _, version := range []string{"3.28.0.16", "3.29.3.3"} {
+	for _, version := range realdata.Versions() {
 		for _, testCase := range testCases {
 			t.Run(version+"/"+testCase.name, func(t *testing.T) {
 				t.Parallel()

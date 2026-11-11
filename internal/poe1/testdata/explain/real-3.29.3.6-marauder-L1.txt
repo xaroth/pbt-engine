@@ -1,4 +1,4 @@
-Life: 66  [tree, dataset 3.29.3.3]
+Life: 66  [tree, dataset 3.29.3.6]
   maximum_life = 66 [conversion and gain as extra]
     base 38  character Metadata/Characters/Str/Str
     base 12  character Metadata/Characters/Str/Str
@@ -12,17 +12,17 @@ Life: 66  [tree, dataset 3.29.3.3]
       level = 1 (above)
     convert.maximum_life.maximum_energy_shield.% = 0
 
-Life: 66  [proportional, dataset 3.29.3.3]
+Life: 66  [proportional, dataset 3.29.3.6]
           50  character Metadata/Characters/Str/Str (base)
           16  Strength bonus to maximum life (1 per 2, constant life_per_strength) (base)
 
-Life: 66  [marginal, dataset 3.29.3.3]
+Life: 66  [marginal, dataset 3.29.3.6]
   change without each source: value (total before caps)
          -65  character Metadata/Characters/Str/Str (total -66)
          -16  Strength bonus to maximum life (1 per 2, constant life_per_strength)
          -12  level
 
-Mana Regeneration: 0.8/s  [tree, dataset 3.29.3.3]
+Mana Regeneration: 0.8/s  [tree, dataset 3.29.3.6]
   mana_regeneration = 0.8 [regeneration]
     maximum_mana = 47 [conversion and gain as extra]
       base 34  character Metadata/Characters/Str/Str
@@ -38,10 +38,10 @@ Mana Regeneration: 0.8/s  [tree, dataset 3.29.3.3]
     percent_of_mana_regenerated_per_second = 1.75
       base 1.75  character Metadata/Characters/Str/Str
 
-Mana Regeneration: 0.8/s  [proportional, dataset 3.29.3.3]
+Mana Regeneration: 0.8/s  [proportional, dataset 3.29.3.6]
         0.82  character Metadata/Characters/Str/Str (base)
 
-Mana Regeneration: 0.8/s  [marginal, dataset 3.29.3.3]
+Mana Regeneration: 0.8/s  [marginal, dataset 3.29.3.6]
   change without each source: value (total before caps)
         -0.8  character Metadata/Characters/Str/Str (total -0.82)
         -0.1  Intelligence bonus to maximum mana (1 per 2, constant mana_per_intelligence) (total -0.12)

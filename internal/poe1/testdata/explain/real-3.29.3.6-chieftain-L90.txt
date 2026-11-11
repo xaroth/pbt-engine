@@ -1,4 +1,4 @@
-Life: 3511  [tree, dataset 3.29.3.3]
+Life: 3511  [tree, dataset 3.29.3.6]
   maximum_life = 3511 [conversion and gain as extra]
     base 38  character Metadata/Characters/Str/Str
     base 1080  character Metadata/Characters/Str/Str
@@ -65,7 +65,7 @@ Life: 3511  [tree, dataset 3.29.3.3]
       level = 90 (above)
     convert.maximum_life.maximum_energy_shield.% = 0
 
-Life: 3511  [proportional, dataset 3.29.3.3]
+Life: 3511  [proportional, dataset 3.29.3.6]
         1118  character Metadata/Characters/Str/Str (base)
        319.2  node 57279 (more)
          156  Strength bonus to maximum life (1 per 2, constant life_per_strength) (base)
@@ -96,7 +96,7 @@ Life: 3511  [proportional, dataset 3.29.3.3]
         53.2  node 63048 (increased)
           16  node 50904 (base)
 
-Life: 3511  [marginal, dataset 3.29.3.3]
+Life: 3511  [marginal, dataset 3.29.3.6]
   change without each source: value (total before caps)
        -2994  character Metadata/Characters/Str/Str (total -2993.76)
        -2851  level (total -2851.2)
@@ -151,7 +151,7 @@ Life: 3511  [marginal, dataset 3.29.3.3]
          -13  node 63282 (total -13.2)
          -13  node 63723 (total -13.2)
 
-Fire Resistance: 20%  [tree, dataset 3.29.3.3]
+Fire Resistance: 20%  [tree, dataset 3.29.3.6]
   fire_resistance_capped = 20 [resistance capped by its maximum]
     fire_resistance = 20
       base 15  node 5643
@@ -169,7 +169,7 @@ Fire Resistance: 20%  [tree, dataset 3.29.3.3]
         base 1  node 53118
         base 75  character Metadata/Characters/Str/Str on maximum_all_resistances
 
-Fire Resistance: 20%  [proportional, dataset 3.29.3.3]
+Fire Resistance: 20%  [proportional, dataset 3.29.3.6]
          -30  quest a5q6 (base)
          -30  quest a10q3 (base)
           24  node 29049 (base)
@@ -180,7 +180,7 @@ Fire Resistance: 20%  [proportional, dataset 3.29.3.3]
            5  node 21958 (base)
            3  node 30380 (base)
 
-Fire Resistance: 20%  [marginal, dataset 3.29.3.3]
+Fire Resistance: 20%  [marginal, dataset 3.29.3.6]
   change without each source: value (total before caps)
           30  quest a5q6
           30  quest a10q3
@@ -193,7 +193,7 @@ Fire Resistance: 20%  [marginal, dataset 3.29.3.3]
           -3  node 30380
          -19  character Metadata/Characters/Str/Str (total 0)
 
-Life Regeneration: 66.7/s  [tree, dataset 3.29.3.3]
+Life Regeneration: 66.7/s  [tree, dataset 3.29.3.6]
   life_regeneration = 66.7 [regeneration]
     more -50  node 21650 on life_regeneration_rate
     life_regeneration_is_not_applied = 0
@@ -270,7 +270,7 @@ Life Regeneration: 66.7/s  [tree, dataset 3.29.3.3]
       base 1.8  node 24383
       base 0.5  node 42659
 
-Life Regeneration: 66.7/s  [proportional, dataset 3.29.3.3]
+Life Regeneration: 66.7/s  [proportional, dataset 3.29.3.6]
       -66.71  node 21650 (more)
         63.2  node 24383
                 base 63.2 via percent_of_life_regenerated_per_second
@@ -283,7 +283,7 @@ Life Regeneration: 66.7/s  [proportional, dataset 3.29.3.3]
        17.56  node 42659
                 base 17.56 via percent_of_life_regenerated_per_second
 
-Life Regeneration: 66.7/s  [marginal, dataset 3.29.3.3]
+Life Regeneration: 66.7/s  [marginal, dataset 3.29.3.6]
   change without each source: value (total before caps)
         66.7  node 21650 (total 66.71)
        -56.9  character Metadata/Characters/Str/Str (total -56.89)

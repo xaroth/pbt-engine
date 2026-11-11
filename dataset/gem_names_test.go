@@ -2,12 +2,12 @@ package dataset_test
 
 import (
 	"errors"
-	"os"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 )
 
 func TestGemByName(t *testing.T) {
@@ -64,7 +64,7 @@ type duplicateGem struct {
 	quality  bool
 }
 
-// withDuplicates is sample with gems that share a name, as in 3.29.3.3's files, in the game's
+// withDuplicates is sample with gems that share a name, as in 3.29's files, in the game's
 // order except where noted, and one pair the choice cannot decide.
 func withDuplicates() *dataset.Dataset {
 	gems := []duplicateGem{
@@ -149,27 +149,12 @@ func TestGemByNameDuplicates(t *testing.T) {
 	}
 }
 
-// TestGemByNameRealDuplicates resolves every gem name that more than one gem of the real
-// dataset has, when $PBT_DATASETS holds 3.29.3.3 with a skills group: none is ambiguous or a
-// Royale gem, and the replaced gems lose to the current ones.
+// TestGemByNameRealDuplicates resolves every gem name that more than one gem of the current
+// pinned dataset has: none is ambiguous or a Royale gem, and the replaced gems lose to the
+// current ones.
 func TestGemByNameRealDuplicates(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("PBT_DATASETS")
-	if root == "" {
-		t.Skip("PBT_DATASETS not set")
-	}
-	reg, err := dataset.OpenRoot(os.DirFS(root))
-	if reg == nil {
-		t.Fatal(err)
-	}
-	res, err := reg.Resolve("poe1", "3.29.3.3")
-	if err != nil || res.Store.Manifest().Version != "3.29.3.3" {
-		t.Skip("PBT_DATASETS has no 3.29.3.3")
-	}
-	s := res.Store
-	if _, err := s.Skills(); errors.As(err, new(*dataset.MissingGroupError)) {
-		t.Skip("3.29.3.3 has no skills group")
-	}
+	s := realdata.Open(t, realdata.Current)
 	text, err := s.Text("en")
 	if err != nil {
 		t.Fatal(err)

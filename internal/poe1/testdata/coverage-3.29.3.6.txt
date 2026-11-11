@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.3 standard tree and characters: 1909 stats; 72 authored, 86 unknown, 1 display-only, 0 gaps, 1750 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 72 authored, 86 unknown, 1 display-only, 0 gaps, 1750 outside
 unknown by reason: condition 48, items 18, charges 4, reservation 4, scale 4, event 4, context 2, rule 1, unestablished 1
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game

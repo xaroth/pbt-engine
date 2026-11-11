@@ -11,6 +11,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 )
@@ -111,7 +112,7 @@ func TestGoldenRealExplanations(t *testing.T) {
 			[]output.Key{"player.life", "player.fire_resistance", "player.life_regeneration"},
 		},
 	}
-	for _, version := range []string{"3.28.0.16", "3.29.3.3"} {
+	for _, version := range realdata.Versions() {
 		for _, testCase := range testCases {
 			t.Run(version+"/"+testCase.name, func(t *testing.T) {
 				t.Parallel()
