@@ -41,16 +41,16 @@ func (rcv *FlaskValues) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-func (rcv *FlaskValues) Kind() FlaskKind {
+func (rcv *FlaskValues) Kind() byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
-		return FlaskKind(rcv._tab.GetByte(o + rcv._tab.Pos))
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *FlaskValues) MutateKind(n FlaskKind) bool {
-	return rcv._tab.MutateByteSlot(4, byte(n))
+func (rcv *FlaskValues) MutateKind(n byte) bool {
+	return rcv._tab.MutateByteSlot(4, n)
 }
 
 func (rcv *FlaskValues) Life() int32 {
@@ -116,8 +116,8 @@ func (rcv *FlaskValues) MutateChargesPerUse(n int32) bool {
 func FlaskValuesStart(builder *flatbuffers.Builder) {
 	builder.StartObject(6)
 }
-func FlaskValuesAddKind(builder *flatbuffers.Builder, kind FlaskKind) {
-	builder.PrependByteSlot(0, byte(kind), 0)
+func FlaskValuesAddKind(builder *flatbuffers.Builder, kind byte) {
+	builder.PrependByteSlot(0, kind, 0)
 }
 func FlaskValuesAddLife(builder *flatbuffers.Builder, life int32) {
 	builder.PrependInt32Slot(1, life, 0)

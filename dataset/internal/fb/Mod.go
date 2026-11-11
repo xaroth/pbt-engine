@@ -49,20 +49,28 @@ func (rcv *Mod) Id() []byte {
 	return nil
 }
 
-func (rcv *Mod) Domain() []byte {
+func (rcv *Mod) Domain() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
-	return nil
+	return 0
 }
 
-func (rcv *Mod) Generation() []byte {
+func (rcv *Mod) MutateDomain(n int32) bool {
+	return rcv._tab.MutateInt32Slot(6, n)
+}
+
+func (rcv *Mod) Generation() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
-	return nil
+	return 0
+}
+
+func (rcv *Mod) MutateGeneration(n int32) bool {
+	return rcv._tab.MutateInt32Slot(8, n)
 }
 
 func (rcv *Mod) Level() int32 {
@@ -217,11 +225,11 @@ func ModStart(builder *flatbuffers.Builder) {
 func ModAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
 }
-func ModAddDomain(builder *flatbuffers.Builder, domain flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(domain), 0)
+func ModAddDomain(builder *flatbuffers.Builder, domain int32) {
+	builder.PrependInt32Slot(1, domain, 0)
 }
-func ModAddGeneration(builder *flatbuffers.Builder, generation flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(generation), 0)
+func ModAddGeneration(builder *flatbuffers.Builder, generation int32) {
+	builder.PrependInt32Slot(2, generation, 0)
 }
 func ModAddLevel(builder *flatbuffers.Builder, level int32) {
 	builder.PrependInt32Slot(3, level, 0)
