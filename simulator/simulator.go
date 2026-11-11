@@ -41,6 +41,9 @@ const (
 	// SkillsNotSimulated is a build with skill groups: outputs leave them out until skills are
 	// simulated.
 	SkillsNotSimulated build.Code = "skills-not-simulated"
+	// ItemsNotSimulated is a build with items: outputs leave them out until items are
+	// simulated.
+	ItemsNotSimulated build.Code = "items-not-simulated"
 )
 
 // Warning is something a simulation went on without; its message says what was done.
@@ -172,6 +175,12 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	}
 	if w, ok := skillsWarning(cb.Skills); ok {
 		r.warnings = append(r.warnings, w)
+	}
+	if len(cb.Items) > 0 {
+		r.warnings = append(r.warnings, Warning{
+			Code: ItemsNotSimulated, Subject: "items",
+			Message: fmt.Sprintf("%d items not simulated yet; outputs leave them out", len(cb.Items)),
+		})
 	}
 	sim = sim.Clone()
 	for k := range co.cleared {

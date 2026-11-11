@@ -86,8 +86,8 @@ func editSteps() []step {
 		{name: "edit the main skill group", run: editMainGroup},
 		{name: "deallocate nodes", run: deallocate},
 		{name: "equip an item from its text", pending: &pending{
-			needs: "items on a build", waitsOn: []string{"build.Build.Items"},
-			code: `next.Items.Equip(slot.Helmet, rawItemText)`,
+			needs: "items on a build", waitsOn: []string{"simulator.Data.Item"},
+			code: `item, _, _ := sim.Data().Item(rawItemText); next.Apply(build.Equip(build.SlotHelmet, item))`,
 		}},
 		{name: "set charges in the build's config", pending: &pending{
 			needs: "charges in config", waitsOn: []string{"poe1.PowerCharges"},

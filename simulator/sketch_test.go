@@ -47,7 +47,9 @@ func (n need) missing(s symbolSet) bool {
 	return slices.ContainsFunc(n.waitsOn, func(sym string) bool { return !s.has(sym) })
 }
 
-func needItems() need { return need{what: "items on a build", waitsOn: []string{"build.Equip"}} }
+func needItems() need {
+	return need{what: "items on a build", waitsOn: []string{"simulator.Data.Item", "build.Equip"}}
+}
 
 func needSkillSim(syms ...string) need { return need{what: "skill simulation", waitsOn: syms} }
 
@@ -133,7 +135,10 @@ func sketchLoad() []sketchPart {
 func sketchEdit() []sketchPart {
 	return []sketchPart{
 		{name: "clone and apply edits", run: sketchApply},
-		{name: "equip an item from its text", code: `err = next.Apply(build.Equip(slot.Helmet, rawItemText))`, needs: []need{needItems()}},
+		{
+			name: "equip an item from its text", needs: []need{needItems()},
+			code: "item, warnings, err := sim.Data().Item(rawItemText)\nerr = next.Apply(build.Equip(build.SlotHelmet, item))",
+		},
 		{name: "set charges in the build's config", code: `err = config.Set(&next.Config, poe1.PowerCharges, 3)`, needs: []need{needCharges()}},
 		{name: "look gems up by name", run: sketchGems},
 		{name: "edit the main skill group", run: sketchGroup},
