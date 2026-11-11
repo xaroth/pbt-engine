@@ -19,8 +19,8 @@ const (
 //
 //nolint:gochecknoglobals // a constant table
 var ids = map[string]string{
-	Previous: "83b4f5cd482e8e35cbfa6b990ac4aaecb8f53fe4340921329d4ae0e838977463",
-	Current:  "e289097d0083987692a916fe008bed5b87b9265dcc880523bcea391251c974a1",
+	Previous: "435f2a664bc00c264ffce5f4cda9e21492abce5d9b86b3f7387e9f598cb1ddb3",
+	Current:  "672ce1430d8435f25c252e4c7053bb6010bbaf7ee51d8de2e2e220d3eb9c00b0",
 }
 
 // Versions are the pinned versions, oldest first.
