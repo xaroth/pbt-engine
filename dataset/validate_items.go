@@ -65,7 +65,7 @@ func validateBase(classes, tags map[string]bool, b ItemBase) error {
 			return err
 		}
 	}
-	if f := b.Flask; f != nil && f.Kind > UtilityFlask {
+	if f := b.Flask; f != nil && (f.Kind < LifeFlask || f.Kind > UtilityFlask) {
 		return fmt.Errorf("unknown flask kind %d: %w", f.Kind, ErrInvalid)
 	}
 	return nil
@@ -98,8 +98,8 @@ func validateMods(n int, tags []string, mods []Mod) error {
 }
 
 func validateMod(n int, tags map[string]bool, m Mod) error {
-	if m.Domain == "" || m.Generation == "" || m.Type == "" {
-		return fmt.Errorf("empty domain, generation or type: %w", ErrInvalid)
+	if m.Type == "" {
+		return fmt.Errorf("empty type: %w", ErrInvalid)
 	}
 	for _, s := range m.Stats {
 		if int(s.Stat) >= n {

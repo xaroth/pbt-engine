@@ -54,12 +54,12 @@ type WeaponValues struct {
 	Range          int32
 }
 
-// FlaskKind classifies flasks.
+// FlaskKind classifies flasks, numbered as the game's Flasks.Type.
 type FlaskKind uint8
 
 // Flask kinds.
 const (
-	LifeFlask FlaskKind = iota
+	LifeFlask FlaskKind = iota + 1
 	ManaFlask
 	HybridFlask
 	UtilityFlask
@@ -94,9 +94,9 @@ type FlaskValues struct {
 type Mod struct {
 	// ID is the Mods.Id, such as "IncreasedLife1".
 	ID string
-	// Domain and Generation are the ModDomains and ModGenerationType names, such as "ITEM"
-	// and "PREFIX".
-	Domain, Generation string
+	// Domain and Generation are Mods.Domain and Mods.GenerationType as the game numbers them,
+	// such as 1 and 1 for an item prefix. Their names are not part of the dataset.
+	Domain, Generation int32
 	Level              int32
 	// Type is the ModType.Name.
 	Type string

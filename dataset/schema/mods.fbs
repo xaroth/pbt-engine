@@ -21,9 +21,10 @@ struct TagWeight {
 table Mod {
   // Mods.Id.
   id: string (required);
-  // ModDomains and ModGenerationType names, such as "ITEM" and "PREFIX".
-  domain: string (required);
-  generation: string (required);
+  // Mods.Domain and Mods.GenerationType as the game numbers them, such as 1 and 1 for an item
+  // prefix.
+  domain: int32;
+  generation: int32;
   level: int32;
   // ModType.Name.
   type: string (required);

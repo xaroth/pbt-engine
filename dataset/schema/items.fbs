@@ -33,11 +33,10 @@ table WeaponValues {
   range: int32;
 }
 
-enum FlaskKind : ubyte { Life, Mana, Hybrid, Utility }
-
 // Flasks and ComponentCharges rows.
 table FlaskValues {
-  kind: FlaskKind;
+  // Flasks.Type as the game numbers it: 1 life, 2 mana, 3 hybrid, 4 utility.
+  kind: ubyte;
   life: int32;
   mana: int32;
   // Tenths of a second.

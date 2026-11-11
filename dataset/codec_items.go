@@ -103,7 +103,7 @@ func encodeFlask(b *flatbuffers.Builder, f *FlaskValues) flatbuffers.UOffsetT {
 		return 0
 	}
 	fb.FlaskValuesStart(b)
-	fb.FlaskValuesAddKind(b, fb.FlaskKind(f.Kind))
+	fb.FlaskValuesAddKind(b, byte(f.Kind))
 	fb.FlaskValuesAddLife(b, f.Life)
 	fb.FlaskValuesAddMana(b, f.Mana)
 	fb.FlaskValuesAddDuration(b, f.Duration)
@@ -220,7 +220,7 @@ func encodeMods(all []Stat, mods []Mod) []byte {
 
 func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32, m Mod) flatbuffers.UOffsetT {
 	id := b.CreateString(m.ID)
-	domain, generation, typ := b.CreateSharedString(m.Domain), b.CreateSharedString(m.Generation), b.CreateSharedString(m.Type)
+	typ := b.CreateSharedString(m.Type)
 	familyOffs := make([]flatbuffers.UOffsetT, len(m.Families))
 	for i, f := range m.Families {
 		familyOffs[i] = b.CreateSharedString(f)
@@ -237,8 +237,8 @@ func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32,
 	generationWeights := tagWeightVector(b, fb.ModStartGenerationWeightsVector, tagIndex, m.GenerationWeights)
 	fb.ModStart(b)
 	fb.ModAddId(b, id)
-	fb.ModAddDomain(b, domain)
-	fb.ModAddGeneration(b, generation)
+	fb.ModAddDomain(b, m.Domain)
+	fb.ModAddGeneration(b, m.Generation)
 	fb.ModAddLevel(b, m.Level)
 	fb.ModAddType(b, typ)
 	fb.ModAddFamilies(b, families)
@@ -288,8 +288,8 @@ func decodeMods(buf []byte, index map[string]uint32, tags []string) ([]Mod, erro
 func decodeMod(m *fb.Mod, h []uint32, tagIDs []string, intern interner) (Mod, error) {
 	out := Mod{
 		ID:         string(m.Id()),
-		Domain:     intern.string(m.Domain()),
-		Generation: intern.string(m.Generation()),
+		Domain:     m.Domain(),
+		Generation: m.Generation(),
 		Level:      m.Level(),
 		Type:       intern.string(m.Type()),
 	}
