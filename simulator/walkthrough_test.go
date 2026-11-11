@@ -102,7 +102,7 @@ group.AddSupport(inspiration, 20, 20)`,
 		}},
 		{name: "deallocate nodes", run: deallocate},
 		{name: "equip an item from its text", pending: &pending{
-			needs: "items on a build", waitsOn: []string{"build.Build.Items", "slot.Helmet"},
+			needs: "items on a build", waitsOn: []string{"build.Build.Items"},
 			code: `next.Items.Equip(slot.Helmet, rawItemText)`,
 		}},
 		{name: "set charges in the build's config", pending: &pending{
@@ -129,6 +129,10 @@ func readSteps() []step {
 		{name: "warn about a gem the dataset lacks", pending: &pending{
 			needs: "skills on a build", waitsOn: []string{"simulator.GemNotInDataset"},
 			code: `stats.Warnings() // {Code: GemNotInDataset, Subject: "Metadata/...", Message: "gem not in dataset, ignored"}`,
+		}},
+		{name: "warn about a condition whose source the build lacks", pending: &pending{
+			needs: "conditions derived from the build", waitsOn: []string{"simulator.NoConditionSource"},
+			code: `stats.Warnings() // {Code: NoConditionSource, Subject: "enemy.shocked", Message: "could not detect source, assuming external"}`,
 		}},
 		{name: "read where a config value came from", run: readConfigSource},
 		{name: "read whether the enemy is shocked, and why", pending: &pending{
@@ -488,6 +492,17 @@ func compareBuilds(t *testing.T, w *walk) {
 	if d := gocmp.Diff(want, diff.Edits); d != "" {
 		t.Errorf("edits (-want +got):\n%s", d)
 	}
+	compareWarnings(t, w, diff)
+}
+
+// compareWarnings: each side of a comparison warns as simulating its build alone does.
+func compareWarnings(t *testing.T, w *walk, diff *simulator.Diff) {
+	if d := gocmp.Diff(simulate(t, w.sim, w.base).Warnings(), diff.Before.Warnings()); d != "" {
+		t.Errorf("before warnings (-simulate +compare):\n%s", d)
+	}
+	if d := gocmp.Diff(w.stats.Warnings(), diff.After.Warnings()); d != "" {
+		t.Errorf("after warnings (-simulate +compare):\n%s", d)
+	}
 }
 
 func diffAcrossLeagues(t *testing.T, w *walk) {
@@ -511,11 +526,14 @@ func diffAcrossLeagues(t *testing.T, w *walk) {
 	}
 }
 
-// sweep removes each of the three nodes on its own: each loses what the marginal view says,
-// and the results rank by life.
+// sweep removes each of the three nodes on its own, and allocates one node next to the tree:
+// each removal loses what the marginal view says, the allocation gains what simulating the
+// build with the node gives, and the results rank by life.
 func sweep(t *testing.T, w *walk) {
 	_, loss := marginalLife(t, w.sim, w.base)
-	variants := make([][]build.Edit, 0, len(w.cut))
+	added := unallocatedNeighbour(t, w)
+	variants := make([][]build.Edit, 0, 1+len(w.cut))
+	variants = append(variants, []build.Edit{build.Allocate(added)})
 	for _, n := range w.cut {
 		variants = append(variants, []build.Edit{build.Deallocate(n)})
 	}
@@ -523,15 +541,46 @@ func sweep(t *testing.T, w *walk) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	withAdded := w.base.Clone()
+	withAdded.Nodes = append(withAdded.Nodes, added)
 	for i, r := range results {
-		n := r.Edits[0].Nodes[0]
-		if c := r.Changes[life]; r.Err != nil || -c.Abs != loss[n] {
-			t.Errorf("node %d: life changes by %v (%v), marginal loss %v", n, c.Abs, r.Err, loss[n])
+		e, c := r.Edits[0], r.Changes[life]
+		want := c.Before - loss[e.Nodes[0]]
+		if e.Op == build.OpAllocate {
+			want = get(t, simulate(t, w.sim, withAdded, simulator.Outputs(life)), life)
 		}
-		if i > 0 && r.Changes[life].Abs > results[i-1].Changes[life].Abs {
+		if r.Err != nil || c.After != want {
+			t.Errorf("%s %v: life %v (%v), want %v", e.Op, e.Nodes, c.After, r.Err, want)
+		}
+		if i > 0 && c.Abs > results[i-1].Changes[life].Abs {
 			t.Errorf("result %d ranks above a larger change", i)
 		}
 	}
+}
+
+// unallocatedNeighbour returns the first plain node next to an allocated one that the base
+// build does not allocate.
+func unallocatedNeighbour(t *testing.T, w *walk) uint32 {
+	tree, err := w.res.Store.Tree("standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := func(id uint32) *dataset.Node {
+		i, ok := slices.BinarySearchFunc(tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
+		if !ok {
+			return nil
+		}
+		return &tree.Nodes[i]
+	}
+	for _, id := range slices.Sorted(slices.Values(w.base.Nodes)) {
+		for _, nb := range byID(id).Neighbours {
+			if n := byID(nb); n != nil && n.Kind == dataset.Normal && n.Ascendancy == "" && !slices.Contains(w.base.Nodes, nb) {
+				return nb
+			}
+		}
+	}
+	t.Fatal("no unallocated plain node next to the tree")
+	return 0
 }
 
 func sweepEach(t *testing.T, w *walk) {

@@ -88,6 +88,10 @@ func checkPending(t *testing.T, name string, p *pending, symbols symbolSet) {
 	}
 	missing := 0
 	for _, sym := range p.waitsOn {
+		// A package the index does not parse would keep its symbols missing forever.
+		if pkg, _, _ := strings.Cut(sym, "."); !symbols.has(pkg) {
+			t.Errorf("step %q: waits on %s, in a package the symbol index does not parse", name, sym)
+		}
 		if !strings.Contains(p.code, sym[strings.LastIndex(sym, ".")+1:]) {
 			t.Errorf("step %q: waits on %s, which its code does not use", name, sym)
 		}
@@ -100,8 +104,8 @@ func checkPending(t *testing.T, name string, p *pending, symbols symbolSet) {
 	}
 }
 
-// symbolSet holds the declared names of the packages pending steps use: pkg.Name for top-level
-// declarations, pkg.Type.Member for methods and struct fields.
+// symbolSet holds the declared names of the packages pending steps use: pkg for each package
+// parsed, pkg.Name for top-level declarations, pkg.Type.Member for methods and struct fields.
 type symbolSet map[string]bool
 
 func (s symbolSet) has(sym string) bool {
@@ -127,6 +131,7 @@ func sourceSymbols(t *testing.T) symbolSet {
 	}
 	out := symbolSet{}
 	for pkg, dir := range dirs {
+		out[pkg] = true
 		files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
 			t.Fatal(err)
