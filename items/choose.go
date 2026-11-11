@@ -28,9 +28,6 @@ const generationUnique = 3
 const (
 	defaultTag      = "default"
 	localStatPrefix = "local_"
-	oneHandTag      = "one_hand_weapon"
-	twoHandTag      = "two_hand_weapon"
-	weaponTag       = "weapon"
 )
 
 // choice is the reading chosen for a line.
@@ -197,20 +194,19 @@ func (r *Reader) canBeOn(m *dataset.Mod, b *dataset.ItemBase, unique bool) bool 
 }
 
 // retired reports whether m is a mod of the item that no longer spawns: of the item's domain,
-// not a crafting one (bench crafts have zero weights too), with
-// spawn weights that are all 0 and name no tag but the item's and "default", and one of the
-// item's unless the domain is the item's own kind, such as flasks.
+// not a crafting one (bench crafts have zero weights too), with spawn weights that are all 0 and
+// name only tags of the item, and one other than "default" unless the domain is the item's own
+// kind, such as flasks.
 func (r *Reader) retired(m *dataset.Mod, b *dataset.ItemBase, unique bool) bool {
 	if m.Domain != classDomain(b.Class) || !ofDomain(m, b, unique) || len(m.SpawnWeights) == 0 || slices.ContainsFunc(m.SpawnWeights, positive) {
 		return false
 	}
-	inherited := classTags(b.Class)
 	named := false
 	for _, w := range m.SpawnWeights {
 		if w.Tag == defaultTag {
 			continue
 		}
-		if !slices.Contains(b.Tags, w.Tag) && !slices.Contains(inherited, w.Tag) {
+		if !slices.Contains(b.Tags, w.Tag) {
 			return false
 		}
 		named = true
@@ -240,52 +236,12 @@ func (r *Reader) rollsStatOn(m *dataset.Mod, b *dataset.ItemBase) bool {
 
 // spawnsOn reports whether m's spawn weights give it a positive weight on base b.
 func spawnsOn(m *dataset.Mod, b *dataset.ItemBase) bool {
-	inherited := classTags(b.Class)
 	for _, w := range m.SpawnWeights {
-		if w.Tag == defaultTag || slices.Contains(b.Tags, w.Tag) || slices.Contains(inherited, w.Tag) {
+		if slices.Contains(b.Tags, w.Tag) {
 			return w.Weight > 0
 		}
 	}
 	return false
-}
-
-// classTags returns the tags items of class, an ItemClass.ID, inherit from it. The dataset's
-// base tags lack them, and mods' spawn weights name them.
-func classTags(class string) []string {
-	switch class {
-	case "Helmet", "Body Armour", "Gloves", "Boots", "Shield":
-		return []string{strings.ReplaceAll(strings.ToLower(class), " ", "_"), "armour"}
-	case "Amulet", "Ring", "Belt", "Quiver":
-		return []string{strings.ToLower(class)}
-	case "Claw", "Dagger", "Wand":
-		return []string{strings.ToLower(class), oneHandTag, weaponTag}
-	case "Rune Dagger":
-		return []string{"dagger", oneHandTag, weaponTag}
-	case "One Hand Sword", "Thrusting One Hand Sword", "One Hand Axe", "One Hand Mace", "Sceptre":
-		return []string{weaponKind(class), oneHandTag, weaponTag}
-	case "Two Hand Sword", "Two Hand Axe", "Two Hand Mace", "Bow", "Staff", "Warstaff":
-		return []string{weaponKind(class), twoHandTag, weaponTag}
-	case "LifeFlask", "ManaFlask", "HybridFlask", "UtilityFlask":
-		return []string{"flask", strings.ToLower(strings.TrimSuffix(class, "Flask")) + "_flask"}
-	case "FishingRod":
-		return []string{"fishing_rod"}
-	}
-	return nil
-}
-
-// weaponKind returns the tag of a weapon class's kind, such as "sword" for "Two Hand Sword".
-func weaponKind(class string) string {
-	switch {
-	case strings.HasSuffix(class, "Sword"):
-		return "sword"
-	case strings.HasSuffix(class, "Axe"):
-		return "axe"
-	case strings.HasSuffix(class, "Mace"), class == "Sceptre":
-		return "mace"
-	case class == "Warstaff":
-		return "staff"
-	}
-	return strings.ToLower(class)
 }
 
 // classDomain returns the mod domain of items of class, an ItemClass.ID.

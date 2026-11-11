@@ -43,11 +43,12 @@ func testReader(t *testing.T) *items.Reader {
 		Stats:    []dataset.Stat{{ID: "base_maximum_life"}, {ID: "armour"}, {ID: "local_armour"}, {ID: "spirit"}, {ID: "ward"}, {ID: "old_ward"}},
 		Items: &dataset.Items{
 			Classes: []dataset.ItemClass{{ID: "Helmet"}, {ID: "Ring"}, {ID: "Belt"}},
-			Tags:    []string{"str_armour", "default", "ring"},
+			Tags:    []string{"str_armour", "helmet", "armour", "ring", "belt", "default"},
+			// Each base's full tag list: its own, then those its templates give it.
 			Bases: []dataset.ItemBase{
-				{ID: hatBase, Class: "Helmet", Tags: []string{"str_armour"}, Armour: &dataset.ArmourValues{}},
-				{ID: ringBase, Class: "Ring"},
-				{ID: beltBase, Class: "Belt"},
+				{ID: hatBase, Class: "Helmet", Tags: []string{"str_armour", "helmet", "armour", "default"}, Armour: &dataset.ArmourValues{}},
+				{ID: ringBase, Class: "Ring", Tags: []string{"ring", "default"}},
+				{ID: beltBase, Class: "Belt", Tags: []string{"belt", "default"}},
 			},
 		},
 		Mods: []dataset.Mod{
