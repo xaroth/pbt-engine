@@ -15,3 +15,6 @@ func HandlerNames() []string {
 	}
 	return out
 }
+
+// NumberLen exposes how the reader takes numbers.
+func NumberLen(s string) int { return numberLen(s) }

@@ -1,4 +1,5 @@
-// Package statdesc turns stat values into display text using stat description templates.
+// Package statdesc turns stat values into display text using stat description templates, and
+// reads such text, ranges included, back to stat values.
 package statdesc
 
 import (
