@@ -101,6 +101,10 @@ func validateMod(n int, tags map[string]bool, m Mod) error {
 	if m.Type == "" {
 		return fmt.Errorf("empty type: %w", ErrInvalid)
 	}
+	// A game mode is a row of the game's GameModes table, so it is never negative.
+	if m.GameMode < 0 {
+		return fmt.Errorf("game mode %d: %w", m.GameMode, ErrInvalid)
+	}
 	for _, s := range m.Stats {
 		if int(s.Stat) >= n {
 			return fmt.Errorf("stat %d out of range (%d stats): %w", s.Stat, n, ErrInvalid)

@@ -90,6 +90,16 @@ func TestCompareItems(t *testing.T) {
 	}
 }
 
+func TestCompareModGameMode(t *testing.T) {
+	t.Parallel()
+	b := withItems()
+	b.Mods[1].GameMode = 2
+	want := dataset.ItemsDiff{ModsChanged: []string{"BlockImplicit"}}
+	if diff := gocmp.Diff(want, compare(t, withItems(), b).Items, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("Compare items mismatch (-want +got):\n%s", diff)
+	}
+}
+
 func TestCompareItemsFails(t *testing.T) {
 	t.Parallel()
 	x, err := dataset.Open(written(t, withItems()))

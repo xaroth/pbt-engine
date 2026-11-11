@@ -62,11 +62,11 @@ func withItems() *dataset.Dataset {
 			},
 		},
 		{
-			ID: "BlockImplicit", Domain: 1, Generation: 3, Type: "Block",
+			ID: "BlockImplicit", Domain: 1, Generation: 3, Type: "Block", GameMode: 1,
 			Stats: []dataset.ModStat{{Stat: 2, Min: 4, Max: 4, RuthlessMin: 4, RuthlessMax: 4}, {Stat: 0, Min: 1, Max: 2, RuthlessMin: 1, RuthlessMax: 2}},
 		},
 		{
-			ID: "AccuracyImplicit", Domain: 1, Generation: 3, Type: "Accuracy", Families: []string{"Accuracy", "Implicit"},
+			ID: "AccuracyImplicit", Domain: 1, Generation: 3, Type: "Accuracy", Families: []string{"Accuracy", "Implicit"}, GameMode: 2,
 			AddedTags:         []string{"has_attack_mod"},
 			GenerationWeights: []dataset.TagWeight{{Tag: "has_attack_mod", Weight: 50}},
 		},
@@ -204,6 +204,7 @@ func TestItemsWriteErrors(t *testing.T) {
 		{name: "repeated mod", want: "mod IncreasedLife1 repeated", change: func(d *dataset.Dataset) { d.Mods[1].ID = "IncreasedLife1" }},
 		{name: "empty mod id", want: "mod 2: empty id", change: func(d *dataset.Dataset) { d.Mods[2].ID = "" }},
 		{name: "empty type", want: "mod BlockImplicit: empty type", change: func(d *dataset.Dataset) { d.Mods[1].Type = "" }},
+		{name: "negative game mode", want: "mod AccuracyImplicit: game mode -1", change: func(d *dataset.Dataset) { d.Mods[2].GameMode = -1 }},
 		{name: "mod stat out of range", want: "mod IncreasedLife1: stat 3 out of range", change: func(d *dataset.Dataset) { d.Mods[0].Stats[0].Stat = 3 }},
 		{name: "mod range reversed", want: "range 24 to 10", change: func(d *dataset.Dataset) { d.Mods[0].Stats[0].Min, d.Mods[0].Stats[0].Max = 24, 10 }},
 		{name: "ruthless range reversed", want: "range 20 to 8", change: func(d *dataset.Dataset) {
@@ -329,6 +330,28 @@ func stringVec(b *flatbuffers.Builder, start func(*flatbuffers.Builder, int) fla
 		b.PrependUOffsetT(o)
 	}
 	return b.EndVector(len(ss))
+}
+
+// TestModGameModeAbsent reads a mods file written without game modes, as files from before the
+// field existed are: every mod is in all game modes.
+func TestModGameModeAbsent(t *testing.T) {
+	t.Parallel()
+	d := withItems()
+	for i := range d.Items.Bases {
+		d.Items.Bases[i].Implicits = nil
+	}
+	d.Mods, d.Texts = nil, nil
+	s, err := dataset.Open(withFile(t, written(t, d), "mods.fb", modsFile(nil, nil, nil, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods, err := s.Mods()
+	if err != nil {
+		t.Fatalf("Mods: %v", err)
+	}
+	if diff := gocmp.Diff([]dataset.Mod{{ID: "Mod", Type: "Type"}}, mods, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("Mods mismatch (-want +got):\n%s", diff)
+	}
 }
 
 func TestItemsReadErrors(t *testing.T) {
