@@ -261,8 +261,28 @@ func (rcv *Text) BuffNamesLength() int {
 	return 0
 }
 
+func (rcv *Text) MonsterNames(obj *Name, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Text) MonsterNamesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func TextStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(12)
 }
 func TextAddLanguage(builder *flatbuffers.Builder, language flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(language), 0)
@@ -325,6 +345,12 @@ func TextAddBuffNames(builder *flatbuffers.Builder, buffNames flatbuffers.UOffse
 	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(buffNames), 0)
 }
 func TextStartBuffNamesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func TextAddMonsterNames(builder *flatbuffers.Builder, monsterNames flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(monsterNames), 0)
+}
+func TextStartMonsterNamesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func TextEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
