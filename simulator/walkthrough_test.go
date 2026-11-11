@@ -3,7 +3,6 @@ package simulator_test
 
 import (
 	"cmp"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -21,6 +20,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
+	"github.com/xaroth/pbt-engine/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
 )
 
@@ -29,14 +29,6 @@ import (
 // cannot do yet is kept as the code it should become, with the capability it waits for
 // (walkthrough_pending_test.go checks those). Running steps import only public packages, as a
 // host would.
-
-// Outputs as a host names them: by their wire strings, checked against Sim.Outputs.
-const (
-	life       output.Key = "player.life"
-	mana       output.Key = "player.mana"
-	strength   output.Key = "player.strength"
-	maxFireRes output.Key = "player.maximum_fire_resistance"
-)
 
 const walkVersion = "3.29.3.3"
 
@@ -238,7 +230,7 @@ func makeSim(t *testing.T, w *walk) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []output.Key{life, mana, strength, maxFireRes} {
+	for _, k := range []output.Key{poe1.Life, poe1.Mana, poe1.Strength, poe1.MaximumFireResistance} {
 		if !slices.ContainsFunc(sim.Outputs(), func(o simulator.Output) bool { return o.Key == k }) {
 			t.Errorf("sim has no output %s", k)
 		}
@@ -247,17 +239,17 @@ func makeSim(t *testing.T, w *walk) {
 }
 
 func configureSim(t *testing.T, w *walk) {
-	if err := w.sim.Configure(simulator.SetRaw("bandits", json.RawMessage(`"help-oak"`))); err != nil {
+	if err := w.sim.Configure(simulator.Set(poe1.Bandits, poe1.BanditsHelpOak)); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(w.sim.Config()["bandits"]); got != `"help-oak"` {
+	if got := string(w.sim.Config()[poe1.Bandits.Name()]); got != `"help-oak"` {
 		t.Errorf("sim config bandits %s, want \"help-oak\"", got)
 	}
 	keys, err := w.sim.ConfigKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.ContainsFunc(keys, func(k simulator.ConfigKey) bool { return k.Name == "bandits" }) {
+	if !slices.ContainsFunc(keys, func(k simulator.ConfigKey) bool { return k.Name == poe1.Bandits.Name() }) {
 		t.Error("config keys lack bandits")
 	}
 }
@@ -305,7 +297,7 @@ func parseBuildFile(t *testing.T, w *walk) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(b.Nodes, w.base.Nodes) || b.Class != w.base.Class || string(b.Config["bandits"]) != string(w.base.Config["bandits"]) {
+	if !slices.Equal(b.Nodes, w.base.Nodes) || b.Class != w.base.Class || string(b.Config[poe1.Bandits.Name()]) != string(w.base.Config[poe1.Bandits.Name()]) {
 		t.Errorf("build file round trip changed the build:\n%s", data)
 	}
 }
@@ -313,7 +305,7 @@ func parseBuildFile(t *testing.T, w *walk) {
 func newBuild(t *testing.T, w *walk) {
 	b := &build.Build{Game: "poe1", Version: "3.29", Class: "Metadata/Characters/Int/Int", Ascendancy: "Elementalist", Level: 1}
 	// A level 1 Witch with no nodes has the class's 14 strength.
-	if got := get(t, simulate(t, w.sim, b), strength); got != 14 {
+	if got := get(t, simulate(t, w.sim, b), poe1.Strength); got != 14 {
 		t.Errorf("level 1 Witch strength %v, want 14", got)
 	}
 }
@@ -469,7 +461,7 @@ func nodeOf(l simulator.Line) (simulator.NodeSource, bool) {
 
 // marginalLife returns the life each node other than a mastery gives alone, largest first.
 func marginalLife(t *testing.T, sim *simulator.Sim, b *build.Build) ([]uint32, map[uint32]float64) {
-	ex, err := simulate(t, sim, b).Explain(life, simulator.Marginal)
+	ex, err := simulate(t, sim, b).Explain(poe1.Life, simulator.Marginal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +522,7 @@ func unknownGem(t *testing.T, w *walk) {
 }
 
 func readOutput(t *testing.T, w *walk) {
-	before, after := get(t, simulate(t, w.sim, w.base), life), get(t, w.stats, life)
+	before, after := get(t, simulate(t, w.sim, w.base), poe1.Life), get(t, w.stats, poe1.Life)
 	if after >= before {
 		t.Errorf("life %v after removing three life nodes, %v before", after, before)
 	}
@@ -564,24 +556,24 @@ func readWarnings(t *testing.T, w *walk) {
 	}
 }
 
-// configOf returns the value key name resolved to and its source.
-func configOf(st *simulator.Stats, name string) (string, config.Source) {
-	e, _ := st.Config(config.Key[string](name))
+// configOf returns the value key k resolved to and its source.
+func configOf(st *simulator.Stats, k simulator.Named) (string, config.Source) {
+	e, _ := st.Config(k)
 	return fmt.Sprint(e.Value), e.Source
 }
 
 func readConfigSource(t *testing.T, w *walk) {
 	// The sim's help-oak wins over the build's kill-all.
-	if v, src := configOf(w.stats, "bandits"); v != "help-oak" || src != config.FromSim {
+	if v, src := configOf(w.stats, poe1.Bandits); v != "help-oak" || src != config.FromSim {
 		t.Errorf("bandits %s from %v, want help-oak from the sim", v, src)
 	}
-	if v, src := configOf(w.stats, "campaign"); src != config.Default {
+	if v, src := configOf(w.stats, poe1.Campaign); src != config.Default {
 		t.Errorf("campaign %s from %v, want the default", v, src)
 	}
 }
 
 func explainOutput(t *testing.T, w *walk) {
-	ex, err := w.stats.Explain(life, simulator.Proportional)
+	ex, err := w.stats.Explain(poe1.Life, simulator.Proportional)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,24 +587,24 @@ func explainOutput(t *testing.T, w *walk) {
 }
 
 func listedOutputs(t *testing.T, w *walk) {
-	st := simulate(t, w.sim, w.next, simulator.Outputs(life, mana))
-	if !slices.Equal(st.Keys(), []output.Key{life, mana}) {
+	st := simulate(t, w.sim, w.next, simulator.Outputs(poe1.Life, poe1.Mana))
+	if !slices.Equal(st.Keys(), []output.Key{poe1.Life, poe1.Mana}) {
 		t.Errorf("computed %v, want life and mana", st.Keys())
 	}
-	if _, ok := st.Get(strength); ok {
+	if _, ok := st.Get(poe1.Strength); ok {
 		t.Error("strength computed though not listed")
 	}
-	if got, want := get(t, st, life), get(t, w.stats, life); got != want {
+	if got, want := get(t, st, poe1.Life), get(t, w.stats, poe1.Life); got != want {
 		t.Errorf("life %v with the outputs listed, %v without", got, want)
 	}
 }
 
 func clearSimValue(t *testing.T, w *walk) {
-	if err := w.sim.Configure(simulator.Clear("bandits")); err != nil {
+	if err := w.sim.Configure(simulator.Clear(poe1.Bandits.Name())); err != nil {
 		t.Fatal(err)
 	}
 	// Path of Building's "None" is killing all three bandits.
-	if v, src := configOf(simulate(t, w.sim, w.next, simulator.Outputs(life)), "bandits"); v != "kill-all" || src != config.FromBuild {
+	if v, src := configOf(simulate(t, w.sim, w.next, simulator.Outputs(poe1.Life)), poe1.Bandits); v != "kill-all" || src != config.FromBuild {
 		t.Errorf("bandits %s from %v after clearing the sim's, want kill-all from the build", v, src)
 	}
 }
@@ -622,11 +614,11 @@ func compareBuilds(t *testing.T, w *walk) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d := diff.Get(life); !d.Has || d.Abs >= 0 || d.Abs != d.After-d.Before || d.Pct != 100*d.Abs/d.Before {
+	if d := diff.Get(poe1.Life); !d.Has || d.Abs >= 0 || d.Abs != d.After-d.Before || d.Pct != 100*d.Abs/d.Before {
 		t.Errorf("life change %+v", d)
 	}
 	changed := diff.Changed()
-	if !slices.Contains(changed, life) || slices.Contains(changed, maxFireRes) {
+	if !slices.Contains(changed, poe1.Life) || slices.Contains(changed, poe1.MaximumFireResistance) {
 		t.Errorf("changed %v, want life and not maximum fire resistance", changed)
 	}
 	if slices.ContainsFunc(changed, func(k output.Key) bool { return diff.Get(k).Abs == 0 }) {
@@ -681,22 +673,22 @@ func sweep(t *testing.T, w *walk) {
 	for _, n := range w.cut {
 		variants = append(variants, []build.Edit{build.Deallocate(n)})
 	}
-	results, err := w.sim.Sweep(w.base, variants, simulator.Outputs(life), simulator.RankBy(life))
+	results, err := w.sim.Sweep(w.base, variants, simulator.Outputs(poe1.Life), simulator.RankBy(poe1.Life))
 	if err != nil {
 		t.Fatal(err)
 	}
 	withAdded := w.base.Clone()
 	withAdded.Nodes = append(withAdded.Nodes, added)
 	for i, r := range results {
-		e, c := r.Edits[0], r.Changes[life]
+		e, c := r.Edits[0], r.Changes[poe1.Life]
 		want := c.Before - loss[e.Nodes[0]]
 		if e.Op == build.OpAllocate {
-			want = get(t, simulate(t, w.sim, withAdded, simulator.Outputs(life)), life)
+			want = get(t, simulate(t, w.sim, withAdded, simulator.Outputs(poe1.Life)), poe1.Life)
 		}
 		if r.Err != nil || c.After != want {
 			t.Errorf("%s %v: life %v (%v), want %v", e.Op, e.Nodes, c.After, r.Err, want)
 		}
-		if i > 0 && c.Abs > results[i-1].Changes[life].Abs {
+		if i > 0 && c.Abs > results[i-1].Changes[poe1.Life].Abs {
 			t.Errorf("result %d ranks above a larger change", i)
 		}
 	}
@@ -729,13 +721,13 @@ func unallocatedNeighbour(t *testing.T, w *walk) uint32 {
 
 func sweepEach(t *testing.T, w *walk) {
 	variants := [][]build.Edit{{build.Deallocate(w.cut[0])}, {build.SetLevel(80)}}
-	seq, err := w.sim.SweepEach(w.base, variants, simulator.Outputs(life))
+	seq, err := w.sim.SweepEach(w.base, variants, simulator.Outputs(poe1.Life))
 	if err != nil {
 		t.Fatal(err)
 	}
 	seen := 0
 	for r := range seq {
-		if r.Err != nil || r.Changes[life].Abs >= 0 {
+		if r.Err != nil || r.Changes[poe1.Life].Abs >= 0 {
 			t.Errorf("variant %d: %+v, want life to drop", r.Index, r)
 		}
 		seen++
@@ -746,7 +738,7 @@ func sweepEach(t *testing.T, w *walk) {
 }
 
 func secondSim(t *testing.T, w *walk) {
-	if err := w.sim.Configure(simulator.SetRaw("campaign", json.RawMessage(`"acts-6-10"`))); err != nil {
+	if err := w.sim.Configure(simulator.Set(poe1.Campaign, poe1.CampaignActs6To10)); err != nil {
 		t.Fatal(err)
 	}
 	cfg := w.sim.Config()
@@ -758,11 +750,11 @@ func secondSim(t *testing.T, w *walk) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, b := simulate(t, w.sim, w.next, simulator.Outputs(life)), simulate(t, sim2, w.next, simulator.Outputs(life))
-	if get(t, a, life) != get(t, b, life) {
-		t.Errorf("life %v on the second sim, %v on the first", get(t, b, life), get(t, a, life))
+	a, b := simulate(t, w.sim, w.next, simulator.Outputs(poe1.Life)), simulate(t, sim2, w.next, simulator.Outputs(poe1.Life))
+	if get(t, a, poe1.Life) != get(t, b, poe1.Life) {
+		t.Errorf("life %v on the second sim, %v on the first", get(t, b, poe1.Life), get(t, a, poe1.Life))
 	}
-	if v, src := configOf(b, "campaign"); v != "acts-6-10" || src != config.FromSim {
+	if v, src := configOf(b, poe1.Campaign); v != "acts-6-10" || src != config.FromSim {
 		t.Errorf("campaign %s from %v on the second sim", v, src)
 	}
 }

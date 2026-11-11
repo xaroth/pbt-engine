@@ -126,7 +126,7 @@ func sourceSymbols(t *testing.T) symbolSet {
 	t.Helper()
 	dirs := map[string]string{
 		"build": "../build", "config": "../config", "dataset": "../dataset", "output": "../output",
-		"pob": "../pob", "simulator": ".", "poe1": "../internal/poe1",
+		"pob": "../pob", "simulator": ".", "poe1": "../poe1",
 	}
 	out := symbolSet{}
 	for pkg, dir := range dirs {
