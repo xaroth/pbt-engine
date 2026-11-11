@@ -133,7 +133,7 @@ func readAll(fsys fs.FS) (*dataset.Dataset, error) {
 		}
 		d.Texts = append(d.Texts, *t)
 	}
-	return d, errors.Join(readItems(s, d), readSkills(s, d))
+	return d, errors.Join(readItems(s, d), readSkills(s, d), readBuffs(s, d))
 }
 
 // readSkills reads s's skills group into d, or nothing when s has none.
@@ -145,6 +145,19 @@ func readSkills(s *dataset.Store, d *dataset.Dataset) error {
 		return fmt.Errorf("read: %w", err)
 	default:
 		d.Skills = sk
+	}
+	return nil
+}
+
+// readBuffs reads s's buffs group into d, or nothing when s has none.
+func readBuffs(s *dataset.Store, d *dataset.Dataset) error {
+	b, err := s.Buffs()
+	switch {
+	case errors.Is(err, dataset.ErrNotInDataset):
+	case err != nil:
+		return fmt.Errorf("read: %w", err)
+	default:
+		d.Buffs = b
 	}
 	return nil
 }

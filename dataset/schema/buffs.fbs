@@ -1,0 +1,59 @@
+namespace fb;
+
+file_identifier "PBBF";
+
+// Stats are indexes into Buffs.stat_ids; an unset single stat keeps the default.
+table BuffDefinition {
+  // BuffDefinitions.Id.
+  id: string (required);
+  // BuffCategory and Id2 as the game holds them.
+  category: int32;
+  id2: string;
+  // StatsKeys then Stats2, in game order; a stat can appear twice.
+  stats: [uint32];
+  extra_stats: [uint32];
+  // GrantedFlags and ConditionStats.
+  flags: [uint32];
+  condition_stats: [uint32];
+  // Maximum_StatsKey, Current_StatsKey and MinStat.
+  maximum_stat: uint32 = 4294967295;
+  current_stat: uint32 = 4294967295;
+  minimum_stat: uint32 = 4294967295;
+  // BuffLimit.
+  limit: int32;
+  skill_buff: bool;
+  invisible: bool;
+  removable: bool;
+  cancel_on_death: bool;
+  recovery: bool;
+}
+
+// A Flasks row with a buff.
+table FlaskBuff {
+  // BaseItemTypes.Id of the flask.
+  item: string (required);
+  // BuffDefinitions.Id.
+  buff: string (required);
+  // BuffStatValues, one per stat of the buff's stats then extra_stats.
+  values: [int32];
+}
+
+// A Tinctures row.
+table Tincture {
+  // BaseItemTypes.Id of the tincture.
+  item: string (required);
+  // Milliseconds.
+  debuff_interval: int32;
+  cooldown: int32;
+}
+
+// Ids are unique within each list.
+table Buffs {
+  definitions: [BuffDefinition] (required);
+  flasks: [FlaskBuff] (required);
+  tinctures: [Tincture] (required);
+  // Stat ids the file uses, sorted, as in characters.fbs.
+  stat_ids: [string] (required);
+}
+
+root_type Buffs;

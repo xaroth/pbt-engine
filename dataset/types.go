@@ -21,6 +21,9 @@ type Dataset struct {
 	Mods  []Mod
 	// Skills is the skills group, written as skills.fb; nil writes no group.
 	Skills *Skills
+	// Buffs is the buffs group, written as buffs.fb; nil writes no group. Its flasks and
+	// tinctures need the items group.
+	Buffs *Buffs
 }
 
 // Text is the display text of one language: stat description templates and names by id.
@@ -40,6 +43,8 @@ type Text struct {
 	ItemClassNames, BaseNames, ModNames []Name
 	// GemNames are keyed by Gem.ID and SkillNames by ActiveSkill.ID.
 	GemNames, SkillNames []Name
+	// BuffNames are keyed by BuffDefinition.ID.
+	BuffNames []Name
 }
 
 // NodeName is the display name of a passive node.
