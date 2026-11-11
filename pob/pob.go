@@ -42,6 +42,8 @@ const (
 	SlotIgnored        build.Code = "pob-slot-ignored"
 	GemUnknown         build.Code = "pob-gem-unknown"
 	GemToggleIgnored   build.Code = "pob-gem-toggle-ignored"
+	GemAmbiguous       build.Code = "pob-gem-ambiguous"
+	MainSkillIgnored   build.Code = "pob-main-skill-ignored"
 	PantheonIgnored    build.Code = "pob-pantheon-ignored"
 	AscendancyIgnored  build.Code = "pob-ascendancy-ignored"
 )
@@ -68,8 +70,10 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // their gems resolved through the dataset's skills group (see build.Skills). Everything else in
 // the file gives a warning: other specs, cluster jewel nodes (dropped), jewels, node overrides,
 // config inputs, items, pantheon, a secondary ascendancy, and of the skills: groups an item or
-// the tree grants, gems the dataset lacks, slots without sockets, the switches of a Vaal gem's
-// two skills, and every group when the dataset has no skills group.
+// the tree grants (and the main skill when it is one of them), gems the dataset lacks, gems of
+// a name or skill id the dataset cannot choose between (imported as the first), slots without
+// sockets, the switches of a Vaal gem's two skills, and every group when the dataset has no
+// skills group.
 func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning, error) {
 	f, err := pobxml.Parse(data)
 	switch {

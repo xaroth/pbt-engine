@@ -16,6 +16,8 @@ import (
 // gemSpec is a gem of skillsRegistry: its name, whether it is a support, and its effects after
 // the first, which is named as the gem.
 type gemSpec struct {
+	// id replaces the id made from the name.
+	id      string
 	name    string
 	support bool
 	vaal    bool
@@ -34,6 +36,9 @@ func skillsRegistry(t *testing.T, gems ...gemSpec) *dataset.Registry {
 		dg := dataset.Gem{ID: gemID(g), Colour: dataset.Red, Support: g.support, Vaal: g.vaal}
 		for _, name := range append([]string{g.name}, g.others...) {
 			id := strings.ReplaceAll(name, " ", "")
+			if g.id != "" {
+				id = strings.TrimPrefix(g.id, "Metadata/Items/Gems/")
+			}
 			e := dataset.GemEffect{ID: id, GrantedEffect: id, Style: dataset.DefaultStyle}
 			ge := dataset.GrantedEffect{ID: id, Support: g.support}
 			if g.vaal {
@@ -58,6 +63,9 @@ func skillsRegistry(t *testing.T, gems ...gemSpec) *dataset.Registry {
 }
 
 func gemID(g gemSpec) string {
+	if g.id != "" {
+		return g.id
+	}
 	id := "Metadata/Items/Gems/SkillGem"
 	if g.support {
 		id += "Support"
@@ -164,5 +172,60 @@ func TestFromXMLSkillCases(t *testing.T) {
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+}
+
+// skillResolution holds a gem with only a skill id, a name of two gems, and a main group an
+// item grants.
+const skillResolution = `<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain" mainSocketGroup="2"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills>
+		<Skill><Gem skillId="FireballofSplitting" level="20"/><Gem nameSpec="Twin" level="1"/></Skill>
+		<Skill source="Tree:12345"><Gem nameSpec="Frostblink" level="20"/></Skill>
+	</Skills>
+</PathOfBuilding>`
+
+func TestFromXMLSkillResolution(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t,
+		gemSpec{name: "Fireball", others: []string{"Fireball of Splitting"}}, gemSpec{name: "Frostblink"},
+		gemSpec{id: "Metadata/Items/Gems/SkillGemTwinA", name: "Twin"}, gemSpec{id: "Metadata/Items/Gems/SkillGemTwinB", name: "Twin"},
+	)
+	b, warnings, err := pob.FromXML([]byte(skillResolution), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	splitting := gem("Fireball", 20, 0)
+	splitting.Effect = "FireballofSplitting"
+	twin := build.Gem{ID: "Metadata/Items/Gems/SkillGemTwinA", Level: 1}
+	want := build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{splitting, twin}}}}
+	if diff := cmp.Diff(want, b.Skills); diff != "" {
+		t.Errorf("skills (-want +got):\n%s", diff)
+	}
+	wantWarnings := []build.Warning{
+		{Code: pob.GemAmbiguous, Subject: "Twin", Message: "also the gem of Metadata/Items/Gems/SkillGemTwinB; Metadata/Items/Gems/SkillGemTwinA imported"},
+		{Code: pob.SkillIgnored, Subject: "Frostblink", Message: "granted by Tree:12345; skills an item or the tree grants are not imported"},
+		{Code: pob.MainSkillIgnored, Subject: "Frostblink", Message: "the main skill group, granted by Tree:12345, is not imported; group 1 used"},
+	}
+	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
+		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+}
+
+// A main group past the last group is the last group; an unset one the first.
+func TestFromXMLMainGroupClamped(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t, gemSpec{name: "Frostblink"}, gemSpec{name: "Punishment"})
+	for main, want := range map[string]int{"9": 1, "": 0, "0": 0} {
+		file := strings.Replace(`<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain" MAIN/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills><Skill><Gem nameSpec="Frostblink" level="1"/></Skill><Skill><Gem nameSpec="Punishment" level="1"/></Skill></Skills>
+</PathOfBuilding>`, "MAIN", `mainSocketGroup="`+main+`"`, 1)
+		b, warnings, err := pob.FromXML([]byte(file), reg)
+		if err != nil || len(warnings) != 0 || b.Skills.MainGroup != want {
+			t.Errorf("mainSocketGroup %q: main %d (%v, %v), want %d", main, b.Skills.MainGroup, warnings, err, want)
+		}
 	}
 }

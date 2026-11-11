@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -25,6 +26,10 @@ func slots() map[string]build.Slot {
 // id when the dataset has them, else by its name; one that does not resolve is dropped. Groups
 // an item or the tree grants are left out, and so is every group when the dataset has no
 // skills group to resolve gems with. A disabled group's gems are disabled.
+//
+// The main group is PoB's mainSocketGroup, 1-based over every group of the set, those an item
+// or the tree grants included; PoB uses the first group when it is unset and the last when it
+// is past the end (CalcSetup.lua). A main group that is left out warns, and group 1 is used.
 func (im *importer) skills(store *dataset.Store) (build.Skills, error) {
 	var out build.Skills
 	if len(im.file.Skills) == 0 {
@@ -49,8 +54,20 @@ func (im *importer) skills(store *dataset.Store) (build.Skills, error) {
 		index[i] = len(out.Groups)
 		out.Groups = append(out.Groups, im.group(g, i, store, data))
 	}
-	out.MainGroup = index[im.file.Build.MainSocketGroup-1]
+	im.mainGroup(&out, index)
 	return out, nil
+}
+
+// mainGroup sets the main group, index mapping file groups to the groups imported.
+func (im *importer) mainGroup(out *build.Skills, index map[int]int) {
+	groups := im.file.Skills
+	main := min(max(im.file.Build.MainSocketGroup, 1), len(groups)) - 1
+	if i, ok := index[main]; ok {
+		out.MainGroup = i
+		return
+	}
+	im.warnf(MainSkillIgnored, groupSubject(groups[main], main),
+		"the main skill group, granted by %s, is not imported; group 1 used", groups[main].Source)
 }
 
 // group imports group g, the i-th of the file.
@@ -80,11 +97,15 @@ func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data
 
 // gem imports gem g with the number of skills it grants, or warns and reports false.
 func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (build.Gem, int, bool) {
-	dg, effect := resolveGem(g, store, data)
-	if dg == nil {
-		im.warnf(GemUnknown, cmp.Or(g.Name, g.GemID), "gem not in dataset %s; dropped", store.Manifest().Version)
+	m, ok := resolveGem(g, store, data)
+	if !ok {
+		im.warnf(GemUnknown, cmp.Or(g.Name, g.GemID, g.SkillID), "gem not in dataset %s; dropped", store.Manifest().Version)
 		return build.Gem{}, 0, false
 	}
+	if len(m.Others) > 0 {
+		im.warnf(GemAmbiguous, cmp.Or(g.Name, g.SkillID), "also the gem of %s; %s imported", strings.Join(m.Others, ", "), m.Gem.ID)
+	}
+	dg, effect := m.Gem, m.Effect
 	if dg.Vaal && (!g.EnableGlobal1 || !g.EnableGlobal2) {
 		im.warnf(GemToggleIgnored, g.Name, "one of the Vaal gem's two skills is switched off; the switch is not imported")
 	}
@@ -111,21 +132,26 @@ func activeGem(gems []build.Gem, skills []int, n int) int {
 	return max(slices.IndexFunc(gems, func(x build.Gem) bool { return !x.Support }), 0)
 }
 
-// resolveGem returns the dataset gem and effect of g, or nil.
-func resolveGem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (*dataset.Gem, *dataset.GemEffect) {
+// resolveGem returns the dataset gem and effect of g, trying in turn: its gem id with its
+// variant id, then with its skill id, then its first effect; the gem whose effect grants its
+// skill id; its name. This is the order PoB loads gems in (SkillsTab.lua, LoadSkill).
+func resolveGem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (dataset.GemMatch, bool) {
 	if dg := data.Gem(g.GemID); dg != nil && len(dg.Effects) > 0 {
+		m := dataset.GemMatch{Gem: dg, Effect: &dg.Effects[0]}
 		if e := dg.Effect(g.VariantID); e != nil {
-			return dg, e
+			m.Effect = e
+		} else if i := slices.IndexFunc(dg.Effects, func(e dataset.GemEffect) bool { return e.GrantedEffect == g.SkillID }); i >= 0 {
+			m.Effect = &dg.Effects[i]
 		}
-		if i := slices.IndexFunc(dg.Effects, func(e dataset.GemEffect) bool { return e.GrantedEffect == g.SkillID }); i >= 0 {
-			return dg, &dg.Effects[i]
-		}
-		return dg, &dg.Effects[0]
+		return m, true
 	}
-	if dg, e, err := store.GemByName(g.Name); err == nil {
-		return dg, e
+	if m, err := data.GemByGrantedEffect(g.SkillID); g.SkillID != "" && err == nil {
+		return m, true
 	}
-	return nil, nil
+	if m, err := store.GemByName(g.Name); err == nil {
+		return m, true
+	}
+	return dataset.GemMatch{}, false
 }
 
 // groupSubject names a group by its label, else its first gem, else its position.

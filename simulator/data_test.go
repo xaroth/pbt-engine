@@ -13,10 +13,13 @@ import (
 const (
 	gemFireball    = "Metadata/Items/Gems/SkillGemFireball"
 	gemInspiration = "Metadata/Items/Gems/SkillGemSupportInspiration"
+	gemTwinA       = "Metadata/Items/Gems/SkillGemTwinA"
+	gemTwinB       = "Metadata/Items/Gems/SkillGemTwinB"
 )
 
 // skillsSim is a sim over testStore with a skills group: Fireball with its transfigured
-// Fireball of Splitting, and Inspiration Support, levels 1 to 20.
+// Fireball of Splitting, Inspiration Support, and two gems named Twin with different effects,
+// levels 1 to 20.
 func skillsSim(tb testing.TB) *simulator.Sim {
 	tb.Helper()
 	d := testDataset("3.29.3.3", 10)
@@ -31,17 +34,23 @@ func skillsSim(tb testing.TB) *simulator.Sim {
 			{ID: gemInspiration, Colour: dataset.Blue, Support: true, Effects: []dataset.GemEffect{
 				{ID: "SupportInspiration", GrantedEffect: "SupportInspiration", Style: dataset.DefaultStyle},
 			}},
+			{ID: gemTwinA, Colour: dataset.Blue, Effects: []dataset.GemEffect{{ID: "TwinA", GrantedEffect: "TwinA", Style: dataset.DefaultStyle}}},
+			{ID: gemTwinB, Colour: dataset.Blue, Effects: []dataset.GemEffect{{ID: "TwinB", GrantedEffect: "TwinB", Style: dataset.DefaultStyle}}},
 		},
 		GrantedEffects: []dataset.GrantedEffect{
 			{ID: "Fireball", ActiveSkill: "fireball", Levels: levels},
 			{ID: "FireballAltX", ActiveSkill: "fireball_alt_x", Levels: levels},
 			{ID: "SupportInspiration", Support: true, Levels: levels},
+			{ID: "TwinA", ActiveSkill: "fireball", Levels: levels},
+			{ID: "TwinB", ActiveSkill: "fireball", Levels: levels},
 		},
 		ActiveSkills: []dataset.ActiveSkill{{ID: "fireball", Types: []uint16{0}}, {ID: "fireball_alt_x", Types: []uint16{0}}},
 	}
 	d.Texts = []dataset.Text{{
 		Language: "en",
-		GemNames: []dataset.Name{{ID: gemFireball, Name: "Fireball"}, {ID: gemInspiration, Name: "Inspiration Support"}},
+		GemNames: []dataset.Name{
+			{ID: gemFireball, Name: "Fireball"}, {ID: gemInspiration, Name: "Inspiration Support"}, {ID: gemTwinA, Name: "Twin"}, {ID: gemTwinB, Name: "Twin"},
+		},
 		SkillNames: []dataset.Name{
 			{ID: "fireball", Name: "Fireball"}, {ID: "fireball_alt_x", Name: "Fireball of Splitting"},
 		},
@@ -72,6 +81,9 @@ func TestDataGem(t *testing.T) {
 				t.Errorf("got %+v (%v), want %+v", got, err, testCase.want)
 			}
 		})
+	}
+	if _, err := s.Data().Gem("Twin"); !errors.Is(err, simulator.ErrAmbiguousName) {
+		t.Errorf("name of two gems: %v, want ErrAmbiguousName", err)
 	}
 	if _, err := s.Data().Gem("Firebolt"); !errors.Is(err, dataset.ErrNotInDataset) {
 		t.Errorf("unknown gem: %v", err)
