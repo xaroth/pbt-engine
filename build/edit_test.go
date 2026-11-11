@@ -99,6 +99,7 @@ func randBuild(r *rand.Rand) *build.Build {
 		}
 		b.Masteries[uint32(r.IntN(4))] = uint32(r.IntN(3))
 	}
+	b.Skills = randSkills(r)
 	for _, k := range []string{"campaign", "bandits", "charges"} {
 		if r.IntN(2) == 0 {
 			if b.Config == nil {

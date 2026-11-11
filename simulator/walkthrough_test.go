@@ -41,11 +41,13 @@ const walkVersion = "3.29.3.3"
 
 // walk is the state the running steps pass along.
 type walk struct {
-	reg        *dataset.Registry
-	res        dataset.Resolution
-	sim        *simulator.Sim
-	base, next *build.Build
-	stats      *simulator.Stats
+	// fireball and inspiration are the gems the skill steps use.
+	fireball, inspiration build.GemID
+	reg                   *dataset.Registry
+	res                   dataset.Resolution
+	sim                   *simulator.Sim
+	base, next            *build.Build
+	stats                 *simulator.Stats
 	// cut are the three nodes other than masteries that give the most life alone, by the
 	// marginal explanation.
 	cut []uint32
@@ -94,12 +96,7 @@ func editSteps() []step {
 			code: `fireball, _ := sim.Data().Gem("Fireball")
 inspiration, _ := sim.Data().Gem("Inspiration")`,
 		}},
-		{name: "edit the main skill group", pending: &pending{
-			needs: "skills on a build", waitsOn: []string{"build.Build.Skills"},
-			code: `group := next.Skills.Main()
-group.Gem(fireball).SetLevel(21).SetQuality(23)
-group.AddSupport(inspiration, 20, 20)`,
-		}},
+		{name: "edit the main skill group", run: editMainGroup},
 		{name: "deallocate nodes", run: deallocate},
 		{name: "equip an item from its text", pending: &pending{
 			needs: "items on a build", waitsOn: []string{"build.Build.Items"},
@@ -164,7 +161,7 @@ d := diff.Get(poe1.TotalDPS)`,
 		{name: "sweep edits ranked by an output", run: sweep},
 		{name: "sweep a gem level ranked by damage per second", pending: &pending{
 			needs: "skills on a build", waitsOn: []string{"build.SetGemLevel", "poe1.TotalDPS"},
-			code: `results, err := sim.Sweep(base, [][]build.Edit{{build.SetGemLevel(fireball, 21)}}, simulator.RankBy(poe1.TotalDPS))`,
+			code: `results, err := sim.Sweep(base, [][]build.Edit{{build.SetGemLevel(base.Skills.MainGroup, 0, 21)}}, simulator.RankBy(poe1.TotalDPS))`,
 		}},
 		{name: "stream a sweep", run: sweepEach},
 		{name: "make a second sim with the first one's config", run: secondSim},
@@ -334,6 +331,37 @@ func cloneBuild(t *testing.T, w *walk) {
 	w.next.Masteries[4139] = w.base.Masteries[4139]
 }
 
+// editMainGroup: the build file of the Path of Building import holds no skills yet, so the step
+// first adds a Fireball group, the main skill of a build with one group.
+func editMainGroup(t *testing.T, w *walk) {
+	w.fireball = build.GemID{ID: "Metadata/Items/Gems/SkillGemFireball"}
+	w.inspiration = build.GemID{ID: "Metadata/Items/Gems/SkillGemSupportInspiration"}
+	w.next.Skills.AddGroup(build.SkillGroup{Slot: build.SlotHelmet, Gems: []build.Gem{{GemID: w.fireball, Level: 20}}})
+
+	group := w.next.Skills.Main()
+	group.Gem(w.fireball).SetLevel(21).SetQuality(23)
+	group.AddSupport(w.inspiration, 20, 20)
+
+	if group.Err() != nil {
+		t.Fatal(group.Err())
+	}
+	want := []build.Gem{{GemID: w.fireball, Level: 21, Quality: 23}, {GemID: w.inspiration, Level: 20, Quality: 20, Support: true}}
+	if d := gocmp.Diff(want, w.next.Skills.Groups[0].Gems); d != "" {
+		t.Errorf("main group gems (-want +got):\n%s", d)
+	}
+	data, err := w.next.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := build.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := gocmp.Diff(w.next.Skills, back.Skills); d != "" {
+		t.Errorf("skills after a build file round trip (-want +got):\n%s", d)
+	}
+}
+
 // nodeOf returns the passive node a line is credited to.
 func nodeOf(l simulator.Line) (simulator.NodeSource, bool) {
 	if l.Source.Bundle == nil {
@@ -400,7 +428,7 @@ func readOutput(t *testing.T, w *walk) {
 // readWarnings: the warnings are stats the engine leaves out or applies unchecked, and nodes the
 // removal cut off the tree; none names a removed node.
 func readWarnings(t *testing.T, w *walk) {
-	known := []build.Code{simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected}
+	known := []build.Code{simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected, simulator.SkillsNotSimulated}
 	unmodelled := 0
 	for _, x := range w.stats.Warnings() {
 		if !slices.Contains(known, x.Code) || x.Message == "" {
@@ -417,6 +445,9 @@ func readWarnings(t *testing.T, w *walk) {
 	}
 	if unmodelled == 0 {
 		t.Error("no unmodelled stat on a level 90 tree")
+	}
+	if !slices.ContainsFunc(w.stats.Warnings(), func(x build.Warning) bool { return x.Code == simulator.SkillsNotSimulated }) {
+		t.Error("no warning that the skills are not simulated")
 	}
 }
 
@@ -488,7 +519,7 @@ func compareBuilds(t *testing.T, w *walk) {
 	if slices.ContainsFunc(changed, func(k output.Key) bool { return diff.Get(k).Abs == 0 }) {
 		t.Errorf("changed %v lists an output with no change", changed)
 	}
-	want := []build.Edit{build.Deallocate(slices.Sorted(slices.Values(w.cut))...)}
+	want := []build.Edit{build.Deallocate(slices.Sorted(slices.Values(w.cut))...), build.AddSkillGroup(w.next.Skills.Groups[0])}
 	if d := gocmp.Diff(want, diff.Edits); d != "" {
 		t.Errorf("edits (-want +got):\n%s", d)
 	}

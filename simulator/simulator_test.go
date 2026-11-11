@@ -399,3 +399,25 @@ func TestUncheckedWarning(t *testing.T) {
 		t.Errorf("stat warnings (-want +got):\n%s", diff)
 	}
 }
+
+// Skills are not simulated yet: a build with gems warns once and gives the same outputs.
+func TestSkillsNotSimulated(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	plain := marauderBuild(90)
+	withSkills := plain.Clone()
+	withSkills.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20}}})
+	withSkills.Skills.AddGroup(build.SkillGroup{})
+	st := simulate(t, s, withSkills)
+	if got, want := codes(st), []build.Code{simulator.SkillsNotSimulated}; !slices.Equal(got, want) {
+		t.Errorf("codes %v, want %v", got, want)
+	}
+	if got, want := get(t, st, poe1.Life), get(t, simulate(t, s, plain), poe1.Life); got != want {
+		t.Errorf("life %v with skills, %v without", got, want)
+	}
+	empty := plain.Clone()
+	empty.Skills.AddGroup(build.SkillGroup{})
+	if got := codes(simulate(t, s, empty)); len(got) != 0 {
+		t.Errorf("groups without gems: codes %v", got)
+	}
+}
