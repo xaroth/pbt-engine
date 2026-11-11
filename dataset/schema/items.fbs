@@ -1,0 +1,71 @@
+namespace fb;
+
+file_identifier "PBIT";
+
+table ItemClass {
+  // ItemClasses.Id, such as "Body Armour".
+  id: string (required);
+}
+
+// min and max are inclusive.
+struct ValueRange {
+  min: int32;
+  max: int32;
+}
+
+// ArmourTypes row; a range is 0 to 0 when the base has none of that defence.
+table ArmourValues {
+  armour: ValueRange;
+  evasion: ValueRange;
+  energy_shield: ValueRange;
+  ward: ValueRange;
+  // Percent; negative is a penalty.
+  movement_speed: int32;
+}
+
+// WeaponTypes row.
+table WeaponValues {
+  physical_damage: ValueRange;
+  // Milliseconds per attack.
+  attack_time: int32;
+  // Hundredths of a percent.
+  critical_chance: int32;
+  range: int32;
+}
+
+// Flasks and ComponentCharges rows.
+table FlaskValues {
+  // Flasks.Type as the game numbers it: 1 life, 2 mana, 3 hybrid, 4 utility.
+  kind: ubyte;
+  life: int32;
+  mana: int32;
+  // Tenths of a second.
+  duration: int32;
+  max_charges: int32;
+  charges_per_use: int32;
+}
+
+table ItemBase {
+  // BaseItemTypes.Id.
+  id: string (required);
+  // Index into Items.classes.
+  class: uint32;
+  // Mod ids in mods.fb.
+  implicits: [string];
+  // Indexes into Items.tags.
+  tags: [uint32];
+  armour: ArmourValues;
+  // Chance to block in percent; shields only.
+  block: int32;
+  weapon: WeaponValues;
+  flask: FlaskValues;
+}
+
+table Items {
+  classes: [ItemClass] (required);
+  // Tags.Id of every tag bases and mods may name.
+  tags: [string] (required);
+  bases: [ItemBase] (required);
+}
+
+root_type Items;

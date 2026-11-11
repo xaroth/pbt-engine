@@ -133,7 +133,21 @@ func readAll(fsys fs.FS) (*dataset.Dataset, error) {
 		}
 		d.Texts = append(d.Texts, *t)
 	}
-	return d, nil
+	return d, readItems(s, d)
+}
+
+// readItems reads s's items group into d, or nothing when s has none.
+func readItems(s *dataset.Store, d *dataset.Dataset) error {
+	var err error
+	if d.Items, err = s.Items(); errors.Is(err, dataset.ErrNotInDataset) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("read: %w", err)
+	}
+	if d.Mods, err = s.Mods(); err != nil {
+		return fmt.Errorf("read: %w", err)
+	}
+	return nil
 }
 
 // written writes d and returns the dataset files as a MapFS.

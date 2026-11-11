@@ -2,6 +2,7 @@ package dataset
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -43,7 +44,7 @@ func (d *Dataset) validate() error {
 			return err
 		}
 	}
-	return validateNames(d.Texts, d.Trees)
+	return errors.Join(validateNames(d.Texts, d.Trees), d.validateItemsGroup())
 }
 
 func errVariant(v string) error {
