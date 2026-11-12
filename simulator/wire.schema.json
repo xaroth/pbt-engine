@@ -502,12 +502,17 @@
           "description": "A rule's own source.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "rule"],
+          "required": ["kind", "id", "text"],
           "properties": {
             "kind": { "const": "rule" },
-            "rule": {
+            "id": {
               "type": "string",
-              "description": "What the rule credits, such as an inherent attribute bonus."
+              "minLength": 1,
+              "description": "Names the rule's source stably, such as \"strength-bonus-life\"."
+            },
+            "text": {
+              "type": "string",
+              "description": "The source in English, such as an inherent attribute bonus with its constant."
             }
           }
         }
