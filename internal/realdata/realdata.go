@@ -2,8 +2,13 @@
 package realdata
 
 import (
+	"io/fs"
+	"maps"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
@@ -72,4 +77,57 @@ func Open(tb testing.TB, version string) *dataset.Store {
 		tb.Fatalf("PBT_DATASETS has poe1 %s (id %s), want %s (id %s): check out pbt-data %s", m.Version, m.ID, version, want, Commit())
 	}
 	return res.Store
+}
+
+// Recorder is an fs.FS over a pinned dataset that records the files opened through it.
+type Recorder struct {
+	fsys   fs.FS
+	mu     sync.Mutex
+	opened map[string]bool
+}
+
+// Record returns a Recorder over the pinned dataset of exactly version, found and checked as
+// Open finds and checks it.
+func Record(tb testing.TB, version string) *Recorder {
+	tb.Helper()
+	want, ok := ids[version]
+	if !ok {
+		tb.Fatalf("realdata: %s is not a pinned version", version)
+	}
+	root := Root(tb)
+	ents, err := os.ReadDir(root)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	for _, e := range ents {
+		fsys := os.DirFS(filepath.Join(root, e.Name()))
+		m, err := dataset.ReadManifest(fsys)
+		if !e.IsDir() || err != nil || m.Version != version {
+			continue
+		}
+		if m.ID != want {
+			tb.Fatalf("PBT_DATASETS has poe1 %s with id %s, want id %s: check out pbt-data %s", version, m.ID, want, Commit())
+		}
+		return &Recorder{fsys: fsys, opened: map[string]bool{}}
+	}
+	tb.Fatalf("PBT_DATASETS has no poe1 %s: check out pbt-data %s", version, Commit())
+	return nil
+}
+
+// Open opens name and records it, unless it is the manifest.
+func (r *Recorder) Open(name string) (fs.File, error) {
+	if name != dataset.ManifestName {
+		r.mu.Lock()
+		r.opened[name] = true
+		r.mu.Unlock()
+	}
+	//nolint:wrapcheck // an fs.FS returns the *fs.PathError of the FS it wraps as it is
+	return r.fsys.Open(name)
+}
+
+// Opened returns the names of the files opened so far, sorted.
+func (r *Recorder) Opened() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Sorted(maps.Keys(r.opened))
 }

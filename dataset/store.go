@@ -190,6 +190,56 @@ func isSingleFile(name string) bool {
 	return false
 }
 
+// Needs returns the files a Store reads to load the groups in files: those and the files each
+// is checked against on load, such as stats.fb and characters.fb for a tree, in manifest order.
+// Files m does not list are left out, and so are the files only they would need.
+func (m Manifest) Needs(files ...string) []string {
+	listed := map[string]bool{}
+	for _, f := range m.Files {
+		listed[f.Name] = true
+	}
+	need := map[string]bool{}
+	var add func(string)
+	add = func(name string) {
+		if need[name] || !listed[name] {
+			return
+		}
+		need[name] = true
+		for _, f := range loadsFirst(name) {
+			add(f)
+		}
+	}
+	for _, f := range files {
+		add(f)
+	}
+	var out []string
+	for _, f := range m.Files {
+		if need[f.Name] {
+			out = append(out, f.Name)
+		}
+	}
+	return out
+}
+
+// loadsFirst returns the files the loader of name reads before it, as the load methods do.
+func loadsFirst(name string) []string {
+	switch {
+	case name == CharactersFile, name == QuestsFile, name == SkillsFile:
+		return []string{StatsFile}
+	case name == ModsFile, name == BuffsFile:
+		return []string{StatsFile, ItemsFile}
+	case name == MonstersFile:
+		return []string{StatsFile, SkillsFile}
+	case isGroup(name, treePrefix):
+		return []string{StatsFile, CharactersFile}
+	case isGroup(name, textPrefix):
+		return []string{CharactersFile}
+	case isGroup(name, layoutPrefix):
+		return []string{TreeFile(groupTag(name, layoutPrefix))}
+	}
+	return nil
+}
+
 func (s *Store) loadStats() (statsGroup, error) {
 	return readGroup(s, StatsFile, func(b []byte) (statsGroup, error) {
 		stats, err := decodeStats(b)
