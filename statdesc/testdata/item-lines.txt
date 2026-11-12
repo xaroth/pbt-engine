@@ -1,38 +1,47 @@
 # The mod lines of real 3.29 items in Path of Building's text, one item per paragraph, chosen so every
-# line shape found in those items appears; tags such as {crafted} removed.
+# line shape found in those items appears; tags such as {crafted} removed. Each paragraph starts with
+# the item's rarity, its base name (a magic item's full name), how many of its lines are implicit,
+# and its influences.
+# rare Shadow Sceptre, 1 implicit
 22% increased Elemental Damage
 24% increased Fire Damage
 +9% to Fire Damage over Time Multiplier
 +19 to Intelligence
 +22% to Fire Resistance
 
+# rare Reinforced Tower Shield, 1 implicit
 +16 to maximum Life
 +51 to maximum Life
 +23% to Fire Resistance
 +18% to Lightning Resistance
 +15 to Strength
 
+# unique Leather Cap, 0 implicits
 +40 to Evasion Rating
 10% increased Rarity of Items found
 +35% to all Elemental Resistances
 Reflects 4 Physical Damage to Melee Attackers
 
+# rare War Plate, 0 implicits
 +62 to maximum Life
 21% increased Armour
 +26% to Fire Resistance
 +17% to Cold Resistance
 
+# unique Wool Shoes, 0 implicits
 +5 to Dexterity
 +15 to maximum Energy Shield
 30% increased Mana Regeneration Rate
 20% increased Movement Speed
 Cannot be Frozen
 
+# rare Two-Stone Ring (Fire/Cold), 1 implicit
 +14% to Fire and Cold Resistances
 +42 to maximum Life
 +20% to Lightning Resistance
 +16 to Intelligence
 
+# rare Royal Sceptre, 1 implicit
 24% increased Elemental Damage
 48% increased Fire Damage
 +16% to Fire Damage over Time Multiplier
@@ -40,16 +49,19 @@ Cannot be Frozen
 +31 to Intelligence
 +33% to Fire Resistance
 
+# unique Scholar's Robe, 0 implicits
 +62% to Fire Resistance
 58% increased Ignite Duration on Enemies
 Reflects 100 Fire Damage to Melee Attackers
 40% of Physical Damage taken as Fire Damage
 
+# rare Ancient Gauntlets, 0 implicits
 +74 to maximum Life
 +33 to Strength
 +35% to Fire Resistance
 +19% to Chaos Resistance
 
+# unique Prismatic Ring, 1 implicit
 +9% to all Elemental Resistances
 +10% to all Elemental Resistances
 8% increased Movement Speed when on Low Life
@@ -57,36 +69,45 @@ Reflects 100 Fire Damage to Melee Attackers
 +20% to Chaos Resistance when on Low Life
 Damage of Enemies Hitting you is Unlucky while you are on Low Life
 
+# magic Experimenter's Quicksilver Flask of Adrenaline, 0 implicits
 40% increased Duration
 25% increased Movement Speed during Effect
 
+# magic Experimenter's Ruby Flask of the Abalone, 0 implicits
 40% increased Duration
 45% increased Armour during Effect
 
+# magic Experimenter's Granite Flask of Staunching, 0 implicits
 40% increased Duration
 Grants Immunity to Bleeding for 4 seconds if used while Bleeding
 Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood
 
+# magic Experimenter's Silver Flask of the Conger, 0 implicits
 40% increased Duration
 Grants Immunity to Shock for 4 seconds if used while Shocked
 
+# rare Crimson Jewel, 0 implicits
 6% increased maximum Life
 14% increased Burning Damage
 +12% to Fire Resistance
 
+# magic Seething Divine Life Flask of Staunching, 0 implicits
 66% reduced Amount Recovered
 Instant Recovery
 Grants Immunity to Bleeding for 4 seconds if used while Bleeding
 Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood
 
+# magic Experimenter's Basalt Flask of Heat, 0 implicits
 40% increased Duration
 Grants Immunity to Freeze for 4 seconds if used while Frozen
 
+# unique Void Sceptre, 1 implicit
 40% increased Elemental Damage
 80% increased Implicit Modifier magnitudes
 16% increased Cast Speed
 6% increased Elemental Damage per 1% Fire, Cold, or Lightning Resistance above 75%
 
+# unique Titanium Spirit Shield, 0 implicits
 124% increased Energy Shield
 10% increased maximum Life
 +10% Chance to Block Spell Damage
@@ -94,15 +115,18 @@ Sacrifice 10% of your Life when you Use or Trigger a Spell Skill
 3% increased Spell Critical Strike Chance per 100 Player Maximum Life
 3% increased Spell Damage per 100 Player Maximum Life
 
+# unique Glorious Plate, 0 implicits
 Has no Sockets
 +1000 to maximum Life
 
+# rare Ancient Gauntlets, 0 implicits
 +94 to maximum Life
 11% increased Life Regeneration rate
 +38% to Fire Resistance
 +28% to Chaos Resistance
 +32 to Intelligence
 
+# unique Paua Amulet, 1 implicit
 24% increased Mana Regeneration Rate
 +70 to maximum Life
 +25% to Fire Resistance
@@ -110,6 +134,7 @@ Has no Sockets
 +18% to Lightning Resistance
 Gain 14% of Missing Unreserved Life before being Hit by an Enemy
 
+# rare Ruby Ring, 1 implicit
 +28% to Fire Resistance
 +74 to maximum Life
 +26 to Dexterity
@@ -117,11 +142,13 @@ Gain 14% of Missing Unreserved Life before being Hit by an Enemy
 +40% to Lightning Resistance
 +29% to Chaos Resistance
 
+# rare Crimson Jewel, 0 implicits
 7% increased maximum Life
 +1% to maximum Fire Resistance
 16% increased Burning Damage
 +13% to Fire Resistance
 
+# rare Ancient Gauntlets, 0 implicits
 +45 to Armour
 +126 to maximum Life
 13% increased Life Regeneration rate
@@ -129,6 +156,7 @@ Gain 14% of Missing Unreserved Life before being Hit by an Enemy
 +34% to Chaos Resistance
 +30 to Intelligence
 
+# rare Goliath Greaves, 0 implicits
 +125 to maximum Life
 19% increased Life Regeneration rate
 +45% to Fire Resistance
@@ -137,18 +165,21 @@ Gain 14% of Missing Unreserved Life before being Hit by an Enemy
 +36 to Dexterity
 100% chance to Avoid being Chilled
 
+# rare Shadow Axe, 0 implicits
 Adds 9 to 17 Physical Damage
 62% increased Physical Damage
 +13 to Strength
 10% increased Attack Speed
 +19% to Cold Resistance
 
+# rare Amber Amulet, 1 implicit
 +24 to Strength
 Adds 3 to 7 Physical Damage to Attacks
 +42 to maximum Life
 +18 to Dexterity
 +23% to Lightning Resistance
 
+# unique Studded Belt, 1 implicit
 25% increased Stun Duration on Enemies
 +30 to Strength
 35% more Maximum Physical Attack Damage
@@ -157,9 +188,11 @@ Adds 1 to 17 Physical Damage to Attacks
 +88 to maximum Life
 Gain 50 Life when you Stun an Enemy
 
+# magic Bubbling Colossal Life Flask, 0 implicits
 50% increased Amount Recovered
 Instant Recovery when on Low Life
 
+# rare Sundering Axe, 1 implicit
 +20% to Damage over Time Multiplier for Bleeding
 Adds 19 to 38 Physical Damage
 112% increased Physical Damage
@@ -167,6 +200,7 @@ Adds 19 to 38 Physical Damage
 17% increased Attack Speed
 +28 to Strength
 
+# rare Amber Amulet, 1 implicit
 +28 to Strength
 Adds 7 to 14 Physical Damage to Attacks
 +68 to maximum Life
@@ -174,6 +208,7 @@ Adds 7 to 14 Physical Damage to Attacks
 +32% to Fire Resistance
 19% increased Global Physical Damage
 
+# rare Two-Stone Ring, 1 implicit
 +14% to Fire and Lightning Resistances
 +62 to maximum Life
 +33% to Cold Resistance
@@ -181,11 +216,14 @@ Adds 7 to 14 Physical Damage to Attacks
 +22 to Dexterity
 Adds 3 to 7 Physical Damage to Attacks
 
+# magic Diamond Flask of the Rainbow, 0 implicits
 +18% to all Elemental Resistances during Effect
 
+# magic Jade Flask of Heat, 0 implicits
 Grants Immunity to Freeze for 4 seconds if used while Frozen
 Grants Immunity to Chill for 4 seconds if used while Chilled
 
+# rare Void Axe, 0 implicits
 Adds 30 to 64 Physical Damage
 148% increased Physical Damage
 +250 to Accuracy Rating
@@ -193,6 +231,7 @@ Adds 30 to 64 Physical Damage
 +33 to Strength
 25% increased Critical Strike Chance
 
+# rare Glorious Plate, 0 implicits
 +45 to Strength
 +33% to Fire Resistance
 88% increased Armour
@@ -200,6 +239,7 @@ Adds 30 to 64 Physical Damage
 +35% to Lightning Resistance
 6% additional Physical Damage Reduction
 
+# rare Onyx Amulet, 1 implicit
 +14 to all Attributes
 +34 to Intelligence
 Adds 10 to 21 Physical Damage to Attacks
@@ -207,18 +247,22 @@ Adds 10 to 21 Physical Damage to Attacks
 +40% to Fire Resistance
 24% increased Global Physical Damage
 
+# magic Alchemist's Quicksilver Flask of Adrenaline, 0 implicits
 25% increased effect
 25% reduced Duration
 25% increased Movement Speed during Effect
 
+# rare Crimson Jewel, 0 implicits
 +7% to Physical Damage over Time Multiplier
 6% increased maximum Life
 17% increased Damage with Bleeding
 
+# rare Crimson Jewel, 0 implicits
 5% increased maximum Life
 14% increased Physical Damage with Axes
 +12% to Cold Resistance
 
+# rare Titan Gauntlets, 0 implicits
 +7% to Physical Damage over Time Multiplier
 37% increased Armour
 +102 to maximum Life
@@ -227,6 +271,7 @@ Adds 10 to 21 Physical Damage to Attacks
 6% increased Stun and Block Recovery
 27% reduced Effect of Chill and Shock on you
 
+# rare Onyx Amulet, 1 implicit
 +15 to all Attributes
 +30 to Dexterity
 Adds 8 to 13 Physical Damage to Attacks
@@ -235,6 +280,7 @@ Adds 8 to 13 Physical Damage to Attacks
 +13% to Chaos Resistance
 40% increased Damage while Leeching
 
+# rare Amethyst Ring, 1 implicit
 +23% to Chaos Resistance
 +43 to Strength
 +113 to maximum Life
@@ -243,47 +289,56 @@ Adds 8 to 13 Physical Damage to Attacks
 23% increased Elemental Damage with Attack Skills
 Non-Channelling Skills have -6 to Total Mana Cost
 
+# unique Amethyst Flask, 0 implicits
 Used when Charges reach full
 17% reduced Charges per use
 35% increased Duration
 When Hit during effect, 25% of Life loss from Damage taken occurs over 4 seconds instead
 
+# magic Flagellant's Topaz Flask of the Lynx, 0 implicits
 Used when Charges reach full
 Gain 3 Charges when you are Hit by an Enemy
 10% increased Movement Speed during Effect
 
+# magic Scholar's Sapphire Flask of the Kakapo, 0 implicits
 Used when Charges reach full
 19% reduced Charges per use
 59% reduced Effect of Curses on you during Effect
 
+# rare Crimson Jewel, 0 implicits
 +7% to Physical Damage over Time Multiplier
 15% increased Lightning Damage
 6% increased maximum Life
 17% increased Damage with Bleeding
 
+# rare Crimson Jewel, 0 implicits
 +7% to Physical Damage over Time Multiplier
 5% increased maximum Life
 9% increased Totem Life
 19% increased Damage with Bleeding
 
+# rare Royal Bow, 1 implicit
 22% increased Elemental Damage with Attack Skills
 Adds 2 to 36 Lightning Damage
 10% increased Attack Speed
 +18 to Dexterity
 18% increased Critical Strike Chance
 
+# rare Penetrating Arrow Quiver, 1 implicit
 Arrows Pierce an additional Target
 +52 to maximum Life
 +24% to Cold Resistance
 Adds 1 to 17 Lightning Damage to Attacks
 15% increased Elemental Damage with Attack Skills
 
+# rare Thicket Bow, 0 implicits
 Adds 4 to 89 Lightning Damage
 Adds 13 to 25 Cold Damage
 15% increased Attack Speed
 +28 to Dexterity
 26% increased Critical Strike Chance
 
+# rare Spike-Point Arrow Quiver, 1 implicit
 25% increased Critical Strike Chance with Bows
 +71 to maximum Life
 +31% to Cold Resistance
@@ -291,53 +346,63 @@ Adds 13 to 25 Cold Damage
 Adds 2 to 40 Lightning Damage to Attacks
 20% increased Elemental Damage with Attack Skills
 
+# rare Crimson Raiment, 0 implicits
 54% increased Evasion and Energy Shield
 +38 to maximum Energy Shield
 +32% to Cold Resistance
 +27% to Lightning Resistance
 +21 to Intelligence
 
+# rare Onyx Amulet, 1 implicit
 +13 to all Attributes
 +62 to maximum Life
 +26 to Intelligence
 +24% to Fire Resistance
 +25% to Global Critical Strike Multiplier
 
+# rare Amethyst Ring, 1 implicit
 +19% to Chaos Resistance
 +48 to maximum Life
 +29% to Fire Resistance
 +27 to Dexterity
 Adds 3 to 7 Cold Damage to Attacks
 
+# magic Silver Flask of Rupturing, 0 implicits
 (38-43)% increased Critical Strike Chance during Effect
 
+# rare Varnished Coat, 0 implicits
 82% increased Evasion and Energy Shield
 +52 to maximum Energy Shield
 +38% to Cold Resistance
 +34% to Lightning Resistance
 +12% chance to Suppress Spell Damage
 
+# rare Stygian Vise, 1 implicit
 Has 1 Abyssal Socket
 +95 to maximum Life
 +42% to Lightning Resistance
 +38 to Strength
 +37% to Cold Resistance
 
+# unique Ruby Flask, 0 implicits
 (125-150)% increased Charges per use
 (40-60)% less Duration
 (10-20)% increased Area of Effect during Effect
 Skills fire 2 additional Projectiles during Effect
 
+# rare Viridian Jewel, 0 implicits
 7% increased maximum Life
 +16% to Global Critical Strike Multiplier
 15% increased Global Critical Strike Chance
 +12% to Cold and Lightning Resistances
 
+# rare Cobalt Jewel, 0 implicits
 7% increased maximum Life
 +15% to Global Critical Strike Multiplier
 6% increased maximum Energy Shield
 +14% to Chaos Resistance
 
+# rare Primal Arrow Quiver, 1 implicit
 28% increased Elemental Damage with Attack Skills
 +108 to maximum Life
 +44% to Lightning Resistance
@@ -345,6 +410,7 @@ Adds 5 to 89 Lightning Damage to Attacks
 Bow Attacks fire an additional Arrow
 +35% to Global Critical Strike Multiplier
 
+# rare Skean, 1 implicit
 42% increased Global Critical Strike Chance
 Adds 6 to 13 Physical Damage
 Adds 5 to 11 Chaos Damage
@@ -353,12 +419,14 @@ Adds 5 to 11 Chaos Damage
 20% chance to Poison on Hit
 +18 to Intelligence
 
+# rare Turquoise Amulet, 1 implicit
 +18 to Dexterity and Intelligence
 +48 to maximum Life
 +22% to Fire Resistance
 +19% to Global Critical Strike Multiplier
 +20 to Intelligence
 
+# rare Turquoise Amulet, 1 implicit
 +22 to Dexterity and Intelligence
 +68 to maximum Life
 +29% to Global Critical Strike Multiplier
@@ -366,10 +434,12 @@ Adds 5 to 11 Chaos Damage
 +26 to Intelligence
 +32 to maximum Mana
 
+# rare Cobalt Jewel, 0 implicits
 7% increased maximum Life
 +6% to Chaos Damage over Time Multiplier
 +12% to Lightning Resistance
 
+# unique Slaughter Knife, 1 implicit
 30% increased Global Critical Strike Chance
 Adds 145 to 225 Physical Damage
 46% increased Critical Strike Chance
@@ -378,6 +448,7 @@ Adds 145 to 225 Physical Damage
 On Killing a Poisoned Enemy, Enemies within 3 metres are Poisoned
 and nearby Allies Regenerate 400 Life per second
 
+# rare Crystal Belt, 1 implicit
 +78 to maximum Energy Shield
 +56 to maximum Energy Shield
 +44% to Fire Resistance
@@ -385,16 +456,19 @@ and nearby Allies Regenerate 400 Life per second
 +50 to Strength
 20% increased Flask Effect Duration
 
+# unique Prismatic Jewel, 0 implicits
 6% increased maximum Energy Shield
 4% increased maximum Mana
 Gain 10% of Maximum Mana as Extra Maximum Energy Shield while affected by Clarity
 
+# rare Carved Wand, 1 implicit
 13% increased Spell Damage
 Adds 5 to 10 Fire Damage to Spells
 19% increased Fire Damage
 +9% to Fire Damage over Time Multiplier
 +14 to Intelligence
 
+# rare Champion Kite Shield, 1 implicit
 +4% to all Elemental Resistances
 +88 to maximum Life
 84% increased Armour and Energy Shield
@@ -402,18 +476,21 @@ Adds 5 to 10 Fire Damage to Spells
 +28% to Cold Resistance
 +36 to Strength
 
+# rare Crusader Gloves, 0 implicits
 +74 to maximum Life
 +38% to Lightning Resistance
 +28% to Chaos Resistance
 +34 to Strength
 9% increased Area of Effect
 
+# rare Citrine Amulet, 1 implicit
 +22 to Strength and Dexterity
 +78 to maximum Life
 +18% to Fire Damage over Time Multiplier
 +36% to Lightning Resistance
 +30 to Dexterity
 
+# unique Silver Flask, 1 implicit
 Used when Charges reach full
 +12 to Maximum Charges
 Recharges 5 Charges when you Consume an Ignited corpse
@@ -421,6 +498,7 @@ Enemies Ignited by you during Effect have Malediction
 Enemies Ignited by you during Effect take 7% increased Damage
 Recover 2% of Life when you Kill an Enemy during Effect
 
+# unique Prophecy Wand, 1 implicit
 40% increased Spell Damage
 324% increased Physical Damage
 Gain 49% of Physical Damage as Extra Fire Damage
@@ -429,6 +507,7 @@ Gain 41% of Physical Damage as Extra Lightning Damage
 +1 to maximum number of Sacred Wisps
 +1 to number of Sacred Wisps Summoned
 
+# unique Champion Kite Shield, 0 implicits, Shaper Item, Hunter Item
 369% increased Armour and Energy Shield
 +10% to all Elemental Resistances
 +5% to maximum Cold Resistance
@@ -436,6 +515,7 @@ Gain 41% of Physical Damage as Extra Lightning Damage
 Recover Energy Shield equal to 2% of Armour when you Block
 16% increased Elemental Damage with Attack Skills
 
+# rare Saint's Hauberk, 0 implicits
 +133 to Armour
 +48 to maximum Energy Shield
 +48% to Cold Resistance
@@ -443,6 +523,7 @@ Recover 5% of Life on Kill
 11% increased Area of Effect
 77% increased Armour and Energy Shield
 
+# rare Archdemon Crown, 2 implicits, Elder Item
 -2 to Level of Socketed Support Gems
 +2 to Level of Socketed Skill Gems
 +2 to Level of Socketed AoE Gems
@@ -454,6 +535,7 @@ Socketed Gems deal 30% more Elemental Damage
 8% increased Area of Effect
 72% increased Armour and Energy Shield
 
+# rare Paladin Gloves, 2 implicits, Searing Exarch Item, Eater of Worlds Item
 Inflict Fire Exposure on Hit, applying -13% to Fire Resistance
 Ignites you inflict spread to other Enemies within 1.5 metres
 +41 to Armour
@@ -465,6 +547,7 @@ Ignites you inflict spread to other Enemies within 1.5 metres
 16% increased Area Damage
 Ignites you inflict deal Damage 10% faster
 
+# rare Paladin Boots, 2 implicits, Searing Exarch Item, Eater of Worlds Item
 Ignites you inflict deal Damage 7% faster
 41% chance to Avoid being Shocked
 +97 to maximum Life
@@ -474,6 +557,7 @@ Ignites you inflict deal Damage 7% faster
 60% chance to Avoid being Shocked
 12% increased Movement Speed if you haven't been Hit Recently
 
+# unique Opal Ring, 1 implicit
 18% increased Elemental Damage
 18% increased Global Critical Strike Chance
 +24% to Fire Resistance
@@ -483,6 +567,7 @@ Left Ring slot: Cover Enemies in Ash for 5 seconds when you Ignite them
 Right Ring slot: Cover Enemies in Frost for 5 seconds when you Freeze them
 Corrupted
 
+# rare Citrine Amulet, 1 implicit
 +24 to Strength and Dexterity
 +92 to maximum Life
 +1 to Level of all Fire Skill Gems
@@ -490,26 +575,31 @@ Corrupted
 +38% to Lightning Resistance
 +40 to Dexterity
 
+# unique Bismuth Flask, 1 implicit
 Used when Charges reach full
 36% increased Charge Recovery
 Enemies you Kill during Effect have a 23% chance to Explode, dealing a tenth of their maximum Life as Damage of a Random Element
 Corrupted
 
+# unique Crimson Jewel, 0 implicits
 Gain 10% of Fire Damage as Extra Chaos Damage
 Passives granting Fire Resistance or all Elemental Resistances in Radius
 also grant Chance to Block Attack Damage at 50% of its value
 
+# rare Spiraled Wand, 1 implicit
 Adds 1 to 10 Lightning Damage to Spells and Attacks
 Adds 8 to 15 Cold Damage
 Adds 6 to 12 Fire Damage
 14% increased Critical Strike Chance
 +90 to Accuracy Rating
 
+# rare Topaz Ring, 1 implicit
 +24% to Lightning Resistance
 Adds 4 to 8 Fire Damage to Attacks
 +35 to maximum Life
 +15 to Intelligence
 
+# unique Rustic Sash, 1 implicit
 18% increased Global Physical Damage
 Adds 15 to 31 Fire Damage to Attacks
 Adds 11 to 26 Cold Damage to Attacks
@@ -517,18 +607,21 @@ Adds 1 to 64 Lightning Damage to Attacks
 +11% to all Elemental Resistances
 30% increased Elemental Damage with Attack Skills during any Flask Effect
 
+# rare Blasting Wand, 1 implicit
 Cannot roll Caster Modifiers
 Adds 28 to 52 Cold Damage
 Adds 22 to 44 Fire Damage
 20% increased Critical Strike Chance
 +160 to Accuracy Rating
 
+# unique Solaris Circlet, 0 implicits
 +420 to Accuracy Rating
 230% increased Energy Shield
 25% increased Elemental Damage with Attack Skills
 Increases and Reductions to Cast Speed apply to Attack Speed
 Ancestral Bond
 
+# rare Conjurer Boots, 0 implicits
 +95 to maximum Life
 +60 to maximum Mana
 +29% to Fire Resistance
@@ -536,6 +629,7 @@ Ancestral Bond
 30% increased Movement Speed
 +14% to Lightning and Chaos Resistances
 
+# rare Onyx Amulet, 1 implicit
 +16 to all Attributes
 +47 to Dexterity
 25% increased Spell Damage
@@ -543,8 +637,10 @@ Ancestral Bond
 +90 to maximum Life
 +13% to Cold and Chaos Resistances
 
+# magic Quicksilver Flask of Penetrating, 0 implicits
 49% increased Critical Strike Chance during Effect
 
+# rare Ancient Spirit Shield, 1 implicit
 9% increased Spell Damage
 73% increased Chance to Block
 44% increased Spell Damage
@@ -554,6 +650,7 @@ Ancestral Bond
 +25 to Dexterity
 +60 to maximum Life
 
+# rare Conjurer Boots, 1 implicit
 4% increased Action Speed
 +122 to maximum Life
 +60 to maximum Mana
@@ -562,6 +659,7 @@ Ancestral Bond
 30% increased Movement Speed
 +14% to Lightning and Chaos Resistances
 
+# rare Amethyst Ring, 1 implicit
 +23% to Chaos Resistance
 +46 to maximum Energy Shield
 +98 to maximum Life
@@ -569,16 +667,19 @@ Ancestral Bond
 32% increased Elemental Damage with Attack Skills
 +1 to Minimum Endurance Charges
 
+# rare Dusk Blade, 1 implicit
 40% increased Global Accuracy Rating
 Adds 6 to 11 Physical Damage
 Adds 2 to 31 Lightning Damage
 8% increased Attack Speed
 +14 to Strength
 
+# magic Bubbling Colossal Life Flask, 0 implicits
 50% reduced Amount Recovered
 135% increased Recovery rate
 50% of Recovery applied Instantly
 
+# unique Eternal Sword, 1 implicit
 +475 to Accuracy Rating
 Adds 52 to 86 Physical Damage
 8% increased Attack Speed
@@ -587,21 +688,25 @@ Adds 52 to 86 Physical Damage
 +290 to Accuracy Rating
 1% increased Attack Damage per 450 Armour
 
+# magic Chemist's Diamond Flask of the Rainbow, 0 implicits
 23% reduced Charges per use
 18% additional Elemental Resistances during Effect
 
+# unique Legion Boots, 0 implicits
 +4 to Level of Socketed Aura Gems
 Socketed Gems are Supported by Level 25 Divine Blessing
 280% increased Armour and Energy Shield
 +16% to all Elemental Resistances
 28% increased Movement Speed
 
+# unique Prismatic Jewel, 0 implicits
 5% increased maximum Energy Shield
 5% increased maximum Life
 5% increased maximum Mana
 +8% Chance to Block Attack Damage while affected by Determination
 Damage Penetrates 12% Lightning Resistance while affected by Wrath
 
+# unique Cobalt Jewel, 0 implicits
 -70% to all Elemental Resistances
 -4% to all maximum Elemental Resistances
 Elemental Resistances are capped by your highest Maximum Elemental Resistance instead

@@ -36,9 +36,11 @@ const statScope = "Metadata/StatDescriptions/stat_descriptions.txt"
 
 // Reader reads item text with one dataset. It is safe for concurrent use.
 type Reader struct {
-	set     *statdesc.Set
-	bases   map[string]*dataset.ItemBase
-	byName  map[string][]*dataset.ItemBase
+	set    *statdesc.Set
+	bases  map[string]*dataset.ItemBase
+	byName map[string][]*dataset.ItemBase
+	// mods are by stat id.
+	mods    map[string][]modStat
 	version string
 }
 
@@ -46,6 +48,14 @@ type Reader struct {
 // dataset without the items group returns a *dataset.MissingGroupError.
 func NewReader(s *dataset.Store) (*Reader, error) {
 	it, err := s.Items()
+	if err != nil {
+		return nil, fmt.Errorf("items: %w", err)
+	}
+	mods, err := s.Mods()
+	if err != nil {
+		return nil, fmt.Errorf("items: %w", err)
+	}
+	stats, err := s.Stats()
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
@@ -59,7 +69,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		version: s.Manifest().Version,
+		mods: indexMods(mods, stats), version: s.Manifest().Version,
 	}
 	r.index(it.Bases, text.BaseNames)
 	return r, nil
@@ -68,7 +78,8 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 // Parse reads item text as Path of Building writes and copies it: "Rarity:", the name lines,
 // properties such as "Quality: 20" up to "Implicits: N", then the mod lines, the first N of
 // them implicit, each optionally tagged "{crafted}", "{fractured}" or "{enchant}". The base is
-// found by its English name; a magic item's base is the longest base name in its name. Each mod
+// found by its English name; a magic item's base is the longest base name in its name; of bases
+// of one name, the one whose implicits read the item's implicit lines. Each mod
 // line is read through the stat descriptions; a line that reads in several ways is read as the
 // first in the game's order, with a warning. A line nothing reads is a warning and stays without stats.
 // Properties Path of Building adds for itself, such as "LevelReq" or "Prefix", are ignored. It
@@ -160,10 +171,55 @@ func (r *Reader) base(p parsed) (*dataset.ItemBase, error) {
 	}
 	bases := r.byName[name]
 	if len(bases) == 0 {
+		// Path of Building names bases of one name by their implicits, as in
+		// "Two-Stone Ring (Fire/Cold)".
+		if i := strings.LastIndex(name, " ("); i > 0 && strings.HasSuffix(name, ")") {
+			bases = r.byName[name[:i]]
+		}
+	}
+	if len(bases) == 0 {
 		return nil, fmt.Errorf("%w: %q in %s", ErrUnknownBase, p.baseName, r.version)
 	}
-	// Bases of one name are the same item kept twice by the game, such as for another game mode.
-	return bases[0], nil
+	return r.byImplicits(bases, p), nil
+}
+
+// byImplicits returns the base among bases of one name whose implicit mods read the most of the
+// item's implicit lines with their values in range, then the most with any values; the first in
+// the game's order on a tie. Bases of one name differ in their implicits, such as the three
+// Two-Stone Rings, or are kept for another game mode.
+func (r *Reader) byImplicits(bases []*dataset.ItemBase, p parsed) *dataset.ItemBase {
+	var readings [][]statdesc.RangeReading
+	for _, l := range p.lines {
+		if l.kind != build.Implicit {
+			continue
+		}
+		if rs, err := r.set.ReadRange(statScope, []string{l.text}); err == nil {
+			readings = append(readings, rs)
+		}
+	}
+	best, bestScore := bases[0], [2]int{-1, -1}
+	for _, b := range bases {
+		if score := r.implicitsRead(b, readings); score[0] > bestScore[0] || score[0] == bestScore[0] && score[1] > bestScore[1] {
+			best, bestScore = b, score
+		}
+	}
+	return best
+}
+
+// implicitsRead counts the lines, by their readings, that an implicit mod of b reads with the
+// values in range, and with any values.
+func (r *Reader) implicitsRead(b *dataset.ItemBase, readings [][]statdesc.RangeReading) [2]int {
+	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
+	var score [2]int
+	for _, rs := range readings {
+		if slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.gives(rd, true, ofBase) }) {
+			score[0]++
+		}
+		if slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.gives(rd, false, ofBase) }) {
+			score[1]++
+		}
+	}
+	return score
 }
 
 // longestBaseName returns the longest base name in a magic item's name, or "".
