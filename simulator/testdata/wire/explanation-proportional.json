@@ -1,0 +1,152 @@
+{
+  "output": {
+    "key": "player.life",
+    "label": "Life",
+    "unit": "",
+    "places": 0
+  },
+  "view": "proportional",
+  "version": "3.29.3.3",
+  "amount": 1375.8799999999999,
+  "effective": 1375.8799999999999,
+  "value": 1376,
+  "capBy": [],
+  "lines": [
+    {
+      "source": {
+        "kind": "character",
+        "id": "Metadata/Characters/Str/Str"
+      },
+      "value": 1118,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 1118,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 3,
+        "effect": 0
+      },
+      "value": 116.6,
+      "total": 0,
+      "parts": [
+        {
+          "op": "inc",
+          "value": 116.6,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 4,
+        "effect": 7
+      },
+      "value": 58.3,
+      "total": 0,
+      "parts": [
+        {
+          "op": "inc",
+          "value": 58.3,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 6,
+        "effect": 9
+      },
+      "value": 34.98,
+      "total": 0,
+      "parts": [
+        {
+          "op": "inc",
+          "value": 34.98,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 2,
+        "effect": 0
+      },
+      "value": 20,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 20,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "rule",
+        "id": "strength-bonus-life",
+        "text": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+      },
+      "value": 16,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 16,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 10,
+        "effect": 0
+      },
+      "value": 7,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 7,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 8,
+        "effect": 0
+      },
+      "value": 5,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 5,
+          "via": [],
+          "from": null
+        }
+      ]
+    }
+  ],
+  "tree": null
+}

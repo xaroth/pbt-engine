@@ -1,0 +1,51 @@
+{
+  "output": {
+    "key": "player.fire_resistance",
+    "label": "Fire Resistance",
+    "unit": "%",
+    "places": 0
+  },
+  "view": "proportional",
+  "version": "3.29.3.3",
+  "amount": -60,
+  "effective": -60,
+  "value": -60,
+  "capBy": [],
+  "lines": [
+    {
+      "source": {
+        "kind": "quest",
+        "quest": "a5q6",
+        "flag": "a5q6-CompletedBoss"
+      },
+      "value": -30,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": -30,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "quest",
+        "quest": "a10q3",
+        "flag": "EndGameAvailable"
+      },
+      "value": -30,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": -30,
+          "via": [],
+          "from": null
+        }
+      ]
+    }
+  ],
+  "tree": null
+}

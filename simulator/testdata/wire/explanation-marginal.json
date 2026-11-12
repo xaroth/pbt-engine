@@ -1,0 +1,104 @@
+{
+  "output": {
+    "key": "player.life",
+    "label": "Life",
+    "unit": "",
+    "places": 0
+  },
+  "view": "marginal",
+  "version": "3.29.3.3",
+  "amount": 1375.8799999999999,
+  "effective": 1375.8799999999999,
+  "value": 1376,
+  "capBy": [],
+  "lines": [
+    {
+      "source": {
+        "kind": "character",
+        "id": "Metadata/Characters/Str/Str"
+      },
+      "value": 1338,
+      "total": 1338.12,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "level"
+      },
+      "value": 1275,
+      "total": 1274.3999999999999,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 3,
+        "effect": 0
+      },
+      "value": 117,
+      "total": 116.59999999999991,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 4,
+        "effect": 7
+      },
+      "value": 58,
+      "total": 58.299999999999955,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 6,
+        "effect": 9
+      },
+      "value": 35,
+      "total": 34.98000000000002,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 2,
+        "effect": 0
+      },
+      "value": 24,
+      "total": 23.59999999999991,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "rule",
+        "id": "strength-bonus-life",
+        "text": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+      },
+      "value": 19,
+      "total": 18.87999999999988,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 10,
+        "effect": 0
+      },
+      "value": 8,
+      "total": 8.259999999999991,
+      "parts": []
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 8,
+        "effect": 0
+      },
+      "value": 6,
+      "total": 5.899999999999864,
+      "parts": []
+    }
+  ],
+  "tree": null
+}

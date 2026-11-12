@@ -10,6 +10,8 @@ import (
 // attributeBonus is an inherent bonus of an attribute: the constant's Value per Per points of
 // the attribute, in whole steps, unless flag stat off is set.
 type attributeBonus struct {
+	// id is the rule source's RuleID.
+	id                               string
 	constant, attribute, target, off string
 	op                               core.Op
 	label                            string
@@ -20,18 +22,22 @@ type attributeBonus struct {
 func attributeBonuses() []attributeBonus {
 	return []attributeBonus{
 		{
+			id:       "strength-bonus-life",
 			constant: "life_per_strength", label: "Strength bonus to maximum life", attribute: statStrength, target: statMaximumLife, op: core.OpBase,
 			off: statNoStrengthBonusToMaximumLife,
 		},
 		{
+			id:       "intelligence-bonus-mana",
 			constant: "mana_per_intelligence", label: "Intelligence bonus to maximum mana", attribute: statIntelligence, target: statMaximumMana, op: core.OpBase,
 			off: statNoIntelligenceBonusToMaximumMana,
 		},
 		{
+			id:       "dexterity-bonus-evasion",
 			constant: "evasion_rating_+%_per_dexterity", label: "Dexterity bonus to evasion rating", attribute: statDexterity, target: statEvasionRating, op: core.OpInc,
 			off: statNoDexterityBonusToEvasionRating,
 		},
 		{
+			id:       "intelligence-bonus-energy-shield",
 			constant: "energy_shield_+%_per_intelligence", label: "Intelligence bonus to maximum energy shield",
 			attribute: statIntelligence, target: statMaximumEnergyShield, op: core.OpInc,
 			off: statNoIntelligenceBonusToMaximumEnergyShield,
@@ -47,7 +53,7 @@ func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
 		if err != nil {
 			return err
 		}
-		src := sh.newSource(Source{Rule: fmt.Sprintf("%s (%d per %d, constant %s)", b.label, c.Value, c.Per, b.constant)})
+		src := sh.newSource(Source{RuleID: b.id, Rule: fmt.Sprintf("%s (%d per %d, constant %s)", b.label, c.Value, c.Per, b.constant)})
 		mod := core.Modifier{
 			Stat: sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src,
 			Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[b.attribute]), Step: float64(c.Per)}},

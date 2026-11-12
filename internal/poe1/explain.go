@@ -16,7 +16,10 @@ import (
 type Source struct {
 	// Bundle is the bundle the source came from; nil for a rule's source.
 	Bundle *resolve.Bundle
-	// Rule describes a rule's source.
+	// RuleID names a rule's source stably, such as "strength-bonus-life", for hosts to key,
+	// group or translate it by.
+	RuleID string
+	// Rule describes a rule's source in English.
 	Rule string
 }
 
@@ -316,7 +319,7 @@ func sameSource(a, b *Source) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return a.Bundle == b.Bundle && a.Rule == b.Rule
+	return a.Bundle == b.Bundle && a.RuleID == b.RuleID
 }
 
 // explainMarginal lists what the output's value loses without each source, and what its

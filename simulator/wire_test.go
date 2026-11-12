@@ -152,6 +152,56 @@ func TestWireOutputs(t *testing.T) {
 	wireGolden(t, "outputs.json", "", outputs)
 }
 
+// An explanation's JSON in each view equals its golden file and matches the schema.
+func TestWireExplanation(t *testing.T) {
+	t.Parallel()
+	b := marauderBuild(90, 2, 3, 4, 6, 8, 10)
+	b.Masteries = map[uint32]uint32{4: 7, 6: 9}
+	st := simulate(t, newSim(t), b)
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
+		ex, err := st.Explain(poe1.Life, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wireGolden(t, "explanation-"+v.String()+".json", "Explanation", ex)
+	}
+	// Fire resistance has the campaign's quest rewards, through the stat all elements share.
+	ex, err := st.Explain(poe1.FireResistance, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wireGolden(t, "explanation-quest.json", "Explanation", ex)
+}
+
+// Cold resistance takes half of node 20's fire resistance through node 21's share: the tree
+// view has the term at rate 0.5, the proportional view credits node 21 with node 20's
+// modifier as the part's from.
+func TestWireExplanationShared(t *testing.T) {
+	t.Parallel()
+	d := testDataset("3.29.3.3", 20)
+	fire, share := uint32(len(d.Stats)), uint32(len(d.Stats)+1)
+	d.Stats = append(d.Stats, dataset.Stat{ID: "base_fire_damage_resistance_%"},
+		dataset.Stat{ID: "modifiers_to_fire_resistance_also_apply_to_cold_lightning_resistance_at_%_value"})
+	tree := &d.Trees[0]
+	tree.Nodes[0].Neighbours = append(tree.Nodes[0].Neighbours, 20, 21)
+	tree.Nodes = append(tree.Nodes,
+		dataset.Node{ID: 20, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: fire, Value: 30}}},
+		dataset.Node{ID: 21, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: share, Value: 50}}},
+	)
+	s, err := simulator.New(storeOf(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, s, marauderBuild(90, 20, 21))
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional} {
+		ex, err := st.Explain(poe1.ColdResistance, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wireGolden(t, "explanation-shared-"+v.String()+".json", "Explanation", ex)
+	}
+}
+
 // Warnings, catalogue entries and edits read back into the values they were written from.
 func TestWireRoundTrip(t *testing.T) {
 	t.Parallel()
@@ -222,7 +272,7 @@ func TestWireDeterministic(t *testing.T) {
 	}
 }
 
-// The wire JSON of a real build's results matches the schema on both pinned datasets.
+// The wire JSON of a real build's results and explanations matches the schema on both pinned datasets.
 func TestWireRealData(t *testing.T) {
 	t.Parallel()
 	previous, err := simulator.New(realdata.Open(t, realdata.Previous))
@@ -274,6 +324,15 @@ func TestWireRealData(t *testing.T) {
 		validate(t, def, data)
 	}
 	check("Stats", st)
+	for _, k := range st.Keys() {
+		for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
+			ex, err := st.Explain(k, v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			check("Explanation", ex)
+		}
+	}
 	check("Diff", compare)
 	check("Diff", across)
 	for _, r := range results {
