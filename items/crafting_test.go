@@ -164,6 +164,18 @@ func TestParseCrafting(t *testing.T) {
 			nil,
 		},
 		{
+			"a former local bench craft on gloves, as retired",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 0\n+60 to maximum Energy Shield\n",
+			rare(glovesBase, line(build.Explicit, "+60 to maximum Energy Shield", "local_energy_shield", 60)),
+			nil,
+		},
+		{
+			"no former local bench craft on a ring",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+60 to maximum Energy Shield\n",
+			rare(ringBase, line(build.Explicit, "+60 to maximum Energy Shield", "energy_shield", 60)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
 			"no former bench craft on a normal item",
 			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+260 to Ward\n",
 			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+260 to Ward", "ward", 260)}},

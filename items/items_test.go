@@ -185,6 +185,7 @@ func otherWardTestMods() []testMod {
 		{id: "NoWeightsWard", stat: "no_weights_ward", min: 220, max: 220, generation: 1},
 		{id: "HatShaperWard", stat: "hat_shaper_ward", min: 230, max: 240, generation: 1, weights: on("helmet_shaper")},
 		{id: "DoubledWard", stat: "doubled_ward", min: 250, max: 250, generation: 1, weights: on("ring"), twice: true},
+		{id: "OldCraftedLocalEnergyShield", stat: "local_energy_shield", min: 60, max: 60, domain: 9, generation: 1, weights: none()},
 		{id: "OldCraftedWard", stat: "old_crafted_ward", min: 260, max: 260, domain: 9, generation: 1, weights: none()},
 		{id: "ScourgeWard", stat: "scourge_ward", min: 140, max: 140, generation: 24, weights: []dataset.TagWeight{w("default", 1000)}},
 		// Evasion on rings, and a retired mod whose range starts at 0.

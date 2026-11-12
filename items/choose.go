@@ -353,9 +353,11 @@ func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
 }
 
 // formerCraft is a crafted mod of a magic or rare item like t that the bench no longer offers:
-// one the dataset's bench crafts do not list. Without that list every craft is current.
+// one the dataset's bench crafts do not list. The dataset does not say which items it went on,
+// so one with a local stat counts on armour and weapons only. Without the list every craft is
+// current.
 func (r *Reader) formerCraft(m *dataset.Mod, t target) bool {
-	return r.crafting.known && magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil
+	return r.crafting.known && magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil && r.fitsStandIn(m, t)
 }
 
 // enchantCraft is an enchantment the crafting bench adds to items of t's class.
