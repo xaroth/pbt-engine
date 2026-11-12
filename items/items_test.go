@@ -116,7 +116,7 @@ func w(tag string, weight int32) dataset.TagWeight {
 // testMods are the mods of testDataset, one or a few per rule; testDataset's bases name the
 // implicits.
 func testMods() []testMod {
-	return slices.Concat(explicitTestMods(), wardTestMods(), implicitTestMods())
+	return slices.Concat(explicitTestMods(), wardTestMods(), otherWardTestMods(), implicitTestMods())
 }
 
 // none weights a mod 0 everywhere.
@@ -157,6 +157,11 @@ func wardTestMods() []testMod {
 		{id: "OldWard", stat: "old_ward", min: 60, max: 60, generation: 1, weights: []dataset.TagWeight{w("amulet", 0), w("ring", 0), w("default", 0)}},
 		{id: "CraftedWard", stat: "crafted_ward", min: 20, max: 30, domain: 9, generation: 1, weights: none()},
 		{id: "FlaskOldWard", stat: "flask_old_ward", min: 60, max: 60, domain: 2, generation: 1, weights: off("ring")},
+	}
+}
+
+func otherWardTestMods() []testMod {
+	return []testMod{
 		// Ward from other sources: Delve, unveiled, elevated Shaper, Crucible and Scourge mods.
 		{id: "DelveWard", stat: "delve_ward", min: 70, max: 80, domain: 16, generation: 1, weights: on("ring")},
 		{id: "DelveJewelWard", stat: "delve_jewel_ward", min: 70, max: 80, domain: 16, generation: 1, weights: on("jewel")},
@@ -286,7 +291,10 @@ func testBases() []dataset.ItemBase {
 		{ID: utilityFlaskBase, Class: "UtilityFlask", Tags: []string{"flask", "default"}},
 		{ID: tinctureBase, Class: "Tincture", Tags: []string{"tincture", "default"}},
 		{ID: abyssJewelBase, Class: "AbyssJewel", Tags: []string{"abyss_jewel", "default"}},
-		{ID: spikedKnifeBase, Class: "Dagger", Tags: []string{"dagger", "weapon", "default"}, Implicits: []string{"LocalEvasionImplicit"}, Weapon: &dataset.WeaponValues{}},
+		{
+			ID: spikedKnifeBase, Class: "Dagger", Tags: []string{"dagger", "weapon", "default"},
+			Implicits: []string{"LocalEvasionImplicit"}, Weapon: &dataset.WeaponValues{},
+		},
 		{ID: twinFire, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicit"}},
 		{ID: twinCold, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"ColdImplicit"}},
 		{ID: twinFireHigh, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicitHigh"}},
