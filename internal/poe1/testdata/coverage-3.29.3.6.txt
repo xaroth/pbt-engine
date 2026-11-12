@@ -6,7 +6,7 @@ unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
 unvalidated life_per_level global, uses 9: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
 unknown shield_armour_+% global, uses 9: items: depends on equipped items, which builds do not have yet
 unknown additional_maximum_all_elemental_resistances_%_with_reserved_life_and_mana global, uses 8: reservation: depends on reserved life or mana, which needs skills
-unvalidated life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance global, uses 8: fire_resistance is the uncapped value; how the game counts a negative or fractional uncapped resistance is not stated
+unvalidated life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance global, uses 8: fire_resistance is the uncapped value; the text does not say how a negative or fractional uncapped resistance counts. Whole steps, negative below 0, as in PoB (ModStore.lua PerStat)
 unvalidated base_maximum_all_resistances_% global, uses 7: no description text; 'all resistances' read from the stat id as fire, cold, lightning and chaos, which include maximum_all_resistances. A new character's maximum resistances in game would validate it
 unvalidated dexterity_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unknown evasion_+%_if_hit_recently global, uses 7: condition: hit recently
