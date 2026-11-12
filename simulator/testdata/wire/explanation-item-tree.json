@@ -1,0 +1,643 @@
+{
+  "output": {
+    "key": "player.armour",
+    "label": "Armour",
+    "unit": "",
+    "places": 0,
+    "group": "sheet",
+    "order": 6
+  },
+  "view": "tree",
+  "version": "3.29.3.6",
+  "amount": 1406,
+  "effective": 1406,
+  "value": 1406,
+  "capBy": [],
+  "lines": [],
+  "tree": {
+    "stat": "armour",
+    "formula": "conversion and gain as extra",
+    "terms": [
+      {
+        "source": {
+          "kind": "item",
+          "slot": "helmet",
+          "name": "Foe Horn"
+        },
+        "op": "base",
+        "value": 1406,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      }
+    ],
+    "overridden": false,
+    "total": 1406,
+    "capped": 1406,
+    "value": 1406,
+    "reads": [
+      {
+        "stat": "base.maximum_life",
+        "formula": "amount a transfer starts from",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 38,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 12,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "rule",
+              "id": "strength-bonus-life",
+              "text": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+            },
+            "op": "base",
+            "value": 16,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 101,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 167,
+        "capped": 167,
+        "value": 167,
+        "reads": [
+          {
+            "stat": "level",
+            "formula": "",
+            "terms": [
+              {
+                "source": {
+                  "kind": "level"
+                },
+                "op": "base",
+                "value": 1,
+                "stat": "",
+                "rate": 1,
+                "held": true
+              }
+            ],
+            "overridden": false,
+            "total": 1,
+            "capped": 1,
+            "value": 1,
+            "reads": [],
+            "repeat": false
+          },
+          {
+            "stat": "no_strength_bonus_to_maximum_life",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": false
+          },
+          {
+            "stat": "strength",
+            "formula": "",
+            "terms": [
+              {
+                "source": {
+                  "kind": "character",
+                  "id": "Metadata/Characters/Str/Str"
+                },
+                "op": "base",
+                "value": 32,
+                "stat": "",
+                "rate": 1,
+                "held": true
+              },
+              {
+                "source": {
+                  "kind": "character",
+                  "id": "Metadata/Characters/Str/Str"
+                },
+                "op": "base",
+                "value": 0,
+                "stat": "",
+                "rate": 1,
+                "held": true
+              }
+            ],
+            "overridden": false,
+            "total": 32,
+            "capped": 32,
+            "value": 32,
+            "reads": [
+              {
+                "stat": "level",
+                "formula": "",
+                "terms": [],
+                "overridden": false,
+                "total": 1,
+                "capped": 1,
+                "value": 1,
+                "reads": [],
+                "repeat": true
+              }
+            ],
+            "repeat": false
+          }
+        ],
+        "repeat": false
+      },
+      {
+        "stat": "gain_as_extra.maximum_life.armour.%",
+        "formula": "",
+        "terms": [],
+        "overridden": false,
+        "total": 0,
+        "capped": 0,
+        "value": 0,
+        "reads": [],
+        "repeat": false
+      },
+      {
+        "stat": "increases.maximum_life.armour",
+        "formula": "increases of a transfer",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 38,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 12,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "rule",
+              "id": "strength-bonus-life",
+              "text": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+            },
+            "op": "base",
+            "value": 16,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 101,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 1406,
+            "stat": "armour",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 0,
+        "capped": 0,
+        "value": 0,
+        "reads": [
+          {
+            "stat": "level",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 1,
+            "capped": 1,
+            "value": 1,
+            "reads": [],
+            "repeat": true
+          },
+          {
+            "stat": "no_strength_bonus_to_maximum_life",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": true
+          },
+          {
+            "stat": "strength",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 32,
+            "capped": 32,
+            "value": 32,
+            "reads": [],
+            "repeat": true
+          }
+        ],
+        "repeat": false
+      },
+      {
+        "stat": "more.maximum_life.armour",
+        "formula": "more multipliers of a transfer",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 38,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 12,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "rule",
+              "id": "strength-bonus-life",
+              "text": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+            },
+            "op": "base",
+            "value": 16,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 101,
+            "stat": "maximum_life",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 1406,
+            "stat": "armour",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 1,
+        "capped": 1,
+        "value": 1,
+        "reads": [
+          {
+            "stat": "level",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 1,
+            "capped": 1,
+            "value": 1,
+            "reads": [],
+            "repeat": true
+          },
+          {
+            "stat": "no_strength_bonus_to_maximum_life",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": true
+          },
+          {
+            "stat": "strength",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 32,
+            "capped": 32,
+            "value": 32,
+            "reads": [],
+            "repeat": true
+          }
+        ],
+        "repeat": false
+      },
+      {
+        "stat": "base.evasion_rating",
+        "formula": "amount a transfer starts from",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 15,
+            "stat": "evasion_rating",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "rule",
+              "id": "dexterity-bonus-evasion",
+              "text": "Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity)"
+            },
+            "op": "inc",
+            "value": 2,
+            "stat": "evasion_rating",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 15,
+        "capped": 15,
+        "value": 15,
+        "reads": [
+          {
+            "stat": "no_dexterity_bonus_to_evasion_rating",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": false
+          },
+          {
+            "stat": "dexterity",
+            "formula": "",
+            "terms": [
+              {
+                "source": {
+                  "kind": "character",
+                  "id": "Metadata/Characters/Str/Str"
+                },
+                "op": "base",
+                "value": 14,
+                "stat": "",
+                "rate": 1,
+                "held": true
+              },
+              {
+                "source": {
+                  "kind": "character",
+                  "id": "Metadata/Characters/Str/Str"
+                },
+                "op": "base",
+                "value": 0,
+                "stat": "",
+                "rate": 1,
+                "held": true
+              }
+            ],
+            "overridden": false,
+            "total": 14,
+            "capped": 14,
+            "value": 14,
+            "reads": [
+              {
+                "stat": "level",
+                "formula": "",
+                "terms": [],
+                "overridden": false,
+                "total": 1,
+                "capped": 1,
+                "value": 1,
+                "reads": [],
+                "repeat": true
+              }
+            ],
+            "repeat": false
+          }
+        ],
+        "repeat": false
+      },
+      {
+        "stat": "convert.evasion_rating.armour.%",
+        "formula": "",
+        "terms": [],
+        "overridden": false,
+        "total": 0,
+        "capped": 0,
+        "value": 0,
+        "reads": [],
+        "repeat": false
+      },
+      {
+        "stat": "increases.evasion_rating.armour",
+        "formula": "increases of a transfer",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 15,
+            "stat": "evasion_rating",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "rule",
+              "id": "dexterity-bonus-evasion",
+              "text": "Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity)"
+            },
+            "op": "inc",
+            "value": 2,
+            "stat": "evasion_rating",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 1406,
+            "stat": "armour",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 2,
+        "capped": 2,
+        "value": 2,
+        "reads": [
+          {
+            "stat": "no_dexterity_bonus_to_evasion_rating",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": true
+          },
+          {
+            "stat": "dexterity",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 14,
+            "capped": 14,
+            "value": 14,
+            "reads": [],
+            "repeat": true
+          }
+        ],
+        "repeat": false
+      },
+      {
+        "stat": "more.evasion_rating.armour",
+        "formula": "more multipliers of a transfer",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 15,
+            "stat": "evasion_rating",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "rule",
+              "id": "dexterity-bonus-evasion",
+              "text": "Dexterity bonus to evasion rating (1 per 5, constant evasion_rating_+%_per_dexterity)"
+            },
+            "op": "inc",
+            "value": 2,
+            "stat": "evasion_rating",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "item",
+              "slot": "helmet",
+              "name": "Foe Horn"
+            },
+            "op": "base",
+            "value": 1406,
+            "stat": "armour",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 1,
+        "capped": 1,
+        "value": 1,
+        "reads": [
+          {
+            "stat": "no_dexterity_bonus_to_evasion_rating",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": true
+          },
+          {
+            "stat": "dexterity",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 14,
+            "capped": 14,
+            "value": 14,
+            "reads": [],
+            "repeat": true
+          }
+        ],
+        "repeat": false
+      }
+    ],
+    "repeat": false
+  }
+}

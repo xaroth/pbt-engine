@@ -3,7 +3,9 @@
     "key": "player.life",
     "label": "Life",
     "unit": "",
-    "places": 0
+    "places": 0,
+    "group": "sheet",
+    "order": 3
   },
   "view": "marginal",
   "version": "3.29.3.3",

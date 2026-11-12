@@ -117,7 +117,9 @@ type MasteryChoice struct {
 // each with a warning; a dataset without the group gets one warning and the skills stay as
 // they are. Against the items group it leaves out items in no item slot, of an unknown base
 // or of a class the slot does not take, and stats the dataset does not have, and warns about
-// mod lines not read as stats; a dataset without the group gets one warning. It returns a
+// mod lines not read as stats; a dataset without the group gets one warning. The weapon-swap
+// slots are not in use: their items are left out and the gems socketed in them disabled,
+// without a warning, so the skills they grant or hold are disabled too. It returns a
 // *CheckError when the game, tree variant or class does not fit, or the error of a dataset
 // group that fails to load. The point budget depends on the game's quests; the rules check it.
 func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
@@ -160,6 +162,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	if err := c.checkItems(); err != nil {
 		return nil, nil, err
 	}
+	c.setAsideSwap()
 	return c, slices.Clone(c.warnings), nil
 }
 

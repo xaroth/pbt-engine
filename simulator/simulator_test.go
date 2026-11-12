@@ -423,8 +423,8 @@ func TestSkillsNotSimulated(t *testing.T) {
 	}
 }
 
-// Items are not simulated yet: a build with an item warns once and gives the same outputs. The
-// test dataset has no items group, so the item is also unchecked.
+// On a dataset without the items group a build's items are left out: unchecked, warned about
+// once, and the outputs are those without them.
 func TestItemsNotSimulated(t *testing.T) {
 	t.Parallel()
 	s := newSim(t)

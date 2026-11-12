@@ -101,6 +101,8 @@ type Sheet struct {
 	gameVersion dataset.GameVersion
 	// nodes maps a node, or a mastery node and effect, to its sources (global and buff bundles).
 	nodes map[resolve.NodeSource][]core.SourceID
+	// items maps an item, by slot and content, to its source.
+	items map[itemKey]core.SourceID
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
 	marked bool
 }
@@ -151,7 +153,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	}
 	sh := &Sheet{session: s, stats: md.stats, counters: md.counters, version: r.Version, table: t, gameVersion: v}
 	for i := range r.Bundles {
-		if err := sh.add(&r.Bundles[i], t, v); err != nil {
+		if _, err := sh.add(&r.Bundles[i], t, v); err != nil {
 			return nil, err
 		}
 	}
@@ -247,17 +249,18 @@ func modelFor(counters []string) *sheetModel {
 	return md
 }
 
-func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion) error {
+// add adds bd as a new source and returns it.
+func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion) (core.SourceID, error) {
 	// Every modifier lands on core actor 0, so another actor's stats would stack onto the player.
 	if bd.Actor != resolve.Player {
-		return fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
+		return 0, fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
 	}
 	b := *bd
 	src := sh.newSource(Source{Bundle: &b})
 	for _, sv := range bd.Stats {
 		if sh.counters[sv.Stat] {
 			if _, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[sv.Stat], Op: core.OpBase, Value: sv.Value, Source: src}); err != nil {
-				return fmt.Errorf("sheet: counter %s: %w", sv.Stat, err)
+				return 0, fmt.Errorf("sheet: counter %s: %w", sv.Stat, err)
 			}
 			continue
 		}
@@ -265,11 +268,11 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		ruled := false
 		if ok && e.Status == semantics.Authored {
 			if err := sh.addMods(e, sv.Value, src); err != nil {
-				return err
+				return 0, err
 			}
 			var err error
 			if ruled, err = sh.applyRule(e, sv.Value, src); err != nil {
-				return err
+				return 0, err
 			}
 		}
 		for _, n := range notesFor(e, ok, ruled) {
@@ -277,7 +280,7 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 			sh.notes = append(sh.notes, sourcedNote{note: n, src: src})
 		}
 	}
-	return nil
+	return src, nil
 }
 
 // notesFor returns the notes, kind and text only, for a stat whose lookup gave e and ok, none

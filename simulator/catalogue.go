@@ -12,7 +12,8 @@ import (
 // The names below alias the game's types so hosts can read results without importing the
 // rules. Explanations get types of their own when their game-neutral part leaves the rules.
 
-// Output describes one output a simulation reports: its key, label, unit and decimal places.
+// Output describes one output a simulation reports: its key, label, unit, decimal
+// places, group and display order.
 type Output = poe1.Output
 
 // Outputs returns the outputs of the sim's game, in display order. Consumers render from it
@@ -79,7 +80,7 @@ type TreeNode = poe1.TreeNode
 type TreeTerm = poe1.TreeTerm
 
 // Source is what a value is credited to. Bundle.Source is one of CharacterSource,
-// LevelSource, NodeSource or QuestSource; a rule's own source has no Bundle and names itself
+// LevelSource, NodeSource, QuestSource or ItemSource; a rule's own source has no Bundle and names itself
 // in Rule.
 type Source = poe1.Source
 
@@ -93,6 +94,8 @@ type (
 	NodeSource = resolve.NodeSource
 	// QuestSource is a quest reward.
 	QuestSource = resolve.QuestSource
+	// ItemSource is an equipped item by slot, with its name.
+	ItemSource = resolve.ItemSource
 )
 
 // Op is how a modifier applies.

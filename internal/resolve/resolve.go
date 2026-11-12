@@ -50,8 +50,8 @@ func (s Scope) String() string {
 	return "scope?"
 }
 
-// Source is where a bundle came from: a CharacterSource, LevelSource, NodeSource or
-// QuestSource.
+// Source is where a bundle came from: a CharacterSource, LevelSource, NodeSource,
+// QuestSource or ItemSource.
 type Source interface {
 	String() string
 	source()
@@ -92,7 +92,22 @@ func (s NodeSource) String() string {
 }
 func (s QuestSource) String() string { return "quest " + s.ID }
 
+// ItemSource is an equipped item. Resolve returns none; the rules compile items themselves.
+type ItemSource struct {
+	Slot build.Slot
+	// Name is a rare or unique item's name, or a magic item's full name; empty for others.
+	Name string
+}
+
+func (s ItemSource) String() string {
+	if s.Name != "" {
+		return "item " + string(s.Slot) + ": " + s.Name
+	}
+	return "item " + string(s.Slot)
+}
+
 func (CharacterSource) source() {}
+func (ItemSource) source()      {}
 func (LevelSource) source()     {}
 func (NodeSource) source()      {}
 func (QuestSource) source()     {}
