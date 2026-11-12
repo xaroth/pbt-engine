@@ -30,9 +30,11 @@ jobs:
   # must be byte-identical. Module size and probe times are reported, not gated.
   wasm:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Unlike the default shell, sets pipefail, so a failing test piped into tee fails the step.
+        shell: bash
     env:
-      # The pbt-data commit the README names; internal/realdata fails the probe on another.
-      PBT_DATA_COMMIT: 4221dc07cd12412079d4f69f22dc702168fb3774
       PBT_DATA_DIR: poe1/3.29
       # The files the probe reads; a missing one fails it with the file's name.
       PBT_DATA_FILES: manifest.json characters.fb constants.fb quests.fb stats.fb skills.fb text-en.fb tree-standard.fb
@@ -52,6 +54,8 @@ jobs:
         env:
           GOOS: js
           GOARCH: wasm
+      - name: Read the pinned pbt-data commit
+        run: echo "PBT_DATA_COMMIT=$(cat internal/realdata/pbt-data-commit.txt)" >> "$GITHUB_ENV"
       - id: data
         uses: actions/cache@v6
         with:
