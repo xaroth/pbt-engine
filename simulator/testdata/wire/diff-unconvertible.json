@@ -120,5 +120,12 @@
     }
   ],
   "edits": null,
-  "dataChanges": []
+  "dataChanges": [
+    {
+      "node": 7,
+      "fields": [],
+      "before": [],
+      "after": []
+    }
+  ]
 }

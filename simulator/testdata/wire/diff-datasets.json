@@ -7,7 +7,7 @@
         "label": "Dexterity",
         "unit": "",
         "places": 0,
-        "value": 0
+        "value": 2
       },
       {
         "key": "player.life",
@@ -79,11 +79,11 @@
       "label": "Dexterity",
       "unit": "",
       "places": 0,
-      "before": 0,
+      "before": 2,
       "after": 0,
-      "abs": 0,
-      "pct": null,
-      "changed": false
+      "abs": -2,
+      "pct": -100,
+      "changed": true
     },
     {
       "key": "player.life",
@@ -128,8 +128,24 @@
       ],
       "before": [
         {
+          "stat": "base_dexterity",
+          "value": 2
+        },
+        {
+          "stat": "base_intelligence",
+          "value": 3
+        },
+        {
           "stat": "base_maximum_life",
           "value": 10
+        },
+        {
+          "stat": "base_maximum_mana",
+          "value": 4
+        },
+        {
+          "stat": "base_strength",
+          "value": 1
         }
       ],
       "after": [
