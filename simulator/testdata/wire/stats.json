@@ -1,0 +1,178 @@
+{
+  "version": "3.29.3.3",
+  "outputs": [
+    {
+      "key": "player.strength",
+      "label": "Strength",
+      "unit": "",
+      "places": 0,
+      "value": 32
+    },
+    {
+      "key": "player.dexterity",
+      "label": "Dexterity",
+      "unit": "",
+      "places": 0,
+      "value": 0
+    },
+    {
+      "key": "player.intelligence",
+      "label": "Intelligence",
+      "unit": "",
+      "places": 0,
+      "value": 0
+    },
+    {
+      "key": "player.life",
+      "label": "Life",
+      "unit": "",
+      "places": 0,
+      "value": 1327
+    },
+    {
+      "key": "player.mana",
+      "label": "Mana",
+      "unit": "",
+      "places": 0,
+      "value": 0
+    },
+    {
+      "key": "player.energy_shield",
+      "label": "Energy Shield",
+      "unit": "",
+      "places": 0,
+      "value": 0
+    },
+    {
+      "key": "player.armour",
+      "label": "Armour",
+      "unit": "",
+      "places": 0,
+      "value": 0
+    },
+    {
+      "key": "player.evasion_rating",
+      "label": "Evasion Rating",
+      "unit": "",
+      "places": 0,
+      "value": 0
+    },
+    {
+      "key": "player.fire_resistance",
+      "label": "Fire Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.cold_resistance",
+      "label": "Cold Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.lightning_resistance",
+      "label": "Lightning Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.chaos_resistance",
+      "label": "Chaos Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.maximum_fire_resistance",
+      "label": "Maximum Fire Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": 75
+    },
+    {
+      "key": "player.maximum_cold_resistance",
+      "label": "Maximum Cold Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": 75
+    },
+    {
+      "key": "player.maximum_lightning_resistance",
+      "label": "Maximum Lightning Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": 75
+    },
+    {
+      "key": "player.maximum_chaos_resistance",
+      "label": "Maximum Chaos Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": 75
+    },
+    {
+      "key": "player.uncapped_fire_resistance",
+      "label": "Uncapped Fire Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.uncapped_cold_resistance",
+      "label": "Uncapped Cold Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.uncapped_lightning_resistance",
+      "label": "Uncapped Lightning Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.uncapped_chaos_resistance",
+      "label": "Uncapped Chaos Resistance",
+      "unit": "%",
+      "places": 0,
+      "value": -60
+    },
+    {
+      "key": "player.life_regeneration",
+      "label": "Life Regeneration",
+      "unit": "/s",
+      "places": 1,
+      "value": 0
+    },
+    {
+      "key": "player.mana_regeneration",
+      "label": "Mana Regeneration",
+      "unit": "/s",
+      "places": 1,
+      "value": 0
+    },
+    {
+      "key": "player.energy_shield_regeneration",
+      "label": "Energy Shield Regeneration",
+      "unit": "/s",
+      "places": 1,
+      "value": 0
+    }
+  ],
+  "warnings": [
+    {
+      "code": "node-unknown",
+      "subject": "node 99",
+      "message": "not in the standard tree of 3.29.3.3; dropped"
+    },
+    {
+      "code": "version-mismatch",
+      "subject": "version",
+      "message": "build for 3.28, simulated on dataset 3.29.3.3"
+    }
+  ]
+}
