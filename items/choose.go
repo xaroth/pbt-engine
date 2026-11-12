@@ -26,14 +26,18 @@ const (
 	genPrefix = 1
 	genSuffix = 2
 	// genUnique is a unique's mod or a base's implicit.
-	genUnique     = 3
-	genCorrupted  = 5
-	genEnchant    = 10
-	genAnoint     = 19
-	genFlaskEnch1 = 21
-	genFlaskEnch2 = 22
-	genExarch     = 28
-	genEater      = 29
+	genUnique          = 3
+	genCorrupted       = 5
+	genEnchant         = 10
+	genAnoint          = 19
+	genFlaskEnch1      = 21
+	genFlaskEnch2      = 22
+	genScourgeUpside   = 24
+	genScourgeDownside = 25
+	genExarch          = 28
+	genEater           = 29
+	genCrucible        = 31
+	genCrucibleUnique  = 32
 )
 
 const (
@@ -55,14 +59,15 @@ func influences() map[string]string {
 // target is the item a line is read for.
 type target struct {
 	base *dataset.ItemBase
-	// tags are the base's tags with those its influences give.
-	tags      []string
-	rarity    build.Rarity
-	corrupted bool
-	domain    int32
+	// tags are the base's tags with those its influences give; influenced holds the latter.
+	tags       []string
+	influenced []string
+	rarity     build.Rarity
+	corrupted  bool
+	domain     int32
 }
 
-func (r *Reader) target(it *build.Item, b *dataset.ItemBase) target {
+func newTarget(it *build.Item, b *dataset.ItemBase) target {
 	t := target{base: b, tags: b.Tags, rarity: it.Rarity, corrupted: slices.Contains(it.Flags, corruptedFlag), domain: classDomain(b.Class)}
 	for _, f := range it.Flags {
 		suffix, ok := influences()[f]
@@ -70,127 +75,212 @@ func (r *Reader) target(it *build.Item, b *dataset.ItemBase) target {
 			continue
 		}
 		for _, tag := range b.Tags {
-			if inf := tag + "_" + suffix; r.tags[inf] && !slices.Contains(t.tags, inf) {
-				t.tags = append(slices.Clip(t.tags), inf)
-			}
+			t.influenced = append(t.influenced, tag+"_"+suffix)
 		}
 	}
+	t.tags = slices.Concat(b.Tags, t.influenced)
 	return t
 }
 
-// choice is the reading chosen for a line.
+// choice is the reading chosen for a line, with the values it stores.
 type choice struct {
 	statdesc.RangeReading
 
 	// others are the stats of other readings that remain possible, which make the line ambiguous.
 	others []string
-	// outOfRange is set when no mod the item can have rolls the line's values.
-	outOfRange bool
+	// warnings are the codes of the step that chose the reading and of its values, with their
+	// messages.
+	warnings []build.Warning
 }
 
-// step is one step of narrowing readings down: the readings it keeps, and whether keeping them
-// means a value outside every mod's range.
+// step is one step of narrowing readings down: the mods that give a reading it keeps, with the
+// values in range or not, an extra test of the reading, and the warning keeping it gives.
 type step struct {
-	keep       func(statdesc.RangeReading) bool
-	outOfRange bool
+	mods    func(*dataset.Mod) bool
+	inRange bool
+	sums    bool
+	also    func(statdesc.RangeReading) bool
+	warn    build.Code
+}
+
+func (r *Reader) keeps(s step, rd statdesc.RangeReading) bool {
+	if s.also != nil && !s.also(rd) {
+		return false
+	}
+	return r.gives(rd, s.inRange, s.mods) || s.sums && r.givesSum(rd, s.mods)
 }
 
 // choose returns the reading of a line of kind on item it of base b. The line's kind and the
-// item give the mods the line can be (see sources): current ones and retired ones. Readings are
-// narrowed by the first of these steps some reading passes: a current mod with the values in
-// range, alone or as two mods of one stat; else a retired mod with the values in range; else a
-// current mod with any values, which is out of range. Then on armour and weapons the readings
-// with a local stat, then the first in the game's order.
+// item give the mods the line can be (see sources). Readings are narrowed by the first of these
+// steps some reading passes:
+//  1. a current mod with the values in range, alone or as two mods of one stat;
+//  2. a bench craft with the values in range, on a line without a marker;
+//  3. a given mod with the values in range;
+//  4. for an implicit line, a corruption implicit on an item not marked Corrupted;
+//  5. a retired mod with the values in range;
+//  6. a current mod or bench craft with any values, which is out of range.
+//
+// Then on armour and weapons the readings with a local stat, then the first in the game's order.
+// A value the text does not show is the value of the mods that give the reading.
 func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading) choice {
-	t := r.target(it, b)
-	cur, ret := r.sources(t, kind)
+	t := newTarget(it, b)
+	src := r.sources(t, kind)
 	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
-	keep, outOfRange := narrow(rs, []step{
-		{keep: func(rd statdesc.RangeReading) bool { return r.gives(rd, true, cur) || r.givesSum(rd, cur) }},
-		{keep: func(rd statdesc.RangeReading) bool {
-			// A former implicit has other stats than the base's implicit; else it is the
-			// base's implicit out of range.
-			return r.gives(rd, true, ret) && (kind != build.Implicit || !r.gives(rd, false, ofBase))
-		}},
-		{keep: func(rd statdesc.RangeReading) bool { return r.gives(rd, false, cur) }, outOfRange: true},
-	})
-	if b.Armour != nil || b.Weapon != nil {
-		// A unique's local stat can read as a global stat the unique has, as with a sword's
-		// "+190 to Armour", so only a local stat that rolls on the base counts.
-		rolls := func(m *dataset.Mod) bool { return ofBase(m) || spawnsOn(m, t.tags) }
-		keep, _ = narrow(keep, []step{{keep: func(rd statdesc.RangeReading) bool {
-			return slices.ContainsFunc(rd.Stats, isLocal) && r.gives(rd, false, rolls)
-		}}})
+	anyCurrent := func(m *dataset.Mod) bool { return src.current(m) || src.craft(m) }
+	steps := []step{{mods: src.current, inRange: true, sums: true}, {mods: src.craft, inRange: true}, {mods: src.given, inRange: true}}
+	if kind == build.Implicit {
+		steps = append(steps, step{mods: func(m *dataset.Mod) bool { return corruption(m, t) }, inRange: true, warn: NotCorrupted})
 	}
-	c := choice{RangeReading: keep[0], outOfRange: outOfRange}
+	steps = append(steps,
+		step{mods: src.retired, inRange: true, also: func(rd statdesc.RangeReading) bool {
+			// A former implicit has other stats than the base's implicit; else it is the base's
+			// implicit out of range.
+			return kind != build.Implicit || !r.gives(rd, false, ofBase)
+		}},
+		step{mods: anyCurrent, warn: RollOutOfRange})
+	keep, won, ok := r.narrow(rs, steps)
+	if b.Armour != nil || b.Weapon != nil {
+		keep = r.preferLocal(keep, t)
+	}
+	c := choice{RangeReading: keep[0]}
 	for _, rd := range keep[1:] {
 		if !slices.Equal(rd.Stats, keep[0].Stats) {
 			c.others = append(c.others, strings.Join(rd.Stats, ", "))
 		}
 	}
+	if ok {
+		c.RangeReading, c.warnings = r.finish(keep[0], won, kind)
+	}
 	return c
 }
 
-// narrow returns the readings that pass the first of steps any reading passes, and that step's
-// outOfRange, or all of them when none does.
-func narrow(rs []statdesc.RangeReading, steps []step) ([]statdesc.RangeReading, bool) {
+// preferLocal returns the readings of rs with a local stat that rolls on t, or rs when there are
+// none. A unique's local stat can read as a global stat the unique has, as with a sword's
+// "+190 to Armour", so only a local stat that rolls on the base counts.
+func (r *Reader) preferLocal(rs []statdesc.RangeReading, t target) []statdesc.RangeReading {
+	rolls := func(m *dataset.Mod) bool { return slices.Contains(t.base.Implicits, m.ID) || spawnsOn(m, t.tags) }
+	local, _, _ := r.narrow(rs, []step{{mods: rolls, also: func(rd statdesc.RangeReading) bool {
+		return slices.ContainsFunc(rd.Stats, isLocal)
+	}}})
+	return local
+}
+
+// finish returns rd with the values the mods of step s store, and the warnings of s and of the
+// values.
+func (r *Reader) finish(rd statdesc.RangeReading, s step, kind build.ModKind) (statdesc.RangeReading, []build.Warning) {
+	var warnings []build.Warning
+	if s.warn != "" {
+		warnings = append(warnings, build.Warning{Code: s.warn, Message: warnMessage(s.warn, kind)})
+	}
+	rd, w := r.storedValues(rd, s.mods, s.inRange)
+	if w != nil {
+		warnings = append(warnings, *w)
+	}
+	return rd, warnings
+}
+
+func warnMessage(code build.Code, kind build.ModKind) string {
+	if code == NotCorrupted {
+		return "read as a corruption implicit; the item is not marked Corrupted"
+	}
+	return "no " + string(kind) + " mod the item can have rolls this value"
+}
+
+// narrow returns the readings that pass the first of steps any reading passes, and that step, or
+// all of them and false when none does.
+func (r *Reader) narrow(rs []statdesc.RangeReading, steps []step) ([]statdesc.RangeReading, step, bool) {
 	for _, s := range steps {
 		var out []statdesc.RangeReading
 		for _, rd := range rs {
-			if s.keep(rd) {
+			if r.keeps(s, rd) {
 				out = append(out, rd)
 			}
 		}
 		if len(out) > 0 {
-			return out, s.outOfRange
+			return out, s, true
 		}
 	}
-	return rs, false
+	return rs, step{}, false
 }
 
-// sources returns which mods a line of kind on item t can be: current mods, which the item can
-// roll or be given now, and retired ones, which it may still have from an older version or a
-// source the dataset does not name.
-func (r *Reader) sources(t target, kind build.ModKind) (current, retired func(*dataset.Mod) bool) {
+// lineSources are the mods a line can be: current mods, which the item can roll now; bench
+// crafts of a line without a marker, which count after current mods; given mods, which a source
+// other than rolling gives, such as an essence, and which count after those and only with the
+// values in range; and retired ones, which it may still have from an older version, and which
+// count only with the values in range.
+type lineSources struct {
+	current, craft, given, retired func(*dataset.Mod) bool
+}
+
+func none(*dataset.Mod) bool { return false }
+
+// sources returns the mods a line of kind on item t can be.
+func (r *Reader) sources(t target, kind build.ModKind) lineSources {
+	craft := r.withoutLocal(t, func(m *dataset.Mod) bool {
+		return m.Domain == domainCrafted && (t.rarity == build.Magic || t.rarity == build.Rare)
+	})
+	special := r.withoutLocal(t, func(m *dataset.Mod) bool { return specialAffix(m, t) })
 	switch kind {
 	case build.Implicit:
-		return r.implicitMod(t), func(m *dataset.Mod) bool { return formerImplicit(m, t) }
+		return lineSources{
+			current: func(m *dataset.Mod) bool { return implicitMod(m, t) },
+			craft:   none,
+			given:   none,
+			retired: func(m *dataset.Mod) bool { return formerImplicit(m, t) },
+		}
 	case build.Crafted:
-		return r.benchCraft(t), func(m *dataset.Mod) bool { return explicitMod(m, t) || retiredAffix(m, t) }
+		return lineSources{current: craft, craft: none, given: none, retired: none}
 	case build.Enchant:
-		return func(m *dataset.Mod) bool { return enchant(m, t) }, func(m *dataset.Mod) bool { return m.Generation == genEnchant && !spawns(m) }
+		return lineSources{
+			current: func(m *dataset.Mod) bool { return enchant(m, t) },
+			craft:   none,
+			given:   none,
+			retired: func(m *dataset.Mod) bool { return retiredEnchant(m, t) },
+		}
 	case build.Fractured:
-		return func(m *dataset.Mod) bool { return explicitMod(m, t) }, func(m *dataset.Mod) bool { return retiredAffix(m, t) }
+		// A fractured mod is any explicit mod but a bench craft.
+		return lineSources{
+			current: func(m *dataset.Mod) bool { return explicitMod(m, t) },
+			craft:   none,
+			given:   special,
+			retired: func(m *dataset.Mod) bool { return retiredAffix(m, t) },
+		}
 	default:
 		// A line without a marker may be a bench craft that lost its marker.
-		craft := r.benchCraft(t)
-		return func(m *dataset.Mod) bool { return explicitMod(m, t) },
-			func(m *dataset.Mod) bool { return retiredAffix(m, t) || craft(m) }
+		return lineSources{
+			current: func(m *dataset.Mod) bool { return explicitMod(m, t) },
+			craft:   craft,
+			given:   special,
+			retired: func(m *dataset.Mod) bool { return retiredAffix(m, t) || passiveTreeMod(m, t) },
+		}
 	}
 }
 
 // implicitMod is a current implicit of t: the base's own, an eldritch implicit on an item other
-// than a unique, or a corrupted implicit on a corrupted item.
-func (r *Reader) implicitMod(t target) func(*dataset.Mod) bool {
-	return func(m *dataset.Mod) bool {
-		if slices.Contains(t.base.Implicits, m.ID) {
-			return true
-		}
-		if m.Domain != t.domain || !spawnsOn(m, t.tags) {
-			return false
-		}
-		switch m.Generation {
-		case genExarch, genEater:
-			return t.rarity != build.Unique
-		case genCorrupted:
-			return t.corrupted
-		}
+// than a unique, or a corruption implicit on a corrupted item.
+func implicitMod(m *dataset.Mod, t target) bool {
+	if slices.Contains(t.base.Implicits, m.ID) {
+		return true
+	}
+	if m.Domain != t.domain || !spawnsOn(m, t.tags) {
 		return false
 	}
+	switch m.Generation {
+	case genExarch, genEater:
+		return t.rarity != build.Unique
+	case genCorrupted:
+		return t.corrupted
+	}
+	return false
+}
+
+// corruption is a corruption implicit that spawns on t.
+func corruption(m *dataset.Mod, t target) bool {
+	return m.Domain == t.domain && m.Generation == genCorrupted && spawnsOn(m, t.tags)
 }
 
 // formerImplicit is an implicit that spawns nowhere now: a base's former implicit, a unique's
-// own implicit, or a retired eldritch or corrupted implicit. The game files do not tell a former
+// own implicit, or a retired eldritch or corruption implicit. The game files do not tell a former
 // implicit from a unique's mod.
 func formerImplicit(m *dataset.Mod, t target) bool {
 	if m.Domain != t.domain || spawns(m) {
@@ -210,42 +300,76 @@ func explicitMod(m *dataset.Mod, t target) bool {
 	case build.Unique:
 		return (m.Domain == t.domain || m.Domain == domainItem) && m.Generation == genUnique
 	case build.Magic, build.Rare:
-		return affixOf(m, t) && spawnsOn(m, t.tags)
+		return affix(m) && (m.Domain == t.domain || m.Domain == domainUnveiled) && spawnsOn(m, t.tags)
 	default:
 		return false
 	}
 }
 
+// specialAffix is a prefix or suffix a magic or rare item like t can be given by a source
+// other than rolling: a Delve (fossil) mod; an elevated influence mod, whose weights are all 0
+// and name a tag t's influences give; or an item mod whose weights are all 0 and name no item
+// kind, as essences give. The dataset does not say which items an essence applies to yet.
+func specialAffix(m *dataset.Mod, t target) bool {
+	if t.rarity != build.Magic && t.rarity != build.Rare || !affix(m) {
+		return false
+	}
+	if m.Domain == domainDelve {
+		return true
+	}
+	if m.Domain != domainItem || m.Domain != t.domain || spawns(m) {
+		return false
+	}
+	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return slices.Contains(t.influenced, w.Tag) }) ||
+		!slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return w.Tag != defaultTag })
+}
+
+// withoutLocal limits mods passing ok to those t can take while the dataset does not say which
+// items a bench craft or an essence applies to: one with a local stat only on armour and weapons.
+func (r *Reader) withoutLocal(t target, ok func(*dataset.Mod) bool) func(*dataset.Mod) bool {
+	defences := t.base.Armour != nil || t.base.Weapon != nil
+	return func(m *dataset.Mod) bool {
+		return ok(m) && (defences || !slices.ContainsFunc(r.mods.stats[m], isLocal))
+	}
+}
+
 // retiredAffix is a prefix or suffix of a magic or rare item like t that spawns nowhere now:
-// its weights are all 0 and name one of t's tags, or name only "default" in a domain of t's own
-// kind, such as flasks.
+// its weights are all 0 and name one of its base's tags, or name only "default" in a domain of
+// t's own kind, such as flasks. Weights on a tag an influence gives are elevated mods, which are
+// current (see specialAffix).
 func retiredAffix(m *dataset.Mod, t target) bool {
-	if t.rarity != build.Magic && t.rarity != build.Rare || !affixOf(m, t) || len(m.SpawnWeights) == 0 || spawns(m) {
+	if !retiredAffixOf(m, t) {
 		return false
 	}
 	for _, w := range m.SpawnWeights {
-		if w.Tag != defaultTag && slices.Contains(t.tags, w.Tag) {
+		if w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag) {
 			return true
 		}
 	}
 	return m.Domain == t.domain && t.domain != domainItem
 }
 
-// affixOf reports whether m is a prefix or suffix of t's domain, or of the delve (fossil) or
-// unveiled domains.
-func affixOf(m *dataset.Mod, t target) bool {
-	return (m.Generation == genPrefix || m.Generation == genSuffix) &&
-		(m.Domain == t.domain || m.Domain == domainDelve || m.Domain == domainUnveiled)
+// retiredAffixOf reports whether m is a prefix or suffix of t's domain or the unveiled domain
+// with weights that are all 0, on a magic or rare item like t.
+func retiredAffixOf(m *dataset.Mod, t target) bool {
+	return (t.rarity == build.Magic || t.rarity == build.Rare) && affix(m) &&
+		(m.Domain == t.domain || m.Domain == domainUnveiled) && len(m.SpawnWeights) > 0 && !spawns(m)
 }
 
-// benchCraft is a bench craft that can be on t. The dataset does not say which item classes a
-// craft applies to; until it does, a craft with a local stat counts on armour and weapons only.
-func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
-	defences := t.base.Armour != nil || t.base.Weapon != nil
-	return func(m *dataset.Mod) bool {
-		return m.Domain == domainCrafted && (defences || !slices.ContainsFunc(r.mods.stats[m], isLocal))
+// passiveTreeMod is a Crucible or Scourge mod of t's domain. Neither can be added today, so they
+// count as retired.
+func passiveTreeMod(m *dataset.Mod, t target) bool {
+	if m.Domain != t.domain {
+		return false
 	}
+	switch m.Generation {
+	case genCrucible, genCrucibleUnique, genScourgeUpside, genScourgeDownside:
+		return true
+	}
+	return false
 }
+
+func affix(m *dataset.Mod) bool { return m.Generation == genPrefix || m.Generation == genSuffix }
 
 // enchant is an enchantment of t: a labyrinth or flask enchantment that spawns on it, or an
 // anointment on an amulet.
@@ -257,6 +381,11 @@ func enchant(m *dataset.Mod, t target) bool {
 		return t.base.Class == anointClass
 	}
 	return false
+}
+
+// retiredEnchant is a labyrinth enchantment that spawns nowhere now.
+func retiredEnchant(m *dataset.Mod, _ target) bool {
+	return m.Generation == genEnchant && !spawns(m)
 }
 
 func isLocal(stat string) bool { return strings.HasPrefix(stat, localStatPrefix) }

@@ -30,6 +30,13 @@ const (
 	// RollOutOfRange is a mod line whose values no mod of its kind the item can have rolls; it
 	// is read as the stats of such a mod.
 	RollOutOfRange build.Code = "item-roll-out-of-range"
+	// NotCorrupted is an implicit line only a corruption implicit gives, on an item not marked
+	// Corrupted; it is read as that implicit.
+	NotCorrupted build.Code = "item-not-corrupted"
+	// ValueAssumed is a mod line whose text does not show a value, such as a curse's level, and
+	// whose possible mods differ on it; the value most of them share is kept, the highest on a
+	// tie.
+	ValueAssumed build.Code = "item-value-assumed"
 	// RollAssumed is a mod line with a range of values, such as "(30-50)"; the highest is kept.
 	RollAssumed build.Code = "item-roll-assumed"
 )
@@ -39,12 +46,10 @@ const statScope = "Metadata/StatDescriptions/stat_descriptions.txt"
 
 // Reader reads item text with one dataset. It is safe for concurrent use.
 type Reader struct {
-	set    *statdesc.Set
-	bases  map[string]*dataset.ItemBase
-	byName map[string][]*dataset.ItemBase
-	mods   modIndex
-	// tags holds every tag the items group names.
-	tags    map[string]bool
+	set     *statdesc.Set
+	bases   map[string]*dataset.ItemBase
+	byName  map[string][]*dataset.ItemBase
+	mods    modIndex
 	version string
 }
 
@@ -73,10 +78,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		mods: indexMods(mods, stats), tags: map[string]bool{}, version: s.Manifest().Version,
-	}
-	for _, t := range it.Tags {
-		r.tags[t] = true
+		mods: indexMods(mods, stats), version: s.Manifest().Version,
 	}
 	r.index(it.Bases, text.BaseNames)
 	return r, nil
@@ -156,11 +158,9 @@ func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.Mod
 			Message: fmt.Sprintf("read as %s, could also be %s", strings.Join(rd.Stats, ", "), strings.Join(rd.others, "; ")),
 		})
 	}
-	if rd.outOfRange {
-		warnings = append(warnings, build.Warning{
-			Code: RollOutOfRange, Subject: line.Text,
-			Message: fmt.Sprintf("read as %s; no %s mod the item can have rolls this value", strings.Join(rd.Stats, ", "), kind),
-		})
+	for _, w := range rd.warnings {
+		w.Subject = line.Text
+		warnings = append(warnings, w)
 	}
 	ranged := false
 	for k, st := range rd.Stats {

@@ -55,16 +55,17 @@ func firstShown(rd statdesc.RangeReading) int {
 	return -1
 }
 
-// gives reports whether some mod that passes ok has every stat rd shows, with rd's values in the
-// mod's ranges when inRange is set.
+// gives reports whether some mod that passes ok has every stat rd shows (see has), with rd's
+// values in the mod's ranges when inRange is set.
 func (r *Reader) gives(rd statdesc.RangeReading, inRange bool, ok func(*dataset.Mod) bool) bool {
-	k := firstShown(rd)
-	if k < 0 {
-		return false
-	}
-	for _, ms := range r.mods.byStat[rd.Stats[k]] {
-		if ok(ms.mod) && r.has(ms.mod, rd, inRange) {
-			return true
+	for k, st := range rd.Stats {
+		if !shown(rd, k) {
+			continue
+		}
+		for _, ms := range r.mods.byStat[st] {
+			if ok(ms.mod) && r.has(ms.mod, rd, inRange) {
+				return true
+			}
 		}
 	}
 	return false
@@ -109,7 +110,7 @@ func (r *Reader) sums(a, b *dataset.Mod, rd statdesc.RangeReading) bool {
 }
 
 // has reports whether m has every stat rd shows, with rd's values in m's ranges when inRange is
-// set. A value out of range still fits when the mod at its own values renders the same text, as
+// set; a stat whose value the text does not show need not be m's. A value out of range still fits when the mod at its own values renders the same text, as
 // for a number the description writes as fixed words, such as "30%".
 func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) bool {
 	own := map[string]int32{}
@@ -120,6 +121,10 @@ func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) boo
 		}
 		ms, ok := r.rangeOf(m, st)
 		if !ok {
+			// The reader gives a stat the text does not show a placeholder; m need not have it.
+			if r.hidden(rd, k, 0) {
+				continue
+			}
 			return false
 		}
 		own[st] = ms.min
