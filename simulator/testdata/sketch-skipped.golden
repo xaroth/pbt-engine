@@ -1,6 +1,5 @@
 make a sim against a pinnacle boss: enemy
 set the enemy's fire resistance: enemy
-import a share code: share codes
 make a build from scratch: build.New
 set charges in the build's config: charge config keys
 simulate against a map boss: enemy

@@ -2,12 +2,16 @@
 package simulator_test
 
 import (
+	"bytes"
 	"cmp"
+	"compress/zlib"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -70,10 +74,7 @@ func setupSteps() []step {
 			code: `sim.Configure(simulator.Set(poe1.EnemyFireResist, 40))`,
 		}},
 		{name: "import a Path of Building file", run: importPoB},
-		{name: "import a Path of Building share code", pending: &pending{
-			needs: "Path of Building share codes", waitsOn: []string{"build.FromCode"},
-			code: `base, warnings, err = build.FromCode(shareCode)`,
-		}},
+		{name: "import a Path of Building share code", run: importShareCode},
 		{name: "parse a build file", run: parseBuildFile},
 		{name: "make a build from scratch", run: newBuild},
 	}
@@ -239,6 +240,21 @@ func configureSim(t *testing.T, w *walk) {
 	}
 }
 
+// shareCode encodes a build file as PoB writes share codes: zlib, then base64 with the URL
+// alphabet.
+func shareCode(t *testing.T, file []byte) string {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zlib.NewWriter(&buf)
+	if _, err := w.Write(file); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return base64.URLEncoding.EncodeToString(buf.Bytes())
+}
+
 // chieftainXML is the level 90 Chieftain of the explanation goldens as a Path of Building file,
 // with the bandits killed and a helmet, which the import leaves out.
 func chieftainXML(t *testing.T) []byte {
@@ -271,6 +287,16 @@ func importPoB(t *testing.T, w *walk) {
 		t.Errorf("warnings %v, want the helmet ignored", warnings)
 	}
 	w.base = b
+}
+
+func importShareCode(t *testing.T, w *walk) {
+	b, _, err := pob.FromCode(shareCode(t, chieftainXML(t)), w.reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(b, w.base) {
+		t.Errorf("imported %+v, want the build of the same file", b)
+	}
 }
 
 func parseBuildFile(t *testing.T, w *walk) {

@@ -53,8 +53,6 @@ func needEnemy(syms ...string) need { return need{what: "enemy", waitsOn: syms} 
 
 func needDerived(syms ...string) need { return need{what: "derived conditions", waitsOn: syms} }
 
-func needShareCodes() need { return need{what: "share codes", waitsOn: []string{"build.FromCode"}} }
-
 func needBuildNew() need {
 	return need{what: "build.New", waitsOn: []string{"build.New", "poe1.Witch", "poe1.Elementalist"}}
 }
@@ -122,7 +120,7 @@ func sketchSetup() []sketchPart {
 func sketchLoad() []sketchPart {
 	return []sketchPart{
 		{name: "import a Path of Building file", run: sketchFromXML},
-		{name: "import a share code", code: `base, warnings, err = build.FromCode(shareCode)`, needs: []need{needShareCodes()}},
+		{name: "import a share code", run: sketchFromCode},
 		{name: "parse a build file", run: sketchParse},
 		{name: "make a build from scratch", code: `base = build.New(poe1.Witch, poe1.Elementalist)`, needs: []need{needBuildNew()}},
 	}
@@ -346,6 +344,16 @@ func sketchFromXML(t *testing.T, s *sketchState) {
 		t.Errorf("imported skills %+v, want the Fireball group (warnings %v)", base.Skills, warnings)
 	}
 	s.base = base
+}
+
+func sketchFromCode(t *testing.T, s *sketchState) {
+	base, warnings, err := pob.FromCode(shareCode(t, sketchXML(t)), s.reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(base, s.base) {
+		t.Errorf("imported %+v (warnings %v), want the build of the same file", base, warnings)
+	}
 }
 
 func sketchParse(t *testing.T, s *sketchState) {
