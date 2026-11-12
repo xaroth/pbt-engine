@@ -7,13 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
-
-	_ "embed"
 )
 
 // The pinned poe1 datasets: Previous is the league before Current.
@@ -22,15 +19,6 @@ const (
 	Current  = "3.29.3.6"
 )
 
-// commit is the pbt-data commit that holds the pinned datasets. CI and the README read the same
-// file.
-//
-//go:embed pbt-data-commit.txt
-var commit string
-
-// Commit returns the pbt-data commit that holds the pinned datasets.
-func Commit() string { return strings.TrimSpace(commit) }
-
 // ids are the dataset ids of the pinned versions.
 //
 //nolint:gochecknoglobals // a constant table
@@ -38,6 +26,12 @@ var ids = map[string]string{
 	Previous: "ab036e6f7a2a49481a99d34d1b79a2bdf1e09329bc748f36038e0f6cec41dcb9",
 	Current:  "f9bfe4de4f58bfaa7848ff5ff26852480c8af50ebd7d40b6fbc62e8f7ebc33b9",
 }
+
+// fetchHint tells how to put the pinned datasets under $PBT_DATASETS.
+const fetchHint = "fetch them with go run ./internal/realdata/fetch \"$PBT_DATASETS\""
+
+// ID returns the dataset id pinned for version, or "" when version is not pinned.
+func ID(version string) string { return ids[version] }
 
 // Versions are the pinned versions, oldest first.
 func Versions() []string {
@@ -55,7 +49,7 @@ func Root(tb testing.TB) string {
 }
 
 // Open opens the pinned dataset of exactly version among the datasets under $PBT_DATASETS (one
-// per directory: pulled from pbt-data, or one per version). It skips without $PBT_DATASETS and
+// per directory, such as fetch writes them). It skips without $PBT_DATASETS and
 // fails when the dataset is missing or is not the pinned one, so a stale checkout cannot pass
 // by skipping.
 func Open(tb testing.TB, version string) *dataset.Store {
@@ -74,7 +68,7 @@ func Open(tb testing.TB, version string) *dataset.Store {
 	}
 	m := res.Store.Manifest()
 	if m.Version != version || m.ID != want {
-		tb.Fatalf("PBT_DATASETS has poe1 %s (id %s), want %s (id %s): check out pbt-data %s", m.Version, m.ID, version, want, Commit())
+		tb.Fatalf("PBT_DATASETS has poe1 %s (id %s), want %s (id %s): %s", m.Version, m.ID, version, want, fetchHint)
 	}
 	return res.Store
 }
@@ -106,11 +100,11 @@ func Record(tb testing.TB, version string) *Recorder {
 			continue
 		}
 		if m.ID != want {
-			tb.Fatalf("PBT_DATASETS has poe1 %s with id %s, want id %s: check out pbt-data %s", version, m.ID, want, Commit())
+			tb.Fatalf("PBT_DATASETS has poe1 %s with id %s, want id %s: %s", version, m.ID, want, fetchHint)
 		}
 		return &Recorder{fsys: fsys, opened: map[string]bool{}}
 	}
-	tb.Fatalf("PBT_DATASETS has no poe1 %s: check out pbt-data %s", version, Commit())
+	tb.Fatalf("PBT_DATASETS has no poe1 %s: %s", version, fetchHint)
 	return nil
 }
 
