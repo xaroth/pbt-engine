@@ -41,6 +41,7 @@ func craftingDataset() *dataset.Dataset {
 	it.EssenceMods = []dataset.ModClasses{
 		{Mod: "EssenceEnergyShield", Classes: []string{"Gloves"}},
 		{Mod: "EssenceLocalEnergyShield", Classes: []string{"Belt"}},
+		{Mod: "EssenceRingWard", Classes: []string{"Amulet"}},
 	}
 	d.Texts[0].BaseNames = append(d.Texts[0].BaseNames, dataset.Name{ID: oddRingBase, Name: "Odd Ring"})
 	return d
@@ -174,6 +175,24 @@ func TestParseCrafting(t *testing.T) {
 			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+60 to maximum Energy Shield\n",
 			rare(ringBase, line(build.Explicit, "+60 to maximum Energy Shield", "energy_shield", 60)),
 			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"a retired local mod that names no item kind, on gloves",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 0\n+70 to maximum Energy Shield\n",
+			rare(glovesBase, line(build.Explicit, "+70 to maximum Energy Shield", "local_energy_shield", 70)),
+			nil,
+		},
+		{
+			"no retired local mod that names no item kind on a ring",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+70 to maximum Energy Shield\n",
+			rare(ringBase, line(build.Explicit, "+70 to maximum Energy Shield", "energy_shield", 70)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"no essence mod as retired where it is not listed, though its weights name the item",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+280 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+280 to Ward", "ward", 280)),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
 		},
 		{
 			"no former bench craft on a normal item",

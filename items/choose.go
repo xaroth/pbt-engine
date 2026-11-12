@@ -379,18 +379,20 @@ func namesNoKind(m *dataset.Mod) bool {
 // retiredAffix is a prefix or suffix of a magic or rare item like t that spawns nowhere now:
 // its weights are all 0 and name one of its base's tags or no item kind, such as older versions
 // of mods and mods of retired crafting, but not an essence mod (see essence). Weights on a tag
-// an influence gives are elevated mods (see elevated). Without the dataset's essence mods, item
-// mods that name no kind stand in for essence mods instead.
+// an influence gives are elevated mods (see elevated).
 func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
 	if !magicOrRare(t) || !affix(m) || !affixDomain(m, t) || len(m.SpawnWeights) == 0 || spawns(m) {
 		return false
 	}
+	if r.crafting.known && r.crafting.essence[m.ID] != nil {
+		// An essence mod counts only where the dataset lists it.
+		return false
+	}
 	if namesNoKind(m) {
-		// With the dataset's essence mods, an essence mod counts only where it lists it.
-		if r.crafting.known {
-			return r.crafting.essence[m.ID] == nil
-		}
-		return m.Domain != domainItem
+		// Nothing says which items it went on: one with a local stat counts on armour and
+		// weapons only. Without the dataset's essence mods, item mods like this stand in for
+		// essence mods instead (see essence).
+		return (r.crafting.known || m.Domain != domainItem) && r.fitsStandIn(m, t)
 	}
 	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
 		return w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag)
@@ -398,9 +400,9 @@ func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
 }
 
 // passiveTreeMod is a Crucible or Scourge mod of t's domain. Neither can be added today, so they
-// count as retired.
+// count as retired; one with spawn weights only on the items they name.
 func passiveTreeMod(m *dataset.Mod, t target) bool {
-	if m.Domain != t.domain {
+	if m.Domain != t.domain || spawns(m) && !spawnsOn(m, t.tags) {
 		return false
 	}
 	switch m.Generation {
