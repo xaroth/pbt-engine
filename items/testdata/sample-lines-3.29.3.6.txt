@@ -57,11 +57,7 @@ rare Paladin Gloves | +22 to maximum Energy Shield | local_energy_shield=22
 rare Paladin Boots | 30% increased Rarity of Items found | base_item_found_rarity_+%=30
 rare Paladin Boots | 12% increased Movement Speed if you haven't been Hit Recently | movement_velocity_while_not_hit_+%=12
 rare Spiraled Wand | Adds 8 to 15 Cold Damage | local_minimum_added_cold_damage=8, local_maximum_added_cold_damage=15
-# The wand's line is local. No local roll gives it, alone or as two mods, and no Crucible mod does
-# (WeaponTreeAddedElementalLowElementalAilmentChance2 adds 6 to 10); until the dataset says which
-# items a bench craft applies to, the global craft of rings and gloves counts on wands too, so it
-# reads as global.
-rare Spiraled Wand | Adds 6 to 12 Fire Damage | global_minimum_added_fire_damage=6, global_maximum_added_fire_damage=12
+rare Spiraled Wand | Adds 6 to 12 Fire Damage | local_minimum_added_fire_damage=6, local_maximum_added_fire_damage=12
 rare Spiraled Wand | +90 to Accuracy Rating | local_accuracy_rating=90
 unique Rustic Sash | +11% to all Elemental Resistances | base_resist_all_elements_%=11
 rare Blasting Wand | Cannot roll Caster Modifiers | kinetic_wand_implicit_cannot_roll_caster_modifiers=1

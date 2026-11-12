@@ -136,7 +136,7 @@ func TestSampleReadings(t *testing.T) {
 	// which allows lines no roll of the game gives, and its lines lost their markers such as
 	// {crafted}.
 	wantWarned := map[build.Code]int{
-		items.LineUnread: 6, items.LineAmbiguous: 2, items.RollAssumed: 4, items.RollOutOfRange: 15, items.ValueAssumed: 2,
+		items.LineUnread: 6, items.LineAmbiguous: 2, items.RollAssumed: 4, items.RollOutOfRange: 18, items.ValueAssumed: 2,
 	}
 	if diff := cmp.Diff(wantWarned, warned); diff != "" {
 		t.Errorf("warnings by code (-want +got):\n%s", diff)

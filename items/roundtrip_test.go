@@ -47,22 +47,24 @@ func TestRoundTrip(t *testing.T) {
 	//     stats (Delve helmets' reservation) or with a level the text does not show (curses on
 	//     hit of two influence tiers).
 	//   - out of range: one above a mod's high values. Most are warned out of range; the rest
-	//     are values another mod or two of one stat give. The wrong ones read as a bench craft in
-	//     range under the stand-in (a global craft on a wand, a local craft on a shield or gloves).
+	//     are values another mod or two of one stat give. The 3 silent lines come from the
+	//     stand-ins of a dataset without the crafting fields: weapon crafts without weights
+	//     (local attack speed, local added lightning) on a shield and gloves, and an essence-type
+	//     mod giving a cap's suppression exactly.
 	//   - enchant: Chain Hook's rage chance, two tiers of one text.
 	//   - unique: the game files do not say which unique has a mod, and unique mods of other stats
 	//     share text; those are warned ambiguous, none silent.
 	want := map[string][5]int{
 		"affix":          {7512, 0, 16, 1, 0},
 		"fractured":      {7512, 0, 16, 1, 0},
-		"out of range":   {3754, 11, 1483, 0, 9},
+		"out of range":   {3754, 6, 1565, 0, 3},
 		"implicit":       {1196, 0, 0, 0, 0},
 		"eldritch":       {6720, 0, 0, 0, 0},
 		"corrupted":      {476, 0, 0, 0, 0},
 		"enchant":        {2922, 0, 4, 0, 0},
 		"unique":         {17608, 129, 776, 0, 0},
-		"crafted":        {1890, 0, 0, 0, 0},
-		"unmarked craft": {1890, 0, 0, 0, 0},
+		"crafted":        {1872, 0, 0, 0, 0},
+		"unmarked craft": {1872, 0, 0, 0, 0},
 	}
 	if g.crafting {
 		// Counts for a dataset with the crafting fields are pinned with the first such pin.
@@ -501,15 +503,23 @@ func (g *generator) spawnBase(m *dataset.Mod) (*dataset.ItemBase, string) {
 	return nil, ""
 }
 
-// craftBase returns the first base a prefix or suffix of m's first stat spawns on: the pinned
-// dataset does not say which items a bench craft applies to.
+// craftBase returns the first base a prefix or suffix of m's first stat spawns on, and, when
+// m's weights name item kinds (as crafts' do, such as {two_hand_weapon 0}), of one of those: a
+// dataset without the crafting fields does not say which items a bench craft applies to.
 func (g *generator) craftBase(m *dataset.Mod) *dataset.ItemBase {
 	for _, b := range g.bases {
-		if g.domain(b) == 1 && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
+		if g.domain(b) == 1 && (rtNamesNoKind(m) || slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
+			return w.Tag != "default" && slices.Contains(b.Tags, w.Tag)
+		})) && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
 			return b
 		}
 	}
 	return nil
+}
+
+// rtNamesNoKind reports whether m's weights name no tag but "default".
+func rtNamesNoKind(m *dataset.Mod) bool {
+	return !slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return w.Tag != "default" })
 }
 
 // uniqueBase returns a base for unique mod m: the game files do not say which unique has it. A
