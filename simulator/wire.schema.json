@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/xaroth/pbt-engine/simulator/wire.schema.json",
+  "title": "Wire",
+  "description": "The JSON of simulator results, as a host sends them to a UI. Every field is always present unless marked optional, and lists keep the engine's order.",
+  "anyOf": [
+    { "$ref": "#/$defs/Stats" },
+    { "$ref": "#/$defs/Diff" },
+    { "$ref": "#/$defs/Result" },
+    { "$ref": "#/$defs/Output" }
+  ],
+  "$defs": {
+    "Output": {
+      "title": "Output",
+      "description": "A catalogue entry: an output's key and how to show its value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "unit", "places"],
+      "properties": {
+        "key": { "type": "string", "description": "The output key, such as \"player.life\"." },
+        "label": { "type": "string" },
+        "unit": { "$ref": "#/$defs/Unit" },
+        "places": { "type": "integer", "minimum": 0, "description": "Decimal places to show." }
+      }
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "An output's unit: none, percent or per second.",
+      "enum": ["", "%", "/s"]
+    },
+    "OutputValue": {
+      "title": "OutputValue",
+      "description": "An output's value with its catalogue entry. The value is not rounded to places.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "unit", "places", "value"],
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "unit": { "$ref": "#/$defs/Unit" },
+        "places": { "type": "integer", "minimum": 0 },
+        "value": { "type": "number" }
+      }
+    },
+    "Warning": {
+      "title": "Warning",
+      "description": "Something a run went on without; message says what was done about it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "subject", "message"],
+      "properties": {
+        "code": { "type": "string", "description": "The kind of warning, such as \"node-unknown\"." },
+        "subject": { "type": "string", "description": "What it is about, such as \"node 12345\"." },
+        "message": { "type": "string" }
+      }
+    },
+    "Stats": {
+      "title": "Stats",
+      "description": "The result of one simulation: output values in display order or as asked for, and warnings.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "outputs", "warnings"],
+      "properties": {
+        "version": { "type": "string", "description": "The dataset version simulated on." },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/OutputValue" } },
+        "warnings": { "type": "array", "items": { "$ref": "#/$defs/Warning" } }
+      }
+    },
+    "Change": {
+      "title": "Change",
+      "description": "One output before and after.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "unit", "places", "before", "after", "abs", "pct", "changed"],
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "unit": { "$ref": "#/$defs/Unit" },
+        "places": { "type": "integer", "minimum": 0 },
+        "before": { "type": "number" },
+        "after": { "type": "number" },
+        "abs": { "type": "number", "description": "after - before." },
+        "pct": {
+          "type": ["number", "null"],
+          "description": "abs as a percentage of |before|; null when before is 0."
+        },
+        "changed": { "type": "boolean", "description": "Whether before and after differ." }
+      }
+    },
+    "StatValue": {
+      "title": "StatValue",
+      "description": "A game stat id with its value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stat", "value"],
+      "properties": {
+        "stat": { "type": "string" },
+        "value": { "type": "integer" }
+      }
+    },
+    "NodeChange": {
+      "title": "NodeChange",
+      "description": "An allocated node whose data differs between two datasets.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "fields", "before", "after"],
+      "properties": {
+        "node": { "type": "integer", "minimum": 0 },
+        "fields": { "type": "array", "items": { "type": "string" }, "description": "The node fields that differ." },
+        "before": { "type": "array", "items": { "$ref": "#/$defs/StatValue" }, "description": "The node's stats, by stat id." },
+        "after": { "type": "array", "items": { "$ref": "#/$defs/StatValue" } }
+      }
+    },
+    "Diff": {
+      "title": "Diff",
+      "description": "Two simulations compared.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "changes", "edits", "dataChanges"],
+      "properties": {
+        "before": { "$ref": "#/$defs/Stats" },
+        "after": { "$ref": "#/$defs/Stats" },
+        "changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Change" },
+          "description": "Each output computed on both sides, in the before side's order."
+        },
+        "edits": {
+          "type": ["array", "null"],
+          "items": { "$ref": "#/$defs/Edit" },
+          "description": "Edits that turn the before build into the after build; null when none can (another game or tree variant)."
+        },
+        "dataChanges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/NodeChange" },
+          "description": "Nodes either build allocates whose data differs between the two datasets, by node id."
+        }
+      }
+    },
+    "Result": {
+      "title": "Result",
+      "description": "One variant of a sweep.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "edits", "changes", "warnings", "error"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "description": "The variant's index in the sweep's variants." },
+        "edits": { "type": "array", "items": { "$ref": "#/$defs/Edit" } },
+        "changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Change" },
+          "description": "Each output against the base build, in catalogue order; empty when error is set."
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Warning" },
+          "description": "Warnings about the variant's edits."
+        },
+        "error": { "type": ["string", "null"], "description": "Why the variant could not be simulated." }
+      }
+    },
+    "Edit": {
+      "title": "Edit",
+      "description": "One change to a build. Fields other than op are present only when set.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": {
+          "enum": [
+            "allocate", "deallocate", "set-mastery", "clear-mastery", "set-level", "set-class",
+            "set-ascendancy", "set-config", "clear-config", "add-skill-group", "remove-skill-group",
+            "set-skill-slot", "set-main-skill", "add-gem", "remove-gem", "set-active-gem",
+            "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"
+          ]
+        },
+        "nodes": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "node": { "type": "integer", "minimum": 0 },
+        "effect": { "type": "integer", "minimum": 0 },
+        "level": { "type": "integer" },
+        "class": { "type": "string" },
+        "ascendancy": { "type": "string" },
+        "key": { "type": "string", "description": "A config key." },
+        "value": { "description": "A config value, as the key takes it." },
+        "skill": { "$ref": "#/$defs/SkillAt" },
+        "group": { "$ref": "#/$defs/SkillGroup" },
+        "gem": { "$ref": "#/$defs/Gem" },
+        "slot": { "$ref": "#/$defs/Slot" },
+        "quality": { "type": "integer" },
+        "enabled": { "type": "boolean" },
+        "item": { "$ref": "#/$defs/Item" }
+      }
+    },
+    "SkillAt": {
+      "title": "SkillAt",
+      "description": "A skill group, and a gem in it, by index.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "gem"],
+      "properties": {
+        "group": { "type": "integer" },
+        "gem": { "type": "integer" }
+      }
+    },
+    "Slot": {
+      "title": "Slot",
+      "enum": [
+        "weapon", "offhand", "weapon-swap", "offhand-swap", "helmet", "body-armour", "gloves", "boots",
+        "amulet", "ring-1", "ring-2", "belt"
+      ]
+    },
+    "SkillGroup": {
+      "title": "SkillGroup",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "slot": { "$ref": "#/$defs/Slot" },
+        "gems": { "type": "array", "items": { "$ref": "#/$defs/Gem" } },
+        "active": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "Gem": {
+      "title": "Gem",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "level"],
+      "properties": {
+        "id": { "type": "string", "description": "The dataset gem id." },
+        "effect": { "type": "string", "description": "The variant's effect id, when not the gem's first." },
+        "level": { "type": "integer" },
+        "quality": { "type": "integer" },
+        "support": { "type": "boolean" },
+        "disabled": { "type": "boolean" }
+      }
+    },
+    "Item": {
+      "title": "Item",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rarity", "base"],
+      "properties": {
+        "rarity": { "enum": ["normal", "magic", "rare", "unique"] },
+        "name": { "type": "string" },
+        "base": { "type": "string", "description": "The dataset item base id." },
+        "itemLevel": { "type": "integer" },
+        "quality": { "type": "integer" },
+        "sockets": { "type": "string" },
+        "armour": { "type": "integer" },
+        "evasion": { "type": "integer" },
+        "energyShield": { "type": "integer" },
+        "ward": { "type": "integer" },
+        "flags": { "type": "array", "items": { "type": "string" } },
+        "mods": { "type": "array", "items": { "$ref": "#/$defs/ModLine" } }
+      }
+    },
+    "ModLine": {
+      "title": "ModLine",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text"],
+      "properties": {
+        "kind": { "enum": ["implicit", "explicit", "enchant", "crafted", "fractured"] },
+        "text": { "type": "string" },
+        "mod": { "type": "string" },
+        "stats": { "type": "array", "items": { "$ref": "#/$defs/StatValue" } }
+      }
+    }
+  }
+}

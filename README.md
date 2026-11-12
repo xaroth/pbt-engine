@@ -39,6 +39,10 @@ A build file (`build` package) names a game, version, tree variant, class (`Char
 
 Path of Building build files (PoE1) import with `pob.FromXML`: the active tree's version, variant, nodes and mastery choices, class and ascendancy (names mapped through the dataset's English text), level, bandits and the campaign stage from PoB's resistance penalty. The active skill set's groups import with their slot, gems (resolved by gem id, the gem granting the skill id, or English name through the dataset's skills group, in the order PoB loads them), levels, quality, enabled state, the group's main active gem and the main group. Everything else in the file gives a `pob-*` warning: other trees, cluster jewel nodes (dropped), jewels, tattoos, config inputs, items, pantheon, and of the skills: groups an item or the tree grants, gems the dataset lacks (dropped), names the dataset cannot choose between, a main skill group that is not imported, slots without sockets, the switches of a Vaal gem's two skills, and every group when the dataset has no skills group.
 
+## Wire format
+
+`Stats`, `Diff` and sweep `Result` encode to JSON with `encoding/json` for hosts that send results on, such as a browser worker to its UI; `simulator/wire.schema.json` (JSON Schema 2020-12) describes them, for generating types in other languages. Each output value carries its key, label, unit and decimal places from the output catalogue; `Sim.Outputs()` encodes to the catalogue entries alone. Every field is always present except the optional fields of an edit, lists keep the engine's order, and a percentage change from 0 is `null`, so equal results give equal bytes. `Stats` encode their values only, not the build and config kept for `Explain`. The golden files in `simulator/testdata/wire` hold the JSON of each kind and are checked against the schema; `go test ./simulator -run Wire -update` rewrites them after a deliberate change of shape, which also needs the schema changed to match.
+
 ## Benchmarks
 
 Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests only. Each benchmark's doc comment names its target time.

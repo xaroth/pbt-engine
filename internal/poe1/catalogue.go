@@ -25,10 +25,10 @@ const (
 // Output is a named value of the sheet a consumer can ask for and render without knowing the
 // engine stats: its engine stat, a label, a unit and the decimal places it shows.
 type Output struct {
-	Key    output.Key
-	Label  string
-	Unit   string
-	Places int
+	Key    output.Key `json:"key"`
+	Label  string     `json:"label"`
+	Unit   string     `json:"unit"`
+	Places int        `json:"places"`
 	stat   string
 }
 

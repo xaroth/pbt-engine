@@ -1,0 +1,276 @@
+package simulator_test
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/pob"
+	"github.com/xaroth/pbt-engine/simulator"
+)
+
+const schemaFile = "wire.schema.json"
+
+// wireSchema compiles the wire schema's definition def.
+func wireSchema(tb testing.TB, def string) *jsonschema.Schema {
+	tb.Helper()
+	f, err := os.Open(schemaFile)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	defer f.Close()
+	doc, err := jsonschema.UnmarshalJSON(f)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource(schemaFile, doc); err != nil {
+		tb.Fatal(err)
+	}
+	sch, err := c.Compile(schemaFile + "#/$defs/" + def)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return sch
+}
+
+// validate checks data against the schema's definition def.
+func validate(tb testing.TB, def string, data []byte) {
+	tb.Helper()
+	v, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	if err := wireSchema(tb, def).Validate(v); err != nil {
+		tb.Errorf("%s does not match the schema: %v\n%s", def, err, data)
+	}
+}
+
+// wireGolden compares the indented JSON of v with testdata/wire/name, or writes it with
+// -update, and checks it against the schema's definition def unless def is empty.
+func wireGolden(t *testing.T, name, def string, v any) {
+	t.Helper()
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	if def != "" {
+		validate(t, def, data)
+	}
+	path := filepath.Join("testdata", "wire", name)
+	if *update {
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%v (run with -update to write it)", err)
+	}
+	if diff := cmp.Diff(string(want), string(data)); diff != "" {
+		t.Errorf("%s differs; if the wire format changed on purpose, update %s and run with -update (-want +got):\n%s",
+			path, schemaFile, diff)
+	}
+}
+
+// The wire JSON of each result kind equals its golden file and matches the schema. A change
+// of shape fails here until the goldens are rewritten, and then fails the schema check until
+// the schema says the same.
+func TestWireGolden(t *testing.T) {
+	t.Parallel()
+	s := newSim(t)
+	b := marauderBuild(90, 2, 3, 4, 99)
+	b.Masteries = map[uint32]uint32{4: 7}
+	b.Version = "3.28"
+	older, err := simulator.New(testStoreWith(t, "3.28.0.16", 10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	few := simulator.Outputs(poe1.Dexterity, poe1.Life, poe1.FireResistance, poe1.LifeRegeneration)
+	across, err := simulate(t, older, marauderBuild(90, 2, 3), few).Diff(simulate(t, s, marauderBuild(90, 2, 3), few))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compare, err := s.Compare(marauderBuild(1), marauderBuild(90, 2, 6), few, simulator.Set(poe1.Campaign, poe1.CampaignActs1To5))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sweep, err := s.Sweep(marauderBuild(70, 2), [][]build.Edit{
+		{build.Allocate(3)}, {build.SetGemLevel(5, 0, 20)}, {build.Allocate(99)}, nil,
+	}, few)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testCases := []struct {
+		name, def string
+		v         any
+	}{
+		{"stats.json", "Stats", simulate(t, s, b)},
+		{"diff.json", "Diff", compare},
+		{"diff-datasets.json", "Diff", across},
+		{"diff-unconvertible.json", "Diff", &simulator.Diff{Before: compare.Before, After: compare.After}},
+		{"result.json", "Result", sweep[0]},
+		{"result-error.json", "Result", sweep[1]},
+		{"result-warning.json", "Result", sweep[2]},
+		{"result-no-edits.json", "Result", sweep[3]},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			wireGolden(t, testCase.name, testCase.def, testCase.v)
+		})
+	}
+}
+
+// The catalogue's JSON equals its golden file, and each entry matches the schema.
+func TestWireOutputs(t *testing.T) {
+	t.Parallel()
+	outputs := newSim(t).Outputs()
+	for _, o := range outputs {
+		data, err := json.Marshal(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		validate(t, "Output", data)
+	}
+	wireGolden(t, "outputs.json", "", outputs)
+}
+
+// Warnings, catalogue entries and edits read back into the values they were written from.
+func TestWireRoundTrip(t *testing.T) {
+	t.Parallel()
+	item := build.Item{
+		Rarity: build.Rare, Name: "Doom Crown", Base: "Metadata/Items/Armours/Helmets/HelmetStr10", ItemLevel: 84, Quality: 20,
+		Sockets: "R-R-B G", Armour: 500, Evasion: 1, EnergyShield: 2, Ward: 3, Flags: []string{"Corrupted"},
+		Mods: []build.ModLine{{
+			Kind: build.Explicit, Text: "+80 to maximum Life", Mod: "IncreasedLife7",
+			Stats: []build.StatValue{{Stat: "base_maximum_life", Value: 80}},
+		}},
+	}
+	gem := build.Gem{ID: "Fireball", Effect: "Alt", Level: 20, Quality: 23, Support: true, Disabled: true}
+	group := build.SkillGroup{Slot: build.SlotHelmet, Gems: []build.Gem{gem}, Active: 1}
+	setConfig, err := build.SetConfig(poe1.Campaign, poe1.CampaignActs1To5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edits := []build.Edit{
+		build.Allocate(1, 2), build.Deallocate(3), build.SetMastery(4, 7), build.ClearMastery(4), build.SetLevel(90),
+		build.SetClass("Metadata/Characters/Str/Str"), build.SetAscendancy("Juggernaut"), setConfig, build.ClearConfig("campaign"),
+		build.AddSkillGroup(group), build.RemoveSkillGroup(1), build.SetSkillSlot(0, build.SlotRing1), build.SetMainSkill(2),
+		build.AddGem(0, group.Gems[0]), build.RemoveGem(0, 1), build.SetActiveGem(0, 1), build.SetGemLevel(0, 1, 21),
+		build.SetGemQuality(0, 1, 23), build.SetGemEnabled(0, 1, true), build.Equip(build.SlotHelmet, item), build.Unequip(build.SlotBelt),
+	}
+	for _, e := range edits {
+		roundTrip(t, "Edit", e)
+	}
+	roundTrip(t, "Warning", build.Warning{Code: build.NodeUnknown, Subject: "node 99", Message: "dropped"})
+	for _, o := range newSim(t).Outputs() {
+		roundTrip(t, "Output", o)
+	}
+}
+
+// roundTrip checks v's JSON against the schema's definition def and that it reads back into v.
+func roundTrip[T any](t *testing.T, def string, v T) {
+	t.Helper()
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validate(t, def, data)
+	var got T
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(v, got, cmpopts.IgnoreUnexported(simulator.Output{})); diff != "" {
+		t.Errorf("%s round trip (-want +got):\n%s", data, diff)
+	}
+}
+
+// Equal results give equal bytes, though Result holds its changes in a map.
+func TestWireDeterministic(t *testing.T) {
+	t.Parallel()
+	res, err := newSim(t).Sweep(marauderBuild(70, 2), [][]build.Edit{{build.Allocate(3)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 20 {
+		if got, err := json.Marshal(res); err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("got %s, %v; want %s", got, err, want)
+		}
+	}
+}
+
+// The wire JSON of a real build's results matches the schema on both pinned datasets.
+func TestWireRealData(t *testing.T) {
+	t.Parallel()
+	previous, err := simulator.New(realdata.Open(t, realdata.Previous))
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := simulator.New(realdata.Open(t, realdata.Current))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg, err := dataset.OpenRoot(os.DirFS(realdata.Root(t)))
+	if reg == nil {
+		t.Fatal(err)
+	}
+	base, _, err := pob.FromXML(chieftainXML(t), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := base.Clone()
+	if err := next.Apply(build.Deallocate(base.Nodes[len(base.Nodes)-5:]...)); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, current, base)
+	compare, err := current.Compare(base, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	across, err := simulate(t, previous, base).Diff(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(across.DataChanges) == 0 {
+		t.Error("3.28 to 3.29: no data changes, want some to check against the schema")
+	}
+	variants := make([][]build.Edit, 0, 5)
+	for _, n := range base.Nodes[len(base.Nodes)-5:] {
+		variants = append(variants, []build.Edit{build.Deallocate(n)})
+	}
+	results, err := current.Sweep(base, variants)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(def string, v any) {
+		t.Helper()
+		data, err := json.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		validate(t, def, data)
+	}
+	check("Stats", st)
+	check("Diff", compare)
+	check("Diff", across)
+	for _, r := range results {
+		check("Result", r)
+	}
+}
