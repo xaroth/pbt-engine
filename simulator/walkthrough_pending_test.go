@@ -25,7 +25,6 @@ type pending struct {
 func capabilities() []string {
 	return []string{
 		"an enemy actor",
-		"Path of Building share codes",
 		"skills on a build",
 		"charges in config",
 		"conditions derived from the build",

@@ -75,12 +75,9 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // sockets, the switches of a Vaal gem's two skills, and every group when the dataset has no
 // skills group.
 func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning, error) {
-	f, err := pobxml.Parse(data)
-	switch {
-	case errors.Is(err, pobxml.ErrPoE2):
-		return nil, nil, ErrPoE2
-	case err != nil:
-		return nil, nil, fmt.Errorf("%w: %w", ErrNotPoB, err)
+	f, err := parse(data)
+	if err != nil {
+		return nil, nil, err
 	}
 	im := &importer{file: f, spec: f.Specs[f.Active]}
 	version, variant, err := versionOf(im.spec.TreeVersion)
@@ -105,6 +102,29 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	}
 	im.leftOut()
 	return b, im.warnings, nil
+}
+
+// FileVersion returns the game version of a PoB build file's active tree, such as "3.29", for
+// a host to fetch that dataset before FromXML. Its errors are FromXML's for a file that is not
+// a PoE1 build or has an unknown tree version.
+func FileVersion(data []byte) (string, error) {
+	f, err := parse(data)
+	if err != nil {
+		return "", err
+	}
+	version, _, err := versionOf(f.Specs[f.Active].TreeVersion)
+	return version, err
+}
+
+func parse(data []byte) (*pobxml.File, error) {
+	f, err := pobxml.Parse(data)
+	switch {
+	case errors.Is(err, pobxml.ErrPoE2):
+		return nil, ErrPoE2
+	case err != nil:
+		return nil, fmt.Errorf("%w: %w", ErrNotPoB, err)
+	}
+	return f, nil
 }
 
 type importer struct {
