@@ -72,7 +72,7 @@ Tests that need real datasets (sheets, goldens, node power, the semantics table 
 
 ```sh
 git clone https://github.com/xaroth/pbt-data /tmp/pbt-data
-git -C /tmp/pbt-data checkout 4221dc07cd12412079d4f69f22dc702168fb3774
+git -C /tmp/pbt-data checkout 7c0b1eb60ad3272d6b15a77c843a726ff68f6eab
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./...
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 ./statdesc -update   # rewrite the fixtures, coverage reports, golden lists and explanation and read goldens
 go test ./simulator -run Sketch -update   # rewrite the list of API sketch parts that cannot run yet
