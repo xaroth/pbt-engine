@@ -1,0 +1,16 @@
+{
+  "index": 1,
+  "edits": [
+    {
+      "op": "set-gem-level",
+      "level": 20,
+      "skill": {
+        "group": 5,
+        "gem": 0
+      }
+    }
+  ],
+  "changes": [],
+  "warnings": [],
+  "error": "simulator: edit 0: build: no such skill group or gem: set-gem-level: group 5"
+}

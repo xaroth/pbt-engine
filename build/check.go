@@ -45,9 +45,9 @@ const (
 // Warning is something a run can go on without; Message says what was done about it. Subject
 // names what it is about, such as "node 12345".
 type Warning struct {
-	Code    Code
-	Subject string
-	Message string
+	Code    Code   `json:"code"`
+	Subject string `json:"subject"`
+	Message string `json:"message"`
 }
 
 func (w Warning) String() string { return string(w.Code) + " " + w.Subject + ": " + w.Message }

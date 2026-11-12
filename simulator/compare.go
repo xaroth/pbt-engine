@@ -31,8 +31,8 @@ type NodeChange struct {
 // Diff compares two simulations.
 type Diff struct {
 	Before, After *Stats
-	// Edits turn the before build into the after build; nil when they cannot (another game
-	// or tree variant).
+	// Edits turn the before build into the after build, empty for equal builds; nil when they
+	// cannot (another game or tree variant).
 	Edits []build.Edit
 	// DataChanges are the nodes either build allocates whose data differs between the two
 	// datasets; empty when both ran on one dataset or on different tree variants. A node
@@ -56,7 +56,7 @@ func (d *Diff) Get(k output.Key) Change {
 func (d *Diff) Changed() []output.Key {
 	var out []output.Key
 	for _, k := range d.Before.keys {
-		if c := d.Get(k); c.Has && math.Float64bits(c.Before) != math.Float64bits(c.After) {
+		if c := d.Get(k); c.Has && differs(c) {
 			out = append(out, k)
 		}
 	}
@@ -120,7 +120,7 @@ func (s *Sim) runPair(ra, rb *run, keys []output.Key) (*Stats, *Stats, error) {
 func (st *Stats) Diff(other *Stats) (*Diff, error) {
 	d := &Diff{Before: st, After: other}
 	if edits, err := build.Diff(st.build, other.build); err == nil {
-		d.Edits = edits
+		d.Edits = orEmpty(edits)
 	}
 	if st.sim.store != other.sim.store {
 		changes, err := nodeChanges(st, other)

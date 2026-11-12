@@ -91,7 +91,7 @@ func TestProbe(t *testing.T) {
 	if out == "" {
 		return
 	}
-	data, err := json.MarshalIndent(got, "", "\t") //nolint:musttag // a dump compared byte for byte; Go field names are fine
+	data, err := json.MarshalIndent(got, "", "\t")
 	if err != nil {
 		t.Fatal(err)
 	}

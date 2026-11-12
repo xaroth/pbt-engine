@@ -1,0 +1,159 @@
+{
+  "before": {
+    "version": "3.28.0.16",
+    "outputs": [
+      {
+        "key": "player.dexterity",
+        "label": "Dexterity",
+        "unit": "",
+        "places": 0,
+        "value": 2
+      },
+      {
+        "key": "player.life",
+        "label": "Life",
+        "unit": "",
+        "places": 0,
+        "value": 1258
+      },
+      {
+        "key": "player.fire_resistance",
+        "label": "Fire Resistance",
+        "unit": "%",
+        "places": 0,
+        "value": -60
+      },
+      {
+        "key": "player.life_regeneration",
+        "label": "Life Regeneration",
+        "unit": "/s",
+        "places": 1,
+        "value": 0
+      }
+    ],
+    "warnings": [
+      {
+        "code": "version-mismatch",
+        "subject": "version",
+        "message": "build for 3.29, simulated on dataset 3.28.0.16"
+      }
+    ]
+  },
+  "after": {
+    "version": "3.29.3.3",
+    "outputs": [
+      {
+        "key": "player.dexterity",
+        "label": "Dexterity",
+        "unit": "",
+        "places": 0,
+        "value": 0
+      },
+      {
+        "key": "player.life",
+        "label": "Life",
+        "unit": "",
+        "places": 0,
+        "value": 1269
+      },
+      {
+        "key": "player.fire_resistance",
+        "label": "Fire Resistance",
+        "unit": "%",
+        "places": 0,
+        "value": -60
+      },
+      {
+        "key": "player.life_regeneration",
+        "label": "Life Regeneration",
+        "unit": "/s",
+        "places": 1,
+        "value": 0
+      }
+    ],
+    "warnings": []
+  },
+  "changes": [
+    {
+      "key": "player.dexterity",
+      "label": "Dexterity",
+      "unit": "",
+      "places": 0,
+      "before": 2,
+      "after": 0,
+      "abs": -2,
+      "pct": -100,
+      "changed": true
+    },
+    {
+      "key": "player.life",
+      "label": "Life",
+      "unit": "",
+      "places": 0,
+      "before": 1258,
+      "after": 1269,
+      "abs": 11,
+      "pct": 0.8744038155802861,
+      "changed": true
+    },
+    {
+      "key": "player.fire_resistance",
+      "label": "Fire Resistance",
+      "unit": "%",
+      "places": 0,
+      "before": -60,
+      "after": -60,
+      "abs": 0,
+      "pct": 0,
+      "changed": false
+    },
+    {
+      "key": "player.life_regeneration",
+      "label": "Life Regeneration",
+      "unit": "/s",
+      "places": 1,
+      "before": 0,
+      "after": 0,
+      "abs": 0,
+      "pct": null,
+      "changed": false
+    }
+  ],
+  "edits": [],
+  "dataChanges": [
+    {
+      "node": 2,
+      "fields": [
+        "stats"
+      ],
+      "before": [
+        {
+          "stat": "base_dexterity",
+          "value": 2
+        },
+        {
+          "stat": "base_intelligence",
+          "value": 3
+        },
+        {
+          "stat": "base_maximum_life",
+          "value": 10
+        },
+        {
+          "stat": "base_maximum_mana",
+          "value": 4
+        },
+        {
+          "stat": "base_strength",
+          "value": 1
+        }
+      ],
+      "after": [
+        {
+          "stat": "base_maximum_life",
+          "value": 20
+        }
+      ]
+    }
+  ]
+}

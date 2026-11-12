@@ -1,0 +1,131 @@
+{
+  "before": {
+    "version": "3.29.3.3",
+    "outputs": [
+      {
+        "key": "player.dexterity",
+        "label": "Dexterity",
+        "unit": "",
+        "places": 0,
+        "value": 0
+      },
+      {
+        "key": "player.life",
+        "label": "Life",
+        "unit": "",
+        "places": 0,
+        "value": 66
+      },
+      {
+        "key": "player.fire_resistance",
+        "label": "Fire Resistance",
+        "unit": "%",
+        "places": 0,
+        "value": 0
+      },
+      {
+        "key": "player.life_regeneration",
+        "label": "Life Regeneration",
+        "unit": "/s",
+        "places": 1,
+        "value": 0
+      }
+    ],
+    "warnings": []
+  },
+  "after": {
+    "version": "3.29.3.3",
+    "outputs": [
+      {
+        "key": "player.dexterity",
+        "label": "Dexterity",
+        "unit": "",
+        "places": 0,
+        "value": 0
+      },
+      {
+        "key": "player.life",
+        "label": "Life",
+        "unit": "",
+        "places": 0,
+        "value": 1154
+      },
+      {
+        "key": "player.fire_resistance",
+        "label": "Fire Resistance",
+        "unit": "%",
+        "places": 0,
+        "value": 0
+      },
+      {
+        "key": "player.life_regeneration",
+        "label": "Life Regeneration",
+        "unit": "/s",
+        "places": 1,
+        "value": 0
+      }
+    ],
+    "warnings": [
+      {
+        "code": "mastery-not-chosen",
+        "subject": "node 6",
+        "message": "allocated mastery with no effect chosen; it counts towards its group only"
+      }
+    ]
+  },
+  "changes": [
+    {
+      "key": "player.dexterity",
+      "label": "Dexterity",
+      "unit": "",
+      "places": 0,
+      "before": 0,
+      "after": 0,
+      "abs": 0,
+      "pct": null,
+      "changed": false
+    },
+    {
+      "key": "player.life",
+      "label": "Life",
+      "unit": "",
+      "places": 0,
+      "before": 66,
+      "after": 1154,
+      "abs": 1088,
+      "pct": 1648.4848484848485,
+      "changed": true
+    },
+    {
+      "key": "player.fire_resistance",
+      "label": "Fire Resistance",
+      "unit": "%",
+      "places": 0,
+      "before": 0,
+      "after": 0,
+      "abs": 0,
+      "pct": null,
+      "changed": false
+    },
+    {
+      "key": "player.life_regeneration",
+      "label": "Life Regeneration",
+      "unit": "/s",
+      "places": 1,
+      "before": 0,
+      "after": 0,
+      "abs": 0,
+      "pct": null,
+      "changed": false
+    }
+  ],
+  "edits": null,
+  "dataChanges": [
+    {
+      "node": 7,
+      "fields": [],
+      "before": [],
+      "after": []
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "index": 2,
+  "edits": [
+    {
+      "op": "allocate",
+      "nodes": [
+        99
+      ]
+    }
+  ],
+  "changes": [
+    {
+      "key": "player.dexterity",
+      "label": "Dexterity",
+      "unit": "",
+      "places": 0,
+      "before": 0,
+      "after": 0,
+      "abs": 0,
+      "pct": null,
+      "changed": false
+    },
+    {
+      "key": "player.life",
+      "label": "Life",
+      "unit": "",
+      "places": 0,
+      "before": 914,
+      "after": 914,
+      "abs": 0,
+      "pct": 0,
+      "changed": false
+    },
+    {
+      "key": "player.fire_resistance",
+      "label": "Fire Resistance",
+      "unit": "%",
+      "places": 0,
+      "before": -60,
+      "after": -60,
+      "abs": 0,
+      "pct": 0,
+      "changed": false
+    },
+    {
+      "key": "player.life_regeneration",
+      "label": "Life Regeneration",
+      "unit": "/s",
+      "places": 1,
+      "before": 0,
+      "after": 0,
+      "abs": 0,
+      "pct": null,
+      "changed": false
+    }
+  ],
+  "warnings": [
+    {
+      "code": "node-unknown",
+      "subject": "node 99",
+      "message": "not in the standard tree of 3.29.3.3; dropped"
+    }
+  ],
+  "error": null
+}

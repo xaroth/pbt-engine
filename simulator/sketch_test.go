@@ -24,7 +24,7 @@ import (
 )
 
 //nolint:gochecknoglobals // the testing package parses flags before any test runs, so the flag must exist at package init
-var update = flag.Bool("update", false, "rewrite testdata/sketch-skipped.golden")
+var update = flag.Bool("update", false, "rewrite testdata/sketch-skipped.golden and the wire goldens")
 
 // The sketch is the public API as first laid out for v1, statement by statement in its order,
 // run against the real pinned datasets. A part the engine cannot do yet keeps the sketch's code
