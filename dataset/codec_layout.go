@@ -40,14 +40,9 @@ func encodeLayout(l Layout) []byte {
 func encodeOrbits(b *flatbuffers.Builder, orbits []Orbit) flatbuffers.UOffsetT {
 	offs := make([]flatbuffers.UOffsetT, len(orbits))
 	for i, o := range orbits {
-		fb.OrbitStartAnglesVector(b, len(o.Angles))
-		for _, a := range slices.Backward(o.Angles) {
-			b.PrependFloat64(a)
-		}
-		angles := b.EndVector(len(o.Angles))
 		fb.OrbitStart(b)
 		fb.OrbitAddRadius(b, o.Radius)
-		fb.OrbitAddAngles(b, angles)
+		fb.OrbitAddSlots(b, o.Slots)
 		offs[i] = fb.OrbitEnd(b)
 	}
 	return tableVector(b, fb.LayoutStartOrbitsVector, offs)
@@ -129,11 +124,7 @@ func decodeLayout(buf []byte) (Layout, error) {
 	var o fb.Orbit
 	for i := range root.OrbitsLength() {
 		root.Orbits(&o, i)
-		angles := make([]float64, o.AnglesLength())
-		for j := range angles {
-			angles[j] = o.Angles(j)
-		}
-		l.Orbits = append(l.Orbits, Orbit{Radius: o.Radius(), Angles: angles})
+		l.Orbits = append(l.Orbits, Orbit{Radius: o.Radius(), Slots: o.Slots()})
 	}
 	var g fb.LayoutGroup
 	var bg fb.GroupBackground

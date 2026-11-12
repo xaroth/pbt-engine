@@ -56,7 +56,7 @@ func compareLayouts(p, q *Layout) LayoutDiff {
 	ld := LayoutDiff{
 		Variant:         p.Variant,
 		BoundsChanged:   p.MinX != q.MinX || p.MinY != q.MinY || p.MaxX != q.MaxX || p.MaxY != q.MaxY,
-		OrbitsChanged:   !reflect.DeepEqual(p.Orbits, q.Orbits),
+		OrbitsChanged:   !slices.Equal(p.Orbits, q.Orbits),
 		ClassArtChanged: !slices.Equal(p.ClassArt, q.ClassArt),
 	}
 	ld.GroupsAdded, ld.GroupsRemoved, ld.GroupsChanged = changes(p.Groups, q.Groups,

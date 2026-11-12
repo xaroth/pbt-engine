@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -20,16 +21,17 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// withLayout is sample with a layout for its standard tree: node 1 at the centre of group 3,
-// node 2 on orbit 1 of group 7.
+// withLayout is sample with a second class and a layout for its standard tree: node 1 at the
+// centre of group 3, node 2 on orbit 1 of group 7.
 func withLayout() *dataset.Dataset {
 	d := sample()
+	d.Trees[0].Classes = append(d.Trees[0].Classes, dataset.Class{Character: "Metadata/Characters/Dex/Dex", StartNode: 1})
 	d.Layouts = []dataset.Layout{{
 		Variant: "standard",
 		MinX:    -100, MinY: -50, MaxX: 200, MaxY: 150,
 		Orbits: []dataset.Orbit{
-			{Radius: 0, Angles: []float64{0}},
-			{Radius: 82, Angles: []float64{0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330}},
+			{Radius: 0, Slots: 1},
+			{Radius: 82, Slots: 16},
 		},
 		Groups: []dataset.LayoutGroup{
 			{ID: 3, X: -10.5, Y: 20.25, Orbits: []uint8{0}},
@@ -102,7 +104,8 @@ func TestLayoutWriteErrors(t *testing.T) {
 	}{
 		{name: "no tree", want: "layout desert: no tree of that variant", change: func(l *dataset.Layout) { l.Variant = "desert" }},
 		{name: "bounds", want: "bounds min above max", change: func(l *dataset.Layout) { l.MinX = 300 }},
-		{name: "orbit without angles", want: "orbit 1 has no angles", change: func(l *dataset.Layout) { l.Orbits[1].Angles = nil }},
+		{name: "orbit without slots", want: "orbit 1 has no slots", change: func(l *dataset.Layout) { l.Orbits[1].Slots = 0 }},
+		{name: "unknown ring orbit", want: "group 7: ring orbit 2 not in layout", change: func(l *dataset.Layout) { l.Groups[1].Orbits = []uint8{0, 2} }},
 		{name: "groups unsorted", want: "group 3: id 0, not sorted or repeated", change: func(l *dataset.Layout) {
 			l.Groups[0], l.Groups[1] = l.Groups[1], l.Groups[0]
 		}},
@@ -116,7 +119,13 @@ func TestLayoutWriteErrors(t *testing.T) {
 		{name: "unknown group", want: "node 2: group 8 not in layout", change: func(l *dataset.Layout) { l.Nodes[1].Group = 8 }},
 		{name: "unknown orbit", want: "node 2: orbit 2 index 2 not in layout", change: func(l *dataset.Layout) { l.Nodes[1].Orbit = 2 }},
 		{name: "unknown orbit index", want: "node 2: orbit 1 index 16 not in layout", change: func(l *dataset.Layout) { l.Nodes[1].OrbitIndex = 16 }},
-		{name: "unknown class", want: "class art for class 1", change: func(l *dataset.Layout) { l.ClassArt[0].Class = 1 }},
+		{name: "unknown class", want: "class art for class 2: no such class", change: func(l *dataset.Layout) { l.ClassArt[0].Class = 2 }},
+		{name: "class art repeated", want: "class art for class 0: not sorted or repeated", change: func(l *dataset.Layout) {
+			l.ClassArt = append(l.ClassArt, l.ClassArt[0])
+		}},
+		{name: "class art unsorted", want: "class art for class 0: not sorted or repeated", change: func(l *dataset.Layout) {
+			l.ClassArt = append([]dataset.ClassArt{{Class: 1, Image: "Art/x.png"}}, l.ClassArt...)
+		}},
 		{name: "class art without image", want: "class art for class 0 has no image", change: func(l *dataset.Layout) { l.ClassArt[0].Image = "" }},
 	}
 	for _, testCase := range testCases {
@@ -223,5 +232,68 @@ func TestCompareLayouts(t *testing.T) {
 	same := compare(t, withLayout(), withLayout())
 	if diff := gocmp.Diff([]dataset.LayoutDiff{{Variant: "standard"}}, same.Layouts, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Compare same layouts: want no changes (-want +got):\n%s", diff)
+	}
+}
+
+func TestOrbitAngle(t *testing.T) {
+	t.Parallel()
+	evenly := func(n int) []float64 {
+		out := make([]float64, n)
+		for i := range out {
+			out[i] = 360 * float64(i) / float64(n)
+		}
+		return out
+	}
+	testCases := []struct {
+		slots uint32
+		want  []float64
+	}{
+		{slots: 1, want: []float64{0}},
+		{slots: 6, want: []float64{0, 60, 120, 180, 240, 300}},
+		// skilltree-export README, 3.17.0
+		{slots: 16, want: []float64{0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330}},
+		// Path of Building, PassiveTree.lua CalcOrbitAngles
+		{slots: 40, want: []float64{
+			0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 135, 140, 150, 160, 170,
+			180, 190, 200, 210, 220, 225, 230, 240, 250, 260, 270, 280, 290, 300, 310, 315, 320, 330, 340, 350,
+		}},
+		{slots: 72, want: evenly(72)},
+	}
+	for _, testCase := range testCases {
+		t.Run(strconv.Itoa(int(testCase.slots)), func(t *testing.T) {
+			t.Parallel()
+			o := dataset.Orbit{Slots: testCase.slots}
+			got := make([]float64, testCase.slots)
+			for i := range got {
+				got[i] = o.Angle(uint16(i))
+			}
+			if diff := gocmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("angles mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCompareLayoutArt(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name   string
+		change func(n *dataset.LayoutNode)
+	}{
+		{name: "icon", change: func(n *dataset.LayoutNode) { n.Icon = "Art/other.png" }},
+		{name: "mastery inactive icon", change: func(n *dataset.LayoutNode) { n.MasteryInactiveIcon = "Art/other.png" }},
+		{name: "mastery active icon", change: func(n *dataset.LayoutNode) { n.MasteryActiveIcon = "Art/other.png" }},
+		{name: "mastery active effect", change: func(n *dataset.LayoutNode) { n.MasteryActiveEffect = "Art/other.png" }},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := withLayout()
+			testCase.change(&b.Layouts[0].Nodes[1])
+			want := []dataset.LayoutDiff{{Variant: "standard", ArtChanged: []uint32{2}}}
+			if diff := gocmp.Diff(want, compare(t, withLayout(), b).Layouts, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("Compare layouts mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

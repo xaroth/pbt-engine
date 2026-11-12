@@ -2,10 +2,10 @@ namespace fb;
 
 file_identifier "PBLY";
 
-// Angles are in degrees clockwise from straight up, by orbit index.
 table Orbit {
   radius: double;
-  angles: [double] (required);
+  // Node slots on the orbit, as the tree export gives them.
+  slots: uint32;
 }
 
 table GroupBackground {

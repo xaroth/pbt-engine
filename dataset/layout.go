@@ -27,9 +27,49 @@ type Layout struct {
 // Orbit is a ring around a group's centre that nodes sit on.
 type Orbit struct {
 	Radius float64
-	// Angles are the node angles by orbit index, in degrees clockwise from straight up. They
-	// are not always evenly spaced.
-	Angles []float64
+	// Slots is the number of node slots on the orbit; Angle places them.
+	Slots uint32
+}
+
+// Angle returns the angle of slot index, below Slots, in degrees clockwise from straight up.
+// The tree export gives only the slot count. Orbits of 16 slots hold the multiples of 30
+// degrees and the four diagonals (skilltree-export README, 3.17.0). Orbits of 40 slots hold
+// the multiples of 10 degrees and the diagonals, which the export does not document; this is
+// Path of Building's reading (PassiveTree.lua, CalcOrbitAngles). Other orbits are evenly
+// spaced.
+func (o Orbit) Angle(index uint16) float64 {
+	step := diagonalStep(o.Slots)
+	if step == 0 {
+		return 360 * float64(index) / float64(o.Slots)
+	}
+	// The slots run through the multiples of step and of 45 in ascending order.
+	i := -1
+	for a := 0; ; a++ {
+		if a%step == 0 || a%diagonal == 0 {
+			if i++; i == int(index) {
+				return float64(a)
+			}
+		}
+	}
+}
+
+// Orbits whose slots are the multiples of a step plus the diagonals; see Orbit.Angle.
+const (
+	slotsBy30, stepBy30 = 16, 30
+	slotsBy10, stepBy10 = 40, 10
+	diagonal            = 45
+)
+
+// diagonalStep returns the step of an orbit of n slots holding the multiples of the step and
+// the diagonals, or 0 for an evenly spaced orbit.
+func diagonalStep(n uint32) int {
+	switch n {
+	case slotsBy30:
+		return stepBy30
+	case slotsBy10:
+		return stepBy10
+	}
+	return 0
 }
 
 // LayoutGroup is a cluster of nodes around one centre.
@@ -88,11 +128,11 @@ func (l *Layout) Position(id uint32) (x, y float64, ok bool) {
 	}
 	n := l.Nodes[i]
 	g, found := slices.BinarySearchFunc(l.Groups, n.Group, compareGroupID)
-	if !found || int(n.Orbit) >= len(l.Orbits) || int(n.OrbitIndex) >= len(l.Orbits[n.Orbit].Angles) {
+	if !found || int(n.Orbit) >= len(l.Orbits) || uint32(n.OrbitIndex) >= l.Orbits[n.Orbit].Slots {
 		return 0, 0, false
 	}
 	o := l.Orbits[n.Orbit]
-	sin, cos := math.Sincos(o.Angles[n.OrbitIndex] * math.Pi / 180) //nolint:mnd // degrees to radians
+	sin, cos := math.Sincos(o.Angle(n.OrbitIndex) * math.Pi / 180) //nolint:mnd // degrees to radians
 	return l.Groups[g].X + o.Radius*sin, l.Groups[g].Y - o.Radius*cos, true
 }
 
@@ -106,11 +146,11 @@ func validateLayout(t *Tree, l *Layout) error {
 		return fmt.Errorf("%s: bounds min above max: %w", what, ErrInvalid)
 	}
 	for i, o := range l.Orbits {
-		if len(o.Angles) == 0 {
-			return fmt.Errorf("%s: orbit %d has no angles: %w", what, i, ErrInvalid)
+		if o.Slots == 0 {
+			return fmt.Errorf("%s: orbit %d has no slots: %w", what, i, ErrInvalid)
 		}
 	}
-	if err := validateLayoutGroups(what, l.Groups); err != nil {
+	if err := validateLayoutGroups(what, len(l.Orbits), l.Groups); err != nil {
 		return err
 	}
 	if err := validateLayoutNodes(what, t, l); err != nil {
@@ -119,13 +159,18 @@ func validateLayout(t *Tree, l *Layout) error {
 	return validateClassArt(what, t, l.ClassArt)
 }
 
-func validateLayoutGroups(what string, groups []LayoutGroup) error {
+func validateLayoutGroups(what string, orbits int, groups []LayoutGroup) error {
 	for i, g := range groups {
 		if g.ID == 0 || (i > 0 && groups[i-1].ID >= g.ID) {
 			return fmt.Errorf("%s: group %d: id 0, not sorted or repeated: %w", what, g.ID, ErrInvalid)
 		}
 		if g.Background != nil && g.Background.Image == "" {
 			return fmt.Errorf("%s group %d: background without image: %w", what, g.ID, ErrInvalid)
+		}
+		for _, o := range g.Orbits {
+			if int(o) >= orbits {
+				return fmt.Errorf("%s group %d: ring orbit %d not in layout: %w", what, g.ID, o, ErrInvalid)
+			}
 		}
 	}
 	return nil
@@ -160,7 +205,7 @@ func validateLayoutNode(what string, l *Layout, n LayoutNode) error {
 	if _, ok := slices.BinarySearchFunc(l.Groups, n.Group, compareGroupID); !ok {
 		return fmt.Errorf("%s: group %d not in layout: %w", what, n.Group, ErrInvalid)
 	}
-	if int(n.Orbit) >= len(l.Orbits) || int(n.OrbitIndex) >= len(l.Orbits[n.Orbit].Angles) {
+	if int(n.Orbit) >= len(l.Orbits) || uint32(n.OrbitIndex) >= l.Orbits[n.Orbit].Slots {
 		return fmt.Errorf("%s: orbit %d index %d not in layout: %w", what, n.Orbit, n.OrbitIndex, ErrInvalid)
 	}
 	return nil
@@ -168,8 +213,11 @@ func validateLayoutNode(what string, l *Layout, n LayoutNode) error {
 
 func validateClassArt(what string, t *Tree, art []ClassArt) error {
 	for i, a := range art {
-		if int(a.Class) >= len(t.Classes) || (i > 0 && art[i-1].Class >= a.Class) {
-			return fmt.Errorf("%s: class art for class %d: not sorted, repeated or no such class: %w", what, a.Class, ErrInvalid)
+		if int(a.Class) >= len(t.Classes) {
+			return fmt.Errorf("%s: class art for class %d: no such class: %w", what, a.Class, ErrInvalid)
+		}
+		if i > 0 && art[i-1].Class >= a.Class {
+			return fmt.Errorf("%s: class art for class %d: not sorted or repeated: %w", what, a.Class, ErrInvalid)
 		}
 		if a.Image == "" {
 			return fmt.Errorf("%s: class art for class %d has no image: %w", what, a.Class, ErrInvalid)
