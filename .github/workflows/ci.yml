@@ -34,11 +34,8 @@ jobs:
       run:
         # Unlike the default shell, sets pipefail, so a failing test piped into tee fails the step.
         shell: bash
-    env:
-      PBT_DATA_DIR: poe1/3.29
-      # The files the probe reads; a missing one fails it with the file's name.
-      PBT_DATA_FILES: manifest.json characters.fb constants.fb quests.fb stats.fb skills.fb text-en.fb tree-standard.fb
     steps:
+      - run: echo "PBT_DATASETS=$RUNNER_TEMP/pbt-datasets" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
@@ -54,34 +51,20 @@ jobs:
         env:
           GOOS: js
           GOARCH: wasm
-      - name: Read the pinned pbt-data commit
-        run: echo "PBT_DATA_COMMIT=$(cat internal/realdata/pbt-data-commit.txt)" >> "$GITHUB_ENV"
-      - id: data
-        uses: actions/cache@v6
+      # A dataset never changes under its id, so an older cache only saves downloads.
+      - uses: actions/cache@v6
         with:
-          path: ${{ runner.temp }}/pbt-data
-          key: pbt-data-${{ env.PBT_DATA_COMMIT }}-${{ env.PBT_DATA_DIR }}-${{ env.PBT_DATA_FILES }}
-      - name: Fetch the probe's dataset files
-        if: steps.data.outputs.cache-hit != 'true'
-        run: |
-          dir="$RUNNER_TEMP/pbt-data/$PBT_DATA_DIR"
-          mkdir -p "$dir"
-          for f in $PBT_DATA_FILES; do
-            curl -fsSL --retry 3 -o "$dir/$f" "https://raw.githubusercontent.com/xaroth/pbt-data/$PBT_DATA_COMMIT/$PBT_DATA_DIR/$f"
-          done
-          cd "$dir"
-          for f in $PBT_DATA_FILES; do
-            [ "$f" = manifest.json ] && continue
-            echo "$(jq -er --arg f "$f" '.files[] | select(.name == $f) | .sha256' manifest.json)  $f"
-          done | sha256sum --strict -c -
+          path: ${{ env.PBT_DATASETS }}
+          key: pbt-datasets-${{ hashFiles('internal/realdata/realdata.go') }}
+          restore-keys: pbt-datasets-
+      - name: Fetch the pinned datasets by id
+        run: go run ./internal/realdata/fetch "$PBT_DATASETS"
       - name: Probe, native
         env:
-          PBT_DATASETS: ${{ runner.temp }}/pbt-data/poe1
           PBT_PROBE_OUT: ${{ runner.temp }}/probe-native.json
         run: go test ./simulator -run '^TestProbe$' -count=1 -v | tee "$RUNNER_TEMP/native.log"
       - name: Probe, js/wasm
         env:
-          PBT_DATASETS: ${{ runner.temp }}/pbt-data/poe1
           PBT_PROBE_OUT: ${{ runner.temp }}/probe-wasm.json
         run: |
           GOOS=js GOARCH=wasm go test -c -o "$RUNNER_TEMP/simulator.test.wasm" ./simulator
