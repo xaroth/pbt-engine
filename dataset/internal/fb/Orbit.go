@@ -53,30 +53,16 @@ func (rcv *Orbit) MutateRadius(n float64) bool {
 	return rcv._tab.MutateFloat64Slot(4, n)
 }
 
-func (rcv *Orbit) Angles(j int) float64 {
+func (rcv *Orbit) Slots() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
-		a := rcv._tab.Vector(o)
-		return rcv._tab.GetFloat64(a + flatbuffers.UOffsetT(j*8))
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *Orbit) AnglesLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
-	if o != 0 {
-		return rcv._tab.VectorLen(o)
-	}
-	return 0
-}
-
-func (rcv *Orbit) MutateAngles(j int, n float64) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
-	if o != 0 {
-		a := rcv._tab.Vector(o)
-		return rcv._tab.MutateFloat64(a+flatbuffers.UOffsetT(j*8), n)
-	}
-	return false
+func (rcv *Orbit) MutateSlots(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(6, n)
 }
 
 func OrbitStart(builder *flatbuffers.Builder) {
@@ -85,11 +71,8 @@ func OrbitStart(builder *flatbuffers.Builder) {
 func OrbitAddRadius(builder *flatbuffers.Builder, radius float64) {
 	builder.PrependFloat64Slot(0, radius, 0.0)
 }
-func OrbitAddAngles(builder *flatbuffers.Builder, angles flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(angles), 0)
-}
-func OrbitStartAnglesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
-	return builder.StartVector(8, numElems, 8)
+func OrbitAddSlots(builder *flatbuffers.Builder, slots uint32) {
+	builder.PrependUint32Slot(1, slots, 0)
 }
 func OrbitEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
