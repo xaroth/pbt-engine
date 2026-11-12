@@ -42,9 +42,12 @@ const (
 	// SkillsNotSimulated is a build with skill groups: outputs leave them out until skills are
 	// simulated.
 	SkillsNotSimulated build.Code = "skills-not-simulated"
-	// ItemsNotSimulated is a build with items: outputs leave them out until items are
-	// simulated.
+	// ItemsNotSimulated is a build with items on a dataset without the items group: outputs
+	// leave them out.
 	ItemsNotSimulated build.Code = "items-not-simulated"
+	// ItemDefenceAssumed is an item defence its text does not give, on a base whose roll of it
+	// varies: the highest roll is taken.
+	ItemDefenceAssumed build.Code = "item-defence-assumed"
 )
 
 // Warning is something a simulation went on without; its message says what was done.
@@ -54,6 +57,9 @@ type Warning = build.Warning
 // goes first. A whole-tree sheet is about a megabyte.
 const maxIdle = 16
 
+// maxCompiled is how many compiled items a sim keeps; past it the cache starts over.
+const maxCompiled = 1024
+
 // Sim simulates builds against one dataset. Its config can change with Configure; each call
 // takes a snapshot when it starts. A Sim is safe for concurrent use.
 type Sim struct {
@@ -61,11 +67,20 @@ type Sim struct {
 	table *semantics.Table
 	// items reads item text; made on first use, since most uses of a sim read none.
 	items func() (*items.Reader, error)
+	// bases indexes the dataset's item bases by id, on first use.
+	bases func() (map[string]*dataset.ItemBase, error)
 
 	mu  sync.Mutex
 	cfg config.Values
 	// idle sheets, least recently returned first.
 	idle []idleSheet
+	// compiled items by content.
+	compiled map[string]compiledItem
+}
+
+type compiledItem struct {
+	stats   []resolve.StatValue
+	assumed []string
 }
 
 // shape is what a sheet over the whole tree is fixed to; nodes, masteries, level and config
@@ -91,6 +106,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 	}
 	s := &Sim{store: store, table: t, cfg: config.Values{}}
 	s.items = sync.OnceValues(func() (*items.Reader, error) { return items.NewReader(store) })
+	s.bases = sync.OnceValues(func() (map[string]*dataset.ItemBase, error) { return indexBases(store) })
 	if err := s.Configure(opts...); err != nil {
 		return nil, err
 	}
@@ -159,6 +175,7 @@ type run struct {
 	checked  *build.Checked
 	shape    shape
 	cfg      config.Resolved
+	items    []poe1.Item
 	warnings []Warning
 }
 
@@ -180,11 +197,8 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if w, ok := skillsWarning(cb.Skills); ok {
 		r.warnings = append(r.warnings, w)
 	}
-	if len(cb.Items) > 0 {
-		r.warnings = append(r.warnings, Warning{
-			Code: ItemsNotSimulated, Subject: "items",
-			Message: fmt.Sprintf("%d items not simulated yet; outputs leave them out", len(cb.Items)),
-		})
+	if err := s.compileItems(r, cb.Items); err != nil {
+		return nil, err
 	}
 	sim = sim.Clone()
 	for k := range co.cleared {
@@ -213,6 +227,9 @@ func switchTo(r *run, sh *poe1.Sheet) error {
 		return fmt.Errorf("simulator: %w", err)
 	}
 	sh.SetNodes(cb.Nodes, cb.Masteries)
+	if err := sh.SetItems(r.items); err != nil {
+		return fmt.Errorf("simulator: %w", err)
+	}
 	sh.SetConfig(r.cfg)
 	return nil
 }
@@ -224,7 +241,7 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	}
 	st := &Stats{
 		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, build: r.build,
-		checked: r.checked, sim: s,
+		checked: r.checked, items: r.items, sim: s,
 	}
 	for _, k := range keys {
 		v, err := sh.Output(k)

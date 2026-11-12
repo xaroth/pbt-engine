@@ -173,6 +173,20 @@ func TestWireExplanation(t *testing.T) {
 	wireGolden(t, "explanation-quest.json", "Explanation", ex)
 }
 
+// The rare helmet's explanation of armour credits it as an item source, on the real dataset.
+func TestWireExplanationItem(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	st := simulate(t, s, equipHelmet(t, s, marauderBuild(1)))
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional} {
+		ex, err := st.Explain(poe1.Armour, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wireGolden(t, "explanation-item-"+v.String()+".json", "Explanation", ex)
+	}
+}
+
 // Cold resistance takes half of node 20's fire resistance through node 21's share: the tree
 // view has the term at rate 0.5, the proportional view credits node 21 with node 20's
 // modifier as the part's from.

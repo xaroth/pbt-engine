@@ -94,8 +94,8 @@ func wireTree(n *TreeNode) *wireTreeNode {
 }
 
 // MarshalJSON encodes the source as an object whose kind says which other fields it has:
-// character (id), level, node (node, effect: 0 for the node's own stats), quest (quest, flag)
-// or rule (id, and text in English).
+// character (id), level, node (node, effect: 0 for the node's own stats), quest (quest, flag),
+// item (slot, name: empty for an item without one) or rule (id, and text in English).
 func (s Source) MarshalJSON() ([]byte, error) {
 	if s.Bundle == nil {
 		return marshal(struct {
@@ -126,6 +126,12 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Quest string `json:"quest"`
 			Flag  string `json:"flag"`
 		}{"quest", src.ID, src.Flag})
+	case resolve.ItemSource:
+		return marshal(struct {
+			Kind string `json:"kind"`
+			Slot string `json:"slot"`
+			Name string `json:"name"`
+		}{"item", string(src.Slot), src.Name})
 	}
 	return nil, fmt.Errorf("%w %T", errSourceKind, s.Bundle.Source)
 }

@@ -504,6 +504,20 @@
           }
         },
         {
+          "description": "An equipped item.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "slot", "name"],
+          "properties": {
+            "kind": { "const": "item" },
+            "slot": { "$ref": "#/$defs/Slot" },
+            "name": {
+              "type": "string",
+              "description": "A rare or unique item's name, or a magic item's full name; empty for others."
+            }
+          }
+        },
+        {
           "description": "A rule's own source.",
           "type": "object",
           "additionalProperties": false,

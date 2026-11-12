@@ -596,3 +596,16 @@ func TestReadTrees(t *testing.T) {
 		t.Errorf("Manifest.Languages (-want +got):\n%s", diff)
 	}
 }
+
+func TestHasStat(t *testing.T) {
+	t.Parallel()
+	s, err := dataset.Open(written(t, sample()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]bool{"life_per_level": true, "base_maximum_life": false} {
+		if got, err := s.HasStat(id); got != want || err != nil {
+			t.Errorf("HasStat(%q) = %v, %v; want %v", id, got, err, want)
+		}
+	}
+}

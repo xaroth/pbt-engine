@@ -14,17 +14,19 @@ import (
 const (
 	helmetBase = "Metadata/Items/Armours/Helmets/HelmetStr10"
 	ringBase   = "Metadata/Items/Rings/Ring1"
+	shieldBase = "Metadata/Items/Armours/Shields/ShieldStr1"
 )
 
-// itemsStore is testStore with an items group of one helmet and one ring base.
+// itemsStore is testStore with an items group of one helmet, one ring and one shield base.
 func itemsStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	d := testDataset()
 	d.Items = &dataset.Items{
-		Classes: []dataset.ItemClass{{ID: "Helmet"}, {ID: "Ring"}},
+		Classes: []dataset.ItemClass{{ID: "Helmet"}, {ID: "Ring"}, {ID: "Shield"}},
 		Bases: []dataset.ItemBase{
 			{ID: helmetBase, Class: "Helmet", Armour: &dataset.ArmourValues{Armour: dataset.ValueRange{Min: 300, Max: 400}}},
 			{ID: ringBase, Class: "Ring"},
+			{ID: shieldBase, Class: "Shield"},
 		},
 	}
 	return openStore(t, d)
@@ -171,5 +173,40 @@ func TestCheckItems(t *testing.T) {
 	}
 	if diff := cmp.Diff([]build.Code{build.ItemsUnchecked}, codesOf(warnings)); diff != "" {
 		t.Errorf("no items group (-want +got):\n%s", diff)
+	}
+}
+
+// The weapon-swap slots are not in use: the checked build leaves their items out and disables
+// the gems socketed in them, without a warning; the build itself keeps them.
+func TestCheckSwapSlots(t *testing.T) {
+	t.Parallel()
+	shield := build.Item{Rarity: build.Rare, Base: shieldBase, Mods: helmet().Mods}
+	gems := func() []build.Gem {
+		return []build.Gem{{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20}}
+	}
+	b := juggernaut()
+	b.Items = build.Items{build.SlotOffhand: shield, build.SlotOffhandSwap: shield}
+	b.Skills.Groups = []build.SkillGroup{
+		{Slot: build.SlotOffhand, Gems: gems()}, {Slot: build.SlotWeaponSwap, Gems: gems()}, {Slot: build.SlotOffhandSwap, Gems: gems()},
+	}
+	before := b.Clone()
+	c, warnings, err := build.Check(b, itemsStore(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]build.Code{build.SkillsUnchecked}, codesOf(warnings)); diff != "" {
+		t.Errorf("codes (-want +got):\n%s", diff)
+	}
+	cb := c.Build()
+	if diff := cmp.Diff(build.Items{build.SlotOffhand: shield}, cb.Items); diff != "" {
+		t.Errorf("items (-want +got):\n%s", diff)
+	}
+	for i, want := range []bool{false, true, true} {
+		if got := cb.Skills.Groups[i].Gems[0].Disabled; got != want {
+			t.Errorf("group %d in %s: disabled %v, want %v", i, cb.Skills.Groups[i].Slot, got, want)
+		}
+	}
+	if diff := cmp.Diff(before, b); diff != "" {
+		t.Errorf("build changed (-before +after):\n%s", diff)
 	}
 }

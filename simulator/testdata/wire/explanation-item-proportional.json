@@ -1,0 +1,34 @@
+{
+  "output": {
+    "key": "player.armour",
+    "label": "Armour",
+    "unit": "",
+    "places": 0
+  },
+  "view": "proportional",
+  "version": "3.29.3.6",
+  "amount": 1406,
+  "effective": 1406,
+  "value": 1406,
+  "capBy": [],
+  "lines": [
+    {
+      "source": {
+        "kind": "item",
+        "slot": "helmet",
+        "name": "Foe Horn"
+      },
+      "value": 1406,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 1406,
+          "via": [],
+          "from": null
+        }
+      ]
+    }
+  ],
+  "tree": null
+}
