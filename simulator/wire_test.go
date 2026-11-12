@@ -3,6 +3,7 @@ package simulator_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
 	"github.com/xaroth/pbt-engine/simulator"
 )
@@ -94,15 +96,8 @@ func TestWireGolden(t *testing.T) {
 	b := marauderBuild(90, 2, 3, 4, 99)
 	b.Masteries = map[uint32]uint32{4: 7}
 	b.Version = "3.28"
-	older, err := simulator.New(testStoreWith(t, "3.28.0.16", 10))
-	if err != nil {
-		t.Fatal(err)
-	}
 	few := simulator.Outputs(poe1.Dexterity, poe1.Life, poe1.FireResistance, poe1.LifeRegeneration)
-	across, err := simulate(t, older, marauderBuild(90, 2, 3), few).Diff(simulate(t, s, marauderBuild(90, 2, 3), few))
-	if err != nil {
-		t.Fatal(err)
-	}
+	across := acrossDatasets(t, few)
 	compare, err := s.Compare(marauderBuild(1), marauderBuild(90, 2, 6), few, simulator.Set(poe1.Campaign, poe1.CampaignActs1To5))
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +115,10 @@ func TestWireGolden(t *testing.T) {
 		{"stats.json", "Stats", simulate(t, s, b)},
 		{"diff.json", "Diff", compare},
 		{"diff-datasets.json", "Diff", across},
-		{"diff-unconvertible.json", "Diff", &simulator.Diff{Before: compare.Before, After: compare.After}},
+		// A node change with no fields or stats still lists them, as empty lists.
+		{"diff-unconvertible.json", "Diff", &simulator.Diff{
+			Before: compare.Before, After: compare.After, DataChanges: []simulator.NodeChange{{Node: 7}},
+		}},
 		{"result.json", "Result", sweep[0]},
 		{"result-error.json", "Result", sweep[1]},
 		{"result-warning.json", "Result", sweep[2]},
@@ -131,6 +129,59 @@ func TestWireGolden(t *testing.T) {
 			t.Parallel()
 			wireGolden(t, testCase.name, testCase.def, testCase.v)
 		})
+	}
+}
+
+// acrossDatasets diffs one build on a 3.28 dataset, where node 2 has several stats, and on
+// testStore, where it has one.
+func acrossDatasets(t *testing.T, opts ...simulator.Option) *simulator.Diff {
+	t.Helper()
+	d := testDataset("3.28.0.16", 10)
+	// stats 3 to 7 are base strength, dexterity, intelligence, life and mana, in index order,
+	// which is not the order of their ids
+	node := &d.Trees[0].Nodes[1]
+	node.Stats = []dataset.StatValue{{Stat: 3, Value: 1}, {Stat: 4, Value: 2}, {Stat: 5, Value: 3}, {Stat: 6, Value: 10}, {Stat: 7, Value: 4}}
+	older, err := simulator.New(storeOf(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	across, err := simulate(t, older, marauderBuild(90, 2, 3), opts...).Diff(simulate(t, newSim(t), marauderBuild(90, 2, 3), opts...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return across
+}
+
+var errReadFailed = errors.New("read failed")
+
+// A sweep result with an error has no changes; the schema rejects one that has some.
+func TestWireResultErrorHasNoChanges(t *testing.T) {
+	t.Parallel()
+	fail := errReadFailed
+	keys := []output.Key{poe1.Life, poe1.Mana}
+	read := func(k output.Key) (float64, error) {
+		if k == poe1.Mana {
+			return 0, fail
+		}
+		return 1, nil
+	}
+	if got, err := simulator.ReadChanges(keys, nil, read); !errors.Is(err, fail) || got != nil {
+		t.Errorf("failing read: changes %v, err %v; want none and the read's error", got, err)
+	}
+	ok := func(output.Key) (float64, error) { return 1, nil }
+	if got, err := simulator.ReadChanges(keys, nil, ok); err != nil || len(got) != 2 {
+		t.Errorf("reads: changes %v, err %v; want 2", got, err)
+	}
+	data, err := json.Marshal(simulator.Result{Changes: map[output.Key]simulator.Change{poe1.Life: {}}, Err: fail})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wireSchema(t, "Result").Validate(v) == nil {
+		t.Errorf("schema accepts a result with an error and changes: %s", data)
 	}
 }
 
@@ -198,20 +249,22 @@ func roundTrip[T any](t *testing.T, def string, v T) {
 	}
 }
 
-// Equal results give equal bytes, though Result holds its changes in a map.
+// Equal results give equal bytes, though Result and NodeChange hold maps.
 func TestWireDeterministic(t *testing.T) {
 	t.Parallel()
 	res, err := newSim(t).Sweep(marauderBuild(70, 2), [][]build.Edit{{build.Allocate(3)}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := json.Marshal(res)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for range 20 {
-		if got, err := json.Marshal(res); err != nil || !bytes.Equal(got, want) {
-			t.Fatalf("got %s, %v; want %s", got, err, want)
+	for _, v := range []any{res, acrossDatasets(t)} {
+		want, err := json.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for range 20 {
+			if got, err := json.Marshal(v); err != nil || !bytes.Equal(got, want) {
+				t.Fatalf("got %s, %v; want %s", got, err, want)
+			}
 		}
 	}
 }

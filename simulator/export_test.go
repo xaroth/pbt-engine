@@ -1,6 +1,9 @@
 package simulator
 
-import "github.com/xaroth/pbt-engine/build"
+import (
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/output"
+)
 
 // IdleSheets exposes the pool size to tests.
 func (s *Sim) IdleSheets() int { return s.idleSheets() }
@@ -16,4 +19,9 @@ func FastPath(s *Sim, base *build.Build, edits []build.Edit) (bool, error) {
 	}
 	_, ok := sw.fastPlan(edits)
 	return ok, nil
+}
+
+// ReadChanges exposes the fast path's output reads.
+func ReadChanges(keys []output.Key, before map[output.Key]float64, read func(output.Key) (float64, error)) (map[output.Key]Change, error) {
+	return readChanges(keys, before, read)
 }

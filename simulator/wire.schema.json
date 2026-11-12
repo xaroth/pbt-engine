@@ -157,7 +157,9 @@
           "description": "Warnings about the variant's edits."
         },
         "error": { "type": ["string", "null"], "description": "Why the variant could not be simulated." }
-      }
+      },
+      "if": { "properties": { "error": { "type": "string" } } },
+      "then": { "properties": { "changes": { "maxItems": 0 } } }
     },
     "Edit": {
       "title": "Edit",
@@ -166,14 +168,7 @@
       "additionalProperties": false,
       "required": ["op"],
       "properties": {
-        "op": {
-          "enum": [
-            "allocate", "deallocate", "set-mastery", "clear-mastery", "set-level", "set-class",
-            "set-ascendancy", "set-config", "clear-config", "add-skill-group", "remove-skill-group",
-            "set-skill-slot", "set-main-skill", "add-gem", "remove-gem", "set-active-gem",
-            "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"
-          ]
-        },
+        "op": { "$ref": "#/$defs/EditOp" },
         "nodes": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
         "node": { "type": "integer", "minimum": 0 },
         "effect": { "type": "integer", "minimum": 0 },
@@ -181,7 +176,7 @@
         "class": { "type": "string" },
         "ascendancy": { "type": "string" },
         "key": { "type": "string", "description": "A config key." },
-        "value": { "description": "A config value, as the key takes it." },
+        "value": { "$ref": "#/$defs/ConfigValue" },
         "skill": { "$ref": "#/$defs/SkillAt" },
         "group": { "$ref": "#/$defs/SkillGroup" },
         "gem": { "$ref": "#/$defs/Gem" },
@@ -190,6 +185,30 @@
         "enabled": { "type": "boolean" },
         "item": { "$ref": "#/$defs/Item" }
       }
+    },
+    "EditOp": {
+      "title": "EditOp",
+      "description": "What an edit changes.",
+      "enum": [
+        "allocate", "deallocate", "set-mastery", "clear-mastery", "set-level", "set-class",
+        "set-ascendancy", "set-config", "clear-config", "add-skill-group", "remove-skill-group",
+        "set-skill-slot", "set-main-skill", "add-gem", "remove-gem", "set-active-gem",
+        "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"
+      ]
+    },
+    "ConfigValue": {
+      "title": "ConfigValue",
+      "description": "A config value, as its key takes it.",
+      "type": ["string", "number", "boolean"]
+    },
+    "Rarity": {
+      "title": "Rarity",
+      "enum": ["normal", "magic", "rare", "unique"]
+    },
+    "ModKind": {
+      "title": "ModKind",
+      "description": "Where on an item a mod line is.",
+      "enum": ["implicit", "explicit", "enchant", "crafted", "fractured"]
     },
     "SkillAt": {
       "title": "SkillAt",
@@ -239,7 +258,7 @@
       "additionalProperties": false,
       "required": ["rarity", "base"],
       "properties": {
-        "rarity": { "enum": ["normal", "magic", "rare", "unique"] },
+        "rarity": { "$ref": "#/$defs/Rarity" },
         "name": { "type": "string" },
         "base": { "type": "string", "description": "The dataset item base id." },
         "itemLevel": { "type": "integer" },
@@ -259,7 +278,7 @@
       "additionalProperties": false,
       "required": ["kind", "text"],
       "properties": {
-        "kind": { "enum": ["implicit", "explicit", "enchant", "crafted", "fractured"] },
+        "kind": { "$ref": "#/$defs/ModKind" },
         "text": { "type": "string" },
         "mod": { "type": "string" },
         "stats": { "type": "array", "items": { "$ref": "#/$defs/StatValue" } }

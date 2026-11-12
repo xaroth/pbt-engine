@@ -332,20 +332,28 @@ func (sw *sweep) fast(sh *poe1.Sheet, p switchPlan) Result {
 	for _, ne := range p.effectsOn {
 		sh.SetMasteryEffect(ne[0], ne[1], true)
 	}
-	r := Result{Changes: make(map[output.Key]Change, len(sw.keys)), Warnings: p.warnings}
-	for _, k := range sw.keys {
-		v, err := sh.Output(k)
-		if err != nil {
-			r.Err = fmt.Errorf("simulator: %w", err)
-			break
-		}
-		r.Changes[k] = change(sw.before[k], v)
-	}
-	if err := sh.Revert(cp); err != nil && r.Err == nil {
-		r.Err = fmt.Errorf("simulator: %w", err)
+	changes, err := readChanges(sw.keys, sw.before, sh.Output)
+	if rerr := sh.Revert(cp); rerr != nil && err == nil {
+		err = fmt.Errorf("simulator: %w", rerr)
 	}
 	sh.Commit()
-	return r
+	if err != nil {
+		return Result{Warnings: p.warnings, Err: err}
+	}
+	return Result{Changes: changes, Warnings: p.warnings}
+}
+
+// readChanges reads each output against its value before, and none when any read fails.
+func readChanges(keys []output.Key, before map[output.Key]float64, read func(output.Key) (float64, error)) (map[output.Key]Change, error) {
+	out := make(map[output.Key]Change, len(keys))
+	for _, k := range keys {
+		v, err := read(k)
+		if err != nil {
+			return nil, fmt.Errorf("simulator: %w", err)
+		}
+		out[k] = change(before[k], v)
+	}
+	return out, nil
 }
 
 // full simulates the edited build with the sweep's options and config snapshot.
