@@ -19,6 +19,7 @@ func TestCompareItems(t *testing.T) {
 	b.Items.Bases = b.Items.Bases[1:3]
 	b.Items.Bases[0].Block = 25
 	b.Items.Bases = append(b.Items.Bases, dataset.ItemBase{ID: "Ring", Class: "Shield"})
+	b.Items.BenchCrafts[0].Classes = []string{"Shield"}
 	b.Mods[0].Stats[0].RuthlessMax = 21
 	b.Mods = append(b.Mods, dataset.Mod{ID: "New", Domain: 1, Generation: 2, Type: "New"})
 	// Moving stat handles changes nothing; mods compare by stat id.
@@ -55,13 +56,14 @@ func TestCompareItems(t *testing.T) {
 	}
 
 	want := dataset.ItemsDiff{
-		ClassesRemoved: []string{"Helmet"},
-		TagsAdded:      []string{"ring"},
-		BasesAdded:     []string{"Ring"},
-		BasesRemoved:   []string{"Metadata/Items/Armours/Helmets/HelmetStr1", "Metadata/Items/Flasks/FlaskLife1"},
-		BasesChanged:   []string{"Metadata/Items/Armours/Shields/ShieldStr1"},
-		ModsAdded:      []string{"New"},
-		ModsChanged:    []string{"IncreasedLife1"},
+		ClassesRemoved:     []string{"Helmet"},
+		TagsAdded:          []string{"ring"},
+		BasesAdded:         []string{"Ring"},
+		BasesRemoved:       []string{"Metadata/Items/Armours/Helmets/HelmetStr1", "Metadata/Items/Flasks/FlaskLife1"},
+		BasesChanged:       []string{"Metadata/Items/Armours/Shields/ShieldStr1"},
+		ModsAdded:          []string{"New"},
+		ModsChanged:        []string{"IncreasedLife1"},
+		BenchCraftsChanged: []string{"CraftedLife1"},
 	}
 	got := compare(t, a, b)
 	if diff := gocmp.Diff(want, got.Items, cmpopts.EquateEmpty()); diff != "" {
@@ -80,7 +82,8 @@ func TestCompareItems(t *testing.T) {
 			"Metadata/Items/Armours/Helmets/HelmetStr1", "Metadata/Items/Armours/Shields/ShieldStr1",
 			"Metadata/Items/Flasks/FlaskLife1", "Metadata/Items/Weapons/OneHandWeapons/OneHandSwords/OneHandSword1",
 		},
-		ModsAdded: []string{"AccuracyImplicit", "BlockImplicit", "IncreasedLife1"},
+		ModsAdded:        []string{"AccuracyImplicit", "BlockImplicit", "CraftedLife1", "IncreasedLife1"},
+		BenchCraftsAdded: []string{"CraftedLife1"},
 	}
 	if diff := gocmp.Diff(want, got.Items, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Compare without items mismatch (-want +got):\n%s", diff)
@@ -95,6 +98,21 @@ func TestCompareModGameMode(t *testing.T) {
 	b := withItems()
 	b.Mods[1].GameMode = 2
 	want := dataset.ItemsDiff{ModsChanged: []string{"BlockImplicit"}}
+	if diff := gocmp.Diff(want, compare(t, withItems(), b).Items, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("Compare items mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCompareBaseModDomainAndBenchCrafts(t *testing.T) {
+	t.Parallel()
+	b := withItems()
+	b.Items.Bases[3].ModDomain = 3
+	b.Items.BenchCrafts = []dataset.BenchCraft{{Mod: "IncreasedLife1", Classes: []string{"Helmet"}}}
+	want := dataset.ItemsDiff{
+		BasesChanged:       []string{"Metadata/Items/Flasks/FlaskLife1"},
+		BenchCraftsAdded:   []string{"IncreasedLife1"},
+		BenchCraftsRemoved: []string{"CraftedLife1"},
+	}
 	if diff := gocmp.Diff(want, compare(t, withItems(), b).Items, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Compare items mismatch (-want +got):\n%s", diff)
 	}

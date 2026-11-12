@@ -59,6 +59,17 @@ table ItemBase {
   block: int32;
   weapon: WeaponValues;
   flask: FlaskValues;
+  // BaseItemTypes.ModDomain, a ModDomains row, such as 1 for most items and 21 for cluster
+  // jewels; 0 in files written before the field.
+  mod_domain: int32;
+}
+
+// A CraftingBenchOptions row that adds a mod and is not disabled.
+table BenchCraft {
+  // CraftingBenchOptions.AddMod: a mod id in mods.fb.
+  mod: string (required);
+  // Indexes into Items.classes: the item classes the craft applies to.
+  classes: [uint32] (required);
 }
 
 table Items {
@@ -66,6 +77,8 @@ table Items {
   // Tags.Id of every tag bases and mods may name.
   tags: [string] (required);
   bases: [ItemBase] (required);
+  // Absent in files written before the field.
+  bench_crafts: [BenchCraft];
 }
 
 root_type Items;

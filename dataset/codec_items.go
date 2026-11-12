@@ -28,6 +28,7 @@ func encodeItems(it *Items) []byte {
 		baseOffs[i] = encodeBase(b, classIndex, tagIndex, base)
 	}
 	bases := tableVector(b, fb.ItemsStartBasesVector, baseOffs)
+	crafts := encodeBenchCrafts(b, classIndex, it.BenchCrafts)
 	classOffs := make([]flatbuffers.UOffsetT, len(it.Classes))
 	for i, c := range it.Classes {
 		id := b.CreateString(c.ID)
@@ -41,6 +42,9 @@ func encodeItems(it *Items) []byte {
 	fb.ItemsAddClasses(b, classes)
 	fb.ItemsAddTags(b, tags)
 	fb.ItemsAddBases(b, bases)
+	if crafts != 0 {
+		fb.ItemsAddBenchCrafts(b, crafts)
+	}
 	fb.FinishItemsBuffer(b, fb.ItemsEnd(b))
 	return b.FinishedBytes()
 }
@@ -69,7 +73,25 @@ func encodeBase(b *flatbuffers.Builder, classIndex, tagIndex map[string]uint32, 
 	if flask != 0 {
 		fb.ItemBaseAddFlask(b, flask)
 	}
+	fb.ItemBaseAddModDomain(b, base.ModDomain)
 	return fb.ItemBaseEnd(b)
+}
+
+// encodeBenchCrafts returns 0 for no crafts, so items without them keep their bytes.
+func encodeBenchCrafts(b *flatbuffers.Builder, classIndex map[string]uint32, crafts []BenchCraft) flatbuffers.UOffsetT {
+	if len(crafts) == 0 {
+		return 0
+	}
+	offs := make([]flatbuffers.UOffsetT, len(crafts))
+	for i, c := range crafts {
+		mod := b.CreateString(c.Mod)
+		classes := uint32Vector(b, fb.BenchCraftStartClassesVector, indexes(classIndex, c.Classes))
+		fb.BenchCraftStart(b)
+		fb.BenchCraftAddMod(b, mod)
+		fb.BenchCraftAddClasses(b, classes)
+		offs[i] = fb.BenchCraftEnd(b)
+	}
+	return tableVector(b, fb.ItemsStartBenchCraftsVector, offs)
 }
 
 // encodeArmour returns 0 for nil a, as do encodeWeapon and encodeFlask.
@@ -136,7 +158,30 @@ func decodeItems(buf []byte) (Items, error) {
 			return Items{}, fmt.Errorf("base %s: %w", base.Id(), err)
 		}
 	}
+	if n := root.BenchCraftsLength(); n > 0 {
+		it.BenchCrafts = make([]BenchCraft, n)
+	}
+	var craft fb.BenchCraft
+	for i := range it.BenchCrafts {
+		root.BenchCrafts(&craft, i)
+		var err error
+		if it.BenchCrafts[i], err = decodeBenchCraft(&craft, it.Classes); err != nil {
+			return Items{}, fmt.Errorf("bench craft %s: %w", craft.Mod(), err)
+		}
+	}
 	return it, nil
+}
+
+func decodeBenchCraft(c *fb.BenchCraft, classes []ItemClass) (BenchCraft, error) {
+	out := BenchCraft{Mod: string(c.Mod()), Classes: make([]string, c.ClassesLength())}
+	for i := range out.Classes {
+		k := int(c.Classes(i))
+		if k >= len(classes) {
+			return BenchCraft{}, fmt.Errorf("class %d out of range (%d classes): %w", k, len(classes), ErrInvalid)
+		}
+		out.Classes[i] = classes[k].ID
+	}
+	return out, nil
 }
 
 func decodeBase(base *fb.ItemBase, it Items, intern interner) (ItemBase, error) {
@@ -148,7 +193,7 @@ func decodeBase(base *fb.ItemBase, it Items, intern interner) (ItemBase, error) 
 	if err != nil {
 		return ItemBase{}, err
 	}
-	out := ItemBase{ID: string(base.Id()), Class: it.Classes[class].ID, Tags: tags, Block: base.Block()}
+	out := ItemBase{ID: string(base.Id()), Class: it.Classes[class].ID, Tags: tags, Block: base.Block(), ModDomain: base.ModDomain()}
 	for i := range base.ImplicitsLength() {
 		out.Implicits = append(out.Implicits, intern.string(base.Implicits(i)))
 	}

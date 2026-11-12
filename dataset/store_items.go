@@ -1,12 +1,13 @@
 package dataset
 
-// Items returns the items group's classes, tags and bases, shared and read-only. It does not
-// read the mods; base implicits are checked against them by Mods and by Write. A dataset
+// Items returns the items group's classes, tags, bases and bench crafts, shared and read-only.
+// It does not read the mods; base implicits and craft mods are checked against them by Mods and
+// by Write. A dataset
 // without the group returns a *MissingGroupError.
 func (s *Store) Items() (*Items, error) { return s.items() }
 
 // Mods returns the items group's mods, shared and read-only. It reads the items too, to check
-// the mods' tags and the bases' implicits. A dataset without the group returns a
+// the mods' tags, the bases' implicits and the bench crafts' mods. A dataset without the group returns a
 // *MissingGroupError.
 func (s *Store) Mods() ([]Mod, error) { return s.mods() }
 
@@ -50,7 +51,7 @@ func (s *Store) loadMods() ([]Mod, error) {
 	if err := validateMods(len(st.stats), it.Tags, mods); err != nil {
 		return nil, err
 	}
-	if err := validateImplicits(it.Bases, mods); err != nil {
+	if err := validateModRefs(*it, mods); err != nil {
 		return nil, err
 	}
 	return mods, nil

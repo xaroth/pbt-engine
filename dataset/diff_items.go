@@ -13,6 +13,8 @@ type ItemsDiff struct {
 	BasesAdded, BasesRemoved            []string
 	BasesChanged                        []string
 	ModsAdded, ModsRemoved, ModsChanged []string
+	// BenchCrafts are by the mod a craft adds.
+	BenchCraftsAdded, BenchCraftsRemoved, BenchCraftsChanged []string
 }
 
 // itemGroup is the items group of one store, empty when the store has none.
@@ -52,6 +54,8 @@ func compareItemGroups(a, b *Store, x, y *tables) (ItemsDiff, error) {
 	d.TagsAdded, d.TagsRemoved = setDiff(keys(byKey(p.items.Tags, tagID)), keys(byKey(q.items.Tags, tagID)))
 	d.BasesAdded, d.BasesRemoved, d.BasesChanged = changes(p.items.Bases, q.items.Bases,
 		func(b ItemBase) string { return b.ID }, sameBase)
+	d.BenchCraftsAdded, d.BenchCraftsRemoved, d.BenchCraftsChanged = changes(p.items.BenchCrafts, q.items.BenchCrafts,
+		func(c BenchCraft) string { return c.Mod }, func(c, e BenchCraft) bool { return slices.Equal(c.Classes, e.Classes) })
 	d.ModsAdded, d.ModsRemoved, d.ModsChanged = changes(p.mods, q.mods,
 		func(m Mod) string { return m.ID }, func(m, n Mod) bool { return sameMod(x, y, m, n) })
 	return d, nil
@@ -73,7 +77,8 @@ func changes[T any, K cmp.Ordered](a, b []T, id func(T) K, same func(T, T) bool)
 
 func sameBase(a, b ItemBase) bool {
 	return a.Class == b.Class && slices.Equal(a.Implicits, b.Implicits) && slices.Equal(a.Tags, b.Tags) &&
-		samePtr(a.Armour, b.Armour) && a.Block == b.Block && samePtr(a.Weapon, b.Weapon) && samePtr(a.Flask, b.Flask)
+		samePtr(a.Armour, b.Armour) && a.Block == b.Block && samePtr(a.Weapon, b.Weapon) && samePtr(a.Flask, b.Flask) &&
+		a.ModDomain == b.ModDomain
 }
 
 func samePtr[T comparable](a, b *T) bool {

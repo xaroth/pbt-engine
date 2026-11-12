@@ -20,14 +20,14 @@ func (d *Dataset) validateItemsGroup() error {
 	if err := validateMods(len(d.Stats), d.Items.Tags, d.Mods); err != nil {
 		return err
 	}
-	if err := validateImplicits(d.Items.Bases, d.Mods); err != nil {
+	if err := validateModRefs(*d.Items, d.Mods); err != nil {
 		return err
 	}
 	return validateItemNames(d.Texts, d.Items, d.Mods)
 }
 
-// validateItems checks classes, tags and bases: ids present and unique, every class and tag a
-// base names known, ranges ordered.
+// validateItems checks classes, tags, bases and bench crafts: ids present and unique, every
+// class and tag a base or craft names known, ranges ordered.
 func validateItems(it Items) error {
 	classes, err := idSet("item class", it.Classes, func(c ItemClass) string { return c.ID })
 	if err != nil {
@@ -45,16 +45,25 @@ func validateItems(it Items) error {
 			return fmt.Errorf("base %s: %w", b.ID, err)
 		}
 	}
-	return nil
+	return validateBenchCrafts(classes, it.BenchCrafts)
 }
 
 func validateBase(classes, tags map[string]bool, b ItemBase) error {
 	if !classes[b.Class] {
 		return fmt.Errorf("unknown item class %q: %w", b.Class, ErrInvalid)
 	}
+	// A mod domain is a row of the game's ModDomains table, so it is never negative.
+	if b.ModDomain < 0 {
+		return fmt.Errorf("mod domain %d: %w", b.ModDomain, ErrInvalid)
+	}
 	if err := knownTags(tags, b.Tags); err != nil {
 		return err
 	}
+	return validateValues(b)
+}
+
+// validateValues checks the armour, weapon and flask values of b.
+func validateValues(b ItemBase) error {
 	if a := b.Armour; a != nil {
 		if err := ordered(a.Armour, a.Evasion, a.EnergyShield, a.Ward); err != nil {
 			return err
@@ -128,17 +137,47 @@ func validateModTags(tags map[string]bool, m Mod) error {
 	return nil
 }
 
-// validateImplicits checks that every implicit of bases is one of mods.
-func validateImplicits(bases []ItemBase, mods []Mod) error {
+// validateModRefs checks that every implicit of a base and every mod a bench craft adds is one
+// of mods.
+func validateModRefs(it Items, mods []Mod) error {
 	ids := make(map[string]bool, len(mods))
 	for _, m := range mods {
 		ids[m.ID] = true
 	}
-	for _, b := range bases {
+	for _, b := range it.Bases {
 		for _, m := range b.Implicits {
 			if !ids[m] {
 				return fmt.Errorf("base %s: implicit %s not in mods: %w", b.ID, m, ErrInvalid)
 			}
+		}
+	}
+	for _, c := range it.BenchCrafts {
+		if !ids[c.Mod] {
+			return fmt.Errorf("bench craft %s: mod not in mods: %w", c.Mod, ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// validateBenchCrafts checks that no two crafts add the same mod and that each applies to a
+// nonempty set of known classes.
+func validateBenchCrafts(classes map[string]bool, crafts []BenchCraft) error {
+	if _, err := idSet("bench craft", crafts, func(c BenchCraft) string { return c.Mod }); err != nil {
+		return err
+	}
+	for _, c := range crafts {
+		if len(c.Classes) == 0 {
+			return fmt.Errorf("bench craft %s: no item classes: %w", c.Mod, ErrInvalid)
+		}
+		seen := make(map[string]bool, len(c.Classes))
+		for _, k := range c.Classes {
+			if !classes[k] {
+				return fmt.Errorf("bench craft %s: unknown item class %q: %w", c.Mod, k, ErrInvalid)
+			}
+			if seen[k] {
+				return fmt.Errorf("bench craft %s: item class %s repeated: %w", c.Mod, k, ErrInvalid)
+			}
+			seen[k] = true
 		}
 	}
 	return nil

@@ -22,8 +22,8 @@ import (
 	"github.com/xaroth/pbt-engine/dataset/internal/fb"
 )
 
-// withItems returns sample with an items group: a helmet, a shield, a sword and a flask, and
-// the mods they and a crafted affix need. Stats 0 to 2 are sample's.
+// withItems returns sample with an items group: a helmet, a shield, a sword and a flask, the
+// mods they need and a bench craft for helmets and shields. Stats 0 to 2 are sample's.
 func withItems() *dataset.Dataset {
 	d := sample()
 	d.Items = &dataset.Items{
@@ -31,25 +31,26 @@ func withItems() *dataset.Dataset {
 		Tags:    []string{"default", "helmet", "str_armour", "shield", "weapon", "life", "has_attack_mod"},
 		Bases: []dataset.ItemBase{
 			{
-				ID: "Metadata/Items/Armours/Helmets/HelmetStr1", Class: "Helmet", Tags: []string{"str_armour", "helmet", "default"},
+				ID: "Metadata/Items/Armours/Helmets/HelmetStr1", Class: "Helmet", Tags: []string{"str_armour", "helmet", "default"}, ModDomain: 1,
 				Armour: &dataset.ArmourValues{Armour: dataset.ValueRange{Min: 9, Max: 12}},
 			},
 			{
-				ID: "Metadata/Items/Armours/Shields/ShieldStr1", Class: "Shield", Tags: []string{"shield"},
+				ID: "Metadata/Items/Armours/Shields/ShieldStr1", Class: "Shield", Tags: []string{"shield"}, ModDomain: 1,
 				Implicits: []string{"BlockImplicit"},
 				Armour:    &dataset.ArmourValues{Armour: dataset.ValueRange{Min: 7, Max: 9}, MovementSpeed: -3},
 				Block:     24,
 			},
 			{
 				ID: "Metadata/Items/Weapons/OneHandWeapons/OneHandSwords/OneHandSword1", Class: "One Hand Sword",
-				Tags: []string{"weapon"}, Implicits: []string{"AccuracyImplicit", "BlockImplicit"},
+				Tags: []string{"weapon"}, Implicits: []string{"AccuracyImplicit", "BlockImplicit"}, ModDomain: 1,
 				Weapon: &dataset.WeaponValues{PhysicalDamage: dataset.ValueRange{Min: 4, Max: 9}, AttackTime: 645, CriticalChance: 500, Range: 11},
 			},
 			{
-				ID: "Metadata/Items/Flasks/FlaskLife1", Class: "LifeFlask",
+				ID: "Metadata/Items/Flasks/FlaskLife1", Class: "LifeFlask", ModDomain: 2,
 				Flask: &dataset.FlaskValues{Kind: dataset.LifeFlask, Life: 70, Duration: 30, MaxCharges: 21, ChargesPerUse: 7},
 			},
 		},
+		BenchCrafts: []dataset.BenchCraft{{Mod: "CraftedLife1", Classes: []string{"Shield", "Helmet"}}},
 	}
 	d.Mods = []dataset.Mod{
 		{
@@ -69,6 +70,10 @@ func withItems() *dataset.Dataset {
 			ID: "AccuracyImplicit", Domain: 1, Generation: 3, Type: "Accuracy", Families: []string{"Accuracy", "Implicit"}, GameMode: 2,
 			AddedTags:         []string{"has_attack_mod"},
 			GenerationWeights: []dataset.TagWeight{{Tag: "has_attack_mod", Weight: 50}},
+		},
+		{
+			ID: "CraftedLife1", Domain: 9, Generation: 1, Level: 15, Type: "IncreasedLife", Families: []string{"IncreasedLife"},
+			Stats: []dataset.ModStat{{Stat: 1, Min: 15, Max: 25, RuthlessMin: 15, RuthlessMax: 25}},
 		},
 	}
 	d.Texts[0].ItemClassNames = []dataset.Name{{ID: "Helmet", Name: "Helmets"}}
@@ -198,9 +203,26 @@ func TestItemsWriteErrors(t *testing.T) {
 		{name: "damage range reversed", want: "range 9 to 4", change: func(d *dataset.Dataset) {
 			d.Items.Bases[2].Weapon.PhysicalDamage = dataset.ValueRange{Min: 9, Max: 4}
 		}},
+		{name: "negative mod domain", want: "base Metadata/Items/Flasks/FlaskLife1: mod domain -1", change: func(d *dataset.Dataset) {
+			d.Items.Bases[3].ModDomain = -1
+		}},
 		{name: "flask kind 0", want: "unknown flask kind 0", change: func(d *dataset.Dataset) { d.Items.Bases[3].Flask.Kind = 0 }},
 		{name: "flask kind past utility", want: "unknown flask kind 5", change: func(d *dataset.Dataset) { d.Items.Bases[3].Flask.Kind = 5 }},
 		{name: "implicit not in mods", want: "implicit BlockImplicit not in mods", change: func(d *dataset.Dataset) { d.Mods = d.Mods[:1] }},
+		{name: "craft mod not in mods", want: "bench craft CraftedLife1: mod not in mods", change: func(d *dataset.Dataset) { d.Mods = d.Mods[:3] }},
+		{name: "repeated craft", want: "bench craft CraftedLife1 repeated", change: func(d *dataset.Dataset) {
+			d.Items.BenchCrafts = append(d.Items.BenchCrafts, dataset.BenchCraft{Mod: "CraftedLife1", Classes: []string{"Helmet"}})
+		}},
+		{name: "empty craft mod", want: "bench craft 0: empty id", change: func(d *dataset.Dataset) { d.Items.BenchCrafts[0].Mod = "" }},
+		{name: "craft without classes", want: "bench craft CraftedLife1: no item classes", change: func(d *dataset.Dataset) {
+			d.Items.BenchCrafts[0].Classes = nil
+		}},
+		{name: "unknown craft class", want: `bench craft CraftedLife1: unknown item class "Ring"`, change: func(d *dataset.Dataset) {
+			d.Items.BenchCrafts[0].Classes[1] = "Ring"
+		}},
+		{name: "repeated craft class", want: "bench craft CraftedLife1: item class Shield repeated", change: func(d *dataset.Dataset) {
+			d.Items.BenchCrafts[0].Classes[1] = "Shield"
+		}},
 		{name: "repeated mod", want: "mod IncreasedLife1 repeated", change: func(d *dataset.Dataset) { d.Mods[1].ID = "IncreasedLife1" }},
 		{name: "empty mod id", want: "mod 2: empty id", change: func(d *dataset.Dataset) { d.Mods[2].ID = "" }},
 		{name: "empty type", want: "mod BlockImplicit: empty type", change: func(d *dataset.Dataset) { d.Mods[1].Type = "" }},
@@ -243,6 +265,8 @@ type itemsLayout struct {
 	baseTags []uint32
 	// flaskKind, when set, gives the base flask values of that kind.
 	flaskKind *uint8
+	// craftClasses, when not nil, adds a bench craft of mod "Crafted" with these class indexes.
+	craftClasses []uint32
 }
 
 func itemsFile(l itemsLayout) []byte {
@@ -274,12 +298,33 @@ func itemsFile(l itemsLayout) []byte {
 	b.PrependUOffsetT(cls)
 	classes := b.EndVector(1)
 	tagVec := stringVec(b, fb.ItemsStartTagsVector, l.tags)
+	crafts := craftsVec(b, l.craftClasses)
 	fb.ItemsStart(b)
 	fb.ItemsAddClasses(b, classes)
 	fb.ItemsAddTags(b, tagVec)
 	fb.ItemsAddBases(b, bases)
+	if crafts != 0 {
+		fb.ItemsAddBenchCrafts(b, crafts)
+	}
 	fb.FinishItemsBuffer(b, fb.ItemsEnd(b))
 	return b.FinishedBytes()
+}
+
+// craftsVec returns a bench crafts vector holding one craft of mod "Crafted" with classes, or 0
+// for nil classes.
+func craftsVec(b *flatbuffers.Builder, classes []uint32) flatbuffers.UOffsetT {
+	if classes == nil {
+		return 0
+	}
+	mod := b.CreateString("Crafted")
+	refs := uint32Vec(b, fb.BenchCraftStartClassesVector, classes)
+	fb.BenchCraftStart(b)
+	fb.BenchCraftAddMod(b, mod)
+	fb.BenchCraftAddClasses(b, refs)
+	craft := fb.BenchCraftEnd(b)
+	fb.ItemsStartBenchCraftsVector(b, 1)
+	b.PrependUOffsetT(craft)
+	return b.EndVector(1)
 }
 
 // modsFile builds a mods file with the given stat and tag ids and one mod whose stats and tags
@@ -340,7 +385,7 @@ func TestModGameModeAbsent(t *testing.T) {
 	for i := range d.Items.Bases {
 		d.Items.Bases[i].Implicits = nil
 	}
-	d.Mods, d.Texts = nil, nil
+	d.Items.BenchCrafts, d.Mods, d.Texts = nil, nil, nil
 	s, err := dataset.Open(withFile(t, written(t, d), "mods.fb", modsFile(nil, nil, nil, nil)))
 	if err != nil {
 		t.Fatal(err)
@@ -354,6 +399,29 @@ func TestModGameModeAbsent(t *testing.T) {
 	}
 }
 
+// TestItemsWithoutModDomainsOrCrafts reads an items file written without mod domains and bench
+// crafts, as files from before those fields are: every base has domain 0 and there are no
+// crafts.
+func TestItemsWithoutModDomainsOrCrafts(t *testing.T) {
+	t.Parallel()
+	d := withItems()
+	d.Items.Classes, d.Items.Tags = d.Items.Classes[:1], []string{"default"}
+	d.Items.Bases, d.Items.BenchCrafts = nil, nil
+	d.Mods, d.Texts = nil, nil
+	s, err := dataset.Open(withFile(t, written(t, d), "items.fb", itemsFile(itemsLayout{tags: []string{"default"}})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	it, err := s.Items()
+	if err != nil {
+		t.Fatalf("Items: %v", err)
+	}
+	want := &dataset.Items{Classes: d.Items.Classes, Tags: d.Items.Tags, Bases: []dataset.ItemBase{{ID: "Base", Class: "Helmet"}}}
+	if diff := gocmp.Diff(want, it, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("Items mismatch (-want +got):\n%s", diff)
+	}
+}
+
 func TestItemsReadErrors(t *testing.T) {
 	t.Parallel()
 	good := written(t, withItems())
@@ -363,8 +431,13 @@ func TestItemsReadErrors(t *testing.T) {
 	for i := range other.Items.Bases {
 		other.Items.Bases[i].Tags, other.Items.Bases[i].Implicits = nil, nil
 	}
+	other.Items.BenchCrafts = nil
 	other.Mods = []dataset.Mod{{ID: "Other", Domain: 1, Generation: 1, Type: "Other", Tags: []string{"default"}}}
 	other.Texts = nil
+	// noCraftMod has the implicits but not the crafted mod.
+	noCraftMod := withItems()
+	noCraftMod.Items.BenchCrafts, noCraftMod.Mods = nil, noCraftMod.Mods[:3]
+	noCraftModFiles := written(t, noCraftMod)
 	otherFiles := written(t, other)
 	otherTags := withItems()
 	otherTags.Items.Tags = append(otherTags.Items.Tags, "zzz")
@@ -431,6 +504,15 @@ func TestItemsReadErrors(t *testing.T) {
 			fsys: withFile(t, good, "mods.fb", modsFile(nil, []string{"default"}, nil, []uint32{1})),
 		},
 		{name: "implicit not in mods", want: "implicit BlockImplicit not in mods", fsys: withFile(t, good, "mods.fb", otherFiles["mods.fb"].Data)},
+		{name: "craft mod not in mods", want: "bench craft CraftedLife1: mod not in mods", fsys: withFile(t, good, "mods.fb", noCraftModFiles["mods.fb"].Data)},
+		{
+			name: "craft class out of range", want: "items.fb: bench craft Crafted: class 1 out of range (1 classes)",
+			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{1}})),
+		},
+		{
+			name: "craft without classes", want: "bench craft Crafted: no item classes",
+			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{}})),
+		},
 		{name: "mod tag not in items", want: `mods.fb: unknown tag "zzz"`, fsys: withFile(t, good, "mods.fb", otherTagsFiles["mods.fb"].Data)},
 		{
 			name: "mod stat unknown", want: `mods.fb: unknown stat "base_maximum_all_resistances_%"`,
