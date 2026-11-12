@@ -58,6 +58,32 @@ func TestRegeneration(t *testing.T) {
 				{Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
 			},
 		},
+		// 1 per second per 1% of -30% uncapped fire resistance
+		{
+			name: "life regeneration per negative fire resistance", stat: "life_regeneration", want: -30,
+			extra: []resolve.StatValue{
+				{Stat: "base_fire_damage_resistance_%", Value: -30},
+				{Stat: "life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance", Value: 60},
+			},
+		},
+		// flat life regeneration 10 - 30 = -20 does not carry over; 2% of 202 energy shield does: 4.04
+		{
+			name: "negative flat life regeneration to energy shield", stat: "energy_shield_regeneration", want: 4,
+			extra: []resolve.StatValue{
+				{Stat: "base_fire_damage_resistance_%", Value: -30},
+				{Stat: "life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance", Value: 60},
+				{Stat: "base_life_regeneration_rate_per_minute", Value: 600}, {Stat: "life_regeneration_rate_per_minute_%", Value: 120},
+				{Stat: "base_maximum_energy_shield", Value: 200}, {Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
+			},
+		},
+		// -2% of 202 energy shield does not carry over
+		{
+			name: "negative percent life regeneration to energy shield", stat: "energy_shield_regeneration", want: 10,
+			extra: []resolve.StatValue{
+				{Stat: "base_life_regeneration_rate_per_minute", Value: 600}, {Stat: "life_regeneration_rate_per_minute_%", Value: -120},
+				{Stat: "base_maximum_energy_shield", Value: 200}, {Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
+			},
+		},
 		{name: "no energy shield regeneration", stat: "energy_shield_regeneration", want: 0},
 	}
 	for _, testCase := range testCases {

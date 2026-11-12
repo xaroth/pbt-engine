@@ -108,6 +108,43 @@ func TestAttributions(t *testing.T) {
 			t.Errorf("got %v for %v life", got, life)
 		}
 	})
+	t.Run("life regeneration to energy shield credits only what carries over", func(t *testing.T) {
+		t.Parallel()
+		zealot := []resolve.StatValue{
+			{Stat: "base_maximum_energy_shield", Value: 200}, {Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
+		}
+		testCases := []struct {
+			name       string
+			node, more resolve.StatValue
+			want       func(es float64) float64
+		}{
+			// -10 flat does not carry over; 2% of energy shield does
+			{
+				name: "negative flat",
+				node: resolve.StatValue{Stat: "life_regeneration_rate_per_minute_%", Value: 120},
+				more: resolve.StatValue{Stat: "base_life_regeneration_rate_per_minute", Value: -600},
+				want: func(es float64) float64 { return es * 0.02 },
+			},
+			// -2% of energy shield does not carry over; 10 flat does
+			{
+				name: "negative percent",
+				node: resolve.StatValue{Stat: "base_life_regeneration_rate_per_minute", Value: 600},
+				more: resolve.StatValue{Stat: "life_regeneration_rate_per_minute_%", Value: -120},
+				want: func(float64) float64 { return 10 },
+			},
+		}
+		for _, testCase := range testCases {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+				sh := open(t, resolved(append(endgame(append(zealot, testCase.node)...), other(testCase.more))...))
+				want := testCase.want(value(t, sh, "maximum_energy_shield"))
+				got := bySource(proportion(t, sh, "energy_shield_regeneration").Parts)
+				if !near(got[srcNode], want) || len(got) != 1 {
+					t.Errorf("got %v, want %v from the node alone", got, want)
+				}
+			})
+		}
+	})
 	t.Run("conversion is a negative line", func(t *testing.T) {
 		t.Parallel()
 		sh := open(t, resolved(append(endgame(), other(resolve.StatValue{Stat: "maximum_life_%_to_convert_to_maximum_energy_shield", Value: 30}))...))

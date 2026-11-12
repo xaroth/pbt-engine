@@ -159,7 +159,7 @@ func regenerationAttribute(percent, pool core.StatID, off []core.StatID) core.At
 }
 
 // lifeRegenerationAsEnergyShieldAttribute credits the flat and percent life regeneration
-// sources.
+// sources that carry over.
 func lifeRegenerationAsEnergyShieldAttribute(ids map[string]core.StatID) core.Attribute {
 	on := mustID(ids, statLifeRegenerationAppliesToEnergyShield)
 	flat, percent := mustID(ids, statLifeRegeneratedPerSecond), mustID(ids, statPercentOfLifeRegeneratedPerSecond)
@@ -169,10 +169,10 @@ func lifeRegenerationAsEnergyShieldAttribute(ids map[string]core.StatID) core.At
 		if a.Stat(on) == 0 {
 			return at
 		}
-		if v := a.Stat(flat); v != 0 {
+		if v := a.Stat(flat); v > 0 {
 			at.Parts = a.Spread(core.SelfRef(flat), v, core.OpBase)
 		}
-		if pct := a.Stat(percent); pct != 0 {
+		if pct := a.Stat(percent); pct > 0 {
 			at.Parts = append(at.Parts, a.Spread(core.SelfRef(percent), float64(a.Stat(pool)*pct)/percentScale, core.OpBase)...)
 		}
 		return at
@@ -181,8 +181,10 @@ func lifeRegenerationAsEnergyShieldAttribute(ids map[string]core.StatID) core.At
 
 // lifeRegenerationAsEnergyShield is energy shield regeneration while "Life Regeneration is
 // applied to Energy Shield instead": the flat life regeneration plus the life regeneration
-// percentage of maximum energy shield. Life regeneration rate modifiers do not carry over, as
-// in PoB; the text does not say.
+// percentage of maximum energy shield. Each carries over only when positive, so a negative
+// flat life regeneration (as from life regeneration per 1% of a negative uncapped fire
+// resistance) gives none. Life regeneration rate modifiers do not carry over. Both follow PoB
+// (CalcDefence.lua, Zealot's Oath); the text does not say.
 func lifeRegenerationAsEnergyShield(ids map[string]core.StatID) core.Formula {
 	on := mustID(ids, statLifeRegenerationAppliesToEnergyShield)
 	flat, percent := mustID(ids, statLifeRegeneratedPerSecond), mustID(ids, statPercentOfLifeRegeneratedPerSecond)
@@ -191,7 +193,7 @@ func lifeRegenerationAsEnergyShield(ids map[string]core.StatID) core.Formula {
 		if rd.Stat(on) == 0 {
 			return 0
 		}
-		return rd.Stat(flat) + float64(rd.Stat(pool)*rd.Stat(percent))/percentScale
+		return max(rd.Stat(flat), 0) + float64(rd.Stat(pool)*max(rd.Stat(percent), 0))/percentScale
 	}
 }
 
