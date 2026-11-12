@@ -195,6 +195,18 @@ func TestParseCrafting(t *testing.T) {
 			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
 		},
 		{
+			"a former bench craft whose weights name amulets, on an amulet",
+			"Rarity: RARE\nX\nIron Amulet\nImplicits: 0\n{crafted}+290 to Ward\n",
+			rare(amuletBase, line(build.Crafted, "+290 to Ward", "amulet_craft_ward", 290)),
+			nil,
+		},
+		{
+			"no former bench craft whose weights name amulets on a ring",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+290 to Ward\n",
+			rare(ringBase, line(build.Crafted, "+290 to Ward", "ward", 290)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
 			"no former bench craft on a normal item",
 			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+260 to Ward\n",
 			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+260 to Ward", "ward", 260)}},

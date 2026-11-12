@@ -338,8 +338,8 @@ func (r *Reader) essence(m *dataset.Mod, t target) bool {
 }
 
 // benchCraft is a bench craft that can be on a magic or rare item like t: one the dataset lists
-// for t's class. A dataset without that list stands in: any craft, with a local stat only on
-// armour and weapons.
+// for t's class. A dataset without that list stands in: any craft whose weights name t's kind
+// or no kind, with a local stat only on armour and weapons.
 func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
 	return func(m *dataset.Mod) bool {
 		if !magicOrRare(t) || m.Domain != domainCrafted {
@@ -348,8 +348,16 @@ func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
 		if r.crafting.known {
 			return slices.Contains(r.crafting.bench[m.ID], t.base.Class)
 		}
-		return r.fitsStandIn(m, t)
+		return r.fitsStandIn(m, t) && namesBaseOrNone(m, t)
 	}
+}
+
+// namesBaseOrNone reports whether m's weights name a tag of t's base or none but "default": a
+// craft whose weights name item kinds, as {shield 0} {ring 0}, was offered for those only.
+func namesBaseOrNone(m *dataset.Mod, t target) bool {
+	return namesNoKind(m) || slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
+		return w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag)
+	})
 }
 
 // listedEssence reports whether the dataset lists m as an essence mod, which counts only where
@@ -359,11 +367,12 @@ func (r *Reader) listedEssence(m *dataset.Mod) bool {
 }
 
 // formerCraft is a crafted mod of a magic or rare item like t that the bench no longer offers:
-// one the dataset's bench crafts do not list. The dataset does not say which items it went on,
-// so one with a local stat counts on armour and weapons only. Without the list every craft is
-// current.
+// one the dataset's bench crafts do not list. The dataset does not say which items it went on:
+// one whose weights name item kinds counts on those only, and one with a local stat on armour
+// and weapons only. Without the list every craft is current.
 func (r *Reader) formerCraft(m *dataset.Mod, t target) bool {
-	return r.crafting.known && magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil && r.fitsStandIn(m, t)
+	return r.crafting.known && magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil &&
+		r.fitsStandIn(m, t) && namesBaseOrNone(m, t)
 }
 
 // enchantCraft is an enchantment the crafting bench adds to items of t's class.
