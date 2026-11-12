@@ -151,16 +151,23 @@ func versionOf(tree string) (version, variant string, err error) {
 
 // store is the dataset of version, else the newest of the game with a warning.
 func (im *importer) store(reg *dataset.Registry, version string) (*dataset.Store, error) {
+	s, fallback, err := storeFor(reg, version)
+	if fallback {
+		im.warnf(VersionFallback, version, "no dataset of this version; class names read with %s", s.Manifest().Version)
+	}
+	return s, err
+}
+
+// storeFor returns the dataset of version, else the newest of the game and true.
+func storeFor(reg *dataset.Registry, version string) (*dataset.Store, bool, error) {
 	if res, err := reg.Resolve(game, version); err == nil {
-		return res.Store, nil
+		return res.Store, false, nil
 	}
 	stores := reg.Stores(game)
 	if len(stores) == 0 {
-		return nil, fmt.Errorf("%w for %s %s", ErrNoDataset, game, version)
+		return nil, false, fmt.Errorf("%w for %s %s", ErrNoDataset, game, version)
 	}
-	s := stores[len(stores)-1]
-	im.warnf(VersionFallback, version, "no dataset of this version; class names read with %s", s.Manifest().Version)
-	return s, nil
+	return stores[len(stores)-1], true, nil
 }
 
 // names maps PoB's class and ascendancy names to ids through the dataset's English text.
