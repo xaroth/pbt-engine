@@ -7,7 +7,8 @@
     { "$ref": "#/$defs/Stats" },
     { "$ref": "#/$defs/Diff" },
     { "$ref": "#/$defs/Result" },
-    { "$ref": "#/$defs/Output" }
+    { "$ref": "#/$defs/Output" },
+    { "$ref": "#/$defs/Explanation" }
   ],
   "$defs": {
     "Output": {
@@ -283,6 +284,234 @@
         "mod": { "type": "string" },
         "stats": { "type": "array", "items": { "$ref": "#/$defs/StatValue" } }
       }
+    },
+    "Explanation": {
+      "title": "Explanation",
+      "description": "An output explained in one view.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output", "view", "version", "amount", "effective", "value", "capBy", "lines", "tree"],
+      "properties": {
+        "output": { "$ref": "#/$defs/Output" },
+        "view": { "$ref": "#/$defs/View" },
+        "version": {
+          "type": "string",
+          "description": "The dataset version."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total before caps."
+        },
+        "effective": {
+          "type": "number",
+          "description": "The value after caps."
+        },
+        "value": {
+          "type": "number",
+          "description": "The value after rounding, as the sheet shows it."
+        },
+        "capBy": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The engine stats whose values capped amount."
+        },
+        "lines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Line" },
+          "description": "The sources, for the proportional and marginal views; empty for the tree view."
+        },
+        "tree": {
+          "oneOf": [
+            { "$ref": "#/$defs/TreeNode" },
+            { "type": "null" }
+          ],
+          "description": "The root of the tree view; null for the other views."
+        }
+      }
+    },
+    "View": {
+      "title": "View",
+      "description": "How an explanation attributes an output: how it is built (tree), each source's share (proportional) or what it loses without each source (marginal).",
+      "enum": ["tree", "proportional", "marginal"]
+    },
+    "Op": {
+      "title": "Op",
+      "description": "How a modifier applies.",
+      "enum": ["base", "inc", "more", "override", "flag"]
+    },
+    "Line": {
+      "title": "Line",
+      "description": "One source's share (proportional) or loss (marginal).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "value", "total", "parts"],
+      "properties": {
+        "source": { "$ref": "#/$defs/Source" },
+        "value": {
+          "type": "number",
+          "description": "The share of amount, or for the marginal view what the output's value loses."
+        },
+        "total": {
+          "type": "number",
+          "description": "For the marginal view, what amount loses; 0 otherwise."
+        },
+        "parts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/LinePart" },
+          "description": "A proportional share by op and path."
+        }
+      }
+    },
+    "LinePart": {
+      "title": "LinePart",
+      "description": "Part of a share: from one op, through one path of engine stats.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "value", "via", "from"],
+      "properties": {
+        "op": { "$ref": "#/$defs/Op" },
+        "value": { "type": "number" },
+        "via": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The engine stats the share passed through, nearest first."
+        },
+        "from": {
+          "oneOf": [
+            { "$ref": "#/$defs/Source" },
+            { "type": "null" }
+          ],
+          "description": "The source of the modifier when it is not the line's source."
+        }
+      }
+    },
+    "TreeNode": {
+      "title": "TreeNode",
+      "description": "One engine stat of a tree explanation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stat", "formula", "terms", "overridden", "total", "capped", "value", "reads", "repeat"],
+      "properties": {
+        "stat": { "type": "string" },
+        "formula": { "type": "string" },
+        "terms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TreeTerm" }
+        },
+        "overridden": { "type": "boolean" },
+        "total": { "type": "number" },
+        "capped": { "type": "number" },
+        "value": { "type": "number" },
+        "reads": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TreeNode" },
+          "description": "The stats this one reads."
+        },
+        "repeat": {
+          "type": "boolean",
+          "description": "Shown higher up already; terms and reads are left out."
+        }
+      }
+    },
+    "TreeTerm": {
+      "title": "TreeTerm",
+      "description": "One modifier considered for a tree node.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "op", "value", "stat", "rate", "held"],
+      "properties": {
+        "source": { "$ref": "#/$defs/Source" },
+        "op": { "$ref": "#/$defs/Op" },
+        "value": { "type": "number" },
+        "stat": {
+          "type": "string",
+          "description": "The engine stat the modifier is on when not the node's own; else empty."
+        },
+        "rate": {
+          "type": "number",
+          "description": "The share rate of a shared stat's modifier, else 1."
+        },
+        "held": {
+          "type": "boolean",
+          "description": "False when the modifier's condition failed."
+        }
+      }
+    },
+    "Source": {
+      "title": "Source",
+      "description": "What a value is credited to; kind says which fields it has.",
+      "oneOf": [
+        {
+          "description": "A class's base stats.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": { "const": "character" },
+            "id": {
+              "type": "string",
+              "description": "The dataset character id."
+            }
+          }
+        },
+        {
+          "description": "The character level.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "level" }
+          }
+        },
+        {
+          "description": "A passive node, or one of a mastery's effects.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "node", "effect"],
+          "properties": {
+            "kind": { "const": "node" },
+            "node": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "effect": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The mastery effect id; 0 for the node's own stats."
+            }
+          }
+        },
+        {
+          "description": "A quest reward.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "quest", "flag"],
+          "properties": {
+            "kind": { "const": "quest" },
+            "quest": {
+              "type": "string",
+              "description": "The quest id; empty for a reward no quest owns."
+            },
+            "flag": {
+              "type": "string",
+              "description": "The quest flag that grants the reward."
+            }
+          }
+        },
+        {
+          "description": "A rule's own source.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "rule"],
+          "properties": {
+            "kind": { "const": "rule" },
+            "rule": {
+              "type": "string",
+              "description": "What the rule credits, such as an inherent attribute bonus."
+            }
+          }
+        }
+      ]
     }
   }
 }

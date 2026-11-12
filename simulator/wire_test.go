@@ -152,6 +152,27 @@ func TestWireOutputs(t *testing.T) {
 	wireGolden(t, "outputs.json", "", outputs)
 }
 
+// An explanation's JSON in each view equals its golden file and matches the schema.
+func TestWireExplanation(t *testing.T) {
+	t.Parallel()
+	b := marauderBuild(90, 2, 3, 4, 6, 8, 10)
+	b.Masteries = map[uint32]uint32{4: 7, 6: 9}
+	st := simulate(t, newSim(t), b)
+	for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
+		ex, err := st.Explain(poe1.Life, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wireGolden(t, "explanation-"+v.String()+".json", "Explanation", ex)
+	}
+	// Fire resistance has the campaign's quest rewards, through the stat all elements share.
+	ex, err := st.Explain(poe1.FireResistance, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wireGolden(t, "explanation-quest.json", "Explanation", ex)
+}
+
 // Warnings, catalogue entries and edits read back into the values they were written from.
 func TestWireRoundTrip(t *testing.T) {
 	t.Parallel()
@@ -222,7 +243,7 @@ func TestWireDeterministic(t *testing.T) {
 	}
 }
 
-// The wire JSON of a real build's results matches the schema on both pinned datasets.
+// The wire JSON of a real build's results and explanations matches the schema on both pinned datasets.
 func TestWireRealData(t *testing.T) {
 	t.Parallel()
 	previous, err := simulator.New(realdata.Open(t, realdata.Previous))
@@ -274,6 +295,15 @@ func TestWireRealData(t *testing.T) {
 		validate(t, def, data)
 	}
 	check("Stats", st)
+	for _, k := range st.Keys() {
+		for _, v := range []simulator.View{simulator.Tree, simulator.Proportional, simulator.Marginal} {
+			ex, err := st.Explain(k, v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			check("Explanation", ex)
+		}
+	}
 	check("Diff", compare)
 	check("Diff", across)
 	for _, r := range results {
