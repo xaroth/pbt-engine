@@ -220,6 +220,7 @@ func none(*dataset.Mod) bool { return false }
 // sources returns the mods a line of kind on item t can be.
 func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 	craft := r.benchCraft(t)
+	former := func(m *dataset.Mod) bool { return r.formerCraft(m, t) }
 	given := func(m *dataset.Mod) bool { return r.essence(m, t) || elevated(m, t) }
 	switch kind {
 	case build.Implicit:
@@ -230,7 +231,7 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 			retired: func(m *dataset.Mod) bool { return formerImplicit(m, t) },
 		}
 	case build.Crafted:
-		return lineSources{current: craft, craft: none, given: none, retired: none}
+		return lineSources{current: craft, craft: none, given: none, retired: former}
 	case build.Enchant:
 		return lineSources{
 			current: func(m *dataset.Mod) bool { return enchant(m, t) || r.enchantCraft(m, t) },
@@ -252,7 +253,7 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 			current: func(m *dataset.Mod) bool { return explicitMod(m, t) },
 			craft:   craft,
 			given:   given,
-			retired: func(m *dataset.Mod) bool { return r.retiredAffix(m, t) || passiveTreeMod(m, t) },
+			retired: func(m *dataset.Mod) bool { return r.retiredAffix(m, t) || passiveTreeMod(m, t) || former(m) },
 		}
 	}
 }
@@ -351,6 +352,12 @@ func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
 	}
 }
 
+// formerCraft is a crafted mod of a magic or rare item like t that the bench no longer offers:
+// one the dataset's bench crafts do not list. Without that list every craft is current.
+func (r *Reader) formerCraft(m *dataset.Mod, t target) bool {
+	return r.crafting.known && magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil
+}
+
 // enchantCraft is an enchantment the crafting bench adds to items of t's class.
 func (r *Reader) enchantCraft(m *dataset.Mod, t target) bool {
 	return m.Domain != domainCrafted && slices.Contains(r.crafting.bench[m.ID], t.base.Class)
@@ -369,15 +376,19 @@ func namesNoKind(m *dataset.Mod) bool {
 
 // retiredAffix is a prefix or suffix of a magic or rare item like t that spawns nowhere now:
 // its weights are all 0 and name one of its base's tags or no item kind, such as older versions
-// of mods and mods of retired crafting. Weights on a tag an influence gives are elevated mods
-// (see elevated). Without the dataset's essence mods, item mods that name no kind stand in for
-// essence mods instead.
+// of mods and mods of retired crafting, but not an essence mod (see essence). Weights on a tag
+// an influence gives are elevated mods (see elevated). Without the dataset's essence mods, item
+// mods that name no kind stand in for essence mods instead.
 func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
 	if !magicOrRare(t) || !affix(m) || !affixDomain(m, t) || len(m.SpawnWeights) == 0 || spawns(m) {
 		return false
 	}
 	if namesNoKind(m) {
-		return r.crafting.known || m.Domain != domainItem
+		// With the dataset's essence mods, an essence mod counts only where it lists it.
+		if r.crafting.known {
+			return r.crafting.essence[m.ID] == nil
+		}
+		return m.Domain != domainItem
 	}
 	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
 		return w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag)

@@ -31,6 +31,7 @@ const (
 	utilityFlaskBase = "Metadata/Items/Flasks/UtilityFlask"
 	tinctureBase     = "Metadata/Items/Tinctures/Tincture"
 	abyssJewelBase   = "Metadata/Items/Jewels/AbyssJewel"
+	spikedKnifeBase  = "Metadata/Items/Weapons/OneHandWeapons/Daggers/SpikedKnife"
 	// Three bases named "Twin Ring", told apart by their implicits.
 	twinFire     = "Metadata/Items/Rings/TwinFire"
 	twinCold     = "Metadata/Items/Rings/TwinCold"
@@ -63,10 +64,12 @@ func testStats() [][2]string {
 		{"armour", "+{0} to Armour"}, {"local_armour", "+{0} to Armour"},
 		{"spirit", "+{0} to Spirit"}, {"ring_spirit", "+{0} to Spirit"},
 		{"ward", "+{0} to Ward"}, {"old_ward", "+{0} to Ward"}, {"flask_old_ward", "+{0} to Ward"}, {"crafted_ward", "+{0} to Ward"},
-		{"evasion", "+{0} to Evasion Rating"}, {"old_evasion", "+{0} to Evasion Rating"},
+		{"evasion", "+{0} to Evasion Rating"}, {"old_evasion", "+{0} to Evasion Rating"}, {"local_evasion", "+{0} to Evasion Rating"},
 		{"delve_ward", "+{0} to Ward"}, {"unveiled_ward", "+{0} to Ward"}, {"elevated_ward", "+{0} to Ward"},
 		{"crucible_ward", "+{0} to Ward"}, {"jewel_crucible_ward", "+{0} to Ward"}, {"scourge_ward", "+{0} to Ward"},
 		{"crucible_unique_ward", "+{0} to Ward"}, {"old_unveiled_ward", "+{0} to Ward"}, {"not_ring_ward", "+{0} to Ward"},
+		{"scourge_downside_ward", "+{0} to Ward"}, {"no_weights_ward", "+{0} to Ward"}, {"hat_shaper_ward", "+{0} to Ward"},
+		{"doubled_ward", "+{0} to Ward"}, {"old_crafted_ward", "+{0} to Ward"},
 		{"delve_jewel_ward", "+{0} to Ward"}, {"jewel_elevated_ward", "+{0} to Ward"}, {"old_unveiled_shaper_ward", "+{0} to Ward"},
 		{"mana", "+{0} to maximum Mana"}, {"flask_mana", "+{0} to maximum Mana"}, {"old_flask_mana", "+{0} to maximum Mana"},
 		{"jewel_mana", "+{0} to maximum Mana"}, {"tincture_mana", "+{0} to maximum Mana"}, {"abyss_mana", "+{0} to maximum Mana"},
@@ -102,6 +105,8 @@ type testMod struct {
 	min, max                 int32
 	domain, generation, mode int32
 	weights                  []dataset.TagWeight
+	// twice gives the mod its stat twice and no family.
+	twice bool
 }
 
 func w(tag string, weight int32) dataset.TagWeight {
@@ -171,9 +176,18 @@ func wardTestMods() []testMod {
 		{id: "ElevatedWard", stat: "elevated_ward", min: 110, max: 120, generation: 1, weights: off("ring_shaper")},
 		{id: "CrucibleWard", stat: "crucible_ward", min: 130, max: 130, generation: 31, weights: on("dagger")},
 		{id: "JewelCrucibleWard", stat: "jewel_crucible_ward", min: 130, max: 130, domain: 10, generation: 31, weights: none()},
+		{id: "ScourgeDownsideWard", stat: "scourge_downside_ward", min: 210, max: 210, generation: 25, weights: none()},
+		{id: "NoWeightsWard", stat: "no_weights_ward", min: 220, max: 220, generation: 1},
+		{id: "HatShaperWard", stat: "hat_shaper_ward", min: 230, max: 240, generation: 1, weights: on("helmet_shaper")},
+		{id: "DoubledWard", stat: "doubled_ward", min: 250, max: 250, generation: 1, weights: on("ring"), twice: true},
+		{id: "OldCraftedWard", stat: "old_crafted_ward", min: 260, max: 260, domain: 9, generation: 1, weights: none()},
 		{id: "ScourgeWard", stat: "scourge_ward", min: 140, max: 140, generation: 24, weights: []dataset.TagWeight{w("default", 1000)}},
 		// Evasion on rings, and a retired mod whose range starts at 0.
 		{id: "Evasion", stat: "evasion", min: 10, max: 50, generation: 1, weights: on("ring")},
+		// Evasion on a unique, global and local, and the local implicit of a spiked knife.
+		{id: "UniqueEvasion", stat: "evasion", min: 20, max: 30, generation: 3},
+		{id: "UniqueLocalEvasion", stat: "local_evasion", min: 20, max: 30, generation: 3},
+		{id: "LocalEvasionImplicit", stat: "local_evasion", min: 10, max: 15, generation: 3},
 		{id: "OldEvasion", stat: "old_evasion", min: 0, max: 5, generation: 1, weights: off("ring")},
 		// Mana as an item mod, a flask mod, a retired flask mod and a jewel mod.
 		{id: "Mana", stat: "mana", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
@@ -272,6 +286,7 @@ func testBases() []dataset.ItemBase {
 		{ID: utilityFlaskBase, Class: "UtilityFlask", Tags: []string{"flask", "default"}},
 		{ID: tinctureBase, Class: "Tincture", Tags: []string{"tincture", "default"}},
 		{ID: abyssJewelBase, Class: "AbyssJewel", Tags: []string{"abyss_jewel", "default"}},
+		{ID: spikedKnifeBase, Class: "Dagger", Tags: []string{"dagger", "weapon", "default"}, Implicits: []string{"LocalEvasionImplicit"}, Weapon: &dataset.WeaponValues{}},
 		{ID: twinFire, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicit"}},
 		{ID: twinCold, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"ColdImplicit"}},
 		{ID: twinFireHigh, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicitHigh"}},
@@ -292,7 +307,7 @@ func testDataset() *dataset.Dataset {
 			Tags: []string{
 				"str_armour", "helmet", "gloves", "armour", "ring", "amulet", "belt", "dagger", "weapon", "flask", "jewel", "tincture",
 				"abyss_jewel", "default",
-				"ring_shaper", "ring_elder", "ring_crusader", "ring_eyrie", "ring_basilisk", "ring_adjudicator",
+				"helmet_shaper", "ring_shaper", "ring_elder", "ring_crusader", "ring_eyrie", "ring_basilisk", "ring_adjudicator",
 			},
 			Bases: testBases(),
 		},
@@ -312,11 +327,15 @@ func testDataset() *dataset.Dataset {
 	})
 	for _, m := range testMods() {
 		stat := slices.IndexFunc(d.Stats, func(s dataset.Stat) bool { return s.ID == m.stat })
-		d.Mods = append(d.Mods, dataset.Mod{
+		ms := dataset.ModStat{Stat: uint32(stat), Min: m.min, Max: m.max, RuthlessMin: m.min, RuthlessMax: m.max}
+		mod := dataset.Mod{
 			ID: m.id, Domain: cmp.Or(m.domain, int32(1)), Generation: m.generation, GameMode: m.mode, Type: m.id, Families: []string{cmp.Or(m.family, m.id)},
-			Stats:        []dataset.ModStat{{Stat: uint32(stat), Min: m.min, Max: m.max, RuthlessMin: m.min, RuthlessMax: m.max}},
-			SpawnWeights: m.weights,
-		})
+			Stats: []dataset.ModStat{ms}, SpawnWeights: m.weights,
+		}
+		if m.twice {
+			mod.Stats, mod.Families = []dataset.ModStat{ms, ms}, nil
+		}
+		d.Mods = append(d.Mods, mod)
 	}
 	d.Texts = []dataset.Text{{
 		Language:     "en",
@@ -327,7 +346,7 @@ func testDataset() *dataset.Dataset {
 			{ID: flaskBase, Name: "Iron Flask"}, {ID: jewelBase, Name: "Iron Jewel"},
 			{ID: manaFlaskBase, Name: "Iron Mana Flask"}, {ID: hybridFlaskBase, Name: "Iron Hybrid Flask"},
 			{ID: utilityFlaskBase, Name: "Iron Utility Flask"}, {ID: tinctureBase, Name: "Iron Tincture"},
-			{ID: abyssJewelBase, Name: "Iron Abyss Jewel"},
+			{ID: abyssJewelBase, Name: "Iron Abyss Jewel"}, {ID: spikedKnifeBase, Name: "Spiked Knife"},
 			{ID: twinFire, Name: "Twin Ring"}, {ID: twinCold, Name: "Twin Ring"}, {ID: twinFireHigh, Name: "Twin Ring"},
 		},
 	}}
@@ -825,6 +844,36 @@ func TestParse(t *testing.T) {
 			"a retired mod named by a tag an influence gives is not retired on that item",
 			"Rarity: RARE\nX\nIron Ring\nShaper Item\nImplicits: 0\n+190 to Ward\n",
 			rare(ringBase, line(build.Explicit, "+190 to Ward", "ward", 190), "Shaper Item"),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+		},
+		{
+			"a crafted line reads no retired affix",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+60 to Ward\n",
+			rare(ringBase, line(build.Crafted, "+60 to Ward", "crafted_ward", 60)),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+		},
+		{
+			"an exact Scourge downside, as retired",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+210 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+210 to Ward", "scourge_downside_ward", 210)),
+			nil,
+		},
+		{
+			"an influence's tag on every tag of the base, not only the first",
+			"Rarity: RARE\nX\nIron Hat\nShaper Item\nImplicits: 0\n+235 to Ward\n",
+			rare(hatBase, line(build.Explicit, "+235 to Ward", "hat_shaper_ward", 235), "Shaper Item"),
+			nil,
+		},
+		{
+			"a local stat the base's implicit has is preferred",
+			"Rarity: UNIQUE\nX\nSpiked Knife\nImplicits: 0\n+25 to Evasion Rating\n",
+			unique(spikedKnifeBase, line(build.Explicit, "+25 to Evasion Rating", "local_evasion", 25)),
+			nil,
+		},
+		{
+			"a mod of one stat twice does not add up with itself",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+500 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+500 to Ward", "ward", 500)),
 			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
 		},
 		{

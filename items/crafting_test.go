@@ -128,10 +128,10 @@ func TestParseCrafting(t *testing.T) {
 			nil,
 		},
 		{
-			"no essence mod the dataset does not list for belts: retired mods, with a warning",
+			"no essence mod the dataset does not list for belts, not even as retired",
 			"Rarity: RARE\nX\nIron Belt\nImplicits: 0\n+33 to maximum Energy Shield\n",
-			rare(beltBase, line(build.Explicit, "+33 to maximum Energy Shield", "essence_energy_shield", 33)),
-			[]build.Code{items.LineAmbiguous},
+			rare(beltBase, line(build.Explicit, "+33 to maximum Energy Shield", "recombinator_energy_shield", 33)),
+			nil,
 		},
 		{
 			"a local essence mod the dataset lists for belts",
@@ -150,6 +150,30 @@ func TestParseCrafting(t *testing.T) {
 			"Rarity: RARE\nX\nIron Belt\nImplicits: 1\n{enchant}+25 to maximum Energy Shield\n",
 			rare(beltBase, line(build.Enchant, "+25 to maximum Energy Shield", "energy_shield", 25)),
 			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"a former bench craft, as retired",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+260 to Ward\n",
+			rare(ringBase, line(build.Crafted, "+260 to Ward", "old_crafted_ward", 260)),
+			nil,
+		},
+		{
+			"a former bench craft without its marker, as retired",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+260 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+260 to Ward", "old_crafted_ward", 260)),
+			nil,
+		},
+		{
+			"no former bench craft on a normal item",
+			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+260 to Ward\n",
+			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+260 to Ward", "ward", 260)}},
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"no retired mod without spawn weights",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+220 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+220 to Ward", "ward", 220)),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
 		},
 	})
 }
