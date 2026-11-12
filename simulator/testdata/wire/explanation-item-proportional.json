@@ -3,7 +3,9 @@
     "key": "player.armour",
     "label": "Armour",
     "unit": "",
-    "places": 0
+    "places": 0,
+    "group": "sheet",
+    "order": 6
   },
   "view": "proportional",
   "version": "3.29.3.6",

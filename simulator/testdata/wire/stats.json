@@ -6,6 +6,8 @@
       "label": "Strength",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 0,
       "value": 32
     },
     {
@@ -13,6 +15,8 @@
       "label": "Dexterity",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 1,
       "value": 0
     },
     {
@@ -20,6 +24,8 @@
       "label": "Intelligence",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 2,
       "value": 0
     },
     {
@@ -27,6 +33,8 @@
       "label": "Life",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 3,
       "value": 1327
     },
     {
@@ -34,6 +42,8 @@
       "label": "Mana",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 4,
       "value": 0
     },
     {
@@ -41,6 +51,8 @@
       "label": "Energy Shield",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 5,
       "value": 0
     },
     {
@@ -48,6 +60,8 @@
       "label": "Armour",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 6,
       "value": 0
     },
     {
@@ -55,6 +69,8 @@
       "label": "Evasion Rating",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 7,
       "value": 0
     },
     {
@@ -62,6 +78,8 @@
       "label": "Fire Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 8,
       "value": -60
     },
     {
@@ -69,6 +87,8 @@
       "label": "Cold Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 9,
       "value": -60
     },
     {
@@ -76,6 +96,8 @@
       "label": "Lightning Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 10,
       "value": -60
     },
     {
@@ -83,6 +105,8 @@
       "label": "Chaos Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 11,
       "value": -60
     },
     {
@@ -90,6 +114,8 @@
       "label": "Maximum Fire Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 12,
       "value": 75
     },
     {
@@ -97,6 +123,8 @@
       "label": "Maximum Cold Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 13,
       "value": 75
     },
     {
@@ -104,6 +132,8 @@
       "label": "Maximum Lightning Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 14,
       "value": 75
     },
     {
@@ -111,6 +141,8 @@
       "label": "Maximum Chaos Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 15,
       "value": 75
     },
     {
@@ -118,6 +150,8 @@
       "label": "Uncapped Fire Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 16,
       "value": -60
     },
     {
@@ -125,6 +159,8 @@
       "label": "Uncapped Cold Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 17,
       "value": -60
     },
     {
@@ -132,6 +168,8 @@
       "label": "Uncapped Lightning Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 18,
       "value": -60
     },
     {
@@ -139,6 +177,8 @@
       "label": "Uncapped Chaos Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 19,
       "value": -60
     },
     {
@@ -146,6 +186,8 @@
       "label": "Life Regeneration",
       "unit": "/s",
       "places": 1,
+      "group": "sheet",
+      "order": 20,
       "value": 0
     },
     {
@@ -153,6 +195,8 @@
       "label": "Mana Regeneration",
       "unit": "/s",
       "places": 1,
+      "group": "sheet",
+      "order": 21,
       "value": 0
     },
     {
@@ -160,6 +204,8 @@
       "label": "Energy Shield Regeneration",
       "unit": "/s",
       "places": 1,
+      "group": "sheet",
+      "order": 22,
       "value": 0
     }
   ],

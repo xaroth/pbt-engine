@@ -7,6 +7,8 @@
         "label": "Dexterity",
         "unit": "",
         "places": 0,
+        "group": "sheet",
+        "order": 1,
         "value": 0
       },
       {
@@ -14,6 +16,8 @@
         "label": "Life",
         "unit": "",
         "places": 0,
+        "group": "sheet",
+        "order": 3,
         "value": 66
       },
       {
@@ -21,6 +25,8 @@
         "label": "Fire Resistance",
         "unit": "%",
         "places": 0,
+        "group": "sheet",
+        "order": 8,
         "value": 0
       },
       {
@@ -28,6 +34,8 @@
         "label": "Life Regeneration",
         "unit": "/s",
         "places": 1,
+        "group": "sheet",
+        "order": 20,
         "value": 0
       }
     ],
@@ -41,6 +49,8 @@
         "label": "Dexterity",
         "unit": "",
         "places": 0,
+        "group": "sheet",
+        "order": 1,
         "value": 0
       },
       {
@@ -48,6 +58,8 @@
         "label": "Life",
         "unit": "",
         "places": 0,
+        "group": "sheet",
+        "order": 3,
         "value": 1154
       },
       {
@@ -55,6 +67,8 @@
         "label": "Fire Resistance",
         "unit": "%",
         "places": 0,
+        "group": "sheet",
+        "order": 8,
         "value": 0
       },
       {
@@ -62,6 +76,8 @@
         "label": "Life Regeneration",
         "unit": "/s",
         "places": 1,
+        "group": "sheet",
+        "order": 20,
         "value": 0
       }
     ],
@@ -79,6 +95,8 @@
       "label": "Dexterity",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 1,
       "before": 0,
       "after": 0,
       "abs": 0,
@@ -90,6 +108,8 @@
       "label": "Life",
       "unit": "",
       "places": 0,
+      "group": "sheet",
+      "order": 3,
       "before": 66,
       "after": 1154,
       "abs": 1088,
@@ -101,6 +121,8 @@
       "label": "Fire Resistance",
       "unit": "%",
       "places": 0,
+      "group": "sheet",
+      "order": 8,
       "before": 0,
       "after": 0,
       "abs": 0,
@@ -112,6 +134,8 @@
       "label": "Life Regeneration",
       "unit": "/s",
       "places": 1,
+      "group": "sheet",
+      "order": 20,
       "before": 0,
       "after": 0,
       "abs": 0,
