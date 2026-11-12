@@ -21,6 +21,7 @@ func exportRegistry(t *testing.T) *dataset.Registry {
 	return skillsRegistry(t,
 		gemSpec{name: "Fireball", others: []string{"Fireball of Splitting"}}, gemSpec{name: "Vaal Fireball", vaal: true},
 		gemSpec{name: "Inspiration", support: true}, gemSpec{name: "Frostblink"}, gemSpec{name: "Punishment"},
+		gemSpec{name: "Predator", support: true, grants: "Signal Prey"},
 	)
 }
 
@@ -44,6 +45,9 @@ func chieftain(t *testing.T) *build.Build {
 			{Gems: []build.Gem{disabled(gem("Frostblink", 5, 0))}},
 			// The Vaal gem's regular skill is the main one.
 			{Slot: build.SlotHelmet, Gems: []build.Gem{gem("Vaal Fireball", 20, 0), gem("Punishment", 1, 0)}, ActiveSkill: 1},
+			// The skill Predator grants counts before the main gem, and can be the main skill.
+			{Slot: build.SlotBoots, Gems: []build.Gem{support("Predator"), gem("Punishment", 1, 0)}, Active: 1},
+			{Gems: []build.Gem{support("Predator"), gem("Frostblink", 1, 0)}, ActiveSkill: 1},
 		}, MainGroup: 1},
 	}
 }

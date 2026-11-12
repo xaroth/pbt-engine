@@ -22,6 +22,8 @@ type gemSpec struct {
 	support bool
 	vaal    bool
 	others  []string
+	// grants names the active skill a support grants as its second skill, such as Signal Prey.
+	grants string
 }
 
 // skillsRegistry is registry with a skills group of gems, each with one granted effect and
@@ -43,6 +45,13 @@ func skillsRegistry(t *testing.T, gems ...gemSpec) *dataset.Registry {
 			ge := dataset.GrantedEffect{ID: id, Support: g.support}
 			if g.vaal {
 				e.SecondaryGrantedEffect = id
+			}
+			if g.grants != "" {
+				granted := strings.ReplaceAll(g.grants, " ", "")
+				e.SecondaryGrantedEffect = granted
+				d.Skills.GrantedEffects = append(d.Skills.GrantedEffects, dataset.GrantedEffect{ID: granted, ActiveSkill: strings.ToLower(granted)})
+				d.Skills.ActiveSkills = append(d.Skills.ActiveSkills, dataset.ActiveSkill{ID: strings.ToLower(granted), Types: []uint16{0}})
+				d.Texts[0].SkillNames = append(d.Texts[0].SkillNames, dataset.Name{ID: strings.ToLower(granted), Name: g.grants})
 			}
 			if !g.support {
 				ge.ActiveSkill = strings.ToLower(id)
@@ -290,5 +299,26 @@ func TestFromXMLMainActiveSkillSwitchedOff(t *testing.T) {
 	}
 	if g := b.Skills.Groups[0]; g.Active != 0 || g.ActiveSkill != 1 {
 		t.Errorf("gem %d skill %d, want gem 0 skill 1", g.Active, g.ActiveSkill)
+	}
+}
+
+// An active skill a support grants counts for the main active skill in gem order, as in PoB,
+// and the build keeps it as the support's second skill.
+func TestFromXMLMainActiveSkillOfSupport(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t, gemSpec{name: "Predator", support: true, grants: "Signal Prey"}, gemSpec{name: "Punishment"})
+	for main, want := range map[string][2]int{"1": {0, 1}, "2": {1, 0}} {
+		file := strings.Replace(`<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills><Skill MAIN><Gem nameSpec="Predator" level="20"/><Gem nameSpec="Punishment" level="1"/></Skill></Skills>
+</PathOfBuilding>`, "MAIN", `mainActiveSkill="`+main+`"`, 1)
+		b, warnings, err := pob.FromXML([]byte(file), reg)
+		if err != nil || len(warnings) != 0 {
+			t.Fatalf("mainActiveSkill %q: %v, %v", main, warnings, err)
+		}
+		if g := b.Skills.Groups[0]; g.Active != want[0] || g.ActiveSkill != want[1] {
+			t.Errorf("mainActiveSkill %q: gem %d skill %d, want gem %d skill %d", main, g.Active, g.ActiveSkill, want[0], want[1])
+		}
 	}
 }

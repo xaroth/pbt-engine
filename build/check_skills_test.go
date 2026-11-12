@@ -12,9 +12,12 @@ import (
 
 func vaalFireball() build.GemID { return build.GemID{ID: "Metadata/Items/Gems/SkillGemVaalFireball"} }
 
+func predator() build.GemID { return build.GemID{ID: "Metadata/Items/Gems/SupportGemDeathmark"} }
+
 // skillsStore is testStore with a skills group: Fireball (levels 1 to 40) with its
 // transfigured variant FireballAltX (1 to 20), Vaal Fireball (1 to 20) whose second skill is
-// Fireball, and the support Inspiration (1 to 20).
+// Fireball, the support Inspiration (1 to 20), and the support Predator (1 to 20) whose second
+// skill is the active Signal Prey.
 func skillsStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	d := testDataset()
@@ -29,6 +32,9 @@ func skillsStore(t *testing.T) *dataset.Store {
 			{ID: vaalFireball().ID, Colour: dataset.Blue, Vaal: true, Effects: []dataset.GemEffect{
 				{ID: "VaalFireball", GrantedEffect: "VaalFireball", SecondaryGrantedEffect: "Fireball", Style: dataset.DefaultStyle},
 			}},
+			{ID: predator().ID, Colour: dataset.Green, Support: true, Effects: []dataset.GemEffect{
+				{ID: "SupportPredator", GrantedEffect: "SupportPredator", SecondaryGrantedEffect: "SignalPrey", Style: dataset.DefaultStyle},
+			}},
 			{ID: inspiration().ID, Colour: dataset.Blue, Support: true, Effects: []dataset.GemEffect{
 				{ID: "SupportInspiration", GrantedEffect: "SupportInspiration", Style: dataset.DefaultStyle},
 			}},
@@ -38,9 +44,12 @@ func skillsStore(t *testing.T) *dataset.Store {
 			{ID: "FireballAltX", ActiveSkill: "fireball_alt_x", Levels: levels(20)},
 			{ID: "VaalFireball", ActiveSkill: "vaal_fireball", Levels: levels(20)},
 			{ID: "SupportInspiration", Support: true, Levels: levels(20)},
+			{ID: "SupportPredator", Support: true, Levels: levels(20)},
+			{ID: "SignalPrey", ActiveSkill: "signal_prey", Levels: levels(20)},
 		},
 		ActiveSkills: []dataset.ActiveSkill{
 			{ID: "fireball", Types: []uint16{0}}, {ID: "fireball_alt_x", Types: []uint16{0}}, {ID: "vaal_fireball", Types: []uint16{0}},
+			{ID: "signal_prey", Types: []uint16{0}},
 		},
 	}
 	return openStore(t, d)
@@ -118,6 +127,26 @@ func TestCheckSkills(t *testing.T) {
 			nil, func(sk *build.Skills) {
 				sk.Groups[0].Gems[0] = build.Gem{GemID: vaalFireball(), Level: 20}
 				sk.Groups[0].ActiveSkill = 1
+			},
+		},
+		{
+			"a support's active skill", func(sk *build.Skills) {
+				sk.Groups[0].Gems[1] = build.Gem{GemID: predator(), Level: 20, Support: true}
+				sk.Groups[0].Active, sk.Groups[0].ActiveSkill = 1, 1
+			},
+			nil, func(sk *build.Skills) {
+				sk.Groups[0].Gems[1] = build.Gem{GemID: predator(), Level: 20, Support: true}
+				sk.Groups[0].Active, sk.Groups[0].ActiveSkill = 1, 1
+			},
+		},
+		{
+			"a support's own skill", func(sk *build.Skills) {
+				sk.Groups[0].Gems[1] = build.Gem{GemID: predator(), Level: 20, Support: true}
+				sk.Groups[0].Active = 1
+			},
+			[]build.Code{build.ActiveGemInvalid}, func(sk *build.Skills) {
+				sk.Groups[0].Gems[1] = build.Gem{GemID: predator(), Level: 20, Support: true}
+				sk.Groups[0].Active, sk.Groups[0].ActiveSkill = 1, 1
 			},
 		},
 		{
