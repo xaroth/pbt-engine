@@ -250,6 +250,10 @@ func moreWardTestMods() []testMod {
 
 func implicitTestMods() []testMod {
 	return []testMod{
+		// Retired local energy shield: a unique's mod (a former implicit) and Scourge mods.
+		{id: "UniqueLocalEnergyShield", stat: "local_energy_shield", min: 90, max: 90, generation: 3},
+		{id: "ScourgeBeltLocalEnergyShield", stat: "local_energy_shield", min: 100, max: 100, generation: 24, weights: on("belt")},
+		{id: "ScourgeLocalEnergyShield", stat: "local_energy_shield", min: 95, max: 95, generation: 24, weights: none()},
 		// An eldritch implicit of gloves, and a unique's mod of the same text.
 		{id: "UniqueSpeed", stat: "unique_speed", min: 5, max: 10, generation: 3},
 		{id: "EldritchSpeed", stat: "gloves_speed", min: 5, max: 10, generation: 28, weights: on("gloves")},
@@ -920,6 +924,36 @@ func TestParse(t *testing.T) {
 			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+290 to Ward\n",
 			rare(ringBase, line(build.Crafted, "+290 to Ward", "crafted_ward", 290)),
 			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+		},
+		{
+			"a former implicit with a local stat, on gloves",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 1\n+90 to maximum Energy Shield\n",
+			rare(glovesBase, line(build.Implicit, "+90 to maximum Energy Shield", "local_energy_shield", 90)),
+			nil,
+		},
+		{
+			"no former implicit with a local stat on a belt",
+			"Rarity: RARE\nX\nIron Belt\nImplicits: 1\n+90 to maximum Energy Shield\n",
+			rare(beltBase, line(build.Implicit, "+90 to maximum Energy Shield", "energy_shield", 90)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"a zero-weight Scourge mod with a local stat, on gloves",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 0\n+95 to maximum Energy Shield\n",
+			rare(glovesBase, line(build.Explicit, "+95 to maximum Energy Shield", "local_energy_shield", 95)),
+			nil,
+		},
+		{
+			"no zero-weight Scourge mod with a local stat on a belt",
+			"Rarity: RARE\nX\nIron Belt\nImplicits: 0\n+95 to maximum Energy Shield\n",
+			rare(beltBase, line(build.Explicit, "+95 to maximum Energy Shield", "energy_shield", 95)),
+			[]build.Code{items.RollOutOfRange},
+		},
+		{
+			"a Scourge mod whose weights name belts, with a local stat, on a belt",
+			"Rarity: RARE\nX\nIron Belt\nImplicits: 0\n+100 to maximum Energy Shield\n",
+			rare(beltBase, line(build.Explicit, "+100 to maximum Energy Shield", "local_energy_shield", 100)),
+			nil,
 		},
 		{
 			"bases of one name: the one whose implicit reads the line",

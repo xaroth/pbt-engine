@@ -228,7 +228,7 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 			current: func(m *dataset.Mod) bool { return implicitMod(m, t) },
 			craft:   none,
 			given:   none,
-			retired: func(m *dataset.Mod) bool { return formerImplicit(m, t) },
+			retired: func(m *dataset.Mod) bool { return r.formerImplicit(m, t) },
 		}
 	case build.Crafted:
 		return lineSources{current: craft, craft: none, given: none, retired: former}
@@ -253,7 +253,7 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 			current: func(m *dataset.Mod) bool { return explicitMod(m, t) },
 			craft:   craft,
 			given:   given,
-			retired: func(m *dataset.Mod) bool { return r.retiredAffix(m, t) || passiveTreeMod(m, t) || former(m) },
+			retired: func(m *dataset.Mod) bool { return r.retiredAffix(m, t) || r.passiveTreeMod(m, t) || former(m) },
 		}
 	}
 }
@@ -283,14 +283,15 @@ func corruption(m *dataset.Mod, t target) bool {
 
 // formerImplicit is an implicit that spawns nowhere now: a base's former implicit, a unique's
 // own implicit, or a retired eldritch or corruption implicit. The game files do not tell a former
-// implicit from a unique's mod.
-func formerImplicit(m *dataset.Mod, t target) bool {
+// implicit from a unique's mod, nor which items it went on: one with a local stat counts on
+// armour and weapons only (see fitsStandIn).
+func (r *Reader) formerImplicit(m *dataset.Mod, t target) bool {
 	if m.Domain != t.domain || spawns(m) {
 		return false
 	}
 	switch m.Generation {
 	case genUnique, genCorrupted, genExarch, genEater:
-		return true
+		return r.fitsStandIn(m, t)
 	}
 	return false
 }
@@ -419,14 +420,16 @@ func retiredAffixOf(m *dataset.Mod, t target) bool {
 }
 
 // passiveTreeMod is a Crucible or Scourge mod of t's domain. Neither can be added today, so they
-// count as retired; one with spawn weights only on the items they name.
-func passiveTreeMod(m *dataset.Mod, t target) bool {
+// count as retired: one with spawn weights only on the items they name, one without with a local
+// stat only on armour and weapons.
+func (r *Reader) passiveTreeMod(m *dataset.Mod, t target) bool {
 	if m.Domain != t.domain || spawns(m) && !spawnsOn(m, t.tags) {
 		return false
 	}
 	switch m.Generation {
 	case genCrucible, genCrucibleUnique, genScourgeUpside, genScourgeDownside:
-		return true
+		// Nothing says which items a zero-weight one went on.
+		return spawns(m) || r.fitsStandIn(m, t)
 	}
 	return false
 }
