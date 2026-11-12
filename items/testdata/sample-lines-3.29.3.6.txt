@@ -1,0 +1,91 @@
+# The sample's mod lines (statdesc/testdata/item-lines.txt) that read in more than one way or
+# whose text does not show a value, with the stats and values each should be read as, written by
+# hand: item | line | stat=value, ...; the lines of one description joined with " / ". Armour
+# and weapons take the local stat where the base rolls it; a stat with mods beats a retired or
+# passive-tree one; a unique weapon's armour is global. An
+# exact retired mod beats a current one the value is out of range for: the flask immunities "for
+# 4 seconds" are the older fixed-duration mods (today's roll 6 to 17 seconds, and not on utility
+# flasks), and the dagger implicit "30%" the older one (today's base implicit rolls 40 to 45).
+unique Leather Cap | +40 to Evasion Rating | local_base_evasion_rating=40
+unique Leather Cap | 10% increased Rarity of Items found | base_item_found_rarity_+%=10
+unique Leather Cap | +35% to all Elemental Resistances | base_resist_all_elements_%=35
+rare War Plate | 21% increased Armour | local_physical_damage_reduction_rating_+%=21
+unique Wool Shoes | +15 to maximum Energy Shield | local_energy_shield=15
+unique Prismatic Ring | +9% to all Elemental Resistances | base_resist_all_elements_%=9
+unique Prismatic Ring | +10% to all Elemental Resistances | base_resist_all_elements_%=10
+unique Prismatic Ring | 31% increased Light Radius | light_radius_+%=31
+magic Experimenter's Granite Flask of Staunching | Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood=1
+magic Experimenter's Silver Flask of the Conger | Grants Immunity to Shock for 4 seconds if used while Shocked | local_flask_shock_immunity_if_shocked=1
+magic Seething Divine Life Flask of Staunching | Instant Recovery | local_flask_recovers_instantly=1
+magic Seething Divine Life Flask of Staunching | Grants Immunity to Bleeding for 4 seconds if used while Bleeding / Grants Immunity to Corrupted Blood for 4 seconds if used while affected by Corrupted Blood | local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood=1
+rare Ancient Gauntlets | +45 to Armour | local_base_physical_damage_reduction_rating=45
+rare Shadow Axe | Adds 9 to 17 Physical Damage | local_minimum_added_physical_damage=9, local_maximum_added_physical_damage=17
+rare Shadow Axe | 10% increased Attack Speed | local_attack_speed_+%=10
+unique Studded Belt | 25% increased Stun Duration on Enemies | base_stun_duration_+%=25
+unique Studded Belt | 35% more Maximum Physical Attack Damage | unique_ryuslathas_clutches_maximum_physical_attack_damage_+%_final=35
+rare Sundering Axe | Adds 19 to 38 Physical Damage | local_minimum_added_physical_damage=19, local_maximum_added_physical_damage=38
+rare Sundering Axe | +180 to Accuracy Rating | local_accuracy_rating=180
+rare Sundering Axe | 17% increased Attack Speed | local_attack_speed_+%=17
+rare Void Axe | Adds 30 to 64 Physical Damage | local_minimum_added_physical_damage=30, local_maximum_added_physical_damage=64
+rare Void Axe | +250 to Accuracy Rating | local_accuracy_rating=250
+rare Void Axe | 22% increased Attack Speed | local_attack_speed_+%=22
+rare Glorious Plate | 88% increased Armour | local_physical_damage_reduction_rating_+%=88
+rare Titan Gauntlets | 37% increased Armour | local_physical_damage_reduction_rating_+%=37
+rare Royal Bow | Adds 2 to 36 Lightning Damage | local_minimum_added_lightning_damage=2, local_maximum_added_lightning_damage=36
+rare Royal Bow | 10% increased Attack Speed | local_attack_speed_+%=10
+rare Thicket Bow | Adds 4 to 89 Lightning Damage | local_minimum_added_lightning_damage=4, local_maximum_added_lightning_damage=89
+rare Thicket Bow | Adds 13 to 25 Cold Damage | local_minimum_added_cold_damage=13, local_maximum_added_cold_damage=25
+rare Thicket Bow | 15% increased Attack Speed | local_attack_speed_+%=15
+rare Crimson Raiment | +38 to maximum Energy Shield | local_energy_shield=38
+rare Varnished Coat | +52 to maximum Energy Shield | local_energy_shield=52
+rare Varnished Coat | +12% chance to Suppress Spell Damage | base_spell_suppression_chance_%=12
+rare Skean | Adds 6 to 13 Physical Damage | local_minimum_added_physical_damage=6, local_maximum_added_physical_damage=13
+rare Skean | Adds 5 to 11 Chaos Damage | local_minimum_added_chaos_damage=5, local_maximum_added_chaos_damage=11
+rare Skean | 12% increased Attack Speed | local_attack_speed_+%=12
+rare Skean | 20% chance to Poison on Hit | local_poison_on_hit_%=20
+unique Slaughter Knife | 30% increased Global Critical Strike Chance | old_dagger_implicit_critical_strike_chance_+30%=30
+unique Slaughter Knife | Adds 145 to 225 Physical Damage | local_minimum_added_physical_damage=145, local_maximum_added_physical_damage=225
+rare Crystal Belt | +78 to maximum Energy Shield | base_maximum_energy_shield=78
+rare Crystal Belt | +56 to maximum Energy Shield | base_maximum_energy_shield=56
+rare Champion Kite Shield | +4% to all Elemental Resistances | base_resist_all_elements_%=4
+unique Champion Kite Shield | +10% to all Elemental Resistances | base_resist_all_elements_%=10
+rare Saint's Hauberk | +133 to Armour | local_base_physical_damage_reduction_rating=133
+rare Saint's Hauberk | +48 to maximum Energy Shield | local_energy_shield=48
+rare Paladin Gloves | Ignites you inflict spread to other Enemies within 1.5 metres | gloves_ignite_proliferation_radius=15
+rare Paladin Gloves | +41 to Armour | local_base_physical_damage_reduction_rating=41
+rare Paladin Gloves | +22 to maximum Energy Shield | local_energy_shield=22
+rare Paladin Boots | 30% increased Rarity of Items found | base_item_found_rarity_+%=30
+rare Paladin Boots | 12% increased Movement Speed if you haven't been Hit Recently | movement_velocity_while_not_hit_+%=12
+rare Spiraled Wand | Adds 8 to 15 Cold Damage | local_minimum_added_cold_damage=8, local_maximum_added_cold_damage=15
+rare Spiraled Wand | Adds 6 to 12 Fire Damage | local_minimum_added_fire_damage=6, local_maximum_added_fire_damage=12
+rare Spiraled Wand | +90 to Accuracy Rating | local_accuracy_rating=90
+unique Rustic Sash | +11% to all Elemental Resistances | base_resist_all_elements_%=11
+rare Blasting Wand | Cannot roll Caster Modifiers | kinetic_wand_implicit_cannot_roll_caster_modifiers=1
+rare Blasting Wand | Adds 28 to 52 Cold Damage | local_minimum_added_cold_damage=28, local_maximum_added_cold_damage=52
+rare Blasting Wand | Adds 22 to 44 Fire Damage | local_minimum_added_fire_damage=22, local_maximum_added_fire_damage=44
+rare Blasting Wand | +160 to Accuracy Rating | local_accuracy_rating=160
+unique Solaris Circlet | +420 to Accuracy Rating | accuracy_rating=420
+rare Ancient Spirit Shield | +12% to all Elemental Resistances | base_resist_all_elements_%=12
+rare Amethyst Ring | +46 to maximum Energy Shield | base_maximum_energy_shield=46
+rare Dusk Blade | Adds 6 to 11 Physical Damage | local_minimum_added_physical_damage=6, local_maximum_added_physical_damage=11
+rare Dusk Blade | Adds 2 to 31 Lightning Damage | local_minimum_added_lightning_damage=2, local_maximum_added_lightning_damage=31
+rare Dusk Blade | 8% increased Attack Speed | local_attack_speed_+%=8
+unique Eternal Sword | +475 to Accuracy Rating | local_accuracy_rating=475
+unique Eternal Sword | Adds 52 to 86 Physical Damage | local_minimum_added_physical_damage=52, local_maximum_added_physical_damage=86
+unique Eternal Sword | 8% increased Attack Speed | local_attack_speed_+%=8
+unique Eternal Sword | +190 to Armour | base_physical_damage_reduction_rating=190
+unique Eternal Sword | +290 to Accuracy Rating | local_accuracy_rating=290
+unique Legion Boots | +16% to all Elemental Resistances | base_resist_all_elements_%=16
+unique Cobalt Jewel | -70% to all Elemental Resistances | base_resist_all_elements_%=-70
+# Lines with one reading whose text does not show a value: the value is the matched mods'.
+unique Wool Shoes | Cannot be Frozen | base_cannot_be_frozen=1
+unique Glorious Plate | Has no Sockets | local_has_no_sockets=1
+magic Bubbling Colossal Life Flask | Instant Recovery when on Low Life | local_flask_recover_instantly_when_on_low_life=1
+unique Amethyst Flask | Used when Charges reach full | local_flask_use_on_full_charges=1
+magic Flagellant's Topaz Flask of the Lynx | Used when Charges reach full | local_flask_use_on_full_charges=1
+magic Scholar's Sapphire Flask of the Kakapo | Used when Charges reach full | local_flask_use_on_full_charges=1
+unique Silver Flask | Used when Charges reach full | local_flask_use_on_full_charges=1
+unique Silver Flask | Enemies Ignited by you during Effect have Malediction | local_flask_ignited_enemies_during_effect_have_malediction=1
+unique Bismuth Flask | Used when Charges reach full | local_flask_use_on_full_charges=1
+unique Solaris Circlet | Ancestral Bond | keystone_ancestral_bond=1
+unique Cobalt Jewel | Elemental Resistances are capped by your highest Maximum Elemental Resistance instead | elemental_resistances_are_limited_by_highest_maximum_elemental_resistance=1
