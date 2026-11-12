@@ -165,3 +165,41 @@ func chieftainWithHelmet(tb testing.TB, s *simulator.Sim) *build.Build {
 	}
 	return equipHelmet(tb, s, b)
 }
+
+// shieldText is a rare tower shield.
+const shieldText = `Rarity: RARE
+Rune Guard
+Colossal Tower Shield
+Item Level: 85
+Implicits: 0
++80 to maximum Life
++30% to Cold Resistance
+`
+
+// A shield in the swap off hand is not in use: the sheet is the one without it. In the off hand
+// it counts.
+func TestSwapItemLeftOut(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	shield, warnings, err := s.Data().Item(shieldText)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the shield: %v, %v", warnings, err)
+	}
+	bare := marauderBuild(1)
+	swapped, held := bare.Clone(), bare.Clone()
+	if err := swapped.Apply(build.Equip(build.SlotOffhandSwap, shield)); err != nil {
+		t.Fatal(err)
+	}
+	if err := held.Apply(build.Equip(build.SlotOffhand, shield)); err != nil {
+		t.Fatal(err)
+	}
+	before := simulate(t, s, bare)
+	for _, k := range []output.Key{poe1.Life, poe1.Armour, poe1.ColdResistance} {
+		if got, want := get(t, simulate(t, s, swapped), k), get(t, before, k); got != want {
+			t.Errorf("%s with the shield in the swap off hand %v, without %v", k, got, want)
+		}
+	}
+	if got, want := get(t, simulate(t, s, held), poe1.Life), get(t, before, poe1.Life)+80; got != want {
+		t.Errorf("life with the shield in the off hand %v, want %v", got, want)
+	}
+}

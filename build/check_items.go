@@ -113,3 +113,22 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 	}
 	return true
 }
+
+// setAsideSwap leaves out the items in the weapon-swap slots and disables the gems socketed in
+// them.
+func (c *Checked) setAsideSwap() {
+	for s := range c.build.Items {
+		if s.Swap() {
+			delete(c.build.Items, s)
+		}
+	}
+	for i := range c.build.Skills.Groups {
+		g := &c.build.Skills.Groups[i]
+		if !g.Slot.Swap() {
+			continue
+		}
+		for j := range g.Gems {
+			g.Gems[j].Disabled = true
+		}
+	}
+}

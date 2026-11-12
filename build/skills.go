@@ -63,6 +63,9 @@ const (
 	SlotBoots       Slot = "boots"
 )
 
+// Swap reports whether s is a weapon-swap slot, whose items and gems are not in use.
+func (s Slot) Swap() bool { return s == SlotWeaponSwap || s == SlotOffhandSwap }
+
 // Slots returns the slots with sockets.
 func Slots() []Slot {
 	return []Slot{SlotWeapon, SlotOffhand, SlotWeaponSwap, SlotOffhandSwap, SlotHelmet, SlotBodyArmour, SlotGloves, SlotBoots}
