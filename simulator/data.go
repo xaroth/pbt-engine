@@ -14,14 +14,16 @@ import (
 // between; the error lists their ids.
 var ErrAmbiguousName = errors.New("simulator: name of more than one gem")
 
-// Data looks up the ids a build holds by the names players know, in the sim's dataset.
+// Data looks up the ids a build holds by the names players know, and the names and text of
+// passive nodes, in the sim's dataset.
 type Data struct {
 	store *dataset.Store
 	items func() (*items.Reader, error)
+	text  func() (*nodeText, error)
 }
 
 // Data returns the sim's name lookups.
-func (s *Sim) Data() *Data { return &Data{store: s.store, items: s.items} }
+func (s *Sim) Data() *Data { return &Data{store: s.store, items: s.items, text: s.text} }
 
 // Gem returns the id of the gem named name in English, such as "Fireball", "Inspiration" or
 // the transfigured "Fireball of Splitting", chosen among gems of one name as

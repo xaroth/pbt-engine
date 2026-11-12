@@ -61,6 +61,8 @@ type Sim struct {
 	table *semantics.Table
 	// items reads item text; made on first use, since most uses of a sim read none.
 	items func() (*items.Reader, error)
+	// text renders passive nodes; made on first use.
+	text func() (*nodeText, error)
 
 	mu  sync.Mutex
 	cfg config.Values
@@ -91,6 +93,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 	}
 	s := &Sim{store: store, table: t, cfg: config.Values{}}
 	s.items = sync.OnceValues(func() (*items.Reader, error) { return items.NewReader(store) })
+	s.text = sync.OnceValues(func() (*nodeText, error) { return newNodeText(store) })
 	if err := s.Configure(opts...); err != nil {
 		return nil, err
 	}

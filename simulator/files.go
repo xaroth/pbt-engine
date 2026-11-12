@@ -25,6 +25,12 @@ func ItemFiles(m dataset.Manifest) []string {
 	return m.Needs(dataset.ItemsFile, dataset.ModsFile, dataset.TextFile("en"))
 }
 
+// NodeFiles returns the files Data.Node and Data.Classes read for the tree variant: its tree
+// and the English text.
+func NodeFiles(m dataset.Manifest, variant string) []string {
+	return m.Needs(dataset.TreeFile(variant), dataset.TextFile("en"))
+}
+
 // SimulateFiles returns the files Simulate reads for each of builds: the tree of its variant,
 // the skills group when it has gems and the items group when it has items. Compare, Sweep and
 // Stats.Explain read no more than the simulations of the builds they take or make; Stats.Text
