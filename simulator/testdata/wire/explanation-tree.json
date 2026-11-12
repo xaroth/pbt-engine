@@ -1,0 +1,200 @@
+{
+  "output": {
+    "key": "player.life",
+    "label": "Life",
+    "unit": "",
+    "places": 0
+  },
+  "view": "tree",
+  "version": "3.29.3.3",
+  "amount": 1375.8799999999999,
+  "effective": 1375.8799999999999,
+  "value": 1376,
+  "capBy": [],
+  "lines": [],
+  "tree": {
+    "stat": "maximum_life",
+    "formula": "conversion and gain as extra",
+    "terms": [
+      {
+        "source": {
+          "kind": "character",
+          "id": "Metadata/Characters/Str/Str"
+        },
+        "op": "base",
+        "value": 38,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "character",
+          "id": "Metadata/Characters/Str/Str"
+        },
+        "op": "base",
+        "value": 1080,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "node",
+          "node": 2,
+          "effect": 0
+        },
+        "op": "base",
+        "value": 20,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "node",
+          "node": 3,
+          "effect": 0
+        },
+        "op": "inc",
+        "value": 10,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "node",
+          "node": 4,
+          "effect": 7
+        },
+        "op": "inc",
+        "value": 5,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "node",
+          "node": 6,
+          "effect": 9
+        },
+        "op": "inc",
+        "value": 3,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "node",
+          "node": 8,
+          "effect": 0
+        },
+        "op": "base",
+        "value": 5,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "node",
+          "node": 10,
+          "effect": 0
+        },
+        "op": "base",
+        "value": 7,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      },
+      {
+        "source": {
+          "kind": "rule",
+          "rule": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+        },
+        "op": "base",
+        "value": 16,
+        "stat": "",
+        "rate": 1,
+        "held": true
+      }
+    ],
+    "overridden": false,
+    "total": 1375.8799999999999,
+    "capped": 1375.8799999999999,
+    "value": 1376,
+    "reads": [
+      {
+        "stat": "level",
+        "formula": "",
+        "terms": [
+          {
+            "source": {
+              "kind": "level"
+            },
+            "op": "base",
+            "value": 90,
+            "stat": "",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 90,
+        "capped": 90,
+        "value": 90,
+        "reads": [],
+        "repeat": false
+      },
+      {
+        "stat": "no_strength_bonus_to_maximum_life",
+        "formula": "",
+        "terms": [],
+        "overridden": false,
+        "total": 0,
+        "capped": 0,
+        "value": 0,
+        "reads": [],
+        "repeat": false
+      },
+      {
+        "stat": "strength",
+        "formula": "",
+        "terms": [
+          {
+            "source": {
+              "kind": "character",
+              "id": "Metadata/Characters/Str/Str"
+            },
+            "op": "base",
+            "value": 32,
+            "stat": "",
+            "rate": 1,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": 32,
+        "capped": 32,
+        "value": 32,
+        "reads": [],
+        "repeat": false
+      },
+      {
+        "stat": "convert.maximum_life.maximum_energy_shield.%",
+        "formula": "",
+        "terms": [],
+        "overridden": false,
+        "total": 0,
+        "capped": 0,
+        "value": 0,
+        "reads": [],
+        "repeat": false
+      }
+    ],
+    "repeat": false
+  }
+}
