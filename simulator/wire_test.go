@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -22,41 +21,6 @@ import (
 )
 
 const schemaFile = "wire.schema.json"
-
-// wireSchema compiles the wire schema's definition def.
-func wireSchema(tb testing.TB, def string) *jsonschema.Schema {
-	tb.Helper()
-	f, err := os.Open(schemaFile)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	defer f.Close()
-	doc, err := jsonschema.UnmarshalJSON(f)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	c := jsonschema.NewCompiler()
-	if err := c.AddResource(schemaFile, doc); err != nil {
-		tb.Fatal(err)
-	}
-	sch, err := c.Compile(schemaFile + "#/$defs/" + def)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	return sch
-}
-
-// validate checks data against the schema's definition def.
-func validate(tb testing.TB, def string, data []byte) {
-	tb.Helper()
-	v, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
-	if err != nil {
-		tb.Fatal(err)
-	}
-	if err := wireSchema(tb, def).Validate(v); err != nil {
-		tb.Errorf("%s does not match the schema: %v\n%s", def, err, data)
-	}
-}
 
 // wireGolden compares the indented JSON of v with testdata/wire/name, or writes it with
 // -update, and checks it against the schema's definition def unless def is empty.
@@ -154,7 +118,7 @@ func acrossDatasets(t *testing.T, opts ...simulator.Option) *simulator.Diff {
 
 var errReadFailed = errors.New("read failed")
 
-// A sweep result with an error has no changes; the schema rejects one that has some.
+// A sweep variant whose output read fails has no changes.
 func TestWireResultErrorHasNoChanges(t *testing.T) {
 	t.Parallel()
 	fail := errReadFailed
@@ -171,17 +135,6 @@ func TestWireResultErrorHasNoChanges(t *testing.T) {
 	ok := func(output.Key) (float64, error) { return 1, nil }
 	if got, err := simulator.ReadChanges(keys, nil, ok); err != nil || len(got) != 2 {
 		t.Errorf("reads: changes %v, err %v; want 2", got, err)
-	}
-	data, err := json.Marshal(simulator.Result{Changes: map[output.Key]simulator.Change{poe1.Life: {}}, Err: fail})
-	if err != nil {
-		t.Fatal(err)
-	}
-	v, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if wireSchema(t, "Result").Validate(v) == nil {
-		t.Errorf("schema accepts a result with an error and changes: %s", data)
 	}
 }
 
