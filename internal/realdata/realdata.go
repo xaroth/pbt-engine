@@ -1,12 +1,14 @@
 // Package realdata names the real datasets the tests read from $PBT_DATASETS and opens them.
-// The README names the pbt-data commit that holds them.
 package realdata
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
+
+	_ "embed"
 )
 
 // The pinned poe1 datasets: Previous is the league before Current.
@@ -14,6 +16,15 @@ const (
 	Previous = "3.28.0.16"
 	Current  = "3.29.3.6"
 )
+
+// commit is the pbt-data commit that holds the pinned datasets. CI and the README read the same
+// file.
+//
+//go:embed pbt-data-commit.txt
+var commit string
+
+// Commit returns the pbt-data commit that holds the pinned datasets.
+func Commit() string { return strings.TrimSpace(commit) }
 
 // ids are the dataset ids of the pinned versions.
 //
@@ -58,7 +69,7 @@ func Open(tb testing.TB, version string) *dataset.Store {
 	}
 	m := res.Store.Manifest()
 	if m.Version != version || m.ID != want {
-		tb.Fatalf("PBT_DATASETS has poe1 %s (id %s), want %s (id %s): check out the pbt-data commit the README names", m.Version, m.ID, version, want)
+		tb.Fatalf("PBT_DATASETS has poe1 %s (id %s), want %s (id %s): check out pbt-data %s", m.Version, m.ID, version, want, Commit())
 	}
 	return res.Store
 }

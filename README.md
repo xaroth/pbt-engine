@@ -68,14 +68,21 @@ golangci-lint run
 go test ./internal/core -run '^$' -bench .   # benchmarks
 ```
 
-Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures, the dataset groups, the walkthrough, the API sketch) read the datasets under `$PBT_DATASETS` by exact version and dataset id, pinned in `internal/realdata` (3.28.0.16 and 3.29.3.6). They skip without `$PBT_DATASETS` and fail when it lacks a pinned dataset. Check out the pbt-data commit that holds them:
+Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures, the dataset groups, the walkthrough, the API sketch) read the datasets under `$PBT_DATASETS` by exact version and dataset id, pinned in `internal/realdata` (3.28.0.16 and 3.29.3.6). They skip without `$PBT_DATASETS` and fail when it lacks a pinned dataset. Check out the pbt-data commit that holds them, named in `internal/realdata/pbt-data-commit.txt`:
 
 ```sh
 git clone https://github.com/xaroth/pbt-data /tmp/pbt-data
-git -C /tmp/pbt-data checkout 7c0b1eb60ad3272d6b15a77c843a726ff68f6eab
+git -C /tmp/pbt-data checkout "$(cat internal/realdata/pbt-data-commit.txt)"
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./...
 PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 ./statdesc -update   # rewrite the fixtures, coverage reports, golden lists and explanation and read goldens
 go test ./simulator -run Sketch -update   # rewrite the list of API sketch parts that cannot run yet
+```
+
+The engine also builds for `GOOS=js GOARCH=wasm`. `TestProbe` in `simulator` imports a Path of Building file and simulates it on the pinned 3.29 dataset, writing the result to `$PBT_PROBE_OUT`; CI runs it natively and as WebAssembly under Node and fails when the two results differ. To run it as WebAssembly locally (Node on `PATH`):
+
+```sh
+GOOS=js GOARCH=wasm go test -c -o /tmp/simulator.test.wasm ./simulator
+cd simulator && PBT_DATASETS=/tmp/pbt-data/poe1 "$(go env GOROOT)/lib/wasm/go_js_wasm_exec" /tmp/simulator.test.wasm -test.run '^TestProbe$' -test.v
 ```
 
 ## Licence
