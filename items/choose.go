@@ -325,7 +325,7 @@ func elevated(m *dataset.Mod, t target) bool {
 // essence is a mod an essence adds to a magic or rare item like t: one the dataset lists for t's
 // class.
 func (r *Reader) essence(m *dataset.Mod, t target) bool {
-	return magicOrRare(t) && affix(m) && slices.Contains(r.crafting.essence[m.ID], t.base.Class)
+	return magicOrRare(t) && slices.Contains(r.crafting.essence[m.ID], t.base.Class)
 }
 
 // benchCraft is a bench craft that can be on a magic or rare item like t: one the dataset lists

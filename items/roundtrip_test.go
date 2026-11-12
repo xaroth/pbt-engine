@@ -471,9 +471,9 @@ func (g *generator) spawnBase(m *dataset.Mod) (*dataset.ItemBase, string) {
 	return nil, ""
 }
 
-// craftBase returns the first base of the item domain a prefix or suffix of m's first stat spawns
+// statBase returns the first base of the item domain a prefix or suffix of m's first stat spawns
 // on.
-func (g *generator) craftBase(m *dataset.Mod) *dataset.ItemBase {
+func (g *generator) statBase(m *dataset.Mod) *dataset.ItemBase {
 	for _, b := range g.bases {
 		if g.domain(b) == 1 && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
 			return b
@@ -483,11 +483,11 @@ func (g *generator) craftBase(m *dataset.Mod) *dataset.ItemBase {
 }
 
 // uniqueBase returns a base for unique mod m: the game files do not say which unique has it. A
-// mod with a local stat goes where craftBase puts it, on a base where its stat rolls; one without, on the first item that is
-// neither armour nor a weapon, where no stat reads as local.
+// mod with a local stat goes on a base where its stat rolls (statBase); one without, on the
+// first item that is neither armour nor a weapon, where no stat reads as local.
 func (g *generator) uniqueBase(m *dataset.Mod) *dataset.ItemBase {
 	if slices.ContainsFunc(m.Stats, func(st dataset.ModStat) bool { return strings.HasPrefix(g.stats[st.Stat].ID, "local_") }) {
-		return g.craftBase(m)
+		return g.statBase(m)
 	}
 	i := slices.IndexFunc(g.bases, func(b *dataset.ItemBase) bool { return g.domain(b) == 1 && b.Armour == nil && b.Weapon == nil })
 	return g.bases[i]
