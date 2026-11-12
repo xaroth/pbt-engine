@@ -18,7 +18,6 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
-	"github.com/xaroth/pbt-engine/items"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/pob"
 	"github.com/xaroth/pbt-engine/poe1"
@@ -388,13 +387,8 @@ func deallocate(t *testing.T, w *walk) {
 
 func equipItem(t *testing.T, w *walk) {
 	item, warnings, err := w.sim.Data().Item(rawItemText)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, x := range warnings {
-		if x.Code != items.LineAmbiguous {
-			t.Errorf("read the item: %v", x)
-		}
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the item: %v, %v", warnings, err)
 	}
 	if err := w.next.Apply(build.Equip(build.SlotHelmet, item)); err != nil {
 		t.Fatal(err)

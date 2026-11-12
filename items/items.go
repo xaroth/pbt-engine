@@ -24,9 +24,19 @@ var (
 const (
 	// LineUnread is a mod line no stat description reads; the item keeps its text, no stats.
 	LineUnread = build.ItemLineUnread
-	// LineAmbiguous is a mod line read as stats of more than one meaning; the first in the
-	// game's order is kept.
+	// LineAmbiguous is a mod line read in more than one way the item could have; the first in
+	// the game's order is kept.
 	LineAmbiguous build.Code = "item-line-ambiguous"
+	// RollOutOfRange is a mod line whose values no mod of its kind the item can have rolls; it
+	// is read as the stats of such a mod.
+	RollOutOfRange build.Code = "item-roll-out-of-range"
+	// NotCorrupted is an implicit line only a corruption implicit gives, on an item not marked
+	// Corrupted; it is read as that implicit.
+	NotCorrupted build.Code = "item-not-corrupted"
+	// ValueAssumed is a mod line whose text does not show a value, such as a curse's level, and
+	// whose possible mods differ on it; the value most of them share is kept, the highest on a
+	// tie.
+	ValueAssumed build.Code = "item-value-assumed"
 	// RollAssumed is a mod line with a range of values, such as "(30-50)"; the highest is kept.
 	RollAssumed build.Code = "item-roll-assumed"
 )
@@ -36,12 +46,30 @@ const statScope = "Metadata/StatDescriptions/stat_descriptions.txt"
 
 // Reader reads item text with one dataset. It is safe for concurrent use.
 type Reader struct {
-	set    *statdesc.Set
-	bases  map[string]*dataset.ItemBase
-	byName map[string][]*dataset.ItemBase
-	// mods are by stat id.
-	mods    map[string][]modStat
-	version string
+	set      *statdesc.Set
+	bases    map[string]*dataset.ItemBase
+	byName   map[string][]*dataset.ItemBase
+	mods     modIndex
+	crafting crafting
+	version  string
+}
+
+// crafting is where bench crafts and essences put their mods: item classes by mod id. known is
+// false for a dataset that does not hold them.
+type crafting struct {
+	known          bool
+	bench, essence map[string][]string
+}
+
+func newCrafting(it *dataset.Items) crafting {
+	c := crafting{known: it.Crafting, bench: map[string][]string{}, essence: map[string][]string{}}
+	for _, m := range it.BenchCrafts {
+		c.bench[m.Mod] = m.Classes
+	}
+	for _, m := range it.EssenceMods {
+		c.essence[m.Mod] = m.Classes
+	}
+	return c
 }
 
 // NewReader indexes the items group, the stats and the English stat descriptions of s. A
@@ -69,7 +97,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		mods: indexMods(mods, stats), version: s.Manifest().Version,
+		mods: indexMods(mods, stats), crafting: newCrafting(it), version: s.Manifest().Version,
 	}
 	r.index(it.Bases, text.BaseNames)
 	return r, nil
@@ -80,8 +108,8 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 // them implicit, each optionally tagged "{crafted}", "{fractured}" or "{enchant}". The base is
 // found by its English name; a magic item's base is the longest base name in its name; of bases
 // of one name, the one whose implicits read the item's implicit lines. Each mod
-// line is read through the stat descriptions; a line that reads in several ways is read as the
-// first in the game's order, with a warning. A line nothing reads is a warning and stays without stats.
+// line is read through the stat descriptions; a line that reads in several ways is read as one
+// the item can have (see choose). A line nothing reads is a warning and stays without stats.
 // Properties Path of Building adds for itself, such as "LevelReq" or "Prefix", are ignored. It
 // fails with ErrFormat on text without a rarity, name or implicit count, and ErrUnknownBase.
 func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
@@ -140,14 +168,18 @@ func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.Mod
 		w := build.Warning{Code: LineUnread, Subject: texts[0], Message: "no stat description reads it; left out"}
 		return build.ModLine{Kind: kind, Text: texts[0]}, []build.Warning{w}, 1, nil
 	}
-	rd, others := r.choose(it, base, kind, readings)
+	rd := r.choose(it, base, kind, readings)
 	line := build.ModLine{Kind: kind, Text: strings.Join(texts[:rd.Lines], "\n")}
 	var warnings []build.Warning
-	if len(others) > 0 {
+	if len(rd.others) > 0 {
 		warnings = append(warnings, build.Warning{
 			Code: LineAmbiguous, Subject: line.Text,
-			Message: fmt.Sprintf("read as %s, could also be %s", strings.Join(rd.Stats, ", "), strings.Join(others, "; ")),
+			Message: fmt.Sprintf("read as %s, could also be %s", strings.Join(rd.Stats, ", "), strings.Join(rd.others, "; ")),
 		})
+	}
+	for _, w := range rd.warnings {
+		w.Subject = line.Text
+		warnings = append(warnings, w)
 	}
 	ranged := false
 	for k, st := range rd.Stats {
@@ -379,15 +411,4 @@ func tagged(l string) (build.ModKind, string) {
 		l = l[end+1:]
 	}
 	return kind, l
-}
-
-// choose returns the first of the readings in the game's order, and the stats of the others.
-func (r *Reader) choose(_ *build.Item, _ *dataset.ItemBase, _ build.ModKind, rs []statdesc.RangeReading) (statdesc.RangeReading, []string) {
-	var others []string
-	for _, rd := range rs[1:] {
-		if !slices.Equal(rd.Stats, rs[0].Stats) {
-			others = append(others, strings.Join(rd.Stats, ", "))
-		}
-	}
-	return rs[0], others
 }
