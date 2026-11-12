@@ -13,6 +13,9 @@ type Dataset struct {
 	Quests []Quest
 	// Trees has one entry per tree variant, such as standard and ruthless.
 	Trees []Tree
+	// Layouts place the nodes of trees for drawing, at most one per tree variant; each is
+	// written as layout-<variant>.fb.
+	Layouts []Layout
 	// Texts holds display text per language; nothing else in the dataset depends on them.
 	Texts []Text
 	// Items and Mods are the items group, written as items.fb and mods.fb. A nil Items writes

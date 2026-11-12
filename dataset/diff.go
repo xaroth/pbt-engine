@@ -15,6 +15,9 @@ type Diff struct {
 	ConstantsChanged                       []string
 	Trees                                  []TreeDiff
 	TreeVariantsAdded, TreeVariantsRemoved []string
+	// Layouts compares the layouts of variants with one in both datasets.
+	Layouts                                    []LayoutDiff
+	LayoutVariantsAdded, LayoutVariantsRemoved []string
 	// Items is empty when neither dataset has the items group; a dataset without it compares
 	// as one with an empty group.
 	Items ItemsDiff
@@ -49,9 +52,9 @@ type NodeDiff struct {
 	StatsBefore, StatsAfter map[string]int32
 }
 
-// Compare returns the changes from a to b in stats, characters, constants, trees, items,
-// skills, buffs and monsters. It loads every tree and the items, skills, buffs and monsters
-// groups of both; CompareTree compares one tree.
+// Compare returns the changes from a to b in stats, characters, constants, trees, layouts,
+// items, skills, buffs and monsters. It loads every tree and layout and the items, skills,
+// buffs and monsters groups of both; CompareTree compares one tree.
 func Compare(a, b *Store) (Diff, error) {
 	x, err := tablesOf(a, a.Manifest().Trees())
 	if err != nil {
@@ -66,6 +69,9 @@ func Compare(a, b *Store) (Diff, error) {
 	compareCharacters(&d, x, y)
 	compareConstants(&d, x, y)
 	compareTreeGroups(&d, x, y)
+	if err := compareLayoutGroups(&d, a, b); err != nil {
+		return Diff{}, err
+	}
 	if d.Items, err = compareItemGroups(a, b, x, y); err != nil {
 		return Diff{}, err
 	}

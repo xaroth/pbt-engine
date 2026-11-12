@@ -133,7 +133,18 @@ func readAll(fsys fs.FS) (*dataset.Dataset, error) {
 		}
 		d.Texts = append(d.Texts, *t)
 	}
-	return d, errors.Join(readItems(s, d), readSkills(s, d), readBuffs(s, d), readMonsters(s, d))
+	return d, errors.Join(readLayouts(s, d), readItems(s, d), readSkills(s, d), readBuffs(s, d), readMonsters(s, d))
+}
+
+func readLayouts(s *dataset.Store, d *dataset.Dataset) error {
+	for _, v := range s.Manifest().Layouts() {
+		l, err := s.Layout(v)
+		if err != nil {
+			return fmt.Errorf("read: %w", err)
+		}
+		d.Layouts = append(d.Layouts, *l)
+	}
+	return nil
 }
 
 func readMonsters(s *dataset.Store, d *dataset.Dataset) error {

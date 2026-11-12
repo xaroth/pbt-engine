@@ -33,9 +33,10 @@ type Store struct {
 	skills     func() (*Skills, error)
 	buffs      func() (*Buffs, error)
 	monsters   func() (*Monsters, error)
-	// trees and texts are keyed by variant and language, fixed by the manifest.
-	trees map[string]func() (*Tree, error)
-	texts map[string]func() (*Text, error)
+	// trees, texts and layouts are keyed by variant and language, fixed by the manifest.
+	trees   map[string]func() (*Tree, error)
+	texts   map[string]func() (*Text, error)
+	layouts map[string]func() (*Layout, error)
 }
 
 type statsGroup struct {
@@ -45,7 +46,8 @@ type statsGroup struct {
 
 // Open reads the manifest in fsys and reads no table group yet. It fails when ReadManifest
 // does, or the manifest lists an unknown file, misses stats, characters, constants or quests,
-// lists only one of the items group's two files, or lists monsters without skills.
+// lists only one of the items group's two files, lists monsters without skills, or lists a
+// layout without its tree.
 func Open(fsys fs.FS) (*Store, error) {
 	m, err := ReadManifest(fsys)
 	if err != nil {
@@ -57,6 +59,7 @@ func Open(fsys fs.FS) (*Store, error) {
 		files:    make(map[string]File, len(m.Files)),
 		trees:    map[string]func() (*Tree, error){},
 		texts:    map[string]func() (*Text, error){},
+		layouts:  map[string]func() (*Layout, error){},
 	}
 	for _, f := range m.Files {
 		if err := registerFile(s, f); err != nil {
@@ -66,6 +69,11 @@ func Open(fsys fs.FS) (*Store, error) {
 	for _, name := range []string{charactersFile, constantsFile, questsFile, statsFile} {
 		if _, ok := s.files[name]; !ok {
 			return nil, fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
+		}
+	}
+	for v := range s.layouts {
+		if _, ok := s.trees[v]; !ok {
+			return nil, fmt.Errorf("%s: layout %s has no tree of that variant: %w", ManifestName, v, ErrInvalid)
 		}
 	}
 	s.stats = sync.OnceValues(s.loadStats)
@@ -161,6 +169,9 @@ func registerFile(s *Store, f File) error {
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
+	case isGroup(f.Name, layoutPrefix):
+		variant := groupTag(f.Name, layoutPrefix)
+		s.layouts[variant] = sync.OnceValues(func() (*Layout, error) { return s.loadLayout(variant) })
 	case isGroup(f.Name, textPrefix):
 		lang := groupTag(f.Name, textPrefix)
 		s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
