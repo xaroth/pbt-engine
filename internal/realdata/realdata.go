@@ -35,8 +35,8 @@ func Commit() string { return strings.TrimSpace(commit) }
 //
 //nolint:gochecknoglobals // a constant table
 var ids = map[string]string{
-	Previous: "fd0a479473e295844fc9e4d896c06c9d646694b8d75a6513b8ac0cb46731ce07",
-	Current:  "5df73a424e257851d202b776d94271ae29831fdfa6e04ccdf2784b9de279ae75",
+	Previous: "ab036e6f7a2a49481a99d34d1b79a2bdf1e09329bc748f36038e0f6cec41dcb9",
+	Current:  "f9bfe4de4f58bfaa7848ff5ff26852480c8af50ebd7d40b6fbc62e8f7ebc33b9",
 }
 
 // Versions are the pinned versions, oldest first.
