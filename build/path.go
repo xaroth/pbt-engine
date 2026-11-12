@@ -94,14 +94,22 @@ func (c *Checked) DeallocateBranch(node uint32) ([]Edit, bool) {
 			gone = append(gone, id)
 		}
 	}
-	slices.Sort(gone)
-	edits := []Edit{Deallocate(gone...)}
-	for _, id := range gone {
+	return c.deallocate(gone), true
+}
+
+// deallocate returns the edits that deallocate ids, if any, and clear their mastery choices.
+func (c *Checked) deallocate(ids []uint32) []Edit {
+	if len(ids) == 0 {
+		return nil
+	}
+	slices.Sort(ids)
+	edits := []Edit{Deallocate(ids...)}
+	for _, id := range ids {
 		if _, ok := c.build.Masteries[id]; ok {
 			edits = append(edits, ClearMastery(id))
 		}
 	}
-	return edits, true
+	return edits
 }
 
 func (c *Checked) allocatedSet() map[uint32]bool {

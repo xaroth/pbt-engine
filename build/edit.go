@@ -76,10 +76,12 @@ func ClearMastery(node uint32) Edit { return Edit{Op: OpClearMastery, Node: node
 // SetLevel sets the character level.
 func SetLevel(level int) Edit { return Edit{Op: OpSetLevel, Level: level} }
 
-// SetClass sets the class. Ascendancy and nodes stay; a simulation warns about what no longer fits.
+// SetClass sets the class. Ascendancy and nodes stay; a simulation warns about what no longer
+// fits. Checked.ChangeClass gives the edits that also drop it.
 func SetClass(class string) Edit { return Edit{Op: OpSetClass, Class: class} }
 
-// SetAscendancy sets the ascendancy; empty clears it.
+// SetAscendancy sets the ascendancy; empty clears it. Nodes stay; Checked.ChangeAscendancy gives
+// the edits that also drop the old ascendancy's nodes and allocate the new start.
 func SetAscendancy(ascendancy string) Edit { return Edit{Op: OpSetAscendancy, Ascendancy: ascendancy} }
 
 // SetConfig sets config key k to v; a value that fails the key's check is an error.

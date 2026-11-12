@@ -283,11 +283,20 @@ func (c *Checked) checkAscendancy() {
 		b.Ascendancy = ""
 		return
 	}
+	c.ascStart = c.ascendancyStart(b.Ascendancy)
+}
+
+// ascendancyStart returns the start of ascendancy, or nil.
+func (c *Checked) ascendancyStart(ascendancy string) *dataset.Node {
+	if ascendancy == "" {
+		return nil
+	}
 	for i := range c.tree.Nodes {
-		if n := &c.tree.Nodes[i]; n.Kind == dataset.AscendancyStart && n.Ascendancy == b.Ascendancy {
-			c.ascStart = n
+		if n := &c.tree.Nodes[i]; n.Kind == dataset.AscendancyStart && n.Ascendancy == ascendancy {
+			return n
 		}
 	}
+	return nil
 }
 
 func (c *Checked) checkLevel() {
