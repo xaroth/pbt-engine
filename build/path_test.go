@@ -109,8 +109,8 @@ func TestDeallocateBranch(t *testing.T) {
 	}
 }
 
-// realChieftain is the level 90 Chieftain of pbt-conformance, checked against the current
-// pinned dataset.
+// realChieftain is the level 90 Chieftain of pbt-conformance with its mastery choices, checked
+// against the current pinned dataset.
 func realChieftain(t *testing.T) *build.Checked {
 	t.Helper()
 	s := realdata.Open(t, realdata.Current)
@@ -118,7 +118,8 @@ func realChieftain(t *testing.T) *build.Checked {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := &build.Build{Format: build.Format, Game: "poe1", Version: "3.29", Class: marauder, Ascendancy: "Chieftain", Level: 90}
+	b := &build.Build{Format: build.Format, Game: "poe1", Version: "3.29", Class: marauder, Ascendancy: "Chieftain", Level: 90,
+		Masteries: map[uint32]uint32{4139: 47642, 11505: 36313, 12125: 21468, 12382: 64381, 25011: 31822, 27193: 45653, 27733: 23471, 32241: 34242, 41415: 38454}}
 	for f := range strings.SplitSeq(strings.TrimSpace(string(data)), ",") {
 		n, err := strconv.ParseUint(f, 10, 32)
 		if err != nil {
