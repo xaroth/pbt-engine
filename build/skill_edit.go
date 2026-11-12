@@ -19,10 +19,12 @@ const (
 	OpSetGemEnabled    EditOp = "set-gem-enabled"
 )
 
-// SkillAt addresses a skill group by index, and a gem in it for the edits of one gem.
+// SkillAt addresses a skill group by index, and a gem in it for the edits of one gem. Skill is
+// which of the gem's skills, for set-active-gem.
 type SkillAt struct {
 	Group int `json:"group"`
 	Gem   int `json:"gem"`
+	Skill int `json:"skill,omitzero"`
 }
 
 // AddSkillGroup appends group g.
@@ -48,14 +50,18 @@ func SetMainSkill(i int) Edit { return Edit{Op: OpSetMainSkill, Skill: &SkillAt{
 func AddGem(i int, g Gem) Edit { return Edit{Op: OpAddGem, Skill: &SkillAt{Group: i}, Gem: &g} }
 
 // RemoveGem removes a gem from group; later gems move down by one, and the group's active skill
-// stays on its gem, or becomes gem 0 when it was this one.
+// stays on its gem, or becomes the first skill of gem 0 when it was this one.
 func RemoveGem(group, gem int) Edit {
 	return Edit{Op: OpRemoveGem, Skill: &SkillAt{Group: group, Gem: gem}}
 }
 
-// SetActiveGem makes a gem its group's main active skill.
-func SetActiveGem(group, gem int) Edit {
-	return Edit{Op: OpSetActiveGem, Skill: &SkillAt{Group: group, Gem: gem}}
+// SetActiveGem makes a gem's first skill its group's main active skill.
+func SetActiveGem(group, gem int) Edit { return SetActiveGemSkill(group, gem, 0) }
+
+// SetActiveGemSkill makes skill of a gem its group's main active skill: 0 its first, 1 its
+// second, such as a Vaal gem's regular skill.
+func SetActiveGemSkill(group, gem, skill int) Edit {
+	return Edit{Op: OpSetActiveGem, Skill: &SkillAt{Group: group, Gem: gem, Skill: skill}}
 }
 
 // SetGemLevel sets a gem's level.
@@ -111,7 +117,7 @@ func (s *Skills) applyGroup(e Edit) error {
 	case OpSetSkillSlot:
 		g.Slot = e.Slot
 	case OpSetActiveGem:
-		g.Active = at.Gem
+		g.Active, g.ActiveSkill = at.Gem, at.Skill
 	case OpAddGem:
 		if e.Gem == nil {
 			return fmt.Errorf("%w: %s without a gem", ErrEditTarget, e.Op)
@@ -132,8 +138,7 @@ func (s *Skills) applyGem(e Edit) error {
 	g := &s.Groups[at.Group]
 	switch e.Op {
 	case OpRemoveGem:
-		g.Gems = slices.Delete(g.Gems, at.Gem, at.Gem+1)
-		g.Active = shifted(g.Active, at.Gem)
+		g.removeGem(at.Gem)
 	case OpSetGemLevel:
 		g.Gems[at.Gem].Level = e.Level
 	case OpSetGemQuality:
@@ -157,6 +162,16 @@ func shifted(i, removed int) int {
 	return i
 }
 
+// removeGem removes gem j, keeping the active skill on its gem, or making it the first skill
+// of gem 0 when it was on gem j.
+func (g *SkillGroup) removeGem(j int) {
+	g.Gems = slices.Delete(g.Gems, j, j+1)
+	if g.Active == j {
+		g.ActiveSkill = 0
+	}
+	g.Active = shifted(g.Active, j)
+}
+
 func (g *SkillGroup) cloned() SkillGroup {
 	c := *g
 	c.Gems = slices.Clone(g.Gems)
@@ -166,7 +181,7 @@ func (g *SkillGroup) cloned() SkillGroup {
 // skillsDiff returns the edits that turn a into b: groups b does not have removed from the
 // last, then per shared group its slot, its gems (the gems after the first that differs in id
 // or role removed from the last and b's added, the others' level, quality and enabled set)
-// and its active gem, then b's further groups added, then the main skill.
+// and its active gem and skill, then b's further groups added, then the main skill.
 func skillsDiff(a, b Skills) []Edit {
 	var out []Edit
 	for i := len(a.Groups) - 1; i >= len(b.Groups); i-- {
@@ -198,10 +213,11 @@ func groupDiff(i int, a, b SkillGroup) []Edit {
 	for same < min(len(a.Gems), len(b.Gems)) && a.Gems[same].GemID == b.Gems[same].GemID && a.Gems[same].Support == b.Gems[same].Support {
 		same++
 	}
-	active := a.Active
+	// Removals move the active gem, so compare with where they leave it.
+	at := a.cloned()
 	for j := len(a.Gems) - 1; j >= same; j-- {
 		out = append(out, RemoveGem(i, j))
-		active = shifted(active, j)
+		at.removeGem(j)
 	}
 	for j := range same {
 		out = append(out, gemDiff(i, j, a.Gems[j], b.Gems[j])...)
@@ -209,8 +225,8 @@ func groupDiff(i int, a, b SkillGroup) []Edit {
 	for _, g := range b.Gems[same:] {
 		out = append(out, AddGem(i, g))
 	}
-	if active != b.Active {
-		out = append(out, SetActiveGem(i, b.Active))
+	if at.Active != b.Active || at.ActiveSkill != b.ActiveSkill {
+		out = append(out, SetActiveGemSkill(i, b.Active, b.ActiveSkill))
 	}
 	return out
 }

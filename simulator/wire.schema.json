@@ -213,13 +213,14 @@
     },
     "SkillAt": {
       "title": "SkillAt",
-      "description": "A skill group, and a gem in it, by index.",
+      "description": "A skill group, and a gem in it, by index; skill is which of the gem's skills, for set-active-gem.",
       "type": "object",
       "additionalProperties": false,
       "required": ["group", "gem"],
       "properties": {
         "group": { "type": "integer" },
-        "gem": { "type": "integer" }
+        "gem": { "type": "integer" },
+        "skill": { "type": "integer" }
       }
     },
     "Slot": {
@@ -236,7 +237,11 @@
       "properties": {
         "slot": { "$ref": "#/$defs/Slot" },
         "gems": { "type": "array", "items": { "$ref": "#/$defs/Gem" } },
-        "active": { "type": "integer", "minimum": 0 }
+        "active": { "type": "integer", "minimum": 0 },
+        "activeSkill": {
+          "description": "Which skill of the active gem is the main one: 0 its first, 1 its second.",
+          "type": "integer", "minimum": 0
+        }
       }
     },
     "Gem": {

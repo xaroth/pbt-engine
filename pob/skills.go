@@ -77,30 +77,50 @@ func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data
 	if out.Slot == "" && g.Slot != "" {
 		im.warnf(SlotIgnored, subject, "slot %q has no sockets; group imported without a slot", g.Slot)
 	}
-	var skills []int // the gem of each active skill PoB counts for the main active skill
+	var skills []gemSkill // each active skill PoB counts for the main active skill
+	first := gemSkill{gem: -1}
 	for _, pg := range g.Gems {
-		gem, skillCount, ok := im.gem(pg, store, data)
+		gem, ok := im.gem(pg, store, data)
 		if !ok {
 			continue
 		}
 		gem.Disabled = gem.Disabled || !g.Enabled
-		if !gem.Support && !gem.Disabled {
-			for range skillCount {
-				skills = append(skills, len(out.Gems))
-			}
+		active := build.ActiveSkills(data, gem)
+		if first.gem < 0 && len(active) > 0 {
+			first = gemSkill{gem: len(out.Gems), skill: active[0]}
+		}
+		if !gem.Disabled {
+			skills = append(skills, countedSkills(pg, len(out.Gems), active)...)
 		}
 		out.Gems = append(out.Gems, gem)
 	}
-	out.Active = activeGem(out.Gems, skills, g.MainActiveSkill)
+	main := activeSkill(skills, first, g.MainActiveSkill)
+	out.Active, out.ActiveSkill = main.gem, main.skill
 	return out
 }
 
-// gem imports gem g with the number of skills it grants, or warns and reports false.
-func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (build.Gem, int, bool) {
+// countedSkills returns the active skills of gem g, at index gem, that PoB counts for the main
+// active skill, in order. PoB leaves out a skill switched off (CalcSetup.lua), and lets only a
+// Vaal gem's skills, the ones with global effects, be switched.
+func countedSkills(g pobxml.Gem, gem int, active []int) []gemSkill {
+	var out []gemSkill
+	for _, i := range active {
+		if len(active) < 2 || []bool{g.EnableGlobal1, g.EnableGlobal2}[i] {
+			out = append(out, gemSkill{gem: gem, skill: i})
+		}
+	}
+	return out
+}
+
+// gemSkill is skill of the gem at index gem: 0 its first, 1 its second.
+type gemSkill struct{ gem, skill int }
+
+// gem imports gem g, or warns and reports false.
+func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (build.Gem, bool) {
 	m, ok := resolveGem(g, store, data)
 	if !ok {
 		im.warnf(GemUnknown, cmp.Or(g.Name, g.GemID, g.SkillID), "gem not in dataset %s; dropped", store.Manifest().Version)
-		return build.Gem{}, 0, false
+		return build.Gem{}, false
 	}
 	if len(m.Others) > 0 {
 		im.warnf(GemAmbiguous, cmp.Or(g.Name, g.SkillID), "also the gem of %s; %s imported", strings.Join(m.Others, ", "), m.Gem.ID)
@@ -113,21 +133,20 @@ func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills
 	if effect != &dg.Effects[0] {
 		out.Effect = effect.ID
 	}
-	skills := 1
-	if effect.SecondaryGrantedEffect != "" {
-		skills = 2
-	}
-	return out, skills, true
+	return out, true
 }
 
-// activeGem returns the gem of PoB's 1-based main active skill n among skills, the first when n
-// is below 1 and the last when it is past the end, as PoB caps it (CalcSetup.lua); without
-// skills, the first active gem, else 0.
-func activeGem(gems []build.Gem, skills []int, n int) int {
-	if len(skills) > 0 {
+// activeSkill returns PoB's 1-based main active skill n among skills, the first when n is below
+// 1 and the last when it is past the end, as PoB caps it (CalcSetup.lua); without skills,
+// first, the first active skill of the group, else gem 0's first skill.
+func activeSkill(skills []gemSkill, first gemSkill, n int) gemSkill {
+	switch {
+	case len(skills) > 0:
 		return skills[min(max(n, 1), len(skills))-1]
+	case first.gem >= 0:
+		return first
 	}
-	return max(slices.IndexFunc(gems, func(x build.Gem) bool { return !x.Support }), 0)
+	return gemSkill{}
 }
 
 // resolveGem returns the dataset gem and effect of g, trying in turn: its gem id with its

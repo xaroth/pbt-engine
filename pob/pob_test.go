@@ -16,7 +16,10 @@ import (
 	"github.com/xaroth/pbt-engine/pob"
 )
 
-const marauder = "Metadata/Characters/Str/Str"
+const (
+	marauder = "Metadata/Characters/Str/Str"
+	scion    = "Metadata/Characters/StrDexInt/StrDexInt"
+)
 
 // registry holds one poe1 dataset, 3.29.3.5, with the names FromXML reads: Marauder, and
 // Chieftain as named in the standard and alternate trees.
@@ -28,7 +31,7 @@ func registry(t *testing.T) *dataset.Registry {
 func testDataset() *dataset.Dataset {
 	return &dataset.Dataset{
 		Manifest:   dataset.Manifest{Game: "poe1", Version: "3.29.3.5"},
-		Characters: []dataset.Character{{ID: marauder}},
+		Characters: []dataset.Character{{ID: scion}, {ID: marauder}},
 		Trees:      []dataset.Tree{tree("standard"), tree("ruthless"), tree("alternate")},
 		Texts: []dataset.Text{{
 			Language:       "en",
@@ -55,11 +58,16 @@ func registryOf(t *testing.T, d *dataset.Dataset) *dataset.Registry {
 	return &reg
 }
 
+// tree has the Marauder second and the Chieftain third, as PoB numbers them in classId and
+// ascendClassId.
 func tree(variant string) dataset.Tree {
 	return dataset.Tree{
 		Variant: variant,
-		Classes: []dataset.Class{{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Chieftain"}}}},
-		Nodes:   []dataset.Node{{ID: 1, Kind: dataset.ClassStart}},
+		Classes: []dataset.Class{
+			{Character: scion, StartNode: 2},
+			{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}, {ID: "Berserker"}, {ID: "Chieftain"}}},
+		},
+		Nodes: []dataset.Node{{ID: 1, Kind: dataset.ClassStart}, {ID: 2, Kind: dataset.ClassStart}},
 	}
 }
 

@@ -57,6 +57,7 @@ const (
 	none = "None"
 	// penaltyInput is PoB's resistance penalty input, the only config input imported.
 	penaltyInput = "resistancePenalty"
+	banditInput  = "bandit"
 )
 
 // treeVersion matches PoB's tree versions: 3_29, 3_29_ruthless, 3_29_alternate.
@@ -151,16 +152,23 @@ func versionOf(tree string) (version, variant string, err error) {
 
 // store is the dataset of version, else the newest of the game with a warning.
 func (im *importer) store(reg *dataset.Registry, version string) (*dataset.Store, error) {
+	s, fallback, err := storeFor(reg, version)
+	if fallback {
+		im.warnf(VersionFallback, version, "no dataset of this version; class names read with %s", s.Manifest().Version)
+	}
+	return s, err
+}
+
+// storeFor returns the dataset of version, else the newest of the game and true.
+func storeFor(reg *dataset.Registry, version string) (*dataset.Store, bool, error) {
 	if res, err := reg.Resolve(game, version); err == nil {
-		return res.Store, nil
+		return res.Store, false, nil
 	}
 	stores := reg.Stores(game)
 	if len(stores) == 0 {
-		return nil, fmt.Errorf("%w for %s %s", ErrNoDataset, game, version)
+		return nil, false, fmt.Errorf("%w for %s %s", ErrNoDataset, game, version)
 	}
-	s := stores[len(stores)-1]
-	im.warnf(VersionFallback, version, "no dataset of this version; class names read with %s", s.Manifest().Version)
-	return s, nil
+	return stores[len(stores)-1], true, nil
 }
 
 // names maps PoB's class and ascendancy names to ids through the dataset's English text.
@@ -246,7 +254,7 @@ func (im *importer) config() (config.Values, error) {
 
 // mirrorsBuild reports a config input that repeats a <Build> attribute, read from there.
 func mirrorsBuild(input string) bool {
-	return input == "bandit" || input == "pantheonMajorGod" || input == "pantheonMinorGod"
+	return input == banditInput || input == "pantheonMajorGod" || input == "pantheonMinorGod"
 }
 
 // banditOf maps PoB's bandit choice. None is PoB's kill all, and so is no attribute. Eramir,

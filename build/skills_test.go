@@ -58,6 +58,7 @@ func TestSkillEdits(t *testing.T) {
 		}},
 		{"remove a gem", build.RemoveGem(0, 2), func(s *build.Skills) { s.Groups[0].Gems = s.Groups[0].Gems[:2] }},
 		{"set the active gem", build.SetActiveGem(0, 1), func(s *build.Skills) { s.Groups[0].Active = 1 }},
+		{"set the active skill", build.SetActiveGemSkill(0, 0, 1), func(s *build.Skills) { s.Groups[0].ActiveSkill = 1 }},
 		{"set a gem level", build.SetGemLevel(0, 0, 21), func(s *build.Skills) { s.Groups[0].Gems[0].Level = 21 }},
 		{"set a gem quality", build.SetGemQuality(0, 0, 23), func(s *build.Skills) { s.Groups[0].Gems[0].Quality = 23 }},
 		{"disable a gem", build.SetGemEnabled(0, 1, false), func(s *build.Skills) { s.Groups[0].Gems[1].Disabled = true }},
@@ -154,8 +155,9 @@ func TestSkillRemovalsShift(t *testing.T) {
 	if err := b.Apply(build.RemoveGem(0, 1)); err != nil || b.Skills.Groups[0].Active != 1 {
 		t.Errorf("active %d after removing gem 1 (%v), want 1", b.Skills.Groups[0].Active, err)
 	}
-	if err := b.Apply(build.RemoveGem(0, 1)); err != nil || b.Skills.Groups[0].Active != 0 {
-		t.Errorf("active %d after removing the active gem (%v), want 0", b.Skills.Groups[0].Active, err)
+	b.Skills.Groups[0].ActiveSkill = 1
+	if err := b.Apply(build.RemoveGem(0, 1)); err != nil || b.Skills.Groups[0].Active != 0 || b.Skills.Groups[0].ActiveSkill != 0 {
+		t.Errorf("active %d skill %d after removing the active gem (%v), want 0 and 0", b.Skills.Groups[0].Active, b.Skills.Groups[0].ActiveSkill, err)
 	}
 }
 

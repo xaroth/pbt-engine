@@ -78,17 +78,55 @@ func (c *Checked) checkGroup(i int, data *dataset.Skills, effects map[string]*da
 		kept = append(kept, gem)
 	}
 	g.Gems = kept
-	first := slices.IndexFunc(kept, func(x Gem) bool { return !x.Support })
+	first := slices.IndexFunc(kept, func(x Gem) bool { return len(ActiveSkills(data, x)) > 0 })
 	if first < 0 {
 		// Only supports, such as for a skill an item grants: no active gem to choose.
-		g.Active = 0
+		g.Active, g.ActiveSkill = 0, 0
 		return
 	}
-	if active < 0 || kept[active].Support {
-		c.warnf(ActiveGemInvalid, subject, "active gem %d is not an active skill gem the group keeps; gem %d used", g.Active+1, first+1)
-		active = first
+	if active < 0 || len(ActiveSkills(data, kept[active])) == 0 {
+		c.warnf(ActiveGemInvalid, subject, "active gem %d is not a gem with an active skill the group keeps; gem %d used", g.Active+1, first+1)
+		active, g.ActiveSkill = first, ActiveSkills(data, kept[first])[0]
 	}
 	g.Active = active
+	c.checkActiveSkill(subject, g, data)
+}
+
+// checkActiveSkill moves the group's active skill to the first active skill of its active gem
+// when the gem has no such active skill.
+func (c *Checked) checkActiveSkill(subject string, g *SkillGroup, data *dataset.Skills) {
+	skills := ActiveSkills(data, g.Gems[g.Active])
+	if !slices.Contains(skills, g.ActiveSkill) {
+		c.warnf(ActiveGemInvalid, subject, "skill %d of gem %d is not an active skill; skill %d used", g.ActiveSkill+1, g.Active+1, skills[0]+1)
+		g.ActiveSkill = skills[0]
+	}
+}
+
+// ActiveSkills returns which skills of gem are active skills, by index: 0 the gem's first
+// skill, 1 its second. An active gem's first skill is one, and so is a Vaal gem's second (its
+// regular skill); a support's second is one when it grants an active skill, such as Predator's
+// Signal Prey. Nil for a gem data does not have.
+func ActiveSkills(data *dataset.Skills, gem Gem) []int {
+	dg := data.Gem(gem.ID)
+	if dg == nil || len(dg.Effects) == 0 {
+		return nil
+	}
+	e := &dg.Effects[0]
+	if x := dg.Effect(gem.Effect); x != nil {
+		e = x
+	}
+	var out []int
+	if !dg.Support {
+		out = append(out, 0)
+	}
+	if e.SecondaryGrantedEffect == "" {
+		return out
+	}
+	if i := slices.IndexFunc(data.GrantedEffects, func(ge dataset.GrantedEffect) bool { return ge.ID == e.SecondaryGrantedEffect }); i >= 0 &&
+		!data.GrantedEffects[i].Support {
+		out = append(out, 1)
+	}
+	return out
 }
 
 // checkGem fixes gem as the dataset says, or reports false to drop it.
