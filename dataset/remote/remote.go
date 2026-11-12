@@ -1,11 +1,12 @@
-// Package remote keeps local copies of published datasets current. A source holds an index
-// and one dataset per game and league:
+// Package remote keeps local copies of published datasets. A source is addressed by content:
 //
-//	index.json                  {"<game>": {"<league>": {"version": "...", "manifest": "<sha256>"}}}
-//	<game>/<league>/            manifest.json and the files it lists
+//	index.json            {"<game>": {"<league>": {"version": "...", "dataset": "<id>", "art": "<sha256>"}}}
+//	manifests/<id>.json   a dataset's manifest, by its dataset id
+//	blobs/<sha256>        every file a manifest lists, by its SHA-256
 //
-// Pull mirrors that layout into a local directory, fetching only what changed: the index names
-// each manifest's SHA-256 and each manifest its files', so every byte fetched is checked.
+// Pull keeps the latest dataset of each league; PullID fetches one dataset by its id. Each
+// fetches only what the local copy lacks and checks every byte: a manifest against the id it
+// was fetched by, a file against its SHA-256.
 package remote
 
 import (
@@ -20,7 +21,6 @@ import (
 	"maps"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -32,10 +32,10 @@ import (
 // IndexName is the index's name at the source.
 const IndexName = "index.json"
 
-// DefaultSource is the latest published data. A commit in place of main gives a fixed snapshot.
-const DefaultSource = "https://raw.githubusercontent.com/xaroth/pbt-data/main/"
+// DefaultSource is pbt-data's bucket.
+const DefaultSource = "https://pbt-data.xaroth.nl/"
 
-// Problems Pull reports.
+// Problems Pull and PullID report.
 var (
 	ErrUnknownLeague = errors.New("league not in the index")
 	ErrMismatch      = errors.New("content does not match its hash")
@@ -48,16 +48,18 @@ const (
 	filePerm = 0o644
 )
 
-// Entry is a league's dataset in the index: its game version and the SHA-256 of its manifest.
+// Entry is a league's latest dataset in the index: its game version, its dataset id and the
+// SHA-256 of its tree-art manifest.
 type Entry struct {
-	Version  string `json:"version"`
-	Manifest string `json:"manifest"`
+	Version string `json:"version"`
+	Dataset string `json:"dataset"`
+	Art     string `json:"art"`
 }
 
 // Index is index.json: per game, per league.
 type Index map[string]map[string]Entry
 
-// Fetcher reads a file from a source by its slash-separated path, such as poe1/3.29/stats.fb.
+// Fetcher reads a file from a source by its slash-separated path, such as blobs/<sha256>.
 type Fetcher interface {
 	Fetch(ctx context.Context, name string) ([]byte, error)
 }
@@ -69,7 +71,7 @@ type HTTP struct {
 	Client *http.Client
 }
 
-// fetchTimeout bounds one file's request: the largest is about 1 MB.
+// fetchTimeout bounds one file's request: the largest is a few MB.
 const fetchTimeout = 2 * time.Minute
 
 // Fetch gets Base+name and fails on any status but 200.
@@ -97,8 +99,9 @@ func (h HTTP) Fetch(ctx context.Context, name string) ([]byte, error) {
 	return b, nil
 }
 
-// Result is what Pull did for one league.
+// Result is what Pull or PullID did for one dataset.
 type Result struct {
+	// League is empty for PullID.
 	League, Version string
 	// Updated is false when the local copy was current.
 	Updated bool
@@ -106,14 +109,12 @@ type Result struct {
 	Fetched int
 }
 
-// Pull brings the datasets of game's leagues in dir up to date with the source, dir holding
-// one directory per league as the source does under <game>/. Without leagues it pulls every
-// league of game in the index. A league whose manifest matches the index is left alone;
-// otherwise the new manifest is fetched and checked against the index, each file it lists is
-// reused from the local copy when its SHA-256 matches or fetched and checked otherwise, and
-// the complete dataset replaces the league's directory. A league that fails keeps its old copy
-// and does not stop the others: Pull returns the results of the leagues pulled together with
-// the joined errors of those that failed.
+// Pull brings the latest datasets of game's leagues in dir up to date with the source, dir
+// holding one directory per league. Without leagues it pulls every league of game in the index.
+// Each league is pulled as PullID pulls the dataset the index names, which must be of game and
+// the version the index gives. A league that fails keeps its old copy and does not stop the
+// others: Pull returns the results of the leagues pulled together with the joined errors of
+// those that failed.
 func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) ([]Result, error) {
 	ib, err := f.Fetch(ctx, IndexName)
 	if err != nil {
@@ -127,9 +128,6 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 	if len(leagues) == 0 {
 		leagues = slices.Sorted(maps.Keys(entries))
 	}
-	if err := os.MkdirAll(dir, dirPerm); err != nil {
-		return nil, fmt.Errorf("pull: %w", err)
-	}
 	out := make([]Result, 0, len(leagues))
 	var errs []error
 	for _, league := range leagues {
@@ -138,7 +136,13 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 			errs = append(errs, fmt.Errorf("%w: %s %s", ErrUnknownLeague, game, league))
 			continue
 		}
-		r, err := pullLeague(ctx, f, dir, game, league, e)
+		r, err := pull(ctx, f, filepath.Join(dir, league), e.Dataset, func(m dataset.Manifest) error {
+			if m.Game != game || m.Version != e.Version {
+				return fmt.Errorf("manifest is %s %s, index says %s %s: %w", m.Game, m.Version, game, e.Version, ErrMismatch)
+			}
+			return nil
+		})
+		r.League = league
 		if err != nil {
 			errs = append(errs, fmt.Errorf("pull %s %s: %w", game, league, err))
 			continue
@@ -148,34 +152,43 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 	return out, errors.Join(errs...)
 }
 
-func pullLeague(ctx context.Context, f Fetcher, dir, game, league string, e Entry) (Result, error) {
-	r := Result{League: league, Version: e.Version}
-	if err := removeStages(dir, league); err != nil {
+// PullID makes dir a copy of the dataset with id. A dir that already holds it is left alone;
+// otherwise the manifest is fetched and checked against id, each file it lists is reused from
+// dir when its SHA-256 matches or fetched and checked otherwise, and the complete dataset
+// replaces dir. On failure dir keeps what it held.
+func PullID(ctx context.Context, f Fetcher, dir, id string) (Result, error) {
+	r, err := pull(ctx, f, dir, id, nil)
+	if err != nil {
+		return r, fmt.Errorf("pull %s: %w", id, err)
+	}
+	return r, nil
+}
+
+// pull is PullID, with check, when not nil, run on the fetched manifest.
+func pull(ctx context.Context, f Fetcher, local, id string, check func(dataset.Manifest) error) (Result, error) {
+	var r Result
+	if !validHash(id) {
+		return r, fmt.Errorf("dataset id %q: %w", id, dataset.ErrInvalid)
+	}
+	parent, name := filepath.Dir(local), filepath.Base(local)
+	if err := os.MkdirAll(parent, dirPerm); err != nil {
+		return r, fmt.Errorf("pull: %w", err)
+	}
+	if err := removeStages(parent, name); err != nil {
 		return r, err
 	}
-	local := filepath.Join(dir, league)
-	if b, err := os.ReadFile(filepath.Join(local, dataset.ManifestName)); err == nil && sum(b) == e.Manifest {
+	if m, err := dataset.ReadManifest(os.DirFS(local)); err == nil && m.ID == id {
+		r.Version = m.Version
 		return r, nil
 	}
-	stage, err := os.MkdirTemp(dir, stagePrefix(league))
+	stage, err := os.MkdirTemp(parent, stagePrefix(name))
 	if err != nil {
 		return r, fmt.Errorf("stage: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(stage) }()
-	src := path.Join(game, league)
-	m, err := stageManifest(ctx, f, src, stage, game, e)
+	r, err = stageDataset(ctx, f, local, stage, id, check)
 	if err != nil {
 		return r, err
-	}
-	r.Fetched = 1
-	for _, file := range m.Files {
-		fetched, err := stageFile(ctx, f, src, local, stage, file)
-		if err != nil {
-			return r, err
-		}
-		if fetched {
-			r.Fetched++
-		}
 	}
 	if err := replace(local, stage); err != nil {
 		return r, err
@@ -184,38 +197,62 @@ func pullLeague(ctx context.Context, f Fetcher, dir, game, league string, e Entr
 	return r, nil
 }
 
-// stageManifest fetches the manifest of src into stage and checks it against e.
-func stageManifest(ctx context.Context, f Fetcher, src, stage, game string, e Entry) (dataset.Manifest, error) {
-	mb, err := f.Fetch(ctx, path.Join(src, dataset.ManifestName))
+// stageDataset puts the complete dataset with id into stage, reusing files from local.
+func stageDataset(ctx context.Context, f Fetcher, local, stage, id string, check func(dataset.Manifest) error) (Result, error) {
+	var r Result
+	m, err := stageManifest(ctx, f, stage, id)
+	if err != nil {
+		return r, err
+	}
+	if check != nil {
+		if err := check(m); err != nil {
+			return r, err
+		}
+	}
+	r.Version = m.Version
+	r.Fetched = 1
+	for _, file := range m.Files {
+		fetched, err := stageFile(ctx, f, local, stage, file)
+		if err != nil {
+			return r, err
+		}
+		if fetched {
+			r.Fetched++
+		}
+	}
+	return r, nil
+}
+
+// stageManifest fetches the manifest of the dataset with id into stage and checks it.
+func stageManifest(ctx context.Context, f Fetcher, stage, id string) (dataset.Manifest, error) {
+	mb, err := f.Fetch(ctx, "manifests/"+id+".json")
 	if err != nil {
 		return dataset.Manifest{}, fmt.Errorf("manifest: %w", err)
-	}
-	if sum(mb) != e.Manifest {
-		return dataset.Manifest{}, fmt.Errorf("%s: %w", dataset.ManifestName, ErrMismatch)
 	}
 	if err := os.WriteFile(filepath.Join(stage, dataset.ManifestName), mb, filePerm); err != nil {
 		return dataset.Manifest{}, fmt.Errorf("stage manifest: %w", err)
 	}
+	// ReadManifest checks the id against the content, so a manifest with the right id is the right one.
 	m, err := dataset.ReadManifest(os.DirFS(stage))
 	if err != nil {
-		return m, fmt.Errorf("manifest: %w", err)
+		return m, fmt.Errorf("manifest %s: %w", id, err)
 	}
-	if m.Game != game || m.Version != e.Version {
-		return m, fmt.Errorf("manifest is %s %s, index says %s %s: %w", m.Game, m.Version, game, e.Version, ErrMismatch)
+	if m.ID != id {
+		return m, fmt.Errorf("manifest %s has id %s: %w", id, m.ID, ErrMismatch)
 	}
 	return m, nil
 }
 
 // stageFile puts file into stage from the local copy when it matches, else from the source,
 // and reports whether it was fetched.
-func stageFile(ctx context.Context, f Fetcher, src, local, stage string, file dataset.File) (bool, error) {
-	if !validName(file.Name) {
-		return false, fmt.Errorf("file name %q: %w", file.Name, dataset.ErrInvalid)
+func stageFile(ctx context.Context, f Fetcher, local, stage string, file dataset.File) (bool, error) {
+	if !validName(file.Name) || !validHash(file.SHA256) {
+		return false, fmt.Errorf("file %q, SHA-256 %q: %w", file.Name, file.SHA256, dataset.ErrInvalid)
 	}
 	b, err := os.ReadFile(filepath.Join(local, file.Name))
 	fetched := err != nil || !matches(b, file)
 	if fetched {
-		if b, err = f.Fetch(ctx, path.Join(src, file.Name)); err != nil {
+		if b, err = f.Fetch(ctx, "blobs/"+file.SHA256); err != nil {
 			return false, fmt.Errorf("%s: %w", file.Name, err)
 		}
 		if !matches(b, file) {
@@ -230,11 +267,11 @@ func stageFile(ctx context.Context, f Fetcher, src, local, stage string, file da
 
 func matches(b []byte, file dataset.File) bool { return len(b) == file.Size && sum(b) == file.SHA256 }
 
-func stagePrefix(league string) string { return "." + league + "-" }
+func stagePrefix(name string) string { return "." + name + "-" }
 
-// removeStages removes what an interrupted pull of league left in dir.
-func removeStages(dir, league string) error {
-	left, err := filepath.Glob(filepath.Join(dir, stagePrefix(league)+"*"))
+// removeStages removes what an interrupted pull into dir/name left in dir.
+func removeStages(dir, name string) error {
+	left, err := filepath.Glob(filepath.Join(dir, stagePrefix(name)+"*"))
 	if err != nil {
 		return fmt.Errorf("stage: %w", err)
 	}
@@ -265,6 +302,15 @@ func replace(local, stage string) error {
 // validName rejects names that would leave their directory.
 func validName(name string) bool {
 	return name != "" && !strings.HasPrefix(name, ".") && !strings.ContainsAny(name, `/\`)
+}
+
+// validHash accepts a lowercase hex SHA-256, the form ids and file hashes take.
+func validHash(h string) bool {
+	if len(h) != sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(h)
+	return err == nil && strings.ToLower(h) == h
 }
 
 func sum(b []byte) string {
