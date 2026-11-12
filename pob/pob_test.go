@@ -249,3 +249,26 @@ func TestFromXMLErrors(t *testing.T) {
 		t.Errorf("empty registry: got %v", err)
 	}
 }
+
+func TestFileVersion(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name, xml, want string
+		err             error
+	}{
+		{"standard", xmlOf(`className="Marauder"`, `treeVersion="3_29"`, ""), "3.29", nil},
+		{"ruthless", xmlOf(`className="Exile"`, `treeVersion="3_28_ruthless"`, ""), "3.28", nil},
+		{"not xml", "eNrtfWlz2zq", "", pob.ErrNotPoB},
+		{"poe2", "<PathOfBuilding2><Build/></PathOfBuilding2>", "", pob.ErrPoE2},
+		{"tree version", xmlOf(`className="Marauder"`, `treeVersion="3.29"`, ""), "", pob.ErrTreeVersion},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := pob.FileVersion([]byte(testCase.xml))
+			if got != testCase.want || !errors.Is(err, testCase.err) {
+				t.Errorf("got %q, %v, want %q, %v", got, err, testCase.want, testCase.err)
+			}
+		})
+	}
+}
