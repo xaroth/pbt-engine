@@ -2,13 +2,24 @@ package dataset
 
 import "fmt"
 
-// Items is the items group without its mods: item classes, the equippable base items and the
-// tags bases and mods name. A dataset without the group returns a MissingGroupError for it.
+// Items is the items group without its mods: item classes, the equippable base items, the
+// tags bases and mods name, and where bench crafts and essences put their mods. A dataset
+// without the group returns a MissingGroupError for it.
 type Items struct {
 	Classes []ItemClass
 	// Tags are the Tags.Id of every tag a base, a mod or a spawn weight names.
 	Tags  []string
 	Bases []ItemBase
+	// Crafting reports whether the group holds the bases' mod domains, the bench crafts and the
+	// essence mods. Datasets written before those were extracted do not; their bases' domains
+	// are 0 and they have no bench crafts or essence mods.
+	Crafting bool
+	// BenchCrafts are the crafting bench options that are not disabled, by the mod or
+	// enchantment each adds; no two add the same mod.
+	BenchCrafts []ModClasses
+	// EssenceMods are the mods essences add, each once with the classes of every essence that
+	// adds it.
+	EssenceMods []ModClasses
 }
 
 // ItemClass is an item class, such as "Body Armour". Its display name is in Text.
@@ -30,6 +41,18 @@ type ItemBase struct {
 	Block  int32
 	Weapon *WeaponValues
 	Flask  *FlaskValues
+	// ModDomain is BaseItemTypes.ModDomain as the game numbers it, the Mod.Domain of the mods
+	// the base rolls, such as 1 for most items and 21 for cluster jewels. It is 0 when
+	// Items.Crafting is false, and not 0 otherwise.
+	ModDomain int32
+}
+
+// ModClasses is a mod and the item classes it can be put on.
+type ModClasses struct {
+	// Mod is a Mod.ID.
+	Mod string
+	// Classes are ItemClass.IDs, each in Items.Classes, none repeated and at least one.
+	Classes []string
 }
 
 // ValueRange is an inclusive range of values.

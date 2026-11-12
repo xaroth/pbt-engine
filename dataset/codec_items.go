@@ -28,6 +28,8 @@ func encodeItems(it *Items) []byte {
 		baseOffs[i] = encodeBase(b, classIndex, tagIndex, base)
 	}
 	bases := tableVector(b, fb.ItemsStartBasesVector, baseOffs)
+	crafts := encodeModClasses(b, fb.ItemsStartBenchCraftsVector, classIndex, it.BenchCrafts)
+	essences := encodeModClasses(b, fb.ItemsStartEssenceModsVector, classIndex, it.EssenceMods)
 	classOffs := make([]flatbuffers.UOffsetT, len(it.Classes))
 	for i, c := range it.Classes {
 		id := b.CreateString(c.ID)
@@ -41,6 +43,13 @@ func encodeItems(it *Items) []byte {
 	fb.ItemsAddClasses(b, classes)
 	fb.ItemsAddTags(b, tags)
 	fb.ItemsAddBases(b, bases)
+	fb.ItemsAddCrafting(b, it.Crafting)
+	if crafts != 0 {
+		fb.ItemsAddBenchCrafts(b, crafts)
+	}
+	if essences != 0 {
+		fb.ItemsAddEssenceMods(b, essences)
+	}
 	fb.FinishItemsBuffer(b, fb.ItemsEnd(b))
 	return b.FinishedBytes()
 }
@@ -69,7 +78,25 @@ func encodeBase(b *flatbuffers.Builder, classIndex, tagIndex map[string]uint32, 
 	if flask != 0 {
 		fb.ItemBaseAddFlask(b, flask)
 	}
+	fb.ItemBaseAddModDomain(b, base.ModDomain)
 	return fb.ItemBaseEnd(b)
+}
+
+// encodeModClasses returns 0 for no mods, so items without them keep their bytes.
+func encodeModClasses(b *flatbuffers.Builder, start startFunc, classIndex map[string]uint32, mods []ModClasses) flatbuffers.UOffsetT {
+	if len(mods) == 0 {
+		return 0
+	}
+	offs := make([]flatbuffers.UOffsetT, len(mods))
+	for i, m := range mods {
+		mod := b.CreateString(m.Mod)
+		classes := uint32Vector(b, fb.ModClassesStartClassesVector, indexes(classIndex, m.Classes))
+		fb.ModClassesStart(b)
+		fb.ModClassesAddMod(b, mod)
+		fb.ModClassesAddClasses(b, classes)
+		offs[i] = fb.ModClassesEnd(b)
+	}
+	return tableVector(b, start, offs)
 }
 
 // encodeArmour returns 0 for nil a, as do encodeWeapon and encodeFlask.
@@ -136,7 +163,36 @@ func decodeItems(buf []byte) (Items, error) {
 			return Items{}, fmt.Errorf("base %s: %w", base.Id(), err)
 		}
 	}
+	it.Crafting = root.Crafting()
+	var err error
+	if it.BenchCrafts, err = decodeModClasses("bench craft", root.BenchCraftsLength(), root.BenchCrafts, it.Classes); err != nil {
+		return Items{}, err
+	}
+	if it.EssenceMods, err = decodeModClasses("essence mod", root.EssenceModsLength(), root.EssenceMods, it.Classes); err != nil {
+		return Items{}, err
+	}
 	return it, nil
+}
+
+// decodeModClasses reads the n entries at returns, nil for none; what names them in errors.
+func decodeModClasses(what string, n int, at func(*fb.ModClasses, int) bool, classes []ItemClass) ([]ModClasses, error) {
+	if n == 0 {
+		return nil, nil
+	}
+	out := make([]ModClasses, n)
+	var m fb.ModClasses
+	for i := range out {
+		at(&m, i)
+		out[i] = ModClasses{Mod: string(m.Mod()), Classes: make([]string, m.ClassesLength())}
+		for j := range out[i].Classes {
+			k := int(m.Classes(j))
+			if k >= len(classes) {
+				return nil, fmt.Errorf("%s %s: class %d out of range (%d classes): %w", what, m.Mod(), k, len(classes), ErrInvalid)
+			}
+			out[i].Classes[j] = classes[k].ID
+		}
+	}
+	return out, nil
 }
 
 func decodeBase(base *fb.ItemBase, it Items, intern interner) (ItemBase, error) {
@@ -148,7 +204,7 @@ func decodeBase(base *fb.ItemBase, it Items, intern interner) (ItemBase, error) 
 	if err != nil {
 		return ItemBase{}, err
 	}
-	out := ItemBase{ID: string(base.Id()), Class: it.Classes[class].ID, Tags: tags, Block: base.Block()}
+	out := ItemBase{ID: string(base.Id()), Class: it.Classes[class].ID, Tags: tags, Block: base.Block(), ModDomain: base.ModDomain()}
 	for i := range base.ImplicitsLength() {
 		out.Implicits = append(out.Implicits, intern.string(base.Implicits(i)))
 	}

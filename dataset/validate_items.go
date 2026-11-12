@@ -20,14 +20,15 @@ func (d *Dataset) validateItemsGroup() error {
 	if err := validateMods(len(d.Stats), d.Items.Tags, d.Mods); err != nil {
 		return err
 	}
-	if err := validateImplicits(d.Items.Bases, d.Mods); err != nil {
+	if err := validateModRefs(*d.Items, d.Mods); err != nil {
 		return err
 	}
 	return validateItemNames(d.Texts, d.Items, d.Mods)
 }
 
-// validateItems checks classes, tags and bases: ids present and unique, every class and tag a
-// base names known, ranges ordered.
+// validateItems checks classes, tags, bases, bench crafts and essence mods: ids present and
+// unique, every class and tag they name known, ranges ordered, and the crafting fields set as
+// Crafting says.
 func validateItems(it Items) error {
 	classes, err := idSet("item class", it.Classes, func(c ItemClass) string { return c.ID })
 	if err != nil {
@@ -45,6 +46,30 @@ func validateItems(it Items) error {
 			return fmt.Errorf("base %s: %w", b.ID, err)
 		}
 	}
+	if err := validateModClasses("bench craft", classes, it.BenchCrafts); err != nil {
+		return err
+	}
+	if err := validateModClasses("essence mod", classes, it.EssenceMods); err != nil {
+		return err
+	}
+	return validateCrafting(it)
+}
+
+// validateCrafting checks that a group with Crafting has a mod domain on every base, bench
+// crafts and essence mods, and one without has none of them.
+func validateCrafting(it Items) error {
+	for _, b := range it.Bases {
+		// A mod domain is a row of the game's ModDomains table, numbered from 1.
+		if it.Crafting != (b.ModDomain > 0) || b.ModDomain < 0 {
+			return fmt.Errorf("base %s: mod domain %d with crafting %t: %w", b.ID, b.ModDomain, it.Crafting, ErrInvalid)
+		}
+	}
+	if it.Crafting != (len(it.BenchCrafts) > 0) {
+		return fmt.Errorf("%d bench crafts with crafting %t: %w", len(it.BenchCrafts), it.Crafting, ErrInvalid)
+	}
+	if it.Crafting != (len(it.EssenceMods) > 0) {
+		return fmt.Errorf("%d essence mods with crafting %t: %w", len(it.EssenceMods), it.Crafting, ErrInvalid)
+	}
 	return nil
 }
 
@@ -55,6 +80,11 @@ func validateBase(classes, tags map[string]bool, b ItemBase) error {
 	if err := knownTags(tags, b.Tags); err != nil {
 		return err
 	}
+	return validateValues(b)
+}
+
+// validateValues checks the armour, weapon and flask values of b.
+func validateValues(b ItemBase) error {
 	if a := b.Armour; a != nil {
 		if err := ordered(a.Armour, a.Evasion, a.EnergyShield, a.Ward); err != nil {
 			return err
@@ -128,17 +158,52 @@ func validateModTags(tags map[string]bool, m Mod) error {
 	return nil
 }
 
-// validateImplicits checks that every implicit of bases is one of mods.
-func validateImplicits(bases []ItemBase, mods []Mod) error {
+// validateModRefs checks that every implicit of a base, bench craft mod and essence mod is one
+// of mods.
+func validateModRefs(it Items, mods []Mod) error {
 	ids := make(map[string]bool, len(mods))
 	for _, m := range mods {
 		ids[m.ID] = true
 	}
-	for _, b := range bases {
+	for _, b := range it.Bases {
 		for _, m := range b.Implicits {
 			if !ids[m] {
 				return fmt.Errorf("base %s: implicit %s not in mods: %w", b.ID, m, ErrInvalid)
 			}
+		}
+	}
+	for _, c := range it.BenchCrafts {
+		if !ids[c.Mod] {
+			return fmt.Errorf("bench craft %s: mod not in mods: %w", c.Mod, ErrInvalid)
+		}
+	}
+	for _, e := range it.EssenceMods {
+		if !ids[e.Mod] {
+			return fmt.Errorf("essence mod %s: mod not in mods: %w", e.Mod, ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// validateModClasses checks that no two entries of mods, what in errors, name the same mod
+// and that each names a nonempty set of known classes.
+func validateModClasses(what string, classes map[string]bool, mods []ModClasses) error {
+	if _, err := idSet(what, mods, func(m ModClasses) string { return m.Mod }); err != nil {
+		return err
+	}
+	for _, m := range mods {
+		if len(m.Classes) == 0 {
+			return fmt.Errorf("%s %s: no item classes: %w", what, m.Mod, ErrInvalid)
+		}
+		seen := make(map[string]bool, len(m.Classes))
+		for _, k := range m.Classes {
+			if !classes[k] {
+				return fmt.Errorf("%s %s: unknown item class %q: %w", what, m.Mod, k, ErrInvalid)
+			}
+			if seen[k] {
+				return fmt.Errorf("%s %s: item class %s repeated: %w", what, m.Mod, k, ErrInvalid)
+			}
+			seen[k] = true
 		}
 	}
 	return nil
