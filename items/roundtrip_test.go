@@ -42,43 +42,42 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := newGenerator(t, s)
-	// lines, wrong, warned, current, silent.
+	// lines, wrong, warned, current, silent, for the pinned dataset (with the crafting fields).
 	//   - affix, fractured: warned are lines two mods give at the same values with different
 	//     stats (Delve helmets' reservation) or with a level the text does not show (curses on
 	//     hit of two influence tiers).
 	//   - out of range: one above a mod's high values. Most are warned out of range; the rest
-	//     are values another mod or two of one stat give. The 3 silent lines come from the
-	//     stand-ins of a dataset without the crafting fields: weapon crafts without weights
-	//     (local attack speed, local added lightning) on a shield and gloves, and an essence-type
-	//     mod giving a cap's suppression exactly.
+	//     are values another mod or two of one stat give. The 9 silent lines are values another
+	//     mod the item can have gives exactly: an unlisted older essence tier, retired
+	//     (PierceChanceEssence7 on amulets and wands, ChanceToDodgeEssence7 on a cap), and a
+	//     listed helmet essence (ManaReservationEfficiencyEssence5).
 	//   - enchant: Chain Hook's rage chance, two tiers of one text.
+	//   - essence: the warned line is a helmet essence whose text a Delve mod of another stat
+	//     gives too.
 	//   - unique: the game files do not say which unique has a mod, and unique mods of other stats
 	//     share text; those are warned ambiguous, none silent.
 	want := map[string][5]int{
-		"affix":          {7512, 0, 16, 1, 0},
-		"fractured":      {7512, 0, 16, 1, 0},
-		"out of range":   {3754, 6, 1565, 0, 3},
+		"affix":          {7788, 0, 17, 2, 0},
+		"fractured":      {7788, 0, 17, 2, 0},
+		"out of range":   {3892, 12, 1645, 0, 9},
 		"implicit":       {1196, 0, 0, 0, 0},
 		"eldritch":       {6720, 0, 0, 0, 0},
 		"corrupted":      {476, 0, 0, 0, 0},
 		"enchant":        {2922, 0, 4, 0, 0},
+		"essence":        {5038, 0, 1, 1, 0},
 		"unique":         {17608, 129, 776, 0, 0},
-		"crafted":        {1872, 0, 0, 0, 0},
-		"unmarked craft": {1872, 0, 0, 0, 0},
-	}
-	if g.crafting {
-		// Counts for a dataset with the crafting fields are pinned with the first such pin.
-		want = map[string][5]int{}
+		"crafted":        {8284, 0, 0, 0, 0},
+		"unmarked craft": {8284, 0, 0, 0, 0},
 	}
 	for set, cases := range g.sets() {
 		t.Run(set, func(t *testing.T) {
 			t.Parallel()
-			if set == "essence" && !g.crafting {
-				t.Skip("the pinned dataset does not hold essence mods (Items.Crafting is false)")
+			if !g.crafting {
+				t.Skip("the counts are pinned for a dataset with the crafting fields")
 			}
 			w, ok := want[set]
 			if !ok {
-				t.Fatalf("no counts pinned for %d lines (crafting fields: %t)", len(cases), g.crafting)
+				t.Fatalf("no counts pinned for %d lines", len(cases))
 			}
 			if got := g.check(t, r, cases); got != w {
 				t.Errorf("lines, wrong, warned, current, silent: got %v, want %v", got, w)
