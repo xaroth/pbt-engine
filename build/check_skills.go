@@ -86,9 +86,33 @@ func (c *Checked) checkGroup(i int, data *dataset.Skills, effects map[string]*da
 	}
 	if active < 0 || kept[active].Support {
 		c.warnf(ActiveGemInvalid, subject, "active gem %d is not an active skill gem the group keeps; gem %d used", g.Active+1, first+1)
-		active = first
+		active, g.ActiveSkill = first, 0
 	}
 	g.Active = active
+	c.checkActiveSkill(subject, g, data)
+}
+
+// checkActiveSkill resets the group's active skill to the first of its active gem when the gem
+// has no such skill.
+func (c *Checked) checkActiveSkill(subject string, g *SkillGroup, data *dataset.Skills) {
+	if n := skillCount(data, g.Gems[g.Active]); g.ActiveSkill < 0 || g.ActiveSkill >= n {
+		c.warnf(ActiveGemInvalid, subject, "active skill %d is not one of the %d of gem %d; its first used", g.ActiveSkill+1, n, g.Active+1)
+		g.ActiveSkill = 0
+	}
+}
+
+// skillCount returns the number of skills gem grants: two for a Vaal gem, else one.
+func skillCount(data *dataset.Skills, gem Gem) int {
+	dg := data.Gem(gem.ID)
+	e := &dg.Effects[0]
+	if x := dg.Effect(gem.Effect); x != nil {
+		e = x
+	}
+	n := 1
+	if e.SecondaryGrantedEffect != "" {
+		n++
+	}
+	return n
 }
 
 // checkGem fixes gem as the dataset says, or reports false to drop it.

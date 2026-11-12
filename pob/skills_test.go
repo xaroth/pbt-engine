@@ -250,3 +250,45 @@ func TestFromXMLMainActiveSkill(t *testing.T) {
 		}
 	}
 }
+
+// A Vaal gem's two skills count apart for the main active skill, and the build keeps which of
+// them is main; a disabled gem's skills do not count.
+func TestFromXMLMainActiveSkillOfVaalGem(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t, gemSpec{name: "Vaal Fireball", vaal: true}, gemSpec{name: "Punishment"})
+	for main, want := range map[string][2]int{"1": {1, 0}, "2": {1, 1}, "3": {2, 0}} {
+		file := strings.Replace(`<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills><Skill MAIN>
+		<Gem nameSpec="Punishment" level="1" enabled="false"/><Gem nameSpec="Vaal Fireball" level="1"/><Gem nameSpec="Punishment" level="1"/>
+	</Skill></Skills>
+</PathOfBuilding>`, "MAIN", `mainActiveSkill="`+main+`"`, 1)
+		b, _, err := pob.FromXML([]byte(file), reg)
+		if err != nil {
+			t.Fatalf("mainActiveSkill %q: %v", main, err)
+		}
+		if g := b.Skills.Groups[0]; g.Active != want[0] || g.ActiveSkill != want[1] {
+			t.Errorf("mainActiveSkill %q: gem %d skill %d, want gem %d skill %d", main, g.Active, g.ActiveSkill, want[0], want[1])
+		}
+	}
+}
+
+// A Vaal gem's skill that is switched off does not count, as in PoB: main active skill 1 is the
+// regular skill when the Vaal skill is off.
+func TestFromXMLMainActiveSkillSwitchedOff(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t, gemSpec{name: "Vaal Fireball", vaal: true})
+	file := `<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills><Skill mainActiveSkill="1"><Gem nameSpec="Vaal Fireball" level="1" enableGlobal1="false" enableGlobal2="true"/></Skill></Skills>
+</PathOfBuilding>`
+	b, _, err := pob.FromXML([]byte(file), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := b.Skills.Groups[0]; g.Active != 0 || g.ActiveSkill != 1 {
+		t.Errorf("gem %d skill %d, want gem 0 skill 1", g.Active, g.ActiveSkill)
+	}
+}

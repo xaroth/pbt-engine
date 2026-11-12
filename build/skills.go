@@ -25,6 +25,9 @@ type SkillGroup struct {
 	Gems []Gem `json:"gems,omitzero"`
 	// Active is the index in Gems of the group's main active skill.
 	Active int `json:"active,omitzero"`
+	// ActiveSkill is which skill of the active gem is the main one: 0 its first, 1 its second,
+	// such as a Vaal gem's regular skill.
+	ActiveSkill int `json:"activeSkill,omitzero"`
 }
 
 // GemID names a gem: the dataset Gem.ID, and the GemEffect.ID of the variant when it is not

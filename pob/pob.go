@@ -57,6 +57,7 @@ const (
 	none = "None"
 	// penaltyInput is PoB's resistance penalty input, the only config input imported.
 	penaltyInput = "resistancePenalty"
+	banditInput  = "bandit"
 )
 
 // treeVersion matches PoB's tree versions: 3_29, 3_29_ruthless, 3_29_alternate.
@@ -253,7 +254,7 @@ func (im *importer) config() (config.Values, error) {
 
 // mirrorsBuild reports a config input that repeats a <Build> attribute, read from there.
 func mirrorsBuild(input string) bool {
-	return input == "bandit" || input == "pantheonMajorGod" || input == "pantheonMinorGod"
+	return input == banditInput || input == "pantheonMajorGod" || input == "pantheonMinorGod"
 }
 
 // banditOf maps PoB's bandit choice. None is PoB's kill all, and so is no attribute. Eramir,

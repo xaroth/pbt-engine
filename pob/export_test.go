@@ -37,10 +37,13 @@ func chieftain(t *testing.T) *build.Build {
 		Masteries: map[uint32]uint32{11505: 36313, 4139: 47642},
 		Config:    values(t, poe1.BanditsHelpAlira, poe1.CampaignActs6To10),
 		Skills: build.Skills{Groups: []build.SkillGroup{
-			{Slot: build.SlotGloves, Gems: []build.Gem{disabled(gem("Punishment", 20, 0)), gem("Frostblink", 1, 0)}, Active: 1},
+			// The disabled gem's skill does not count towards the main active skill.
+			{Slot: build.SlotGloves, Gems: []build.Gem{disabled(gem("Punishment", 20, 0)), gem("Frostblink", 1, 0), gem("Punishment", 1, 0)}, Active: 1},
 			// The Vaal gem's two skills come before the main active skill.
 			{Slot: build.SlotBodyArmour, Gems: []build.Gem{gem("Vaal Fireball", 20, 0), support("Inspiration"), splitting}, Active: 2},
 			{Gems: []build.Gem{disabled(gem("Frostblink", 5, 0))}},
+			// The Vaal gem's regular skill is the main one.
+			{Slot: build.SlotHelmet, Gems: []build.Gem{gem("Vaal Fireball", 20, 0), gem("Punishment", 1, 0)}, ActiveSkill: 1},
 		}, MainGroup: 1},
 	}
 }
@@ -107,8 +110,11 @@ func TestToXMLSpec(t *testing.T) {
 	for _, want := range []string{
 		`<Build level="90" targetVersion="3_0" className="Marauder" ascendClassName="Chieftain" bandit="Alira" mainSocketGroup="2">`,
 		`<Spec treeVersion="3_29" classId="1" ascendClassId="3" nodes="1731,4139,11505" masteryEffects="{4139,47642},{11505,36313}">`,
+		`<Input name="bandit" string="Alira"></Input>`,
 		`<Input name="resistancePenalty" number="-30">`,
-		`<Gem nameSpec="Inspiration" gemId="Metadata/Items/Gems/SkillGemSupportInspiration" skillId="Inspiration" level="20" quality="20" enabled="true"`,
+		`<Gem nameSpec="Inspiration" gemId="Metadata/Items/Gems/SkillGemSupportInspiration" variantId="Inspiration" skillId="Inspiration" ` +
+			`level="20" quality="20" enabled="true"`,
+		`<Skill enabled="true" slot="Helmet" mainActiveSkill="2">`,
 	} {
 		if !strings.Contains(string(file), want) {
 			t.Errorf("file lacks %s:\n%s", want, file)
@@ -154,6 +160,7 @@ func TestToXMLErrors(t *testing.T) {
 		{"class without a name", func(b *build.Build) { b.Class, b.Ascendancy = scion, "" }, reg, pob.ErrClass},
 		{"ascendancy of another class", func(b *build.Build) { b.Ascendancy = "Ascendant" }, reg, pob.ErrAscendancy},
 		{"ascendancy without a name", func(b *build.Build) { b.Ascendancy = "Berserker" }, reg, pob.ErrAscendancy},
+		{"game", func(b *build.Build) { b.Game = "poe2" }, reg, pob.ErrGame},
 		{"version", func(b *build.Build) { b.Version = "latest" }, reg, pob.ErrVersion},
 		{"no dataset", func(*build.Build) {}, &dataset.Registry{}, pob.ErrNoDataset},
 	}

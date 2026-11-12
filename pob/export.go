@@ -20,8 +20,12 @@ import (
 	"github.com/xaroth/pbt-engine/internal/poe1"
 )
 
-// ErrVersion is a build version ToXML cannot write as a PoB tree version.
-var ErrVersion = errors.New("pob: version not of the form major.minor")
+// Errors of ToXML beside FromXML's: a build of another game than poe1, and a version that is
+// not a PoB tree version.
+var (
+	ErrGame    = errors.New("pob: not a Path of Exile 1 build")
+	ErrVersion = errors.New("pob: version not of the form major.minor")
+)
 
 // Warning codes of ToXML: each names something in the build that the file does not hold.
 const (
@@ -42,9 +46,12 @@ var gameVersion = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.|$)`)
 // ascendancy, level, nodes and mastery choices; the bandit choice and the campaign stage as
 // PoB's resistance penalty; and b's skill groups with their gems and main skill. A bandit
 // choice PoB has no option for, other config values and items give warnings. A gem the dataset
-// lacks is written by id only, with warning GemUnknown. ErrClass, ErrAscendancy and ErrVersion
-// are a build the file cannot name.
+// lacks is written by id only, with warning GemUnknown. ErrGame, ErrClass, ErrAscendancy and
+// ErrVersion are a build the file cannot name.
 func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, error) {
+	if b.Game != game {
+		return nil, nil, fmt.Errorf("%w: %q", ErrGame, b.Game)
+	}
 	ex := &exporter{b: b}
 	treeVersion, err := ex.treeVersion()
 	if err != nil {
@@ -160,7 +167,7 @@ func joinMasteries(m map[uint32]uint32) string {
 	return strings.Join(out, ",")
 }
 
-// config writes the bandit choice into f's <Build>, as PoB reads it, and the campaign stage
+// config writes the bandit choice into f's <Build> and its config set, and the campaign stage
 // as the resistance penalty. Without a bandit choice PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
@@ -169,12 +176,16 @@ func (ex *exporter) config(f *outFile) error {
 			ex.warnf(ConfigNotExported, name, "config value not exported")
 		}
 	}
+	var inputs []outInput
 	bandit, ok, err := config.Get(v, poe1.Bandits)
 	if err != nil {
 		return fmt.Errorf("pob: %w", err)
 	}
 	if ok {
-		if f.Build.Bandit, ok = pobBandit(bandit); !ok {
+		if f.Build.Bandit, ok = pobBandit(bandit); ok {
+			// PoB reads the <Build> attribute only when the config set does not replace it.
+			inputs = append(inputs, outInput{Name: banditInput, String: f.Build.Bandit})
+		} else {
 			ex.warnf(ConfigNotExported, string(poe1.Bandits), "PoB has no choice for the bandit quest not completed; its default, kill all, applies")
 		}
 	}
@@ -183,7 +194,10 @@ func (ex *exporter) config(f *outFile) error {
 		return fmt.Errorf("pob: %w", err)
 	}
 	if ok {
-		f.Config = &outConfig{Active: "1", Sets: []outConfigSet{{ID: "1", Inputs: []outInput{{Name: penaltyInput, Number: pobPenalty(stage)}}}}}
+		inputs = append(inputs, outInput{Name: penaltyInput, Number: pobPenalty(stage)})
+	}
+	if len(inputs) > 0 {
+		f.Config = &outConfig{Active: "1", Sets: []outConfigSet{{ID: "1", Inputs: inputs}}}
 	}
 	return nil
 }
@@ -242,13 +256,13 @@ func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 
 func (ex *exporter) group(g build.SkillGroup, data *dataset.Skills, text *dataset.Text) outSkill {
 	out := outSkill{Enabled: xmlTrue, Slot: pobSlot(g.Slot)}
-	// PoB's main active skill counts the skills of enabled active gems, 1-based; see activeGem.
+	// PoB's main active skill counts the skills of enabled active gems, 1-based; see activeSkill.
 	main := 0
 	for i, gem := range g.Gems {
 		pg, skills := ex.gem(gem, data, text)
 		out.Gems = append(out.Gems, pg)
 		if i == g.Active {
-			main++
+			main += g.ActiveSkill + 1
 		}
 		if i < g.Active && !gem.Support && !gem.Disabled {
 			main += skills
@@ -276,7 +290,9 @@ func (ex *exporter) gem(gem build.Gem, data *dataset.Skills, text *dataset.Text)
 	if e := dg.Effect(gem.Effect); e != nil {
 		effect = e
 	}
-	out.SkillID = effect.GrantedEffect
+	// PoB takes the first variant granting the skill id when variantId is missing, and a Vaal
+	// gem shares its skill id with its transfigured Vaal variants.
+	out.VariantID, out.SkillID = effect.ID, effect.GrantedEffect
 	if i := slices.IndexFunc(text.GemNames, func(n dataset.Name) bool { return n.ID == gem.ID }); i >= 0 {
 		// PoB names supports without the suffix (SkillsTab.lua).
 		out.Name = strings.TrimSuffix(text.GemNames[i].Name, " Support")
@@ -340,7 +356,8 @@ type outConfigSet struct {
 
 type outInput struct {
 	Name   string `xml:"name,attr"`
-	Number string `xml:"number,attr"`
+	Number string `xml:"number,attr,omitempty"`
+	String string `xml:"string,attr,omitempty"`
 }
 
 type outSkills struct {
