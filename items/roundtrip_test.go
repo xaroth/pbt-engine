@@ -26,8 +26,7 @@ import (
 //   - unique: every unique mod, on a unique item;
 //   - crafted and unmarked craft: every bench craft, with and without its {crafted} marker, on
 //     the first base of each class the bench lists for it (leaving out crafts it no longer
-//     offers), or without the crafting fields on the first base a prefix or suffix of its stat
-//     spawns on;
+//     offers);
 //   - essence: every mod the dataset says an essence adds, on a base of each class it lists.
 //
 // A line is wrong when it reads as a stat the mod does not have, or a value its text shows
@@ -42,7 +41,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := newGenerator(t, s)
-	// lines, wrong, warned, current, silent, for the pinned dataset (with the crafting fields).
+	// lines, wrong, warned, current, silent.
 	//   - affix, fractured: warned are lines two mods give at the same values with different
 	//     stats (Delve helmets' reservation) or with a level the text does not show (curses on
 	//     hit of two influence tiers).
@@ -72,9 +71,6 @@ func TestRoundTrip(t *testing.T) {
 	for set, cases := range g.sets() {
 		t.Run(set, func(t *testing.T) {
 			t.Parallel()
-			if !g.crafting {
-				t.Skip("the counts are pinned for a dataset with the crafting fields")
-			}
 			w, ok := want[set]
 			if !ok {
 				t.Fatalf("no counts pinned for %d lines", len(cases))
@@ -183,9 +179,8 @@ type generator struct {
 	stats    []dataset.Stat
 	bases    []*dataset.ItemBase
 	names    map[string]string
-	crafting bool
 	essences []dataset.ModClasses
-	// bench holds the item classes of each bench craft, with the crafting fields.
+	// bench holds the item classes of each bench craft.
 	bench map[string][]string
 	// tagSets are each base's tags, alone and with those each influence flag gives.
 	tagSets map[*dataset.ItemBase][]influenced
@@ -214,7 +209,7 @@ func newGenerator(t *testing.T, s *dataset.Store) *generator {
 	}
 	g := &generator{
 		set: set, mods: mods, byID: map[string]*dataset.Mod{}, stats: stats, names: baseNames(text.BaseNames),
-		crafting: it.Crafting, essences: it.EssenceMods, bench: map[string][]string{},
+		essences: it.EssenceMods, bench: map[string][]string{},
 		tagSets: map[*dataset.ItemBase][]influenced{}, rolling: map[uint32][]*dataset.Mod{},
 	}
 	for i := range it.Bases {
@@ -281,30 +276,8 @@ func isAffix(m *dataset.Mod) bool {
 	return (m.Generation == 1 || m.Generation == 2) && m.GameMode != rtRuthless && len(m.Stats) > 0
 }
 
-// domain returns the mod domain of base b: its own with the crafting fields, else the one the
-// reader takes for its class.
-func (g *generator) domain(b *dataset.ItemBase) int32 {
-	if g.crafting {
-		return b.ModDomain
-	}
-	return rtDomain(b.Class)
-}
-
-// rtDomain returns the mod domain of items of class, as the reader takes it without the crafting
-// fields.
-func rtDomain(class string) int32 {
-	switch class {
-	case "LifeFlask", "ManaFlask", "HybridFlask", "UtilityFlask":
-		return 2
-	case "Jewel":
-		return 10
-	case "AbyssJewel":
-		return 13
-	case "Tincture":
-		return 34
-	}
-	return 1
-}
+// domain returns the mod domain of base b.
+func (g *generator) domain(b *dataset.ItemBase) int32 { return b.ModDomain }
 
 // onBase reports whether m's domain is that of base b's mods: its own, or Delve and unveiled
 // mods on items.
@@ -403,14 +376,10 @@ func (g *generator) place(m *dataset.Mod) []item {
 	return nil
 }
 
-// craftItems places bench craft m, with and without its marker: with the crafting fields on the
-// first base of each class the bench lists for it, and not at all when the bench no longer
-// offers it; without them on the first base a prefix or suffix of its stat spawns on.
+// craftItems places bench craft m, with and without its marker, on the first base of each class
+// the bench lists for it, and not at all when the bench no longer offers it.
 func (g *generator) craftItems(m *dataset.Mod) []item {
-	bases := []*dataset.ItemBase{g.craftBase(m)}
-	if g.crafting {
-		bases = g.firstOfClasses(g.bench[m.ID])
-	}
+	bases := g.firstOfClasses(g.bench[m.ID])
 	out := make([]item, 0, 2*len(bases))
 	for _, b := range bases {
 		out = append(out, item{set: "crafted", base: b, marker: "{crafted}"}, item{set: "unmarked craft", base: b})
@@ -502,27 +471,19 @@ func (g *generator) spawnBase(m *dataset.Mod) (*dataset.ItemBase, string) {
 	return nil, ""
 }
 
-// craftBase returns the first base a prefix or suffix of m's first stat spawns on, and, when
-// m's weights name item kinds (as crafts' do, such as {two_hand_weapon 0}), of one of those: a
-// dataset without the crafting fields does not say which items a bench craft applies to.
+// craftBase returns the first base of the item domain a prefix or suffix of m's first stat spawns
+// on.
 func (g *generator) craftBase(m *dataset.Mod) *dataset.ItemBase {
 	for _, b := range g.bases {
-		if g.domain(b) == 1 && (rtNamesNoKind(m) || slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
-			return w.Tag != "default" && slices.Contains(b.Tags, w.Tag)
-		})) && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
+		if g.domain(b) == 1 && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
 			return b
 		}
 	}
 	return nil
 }
 
-// rtNamesNoKind reports whether m's weights name no tag but "default".
-func rtNamesNoKind(m *dataset.Mod) bool {
-	return !slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return w.Tag != "default" })
-}
-
 // uniqueBase returns a base for unique mod m: the game files do not say which unique has it. A
-// mod with a local stat goes where craftBase puts it; one without, on the first item that is
+// mod with a local stat goes where craftBase puts it, on a base where its stat rolls; one without, on the first item that is
 // neither armour nor a weapon, where no stat reads as local.
 func (g *generator) uniqueBase(m *dataset.Mod) *dataset.ItemBase {
 	if slices.ContainsFunc(m.Stats, func(st dataset.ModStat) bool { return strings.HasPrefix(g.stats[st.Stat].ID, "local_") }) {

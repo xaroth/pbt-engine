@@ -69,9 +69,6 @@ type target struct {
 
 func (r *Reader) newTarget(it *build.Item, b *dataset.ItemBase) target {
 	t := target{base: b, tags: b.Tags, rarity: it.Rarity, corrupted: slices.Contains(it.Flags, corruptedFlag), domain: b.ModDomain}
-	if !r.crafting.known {
-		t.domain = classDomain(b.Class)
-	}
 	for _, f := range it.Flags {
 		suffix, ok := influences()[f]
 		if !ok {
@@ -284,14 +281,14 @@ func corruption(m *dataset.Mod, t target) bool {
 // formerImplicit is an implicit that spawns nowhere now: a base's former implicit, a unique's
 // own implicit, or a retired eldritch or corruption implicit. The game files do not tell a former
 // implicit from a unique's mod, nor which items it went on: one with a local stat counts on
-// armour and weapons only (see fitsStandIn).
+// armour and weapons only (see localFits).
 func (r *Reader) formerImplicit(m *dataset.Mod, t target) bool {
 	if m.Domain != t.domain || spawns(m) {
 		return false
 	}
 	switch m.Generation {
 	case genUnique, genCorrupted, genExarch, genEater:
-		return r.fitsStandIn(m, t)
+		return r.localFits(m, t)
 	}
 	return false
 }
@@ -326,30 +323,16 @@ func elevated(m *dataset.Mod, t target) bool {
 }
 
 // essence is a mod an essence adds to a magic or rare item like t: one the dataset lists for t's
-// class. A dataset without that list stands in: a prefix or suffix of the item domain whose
-// weights are all 0 and name no item kind, with a local stat only on armour and weapons.
+// class.
 func (r *Reader) essence(m *dataset.Mod, t target) bool {
-	if !magicOrRare(t) || !affix(m) {
-		return false
-	}
-	if r.crafting.known {
-		return slices.Contains(r.crafting.essence[m.ID], t.base.Class)
-	}
-	return t.domain == domainItem && m.Domain == domainItem && !spawns(m) && namesNoKind(m) && r.fitsStandIn(m, t)
+	return magicOrRare(t) && affix(m) && slices.Contains(r.crafting.essence[m.ID], t.base.Class)
 }
 
 // benchCraft is a bench craft that can be on a magic or rare item like t: one the dataset lists
-// for t's class. A dataset without that list stands in: any craft whose weights name t's kind
-// or no kind, with a local stat only on armour and weapons.
+// for t's class.
 func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
 	return func(m *dataset.Mod) bool {
-		if !magicOrRare(t) || m.Domain != domainCrafted {
-			return false
-		}
-		if r.crafting.known {
-			return slices.Contains(r.crafting.bench[m.ID], t.base.Class)
-		}
-		return r.fitsStandIn(m, t) && namesBaseOrNone(m, t)
+		return magicOrRare(t) && m.Domain == domainCrafted && slices.Contains(r.crafting.bench[m.ID], t.base.Class)
 	}
 }
 
@@ -364,16 +347,16 @@ func namesBaseOrNone(m *dataset.Mod, t target) bool {
 // listedEssence reports whether the dataset lists m as an essence mod, which counts only where
 // it lists it (see essence).
 func (r *Reader) listedEssence(m *dataset.Mod) bool {
-	return r.crafting.known && r.crafting.essence[m.ID] != nil
+	return r.crafting.essence[m.ID] != nil
 }
 
 // formerCraft is a crafted mod of a magic or rare item like t that the bench no longer offers:
 // one the dataset's bench crafts do not list. The dataset does not say which items it went on:
 // one whose weights name item kinds counts on those only, and one with a local stat on armour
-// and weapons only. Without the list every craft is current.
+// and weapons only.
 func (r *Reader) formerCraft(m *dataset.Mod, t target) bool {
-	return r.crafting.known && magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil &&
-		r.fitsStandIn(m, t) && namesBaseOrNone(m, t)
+	return magicOrRare(t) && m.Domain == domainCrafted && r.crafting.bench[m.ID] == nil &&
+		r.localFits(m, t) && namesBaseOrNone(m, t)
 }
 
 // enchantCraft is an enchantment the crafting bench adds to items of t's class.
@@ -381,10 +364,10 @@ func (r *Reader) enchantCraft(m *dataset.Mod, t target) bool {
 	return m.Domain != domainCrafted && slices.Contains(r.crafting.bench[m.ID], t.base.Class)
 }
 
-// fitsStandIn reports whether t can take m where nothing says which items m goes on: a mod with
-// a local stat only on armour and weapons, or in the item's own domain other than the item
+// localFits reports whether t can take m where nothing says which items m goes on: a mod with a
+// local stat only on armour and weapons, or in the item's own domain other than the item
 // domain, such as a flask's mods, whose local stats are the flask's.
-func (r *Reader) fitsStandIn(m *dataset.Mod, t target) bool {
+func (r *Reader) localFits(m *dataset.Mod, t target) bool {
 	return t.base.Armour != nil || t.base.Weapon != nil || m.Domain == t.domain && t.domain != domainItem ||
 		!slices.ContainsFunc(r.mods.stats[m], isLocal)
 }
@@ -404,9 +387,8 @@ func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
 	}
 	if namesNoKind(m) {
 		// Nothing says which items it went on: one with a local stat counts on armour and
-		// weapons only. Without the dataset's essence mods, item mods like this stand in for
-		// essence mods instead (see essence).
-		return (r.crafting.known || m.Domain != domainItem) && r.fitsStandIn(m, t)
+		// weapons only.
+		return r.localFits(m, t)
 	}
 	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
 		return w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag)
@@ -429,7 +411,7 @@ func (r *Reader) passiveTreeMod(m *dataset.Mod, t target) bool {
 	switch m.Generation {
 	case genCrucible, genCrucibleUnique, genScourgeUpside, genScourgeDownside:
 		// Nothing says which items a zero-weight one went on.
-		return spawns(m) || r.fitsStandIn(m, t)
+		return spawns(m) || r.localFits(m, t)
 	}
 	return false
 }
@@ -469,20 +451,4 @@ func spawnsOn(m *dataset.Mod, tags []string) bool {
 		}
 	}
 	return false
-}
-
-// classDomain returns the mod domain of items of class, an ItemClass.ID, for a dataset that does
-// not hold the bases' mod domains.
-func classDomain(class string) int32 {
-	switch class {
-	case "LifeFlask", "ManaFlask", "HybridFlask", "UtilityFlask":
-		return domainFlask
-	case "Jewel":
-		return domainJewel
-	case "AbyssJewel":
-		return domainAbyssJewel
-	case "Tincture":
-		return domainTincture
-	}
-	return domainItem
 }
