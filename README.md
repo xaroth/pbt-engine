@@ -78,6 +78,13 @@ PBT_DATASETS=/tmp/pbt-data/poe1 go test ./internal/poe1 ./statdesc -update   # r
 go test ./simulator -run Sketch -update   # rewrite the list of API sketch parts that cannot run yet
 ```
 
+The engine also builds for `GOOS=js GOARCH=wasm`. `TestProbe` in `simulator` imports a Path of Building file and simulates it on the pinned 3.29 dataset, writing the result to `$PBT_PROBE_OUT`; CI runs it natively and as WebAssembly under Node and fails when the two results differ. To run it as WebAssembly locally (Node on `PATH`):
+
+```sh
+GOOS=js GOARCH=wasm go test -c -o /tmp/simulator.test.wasm ./simulator
+cd simulator && PBT_DATASETS=/tmp/pbt-data/poe1 "$(go env GOROOT)/lib/wasm/go_js_wasm_exec" /tmp/simulator.test.wasm -test.run '^TestProbe$' -test.v
+```
+
 ## Licence
 
 Apache-2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).

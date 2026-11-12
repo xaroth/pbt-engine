@@ -24,3 +24,83 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
+
+  # The engine runs as WebAssembly in a browser worker. This job keeps it building for js/wasm
+  # and runs the simulator's TestProbe natively and as js/wasm on a real dataset; the two results
+  # must be byte-identical. Module size and probe times are reported, not gated.
+  wasm:
+    runs-on: ubuntu-latest
+    env:
+      # The pbt-data commit the README names; internal/realdata fails the probe on another.
+      PBT_DATA_COMMIT: 4221dc07cd12412079d4f69f22dc702168fb3774
+      PBT_DATA_DIR: poe1/3.29
+      # The files the probe reads; a missing one fails it with the file's name.
+      PBT_DATA_FILES: manifest.json characters.fb constants.fb quests.fb stats.fb skills.fb text-en.fb tree-standard.fb
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: go build ./...
+        env:
+          GOOS: js
+          GOARCH: wasm
+      - run: go vet ./...
+        env:
+          GOOS: js
+          GOARCH: wasm
+      - id: data
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/pbt-data
+          key: pbt-data-${{ env.PBT_DATA_COMMIT }}-${{ env.PBT_DATA_DIR }}-${{ env.PBT_DATA_FILES }}
+      - name: Fetch the probe's dataset files
+        if: steps.data.outputs.cache-hit != 'true'
+        run: |
+          dir="$RUNNER_TEMP/pbt-data/$PBT_DATA_DIR"
+          mkdir -p "$dir"
+          for f in $PBT_DATA_FILES; do
+            curl -fsSL --retry 3 -o "$dir/$f" "https://raw.githubusercontent.com/xaroth/pbt-data/$PBT_DATA_COMMIT/$PBT_DATA_DIR/$f"
+          done
+          cd "$dir"
+          for f in $PBT_DATA_FILES; do
+            [ "$f" = manifest.json ] && continue
+            echo "$(jq -er --arg f "$f" '.files[] | select(.name == $f) | .sha256' manifest.json)  $f"
+          done | sha256sum --strict -c -
+      - name: Probe, native
+        env:
+          PBT_DATASETS: ${{ runner.temp }}/pbt-data/poe1
+          PBT_PROBE_OUT: ${{ runner.temp }}/probe-native.json
+        run: go test ./simulator -run '^TestProbe$' -count=1 -v | tee "$RUNNER_TEMP/native.log"
+      - name: Probe, js/wasm
+        env:
+          PBT_DATASETS: ${{ runner.temp }}/pbt-data/poe1
+          PBT_PROBE_OUT: ${{ runner.temp }}/probe-wasm.json
+        run: |
+          GOOS=js GOARCH=wasm go test -c -o "$RUNNER_TEMP/simulator.test.wasm" ./simulator
+          cd simulator
+          "$(go env GOROOT)/lib/wasm/go_js_wasm_exec" "$RUNNER_TEMP/simulator.test.wasm" -test.run '^TestProbe$' -test.v | tee "$RUNNER_TEMP/wasm.log"
+      - name: Native and js/wasm results are identical
+        run: |
+          cd "$RUNNER_TEMP"
+          if ! cmp probe-native.json probe-wasm.json; then
+            diff -u probe-native.json probe-wasm.json | head -100
+            exit 1
+          fi
+      - name: Report module size and probe times
+        run: |
+          cd "$RUNNER_TEMP"
+          size=$(node -e '
+            const zlib = require("zlib"), b = require("fs").readFileSync(process.argv[1]);
+            const c = zlib.brotliCompressSync(b, {params: {[zlib.constants.BROTLI_PARAM_QUALITY]: 11, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: b.length}});
+            console.log(`${(b.length / 1e6).toFixed(2)} MB, ${(c.length / 1e6).toFixed(2)} MB brotli`);
+          ' simulator.test.wasm)
+          {
+            echo "### WebAssembly"
+            echo
+            echo "- simulator test module (probe, its tests and the testing package): $size"
+            grep -ho 'probe [a-z0-9]*/[a-z0-9]*: .*' native.log wasm.log | sed 's/^/- /'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
