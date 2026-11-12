@@ -15,21 +15,13 @@ import (
 // oddRingBase is a ring whose mod domain, in craftingDataset, is the jewels'.
 const oddRingBase = "Metadata/Items/Rings/OddRing"
 
-// craftingDataset is testDataset with the mod domains, bench crafts and essence mods a dataset
-// holds when Items.Crafting is set. Its crafts and essences go where the stand-ins would not
-// put them, so each case tells the two apart.
+// craftingDataset is testDataset with other bench crafts and essence mods, and a ring of the
+// jewels' mod domain. Its crafts and essences go on other classes than testDataset's, so each
+// case shows that the dataset's lists decide.
 func craftingDataset() *dataset.Dataset {
 	d := testDataset()
 	it := d.Items
-	it.Crafting = true
-	it.Bases = append(it.Bases, dataset.ItemBase{ID: oddRingBase, Class: "Ring", Tags: []string{"ring", "default"}})
-	domains := map[string]int32{
-		"LifeFlask": 2, "ManaFlask": 2, "HybridFlask": 2, "UtilityFlask": 2, "Jewel": 10, "AbyssJewel": 13, "Tincture": 34,
-	}
-	for i := range it.Bases {
-		it.Bases[i].ModDomain = max(domains[it.Bases[i].Class], 1)
-	}
-	it.Bases[len(it.Bases)-1].ModDomain = 10
+	it.Bases = append(it.Bases, dataset.ItemBase{ID: oddRingBase, Class: "Ring", Tags: []string{"ring", "default"}, ModDomain: 10})
 	it.BenchCrafts = []dataset.ModClasses{
 		{Mod: "CraftedEnergyShield", Classes: []string{"Helmet", "Gloves"}},
 		{Mod: "CraftedLocalEnergyShield", Classes: []string{"Belt"}},
@@ -93,8 +85,7 @@ func runParseCases(t *testing.T, r *items.Reader, testCases []parseCase) {
 	}
 }
 
-// TestParseCrafting reads lines with a dataset that holds the mod domains, bench crafts and
-// essence mods.
+// TestParseCrafting reads lines with craftingDataset.
 func TestParseCrafting(t *testing.T) {
 	t.Parallel()
 	runParseCases(t, readerOf(t, craftingDataset()), []parseCase{
@@ -207,6 +198,18 @@ func TestParseCrafting(t *testing.T) {
 			[]build.Code{items.LineAmbiguous},
 		},
 		{
+			"a retired local mod that names no item kind, on a weapon",
+			"Rarity: RARE\nX\nKnife\nImplicits: 0\n+70 to maximum Energy Shield\n",
+			rare(knifeBase, line(build.Explicit, "+70 to maximum Energy Shield", "local_energy_shield", 70)),
+			nil,
+		},
+		{
+			"no bench enchantment as a crafted line",
+			"Rarity: RARE\nX\nIron Belt\nImplicits: 0\n{crafted}40% increased Skill Damage\n",
+			rare(beltBase, line(build.Crafted, "40% increased Skill Damage", "skill_damage", 40)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
 			"no former bench craft on a normal item",
 			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+260 to Ward\n",
 			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+260 to Ward", "ward", 260)}},
@@ -221,9 +224,8 @@ func TestParseCrafting(t *testing.T) {
 	})
 }
 
-// TestClassDomains reads a mod of each class's mod domain with a dataset that does not hold the
-// bases' mod domains.
-func TestClassDomains(t *testing.T) {
+// TestModDomains reads a mod of each base's mod domain.
+func TestModDomains(t *testing.T) {
 	t.Parallel()
 	mana := func(base, stat string) build.Item {
 		return rare(base, line(build.Explicit, "+30 to maximum Mana", stat, 30))

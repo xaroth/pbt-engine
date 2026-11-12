@@ -375,7 +375,33 @@ func testDataset() *dataset.Dataset {
 			{ID: twinFire, Name: "Twin Ring"}, {ID: twinCold, Name: "Twin Ring"}, {ID: twinFireHigh, Name: "Twin Ring"},
 		},
 	}}
+	withCrafting(d.Items)
 	return d
+}
+
+// withCrafting gives it the mod domains, bench crafts and essence mods a dataset holds since
+// they were extracted: each base's domain by its class, and crafts and essences on the classes
+// the cases read them on.
+func withCrafting(it *dataset.Items) {
+	it.Crafting = true
+	domains := map[string]int32{
+		"LifeFlask": 2, "ManaFlask": 2, "HybridFlask": 2, "UtilityFlask": 2, "Jewel": 10, "AbyssJewel": 13, "Tincture": 34,
+	}
+	for i := range it.Bases {
+		it.Bases[i].ModDomain = max(domains[it.Bases[i].Class], 1)
+	}
+	it.BenchCrafts = []dataset.ModClasses{
+		{Mod: "CraftedEnergyShield", Classes: []string{"Helmet", "Gloves", "Ring", "Amulet", "Belt", "Jewel"}},
+		{Mod: "CraftedLocalEnergyShield", Classes: []string{"Helmet", "Gloves"}},
+		{Mod: "CraftedWard", Classes: []string{"Ring", "Amulet"}},
+		{Mod: "CraftedAccuracy", Classes: []string{"Dagger"}},
+		{Mod: "CraftedLocalAccuracy", Classes: []string{"Dagger"}},
+		{Mod: "AmuletCraftWard", Classes: []string{"Amulet"}},
+	}
+	it.EssenceMods = []dataset.ModClasses{
+		{Mod: "EssenceEnergyShield", Classes: []string{"Gloves", "Ring", "Belt"}},
+		{Mod: "EssenceLocalEnergyShield", Classes: []string{"Helmet", "Gloves"}},
+	}
 }
 
 func line(kind build.ModKind, text, stat string, v int32) build.ModLine {
@@ -836,19 +862,19 @@ func TestParse(t *testing.T) {
 			nil,
 		},
 		{
-			"no essence stand-in of a jewel's domain: retired mods, the game's order, with a warning",
+			"retired jewel mods, one naming no item kind and one naming jewels: the game's order, with a warning",
 			"Rarity: RARE\nX\nIron Jewel\nImplicits: 0\n+75 to maximum Mana\n",
 			rare(jewelBase, line(build.Explicit, "+75 to maximum Mana", "jewel_old_mana", 75)),
 			[]build.Code{items.LineAmbiguous},
 		},
 		{
-			"no essence stand-in of the item domain on a jewel: a bench craft out of range",
+			"no essence mod the dataset does not list for jewels: a bench craft out of range",
 			"Rarity: RARE\nX\nIron Jewel\nImplicits: 0\n+33 to maximum Energy Shield\n",
 			rare(jewelBase, line(build.Explicit, "+33 to maximum Energy Shield", "energy_shield", 33)),
 			[]build.Code{items.RollOutOfRange},
 		},
 		{
-			"without the dataset's bench crafts, no bench enchantment",
+			"no bench enchantment the dataset does not list for belts",
 			"Rarity: RARE\nX\nIron Belt\nImplicits: 1\n{enchant}40% increased Skill Damage\n",
 			rare(beltBase, line(build.Enchant, "40% increased Skill Damage", "skill_damage", 40)),
 			[]build.Code{items.LineAmbiguous},
@@ -875,7 +901,7 @@ func TestParse(t *testing.T) {
 			"a crafted line reads no retired affix",
 			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+60 to Ward\n",
 			rare(ringBase, line(build.Crafted, "+60 to Ward", "crafted_ward", 60)),
-			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+			[]build.Code{items.RollOutOfRange},
 		},
 		{
 			"an exact Scourge downside, as retired",
@@ -914,16 +940,16 @@ func TestParse(t *testing.T) {
 			nil,
 		},
 		{
-			"a bench craft whose weights name amulets, on an amulet",
+			"a bench craft the dataset lists for amulets, on an amulet",
 			"Rarity: RARE\nX\nIron Amulet\nImplicits: 0\n{crafted}+290 to Ward\n",
 			rare(amuletBase, line(build.Crafted, "+290 to Ward", "amulet_craft_ward", 290)),
 			nil,
 		},
 		{
-			"no bench craft whose weights name amulets on a ring",
+			"no bench craft the dataset lists for amulets on a ring",
 			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+290 to Ward\n",
 			rare(ringBase, line(build.Crafted, "+290 to Ward", "crafted_ward", 290)),
-			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+			[]build.Code{items.RollOutOfRange},
 		},
 		{
 			"a former implicit with a local stat, on gloves",
@@ -1025,6 +1051,26 @@ func unique(base string, l build.ModLine) build.Item {
 // twin is a normal Twin Ring of base with one line.
 func twin(base string, l build.ModLine) build.Item {
 	return build.Item{Rarity: build.Normal, Base: base, Mods: []build.ModLine{l}}
+}
+
+func TestNewReaderWithoutCrafting(t *testing.T) {
+	t.Parallel()
+	d := testDataset()
+	d.Items.Crafting, d.Items.BenchCrafts, d.Items.EssenceMods = false, nil, nil
+	for i := range d.Items.Bases {
+		d.Items.Bases[i].ModDomain = 0
+	}
+	dir := t.TempDir()
+	if _, err := dataset.Write(dir, d); err != nil {
+		t.Fatal(err)
+	}
+	s, err := dataset.Open(os.DirFS(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := items.NewReader(s); !errors.Is(err, items.ErrNoCrafting) {
+		t.Errorf("got %v, want %v", err, items.ErrNoCrafting)
+	}
 }
 
 func TestParseRejects(t *testing.T) {

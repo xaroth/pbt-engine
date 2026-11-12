@@ -46,8 +46,9 @@ func (d *Data) Gem(name string) (build.GemID, error) {
 // Item reads item text, as Path of Building writes and copies it, into an item for
 // build.Equip: its base by name and each mod line as the stats it reads as (see
 // items.Reader.Parse). A line no stat description reads is a warning and stays on the item
-// without stats. A dataset without the items group returns a *dataset.MissingGroupError; text
-// that is not an item items.ErrFormat, and an unknown base items.ErrUnknownBase.
+// without stats. A dataset without the items group returns a *dataset.MissingGroupError, and one
+// whose items group lacks the mod domains, bench crafts and essence mods items.ErrNoCrafting;
+// text that is not an item items.ErrFormat, and an unknown base items.ErrUnknownBase.
 func (d *Data) Item(text string) (build.Item, []Warning, error) {
 	r, err := d.items()
 	if err != nil {

@@ -18,6 +18,9 @@ import (
 var (
 	ErrFormat      = errors.New("items: not item text")
 	ErrUnknownBase = errors.New("items: no base of that name")
+	// ErrNoCrafting is a dataset whose items group does not hold the bases' mod domains, the
+	// bench crafts and the essence mods (Items.Crafting false), as one written before them.
+	ErrNoCrafting = errors.New("items: dataset without mod domains, bench crafts and essence mods")
 )
 
 // Warning codes of Parse.
@@ -54,15 +57,13 @@ type Reader struct {
 	version  string
 }
 
-// crafting is where bench crafts and essences put their mods: item classes by mod id. known is
-// false for a dataset that does not hold them.
+// crafting is where bench crafts and essences put their mods: item classes by mod id.
 type crafting struct {
-	known          bool
 	bench, essence map[string][]string
 }
 
 func newCrafting(it *dataset.Items) crafting {
-	c := crafting{known: it.Crafting, bench: map[string][]string{}, essence: map[string][]string{}}
+	c := crafting{bench: map[string][]string{}, essence: map[string][]string{}}
 	for _, m := range it.BenchCrafts {
 		c.bench[m.Mod] = m.Classes
 	}
@@ -73,11 +74,15 @@ func newCrafting(it *dataset.Items) crafting {
 }
 
 // NewReader indexes the items group, the stats and the English stat descriptions of s. A
-// dataset without the items group returns a *dataset.MissingGroupError.
+// dataset without the items group returns a *dataset.MissingGroupError, and one whose items
+// group lacks the mod domains, bench crafts and essence mods fails with ErrNoCrafting.
 func NewReader(s *dataset.Store) (*Reader, error) {
 	it, err := s.Items()
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
+	}
+	if !it.Crafting {
+		return nil, fmt.Errorf("%w (%s); rebuild it", ErrNoCrafting, s.Manifest().Version)
 	}
 	mods, err := s.Mods()
 	if err != nil {
