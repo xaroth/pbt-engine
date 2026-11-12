@@ -132,6 +132,13 @@ func (s *Store) Stats() ([]Stat, error) {
 	return g.stats, err
 }
 
+// HasStat reports whether the stats group has stat id.
+func (s *Store) HasStat(id string) (bool, error) {
+	g, err := s.stats()
+	_, ok := g.index[id]
+	return ok && err == nil, err
+}
+
 // Characters returns the characters group, shared and read-only.
 func (s *Store) Characters() ([]Character, error) { return s.characters() }
 

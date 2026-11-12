@@ -66,17 +66,12 @@ func (c *Checked) checkItems() error {
 	if err != nil {
 		return fmt.Errorf("build: load items: %w", err)
 	}
-	stats, err := c.store.Stats()
-	if err != nil {
+	if _, err := c.store.Stats(); err != nil {
 		return fmt.Errorf("build: load stats: %w", err)
-	}
-	known := make(map[string]bool, len(stats))
-	for _, st := range stats {
-		known[st.ID] = true
 	}
 	for _, s := range slices.Sorted(maps.Keys(c.build.Items)) {
 		it := c.build.Items[s]
-		if !c.checkItem(s, &it, data, known) {
+		if !c.checkItem(s, &it, data) {
 			delete(c.build.Items, s)
 			continue
 		}
@@ -86,7 +81,7 @@ func (c *Checked) checkItems() error {
 }
 
 // checkItem fixes it as the dataset says, or reports false to unequip it.
-func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items, known map[string]bool) bool {
+func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 	subject := "item " + string(s)
 	if !slices.Contains(ItemSlots(), s) {
 		c.warnf(ItemSlotUnknown, subject, "no item slot %q; item left out", s)
@@ -108,7 +103,8 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items, known map[str
 			continue
 		}
 		m.Stats = slices.DeleteFunc(m.Stats, func(sv StatValue) bool {
-			if known[sv.Stat] {
+			// The stats group loaded above, so HasStat cannot fail.
+			if ok, _ := c.store.HasStat(sv.Stat); ok {
 				return false
 			}
 			c.warnf(ItemStatUnknown, subject, "stat %s of line %q not in %s; left out", sv.Stat, m.Text, c.store.Manifest().Version)

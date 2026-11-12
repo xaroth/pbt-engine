@@ -257,10 +257,11 @@ func shareCode(t *testing.T, file []byte) string {
 
 // chieftainXML is the level 90 Chieftain of the explanation goldens as a Path of Building file,
 // with the bandits killed and a helmet, which the import leaves out.
-func chieftainXML(t *testing.T) []byte {
+func chieftainXML(tb testing.TB) []byte {
+	tb.Helper()
 	nodes, err := os.ReadFile(filepath.Join("..", "internal", "poe1", "testdata", "explain", "chieftain-L90-3.29.nodes"))
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	const masteries = "{4139,47642},{11505,36313},{12125,21468},{12382,64381},{25011,31822},{27193,45653},{27733,23471},{32241,34242},{41415,38454}"
 	return fmt.Appendf(nil, `<PathOfBuilding>
@@ -459,12 +460,10 @@ func readOutput(t *testing.T, w *walk) {
 }
 
 // readWarnings: the warnings are stats the engine leaves out or applies unchecked, nodes the
-// removal cut off the tree, and the skills and the helmet not simulated yet; none names a removed
-// node.
+// removal cut off the tree, and the skills not simulated yet; none names a removed node.
 func readWarnings(t *testing.T, w *walk) {
 	known := []build.Code{
 		simulator.UnmodelledStat, simulator.UncheckedCondition, build.NodesDisconnected, build.SkillsUnchecked, simulator.SkillsNotSimulated,
-		simulator.ItemsNotSimulated,
 	}
 	unmodelled := 0
 	for _, x := range w.stats.Warnings() {

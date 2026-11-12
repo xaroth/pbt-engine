@@ -22,6 +22,7 @@ type Stats struct {
 	cfg      config.Resolved
 	build    *build.Build
 	checked  *build.Checked
+	items    []poe1.Item
 	sim      *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
@@ -37,12 +38,7 @@ func (st *Stats) Explain(k output.Key, v View) (*Explanation, error) {
 	st.explainMu.Lock()
 	defer st.explainMu.Unlock()
 	if st.explainSheet == nil && st.explainErr == nil {
-		r, err := resolve.Resolve(st.checked)
-		if err != nil {
-			st.explainErr = fmt.Errorf("simulator: explain: %w", err)
-		} else {
-			st.explainSheet, st.explainErr = poe1.Open(r, st.sim.table, st.cfg)
-		}
+		st.explainSheet, st.explainErr = st.openSheet()
 	}
 	if st.explainErr != nil {
 		return nil, st.explainErr
@@ -89,4 +85,20 @@ type Named interface{ Name() string }
 func (st *Stats) Config(k Named) (config.Entry, bool) {
 	e, ok := st.cfg[k.Name()]
 	return e, ok
+}
+
+// openSheet opens a sheet of the simulated build with its items.
+func (st *Stats) openSheet() (*poe1.Sheet, error) {
+	r, err := resolve.Resolve(st.checked)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
+	sh, err := poe1.Open(r, st.sim.table, st.cfg)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
+	if err := sh.SetItems(st.items); err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
+	return sh, nil
 }
