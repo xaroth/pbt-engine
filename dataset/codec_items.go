@@ -28,7 +28,8 @@ func encodeItems(it *Items) []byte {
 		baseOffs[i] = encodeBase(b, classIndex, tagIndex, base)
 	}
 	bases := tableVector(b, fb.ItemsStartBasesVector, baseOffs)
-	crafts := encodeBenchCrafts(b, classIndex, it.BenchCrafts)
+	crafts := encodeModClasses(b, fb.ItemsStartBenchCraftsVector, classIndex, it.BenchCrafts)
+	essences := encodeModClasses(b, fb.ItemsStartEssenceModsVector, classIndex, it.EssenceMods)
 	classOffs := make([]flatbuffers.UOffsetT, len(it.Classes))
 	for i, c := range it.Classes {
 		id := b.CreateString(c.ID)
@@ -42,8 +43,12 @@ func encodeItems(it *Items) []byte {
 	fb.ItemsAddClasses(b, classes)
 	fb.ItemsAddTags(b, tags)
 	fb.ItemsAddBases(b, bases)
+	fb.ItemsAddCrafting(b, it.Crafting)
 	if crafts != 0 {
 		fb.ItemsAddBenchCrafts(b, crafts)
+	}
+	if essences != 0 {
+		fb.ItemsAddEssenceMods(b, essences)
 	}
 	fb.FinishItemsBuffer(b, fb.ItemsEnd(b))
 	return b.FinishedBytes()
@@ -77,21 +82,21 @@ func encodeBase(b *flatbuffers.Builder, classIndex, tagIndex map[string]uint32, 
 	return fb.ItemBaseEnd(b)
 }
 
-// encodeBenchCrafts returns 0 for no crafts, so items without them keep their bytes.
-func encodeBenchCrafts(b *flatbuffers.Builder, classIndex map[string]uint32, crafts []BenchCraft) flatbuffers.UOffsetT {
-	if len(crafts) == 0 {
+// encodeModClasses returns 0 for no mods, so items without them keep their bytes.
+func encodeModClasses(b *flatbuffers.Builder, start startFunc, classIndex map[string]uint32, mods []ModClasses) flatbuffers.UOffsetT {
+	if len(mods) == 0 {
 		return 0
 	}
-	offs := make([]flatbuffers.UOffsetT, len(crafts))
-	for i, c := range crafts {
-		mod := b.CreateString(c.Mod)
-		classes := uint32Vector(b, fb.BenchCraftStartClassesVector, indexes(classIndex, c.Classes))
-		fb.BenchCraftStart(b)
-		fb.BenchCraftAddMod(b, mod)
-		fb.BenchCraftAddClasses(b, classes)
-		offs[i] = fb.BenchCraftEnd(b)
+	offs := make([]flatbuffers.UOffsetT, len(mods))
+	for i, m := range mods {
+		mod := b.CreateString(m.Mod)
+		classes := uint32Vector(b, fb.ModClassesStartClassesVector, indexes(classIndex, m.Classes))
+		fb.ModClassesStart(b)
+		fb.ModClassesAddMod(b, mod)
+		fb.ModClassesAddClasses(b, classes)
+		offs[i] = fb.ModClassesEnd(b)
 	}
-	return tableVector(b, fb.ItemsStartBenchCraftsVector, offs)
+	return tableVector(b, start, offs)
 }
 
 // encodeArmour returns 0 for nil a, as do encodeWeapon and encodeFlask.
@@ -158,28 +163,34 @@ func decodeItems(buf []byte) (Items, error) {
 			return Items{}, fmt.Errorf("base %s: %w", base.Id(), err)
 		}
 	}
-	if n := root.BenchCraftsLength(); n > 0 {
-		it.BenchCrafts = make([]BenchCraft, n)
+	it.Crafting = root.Crafting()
+	var err error
+	if it.BenchCrafts, err = decodeModClasses("bench craft", root.BenchCraftsLength(), root.BenchCrafts, it.Classes); err != nil {
+		return Items{}, err
 	}
-	var craft fb.BenchCraft
-	for i := range it.BenchCrafts {
-		root.BenchCrafts(&craft, i)
-		var err error
-		if it.BenchCrafts[i], err = decodeBenchCraft(&craft, it.Classes); err != nil {
-			return Items{}, fmt.Errorf("bench craft %s: %w", craft.Mod(), err)
-		}
+	if it.EssenceMods, err = decodeModClasses("essence mod", root.EssenceModsLength(), root.EssenceMods, it.Classes); err != nil {
+		return Items{}, err
 	}
 	return it, nil
 }
 
-func decodeBenchCraft(c *fb.BenchCraft, classes []ItemClass) (BenchCraft, error) {
-	out := BenchCraft{Mod: string(c.Mod()), Classes: make([]string, c.ClassesLength())}
-	for i := range out.Classes {
-		k := int(c.Classes(i))
-		if k >= len(classes) {
-			return BenchCraft{}, fmt.Errorf("class %d out of range (%d classes): %w", k, len(classes), ErrInvalid)
+// decodeModClasses reads the n entries at returns, nil for none; what names them in errors.
+func decodeModClasses(what string, n int, at func(*fb.ModClasses, int) bool, classes []ItemClass) ([]ModClasses, error) {
+	if n == 0 {
+		return nil, nil
+	}
+	out := make([]ModClasses, n)
+	var m fb.ModClasses
+	for i := range out {
+		at(&m, i)
+		out[i] = ModClasses{Mod: string(m.Mod()), Classes: make([]string, m.ClassesLength())}
+		for j := range out[i].Classes {
+			k := int(m.Classes(j))
+			if k >= len(classes) {
+				return nil, fmt.Errorf("%s %s: class %d out of range (%d classes): %w", what, m.Mod(), k, len(classes), ErrInvalid)
+			}
+			out[i].Classes[j] = classes[k].ID
 		}
-		out.Classes[i] = classes[k].ID
 	}
 	return out, nil
 }

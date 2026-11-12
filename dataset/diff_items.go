@@ -13,8 +13,11 @@ type ItemsDiff struct {
 	BasesAdded, BasesRemoved            []string
 	BasesChanged                        []string
 	ModsAdded, ModsRemoved, ModsChanged []string
-	// BenchCrafts are by the mod a craft adds.
+	// CraftingChanged reports that Items.Crafting differs.
+	CraftingChanged bool
+	// Bench crafts and essence mods are by mod.
 	BenchCraftsAdded, BenchCraftsRemoved, BenchCraftsChanged []string
+	EssenceModsAdded, EssenceModsRemoved, EssenceModsChanged []string
 }
 
 // itemGroup is the items group of one store, empty when the store has none.
@@ -54,8 +57,11 @@ func compareItemGroups(a, b *Store, x, y *tables) (ItemsDiff, error) {
 	d.TagsAdded, d.TagsRemoved = setDiff(keys(byKey(p.items.Tags, tagID)), keys(byKey(q.items.Tags, tagID)))
 	d.BasesAdded, d.BasesRemoved, d.BasesChanged = changes(p.items.Bases, q.items.Bases,
 		func(b ItemBase) string { return b.ID }, sameBase)
-	d.BenchCraftsAdded, d.BenchCraftsRemoved, d.BenchCraftsChanged = changes(p.items.BenchCrafts, q.items.BenchCrafts,
-		func(c BenchCraft) string { return c.Mod }, func(c, e BenchCraft) bool { return slices.Equal(c.Classes, e.Classes) })
+	d.CraftingChanged = p.items.Crafting != q.items.Crafting
+	modID := func(m ModClasses) string { return m.Mod }
+	sameClasses := func(m, n ModClasses) bool { return slices.Equal(m.Classes, n.Classes) }
+	d.BenchCraftsAdded, d.BenchCraftsRemoved, d.BenchCraftsChanged = changes(p.items.BenchCrafts, q.items.BenchCrafts, modID, sameClasses)
+	d.EssenceModsAdded, d.EssenceModsRemoved, d.EssenceModsChanged = changes(p.items.EssenceMods, q.items.EssenceMods, modID, sameClasses)
 	d.ModsAdded, d.ModsRemoved, d.ModsChanged = changes(p.mods, q.mods,
 		func(m Mod) string { return m.ID }, func(m, n Mod) bool { return sameMod(x, y, m, n) })
 	return d, nil

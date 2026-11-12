@@ -38,10 +38,10 @@ func withBuffs() *dataset.Dataset {
 	d.Items.Classes = append(d.Items.Classes, dataset.ItemClass{ID: "UtilityFlask"}, dataset.ItemClass{ID: "Tincture"})
 	d.Items.Bases = append(d.Items.Bases,
 		dataset.ItemBase{
-			ID: "Metadata/Items/Flasks/FlaskUtility5", Class: "UtilityFlask",
+			ID: "Metadata/Items/Flasks/FlaskUtility5", Class: "UtilityFlask", ModDomain: 2,
 			Flask: &dataset.FlaskValues{Kind: dataset.UtilityFlask, Duration: 60, MaxCharges: 30, ChargesPerUse: 15},
 		},
-		dataset.ItemBase{ID: "Metadata/Items/Tinctures/Tincture1", Class: "Tincture"})
+		dataset.ItemBase{ID: "Metadata/Items/Tinctures/Tincture1", Class: "Tincture", ModDomain: 34})
 	d.Buffs = sampleBuffs()
 	d.Texts[0].BuffNames = []dataset.Name{{ID: "player_aura_armour", Name: "Determination Aura"}, {ID: "frenzy_charge", Name: "Frenzy Charges"}}
 	return d
