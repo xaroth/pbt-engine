@@ -44,7 +44,8 @@ func (d *Dataset) validate() error {
 			return err
 		}
 	}
-	return errors.Join(validateNames(d.Texts, d.Trees), d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup(), d.validateMonstersGroup())
+	return errors.Join(validateNames(d.Texts, d.Trees), d.validateLayouts(),
+		d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup(), d.validateMonstersGroup())
 }
 
 func errVariant(v string) error {
@@ -268,6 +269,25 @@ func checkNodeNames(t Text, nodes map[uint32]bool) error {
 	for _, n := range t.NodeNames {
 		if !nodes[n.ID] {
 			return fmt.Errorf("text %s: name for unknown node %d: %w", t.Language, n.ID, ErrInvalid)
+		}
+	}
+	return nil
+}
+
+func (d *Dataset) validateLayouts() error {
+	seen := map[string]bool{}
+	for i := range d.Layouts {
+		l := &d.Layouts[i]
+		if seen[l.Variant] {
+			return fmt.Errorf("layout %q repeated: %w", l.Variant, ErrInvalid)
+		}
+		seen[l.Variant] = true
+		var t *Tree
+		if j := slices.IndexFunc(d.Trees, func(t Tree) bool { return t.Variant == l.Variant }); j >= 0 {
+			t = &d.Trees[j]
+		}
+		if err := validateLayout(t, l); err != nil {
+			return err
 		}
 	}
 	return nil

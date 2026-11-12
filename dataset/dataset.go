@@ -49,6 +49,7 @@ const (
 	monstersFile   = "monsters.fb"
 	treePrefix     = "tree-"
 	textPrefix     = "text-"
+	layoutPrefix   = "layout-"
 	fbSuffix       = ".fb"
 )
 
@@ -73,22 +74,12 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	if err := d.Manifest.Capabilities.validate(); err != nil {
 		return Manifest{}, err
 	}
-	groups := []group{
+	groups := slices.Concat([]group{
 		{statsFile, encodeStats(d.Stats)},
 		{charactersFile, encodeCharacters(d.Stats, d.Characters)},
 		{constantsFile, encodeConstants(d.Constants)},
 		{questsFile, encodeQuests(d.Stats, d.Quests)},
-	}
-	for _, t := range d.Trees {
-		groups = append(groups, group{treePrefix + t.Variant + fbSuffix, encodeTree(d.Stats, t)})
-	}
-	for _, t := range d.Texts {
-		groups = append(groups, group{textPrefix + t.Language + fbSuffix, encodeText(t)})
-	}
-	groups = append(groups, d.itemsGroup()...)
-	groups = append(groups, d.skillsGroup()...)
-	groups = append(groups, d.buffsGroup()...)
-	groups = append(groups, d.monstersGroup()...)
+	}, d.taggedGroups(), d.itemsGroup(), d.skillsGroup(), d.buffsGroup(), d.monstersGroup())
 	m := d.Manifest
 	m.Format = FormatVersion
 	m.Files = nil
@@ -108,6 +99,21 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("write manifest: %w", err)
 	}
 	return m, nil
+}
+
+// taggedGroups returns the groups with one file per tree variant or language.
+func (d *Dataset) taggedGroups() []group {
+	groups := make([]group, 0, len(d.Trees)+len(d.Layouts)+len(d.Texts))
+	for _, t := range d.Trees {
+		groups = append(groups, group{treePrefix + t.Variant + fbSuffix, encodeTree(d.Stats, t)})
+	}
+	for _, l := range d.Layouts {
+		groups = append(groups, group{layoutPrefix + l.Variant + fbSuffix, encodeLayout(l)})
+	}
+	for _, t := range d.Texts {
+		groups = append(groups, group{textPrefix + t.Language + fbSuffix, encodeText(t)})
+	}
+	return groups
 }
 
 // ReadManifest reads the manifest of the dataset in fsys. It fails when the format version
@@ -158,6 +164,9 @@ func (m Manifest) contentID() string {
 
 // Trees returns the tree variants in the dataset, in manifest order.
 func (m Manifest) Trees() []string { return m.tagged(treePrefix) }
+
+// Layouts returns the tree variants with a layout, in manifest order.
+func (m Manifest) Layouts() []string { return m.tagged(layoutPrefix) }
 
 // Languages returns the text languages in the dataset, in manifest order.
 func (m Manifest) Languages() []string { return m.tagged(textPrefix) }
