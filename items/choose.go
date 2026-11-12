@@ -67,8 +67,11 @@ type target struct {
 	domain     int32
 }
 
-func newTarget(it *build.Item, b *dataset.ItemBase) target {
-	t := target{base: b, tags: b.Tags, rarity: it.Rarity, corrupted: slices.Contains(it.Flags, corruptedFlag), domain: classDomain(b.Class)}
+func (r *Reader) newTarget(it *build.Item, b *dataset.ItemBase) target {
+	t := target{base: b, tags: b.Tags, rarity: it.Rarity, corrupted: slices.Contains(it.Flags, corruptedFlag), domain: b.ModDomain}
+	if !r.crafting.known {
+		t.domain = classDomain(b.Class)
+	}
 	for _, f := range it.Flags {
 		suffix, ok := influences()[f]
 		if !ok {
@@ -123,7 +126,7 @@ func (r *Reader) keeps(s step, rd statdesc.RangeReading) bool {
 // Then on armour and weapons the readings with a local stat, then the first in the game's order.
 // A value the text does not show is the value of the mods that give the reading.
 func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading) choice {
-	t := newTarget(it, b)
+	t := r.newTarget(it, b)
 	src := r.sources(t, kind)
 	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
 	anyCurrent := func(m *dataset.Mod) bool { return src.current(m) || src.craft(m) }
@@ -216,10 +219,8 @@ func none(*dataset.Mod) bool { return false }
 
 // sources returns the mods a line of kind on item t can be.
 func (r *Reader) sources(t target, kind build.ModKind) lineSources {
-	craft := r.withoutLocal(t, func(m *dataset.Mod) bool {
-		return m.Domain == domainCrafted && (t.rarity == build.Magic || t.rarity == build.Rare)
-	})
-	special := r.withoutLocal(t, func(m *dataset.Mod) bool { return specialAffix(m, t) })
+	craft := r.benchCraft(t)
+	given := func(m *dataset.Mod) bool { return r.essence(m, t) || elevated(m, t) }
 	switch kind {
 	case build.Implicit:
 		return lineSources{
@@ -232,7 +233,7 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 		return lineSources{current: craft, craft: none, given: none, retired: none}
 	case build.Enchant:
 		return lineSources{
-			current: func(m *dataset.Mod) bool { return enchant(m, t) },
+			current: func(m *dataset.Mod) bool { return enchant(m, t) || r.enchantCraft(m, t) },
 			craft:   none,
 			given:   none,
 			retired: func(m *dataset.Mod) bool { return retiredEnchant(m, t) },
@@ -242,16 +243,16 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 		return lineSources{
 			current: func(m *dataset.Mod) bool { return explicitMod(m, t) },
 			craft:   none,
-			given:   special,
-			retired: func(m *dataset.Mod) bool { return retiredAffix(m, t) },
+			given:   given,
+			retired: func(m *dataset.Mod) bool { return r.retiredAffix(m, t) },
 		}
 	default:
 		// A line without a marker may be a bench craft that lost its marker.
 		return lineSources{
 			current: func(m *dataset.Mod) bool { return explicitMod(m, t) },
 			craft:   craft,
-			given:   special,
-			retired: func(m *dataset.Mod) bool { return retiredAffix(m, t) || passiveTreeMod(m, t) },
+			given:   given,
+			retired: func(m *dataset.Mod) bool { return r.retiredAffix(m, t) || passiveTreeMod(m, t) },
 		}
 	}
 }
@@ -294,66 +295,93 @@ func formerImplicit(m *dataset.Mod, t target) bool {
 }
 
 // explicitMod is a current explicit of t: on a unique, a unique's mod; on a magic or rare item,
-// a prefix or suffix that spawns on it. A normal item has no explicit mods.
+// a prefix or suffix that spawns on it, rolled or added by a fossil. A normal item has no
+// explicit mods.
 func explicitMod(m *dataset.Mod, t target) bool {
 	switch t.rarity {
 	case build.Unique:
 		return (m.Domain == t.domain || m.Domain == domainItem) && m.Generation == genUnique
 	case build.Magic, build.Rare:
-		return affix(m) && (m.Domain == t.domain || m.Domain == domainUnveiled) && spawnsOn(m, t.tags)
+		return affix(m) && affixDomain(m, t) && spawnsOn(m, t.tags)
 	default:
 		return false
 	}
 }
 
-// specialAffix is a prefix or suffix a magic or rare item like t can be given by a source
-// other than rolling: a Delve (fossil) mod; an elevated influence mod, whose weights are all 0
-// and name a tag t's influences give; or an item mod whose weights are all 0 and name no item
-// kind, as essences give. The dataset does not say which items an essence applies to yet.
-func specialAffix(m *dataset.Mod, t target) bool {
-	if t.rarity != build.Magic && t.rarity != build.Rare || !affix(m) {
-		return false
-	}
-	if m.Domain == domainDelve {
-		return true
-	}
-	if m.Domain != domainItem || m.Domain != t.domain || spawns(m) {
-		return false
-	}
-	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return slices.Contains(t.influenced, w.Tag) }) ||
-		!slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return w.Tag != defaultTag })
+// affixDomain reports whether m is of t's domain, or of the unveiled or Delve (fossil) domain,
+// whose mods go on items of the item domain.
+func affixDomain(m *dataset.Mod, t target) bool {
+	return m.Domain == t.domain || m.Domain == domainUnveiled || m.Domain == domainDelve
 }
 
-// withoutLocal limits mods passing ok to those t can take while the dataset does not say which
-// items a bench craft or an essence applies to: one with a local stat only on armour and weapons.
-func (r *Reader) withoutLocal(t target, ok func(*dataset.Mod) bool) func(*dataset.Mod) bool {
-	defences := t.base.Armour != nil || t.base.Weapon != nil
-	return func(m *dataset.Mod) bool {
-		return ok(m) && (defences || !slices.ContainsFunc(r.mods.stats[m], isLocal))
+func magicOrRare(t target) bool { return t.rarity == build.Magic || t.rarity == build.Rare }
+
+// elevated is an elevated influence mod of a magic or rare item like t: a prefix or suffix of
+// t's domain whose weights are all 0 and name a tag t's influences give.
+func elevated(m *dataset.Mod, t target) bool {
+	return magicOrRare(t) && affix(m) && m.Domain == t.domain && !spawns(m) &&
+		slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return slices.Contains(t.influenced, w.Tag) })
+}
+
+// essence is a mod an essence adds to a magic or rare item like t: one the dataset lists for t's
+// class. A dataset without that list stands in: a prefix or suffix of the item domain whose
+// weights are all 0 and name no item kind, with a local stat only on armour and weapons.
+func (r *Reader) essence(m *dataset.Mod, t target) bool {
+	if !magicOrRare(t) || !affix(m) {
+		return false
 	}
+	if r.crafting.known {
+		return slices.Contains(r.crafting.essence[m.ID], t.base.Class)
+	}
+	return t.domain == domainItem && m.Domain == domainItem && !spawns(m) && namesNoKind(m) && r.fitsStandIn(m, t)
+}
+
+// benchCraft is a bench craft that can be on a magic or rare item like t: one the dataset lists
+// for t's class. A dataset without that list stands in: any craft, with a local stat only on
+// armour and weapons.
+func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
+	return func(m *dataset.Mod) bool {
+		if !magicOrRare(t) || m.Domain != domainCrafted {
+			return false
+		}
+		if r.crafting.known {
+			return slices.Contains(r.crafting.bench[m.ID], t.base.Class)
+		}
+		return r.fitsStandIn(m, t)
+	}
+}
+
+// enchantCraft is an enchantment the crafting bench adds to items of t's class.
+func (r *Reader) enchantCraft(m *dataset.Mod, t target) bool {
+	return m.Domain != domainCrafted && slices.Contains(r.crafting.bench[m.ID], t.base.Class)
+}
+
+// fitsStandIn reports whether t can take m while the dataset does not say which items a bench
+// craft or an essence applies to: a mod with a local stat only on armour and weapons.
+func (r *Reader) fitsStandIn(m *dataset.Mod, t target) bool {
+	return t.base.Armour != nil || t.base.Weapon != nil || !slices.ContainsFunc(r.mods.stats[m], isLocal)
+}
+
+// namesNoKind reports whether m's weights name no tag but "default".
+func namesNoKind(m *dataset.Mod) bool {
+	return !slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool { return w.Tag != defaultTag })
 }
 
 // retiredAffix is a prefix or suffix of a magic or rare item like t that spawns nowhere now:
-// its weights are all 0 and name one of its base's tags, or name only "default" in a domain of
-// t's own kind, such as flasks. Weights on a tag an influence gives are elevated mods, which are
-// current (see specialAffix).
-func retiredAffix(m *dataset.Mod, t target) bool {
-	if !retiredAffixOf(m, t) {
+// its weights are all 0 and name one of its base's tags or no item kind, such as older versions
+// of mods and mods of retired crafting. Weights on a tag an influence gives are elevated mods
+// (see elevated). Without the dataset's essence mods, item mods that name no kind stand in for
+// essence mods instead.
+func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
+	if !magicOrRare(t) || !affix(m) || !affixDomain(m, t) || len(m.SpawnWeights) == 0 || spawns(m) {
 		return false
 	}
-	for _, w := range m.SpawnWeights {
-		if w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag) {
-			return true
-		}
+	if namesNoKind(m) {
+		return r.crafting.known || m.Domain != domainItem
 	}
-	return m.Domain == t.domain && t.domain != domainItem
-}
-
-// retiredAffixOf reports whether m is a prefix or suffix of t's domain or the unveiled domain
-// with weights that are all 0, on a magic or rare item like t.
-func retiredAffixOf(m *dataset.Mod, t target) bool {
-	return (t.rarity == build.Magic || t.rarity == build.Rare) && affix(m) &&
-		(m.Domain == t.domain || m.Domain == domainUnveiled) && len(m.SpawnWeights) > 0 && !spawns(m)
+	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
+		return w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag)
+	})
 }
 
 // passiveTreeMod is a Crucible or Scourge mod of t's domain. Neither can be added today, so they
@@ -406,8 +434,8 @@ func spawnsOn(m *dataset.Mod, tags []string) bool {
 	return false
 }
 
-// classDomain returns the mod domain of items of class, an ItemClass.ID. The dataset does not
-// hold a base's mod domain yet.
+// classDomain returns the mod domain of items of class, an ItemClass.ID, for a dataset that does
+// not hold the bases' mod domains.
 func classDomain(class string) int32 {
 	switch class {
 	case "LifeFlask", "ManaFlask", "HybridFlask", "UtilityFlask":

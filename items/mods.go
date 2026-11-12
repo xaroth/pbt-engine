@@ -110,8 +110,9 @@ func (r *Reader) sums(a, b *dataset.Mod, rd statdesc.RangeReading) bool {
 }
 
 // has reports whether m has every stat rd shows, with rd's values in m's ranges when inRange is
-// set; a stat whose value the text does not show need not be m's. A value out of range still fits when the mod at its own values renders the same text, as
-// for a number the description writes as fixed words, such as "30%".
+// set; a stat whose value the text does not show need not be m's. A value out of range still
+// fits when the mod at its own values renders the same text, as for a number the description
+// writes as fixed words, such as "30%".
 func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) bool {
 	own := map[string]int32{}
 	out := false

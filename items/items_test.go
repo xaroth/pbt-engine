@@ -25,6 +25,12 @@ const (
 	knifeBase  = "Metadata/Items/Weapons/OneHandWeapons/Daggers/Knife"
 	flaskBase  = "Metadata/Items/Flasks/Flask"
 	jewelBase  = "Metadata/Items/Jewels/Jewel"
+	// Bases of each class with its own mod domain.
+	manaFlaskBase    = "Metadata/Items/Flasks/ManaFlask"
+	hybridFlaskBase  = "Metadata/Items/Flasks/HybridFlask"
+	utilityFlaskBase = "Metadata/Items/Flasks/UtilityFlask"
+	tinctureBase     = "Metadata/Items/Tinctures/Tincture"
+	abyssJewelBase   = "Metadata/Items/Jewels/AbyssJewel"
 	// Three bases named "Twin Ring", told apart by their implicits.
 	twinFire     = "Metadata/Items/Rings/TwinFire"
 	twinCold     = "Metadata/Items/Rings/TwinCold"
@@ -60,26 +66,31 @@ func testStats() [][2]string {
 		{"evasion", "+{0} to Evasion Rating"}, {"old_evasion", "+{0} to Evasion Rating"},
 		{"delve_ward", "+{0} to Ward"}, {"unveiled_ward", "+{0} to Ward"}, {"elevated_ward", "+{0} to Ward"},
 		{"crucible_ward", "+{0} to Ward"}, {"jewel_crucible_ward", "+{0} to Ward"}, {"scourge_ward", "+{0} to Ward"},
+		{"crucible_unique_ward", "+{0} to Ward"}, {"old_unveiled_ward", "+{0} to Ward"}, {"not_ring_ward", "+{0} to Ward"},
+		{"delve_jewel_ward", "+{0} to Ward"}, {"jewel_elevated_ward", "+{0} to Ward"}, {"old_unveiled_shaper_ward", "+{0} to Ward"},
 		{"mana", "+{0} to maximum Mana"}, {"flask_mana", "+{0} to maximum Mana"}, {"old_flask_mana", "+{0} to maximum Mana"},
-		{"jewel_mana", "+{0} to maximum Mana"},
+		{"jewel_mana", "+{0} to maximum Mana"}, {"tincture_mana", "+{0} to maximum Mana"}, {"abyss_mana", "+{0} to maximum Mana"},
+		{"jewel_old_mana", "+{0} to maximum Mana"}, {"jewel_retired_mana", "+{0} to maximum Mana"},
 		{"crit", "{0}% increased Critical Strike Chance"}, {"flask_old_crit", "{0}% increased Critical Strike Chance"},
 		// A number written into the text: the reader gives the stat a filler value.
 		{"old_knife_crit", "30% increased Critical Strike Chance"},
 		{"old_prefix_area", "{0}% increased Area of Effect"}, {"old_corrupted_area", "{0}% increased Area of Effect"},
-		{"old_eldritch_area", "{0}% increased Area of Effect"},
+		{"old_eldritch_area", "{0}% increased Area of Effect"}, {"old_eater_area", "{0}% increased Area of Effect"},
 		// Curses whose level the text does not show.
 		{"unique_despair", "Curse Enemies with Despair on Hit"}, {"curse_despair", "Curse Enemies with Despair on Hit"},
 		{"curse_enfeeble", "Curse Enemies with Enfeeble on Hit"}, {"curse_frostbite", "Curse Enemies with Frostbite on Hit"},
+		{"curse_vulnerability", "Curse Enemies with Vulnerability on Hit"},
 		{"accuracy", "+{0} to Accuracy Rating"}, {"local_accuracy", "+{0} to Accuracy Rating"},
 		{"unique_speed", "{0}% increased Attack Speed"}, {"gloves_speed", "{0}% increased Attack Speed"},
 		{"flask_speed", "{0}% increased Attack Speed"},
 		{"chaos_res", "+{0}% to Chaos Resistance"}, {"corrupted_chaos_res", "+{0}% to Chaos Resistance"},
-		{"flask_corrupted_chaos_res", "+{0}% to Chaos Resistance"},
+		{"flask_corrupted_chaos_res", "+{0}% to Chaos Resistance"}, {"eater_chaos_res", "+{0}% to Chaos Resistance"},
 		{"energy_shield", "+{0} to maximum Energy Shield"}, {"local_energy_shield", "+{0} to maximum Energy Shield"},
 		{"old_energy_shield", "+{0} to maximum Energy Shield"}, {"essence_energy_shield", "+{0} to maximum Energy Shield"},
+		{"recombinator_energy_shield", "+{0} to maximum Energy Shield"},
 		{"skill_damage", "{0}% increased Skill Damage"}, {"enchant_damage", "{0}% increased Skill Damage"},
 		{"old_enchant_damage", "{0}% increased Skill Damage"}, {"flask_enchant_damage", "{0}% increased Skill Damage"},
-		{"anoint_damage", "{0}% increased Skill Damage"},
+		{"anoint_damage", "{0}% increased Skill Damage"}, {"craft_enchant_damage", "{0}% increased Skill Damage"},
 		{"fire_res", "+{0}% to Fire Resistance"}, {"cold_res", "+{0}% to Cold Resistance"},
 	}
 }
@@ -100,51 +111,80 @@ func w(tag string, weight int32) dataset.TagWeight {
 // testMods are the mods of testDataset, one or a few per rule; testDataset's bases name the
 // implicits.
 func testMods() []testMod {
-	return slices.Concat(explicitTestMods(), implicitTestMods())
+	return slices.Concat(explicitTestMods(), wardTestMods(), implicitTestMods())
 }
 
 // none weights a mod 0 everywhere.
 func none() []dataset.TagWeight { return []dataset.TagWeight{w("default", 0)} }
+
+// on weights a mod 1000 on items with tag and 0 elsewhere.
+func on(tag string) []dataset.TagWeight { return []dataset.TagWeight{w(tag, 1000), w("default", 0)} }
+
+// off weights a mod 0 on items with tag and elsewhere, as a retired mod of those items.
+func off(tag string) []dataset.TagWeight { return []dataset.TagWeight{w(tag, 0), w("default", 0)} }
 
 func explicitTestMods() []testMod {
 	return []testMod{
 		{id: "Life", stat: "base_maximum_life", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
 		// Global armour on rings: a prefix and a suffix that add up, and a Shaper mod. Ruthless
 		// only on belts. Local on strength armour.
-		{id: "Armour", stat: "armour", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
-		{id: "ArmourSuffix", stat: "armour", min: 10, max: 50, generation: 2, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
-		{id: "ShaperArmour", stat: "armour", min: 100, max: 150, generation: 1, weights: []dataset.TagWeight{w("ring_shaper", 1000), w("default", 0)}},
-		{id: "RuthlessArmour", stat: "armour", min: 10, max: 50, generation: 1, mode: 2, weights: []dataset.TagWeight{w("belt", 1000), w("default", 0)}},
-		{id: "LocalArmour", stat: "local_armour", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("str_armour", 1000), w("default", 0)}},
+		{id: "Armour", stat: "armour", min: 10, max: 50, generation: 1, weights: on("ring")},
+		{id: "ArmourSuffix", stat: "armour", min: 10, max: 50, generation: 2, weights: on("ring")},
+		{id: "ShaperArmour", stat: "armour", min: 100, max: 150, generation: 1, weights: on("ring_shaper")},
+		{id: "RuthlessArmour", stat: "armour", min: 10, max: 50, generation: 1, mode: 2, weights: on("belt")},
+		{id: "LocalArmour", stat: "local_armour", min: 10, max: 50, generation: 1, weights: on("str_armour")},
 		// A unique's global and local armour.
 		{id: "UniqueArmour", stat: "armour", min: 10, max: 50, generation: 3},
 		{id: "UniqueLocalArmour", stat: "local_armour", min: 10, max: 50, generation: 3},
 		// A unique's spirit, and spirit as another stat on rings.
 		{id: "SpiritUnique", stat: "spirit", min: 10, max: 50, generation: 3},
 		{id: "FlaskSpiritUnique", stat: "ring_spirit", min: 10, max: 50, domain: 2, generation: 3},
-		{id: "RingSpirit", stat: "ring_spirit", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
+		{id: "RingSpirit", stat: "ring_spirit", min: 10, max: 50, generation: 1, weights: on("ring")},
+	}
+}
+
+func wardTestMods() []testMod {
+	return []testMod{
 		// Ward on rings as a prefix and a suffix of one family, and a retired mod that rolled on
 		// rings and amulets.
-		{id: "Ward", stat: "ward", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
-		{id: "WardSuffix", stat: "ward", family: "Ward", min: 10, max: 50, generation: 2, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
+		{id: "Ward", stat: "ward", min: 10, max: 50, generation: 1, weights: on("ring")},
+		{id: "WardSuffix", stat: "ward", family: "Ward", min: 10, max: 50, generation: 2, weights: on("ring")},
 		{id: "OldWard", stat: "old_ward", min: 60, max: 60, generation: 1, weights: []dataset.TagWeight{w("amulet", 0), w("ring", 0), w("default", 0)}},
 		{id: "CraftedWard", stat: "crafted_ward", min: 20, max: 30, domain: 9, generation: 1, weights: none()},
-		{id: "FlaskOldWard", stat: "flask_old_ward", min: 60, max: 60, domain: 2, generation: 1, weights: []dataset.TagWeight{w("ring", 0), w("default", 0)}},
+		{id: "FlaskOldWard", stat: "flask_old_ward", min: 60, max: 60, domain: 2, generation: 1, weights: off("ring")},
 		// Ward from other sources: Delve, unveiled, elevated Shaper, Crucible and Scourge mods.
-		{id: "DelveWard", stat: "delve_ward", min: 70, max: 80, domain: 16, generation: 1, weights: none()},
-		{id: "UnveiledWard", stat: "unveiled_ward", min: 90, max: 100, domain: 28, generation: 2, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
-		{id: "ElevatedWard", stat: "elevated_ward", min: 110, max: 120, generation: 1, weights: []dataset.TagWeight{w("ring_shaper", 0), w("default", 0)}},
-		{id: "CrucibleWard", stat: "crucible_ward", min: 130, max: 130, generation: 31, weights: []dataset.TagWeight{w("dagger", 1000), w("default", 0)}},
+		{id: "DelveWard", stat: "delve_ward", min: 70, max: 80, domain: 16, generation: 1, weights: on("ring")},
+		{id: "DelveJewelWard", stat: "delve_jewel_ward", min: 70, max: 80, domain: 16, generation: 1, weights: on("jewel")},
+		{id: "JewelElevatedWard", stat: "jewel_elevated_ward", min: 110, max: 120, domain: 10, generation: 1, weights: off("ring_shaper")},
+		{id: "CrucibleUniqueWard", stat: "crucible_unique_ward", min: 170, max: 170, generation: 32, weights: none()},
+		{id: "OldUnveiledShaperWard", stat: "old_unveiled_shaper_ward", min: 190, max: 190, domain: 28, generation: 2, weights: off("ring_shaper")},
+		{id: "OldUnveiledWard", stat: "old_unveiled_ward", min: 180, max: 180, domain: 28, generation: 2, weights: off("ring")},
+		// A mod of everything but rings: the first weight whose tag the item has decides.
+		{id: "NotRingWard", stat: "not_ring_ward", min: 150, max: 160, generation: 1, weights: []dataset.TagWeight{w("ring", 0), w("default", 1000)}},
+		// Armour on rings of each influence.
+		{id: "ElderArmour", stat: "armour", min: 160, max: 170, generation: 1, weights: on("ring_elder")},
+		{id: "CrusaderArmour", stat: "armour", min: 180, max: 190, generation: 1, weights: on("ring_crusader")},
+		{id: "RedeemerArmour", stat: "armour", min: 200, max: 210, generation: 1, weights: on("ring_eyrie")},
+		{id: "HunterArmour", stat: "armour", min: 220, max: 230, generation: 1, weights: on("ring_basilisk")},
+		{id: "WarlordArmour", stat: "armour", min: 240, max: 250, generation: 1, weights: on("ring_adjudicator")},
+		{id: "UnveiledWard", stat: "unveiled_ward", min: 90, max: 100, domain: 28, generation: 2, weights: on("ring")},
+		{id: "ElevatedWard", stat: "elevated_ward", min: 110, max: 120, generation: 1, weights: off("ring_shaper")},
+		{id: "CrucibleWard", stat: "crucible_ward", min: 130, max: 130, generation: 31, weights: on("dagger")},
 		{id: "JewelCrucibleWard", stat: "jewel_crucible_ward", min: 130, max: 130, domain: 10, generation: 31, weights: none()},
 		{id: "ScourgeWard", stat: "scourge_ward", min: 140, max: 140, generation: 24, weights: []dataset.TagWeight{w("default", 1000)}},
 		// Evasion on rings, and a retired mod whose range starts at 0.
-		{id: "Evasion", stat: "evasion", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("ring", 1000), w("default", 0)}},
-		{id: "OldEvasion", stat: "old_evasion", min: 0, max: 5, generation: 1, weights: []dataset.TagWeight{w("ring", 0), w("default", 0)}},
+		{id: "Evasion", stat: "evasion", min: 10, max: 50, generation: 1, weights: on("ring")},
+		{id: "OldEvasion", stat: "old_evasion", min: 0, max: 5, generation: 1, weights: off("ring")},
 		// Mana as an item mod, a flask mod, a retired flask mod and a jewel mod.
 		{id: "Mana", stat: "mana", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
 		{id: "FlaskMana", stat: "flask_mana", min: 10, max: 50, domain: 2, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
 		{id: "OldFlaskMana", stat: "old_flask_mana", min: 60, max: 60, domain: 2, generation: 1, weights: none()},
 		{id: "JewelMana", stat: "jewel_mana", min: 10, max: 50, domain: 10, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
+		{id: "TinctureMana", stat: "tincture_mana", min: 10, max: 50, domain: 34, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
+		{id: "AbyssMana", stat: "abyss_mana", min: 10, max: 50, domain: 13, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
+		// Retired jewel mods: one naming no item kind, one naming jewels.
+		{id: "JewelOldMana", stat: "jewel_old_mana", min: 70, max: 80, domain: 10, generation: 1, weights: none()},
+		{id: "JewelRetiredMana", stat: "jewel_retired_mana", min: 70, max: 80, domain: 10, generation: 1, weights: off("jewel")},
 		// Crit as an explicit, the knife's implicit, a unique's mod and a former implicit no base
 		// has.
 		{id: "Crit", stat: "crit", min: 10, max: 50, generation: 2, weights: []dataset.TagWeight{w("default", 1000)}},
@@ -155,18 +195,21 @@ func explicitTestMods() []testMod {
 		// old eldritch implicit do.
 		{id: "OldPrefixArea", stat: "old_prefix_area", min: 10, max: 20, generation: 1, weights: none()},
 		{id: "OldCorruptedArea", stat: "old_corrupted_area", min: 10, max: 10, generation: 5, weights: none()},
+		{id: "OldEaterArea", stat: "old_eater_area", min: 30, max: 30, generation: 29, weights: none()},
 		{id: "OldEldritchArea", stat: "old_eldritch_area", min: 20, max: 20, generation: 28, weights: none()},
 		// Curses at a level the text does not show: a unique's, a corruption implicit, and two
 		// corruption implicits of different levels.
 		{id: "UniqueDespair", stat: "unique_despair", min: 100, max: 100, generation: 3},
-		{id: "CorruptedDespair", stat: "curse_despair", min: 10, max: 10, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		{id: "CorruptedEnfeeble", stat: "curse_enfeeble", min: 10, max: 10, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		{id: "CorruptedEnfeebleHigh", stat: "curse_enfeeble", min: 20, max: 20, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		{id: "CorruptedEnfeebleLow", stat: "curse_enfeeble", min: 10, max: 10, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		{id: "CorruptedFrostbite", stat: "curse_frostbite", min: 10, max: 10, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		{id: "CorruptedFrostbiteHigh", stat: "curse_frostbite", min: 20, max: 20, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
+		{id: "CorruptedDespair", stat: "curse_despair", min: 10, max: 10, generation: 5, weights: on("gloves")},
+		{id: "CorruptedEnfeeble", stat: "curse_enfeeble", min: 10, max: 10, generation: 5, weights: on("gloves")},
+		{id: "CorruptedEnfeebleHigh", stat: "curse_enfeeble", min: 20, max: 20, generation: 5, weights: on("gloves")},
+		{id: "CorruptedEnfeebleLow", stat: "curse_enfeeble", min: 10, max: 10, generation: 5, weights: on("gloves")},
+		{id: "CorruptedVulnerability", stat: "curse_vulnerability", min: 5, max: 10, generation: 5, weights: on("gloves")},
+		{id: "CorruptedFrostbite", stat: "curse_frostbite", min: 10, max: 10, generation: 5, weights: on("gloves")},
+		{id: "CorruptedFrostbiteHigh", stat: "curse_frostbite", min: 20, max: 20, generation: 5, weights: on("gloves")},
 		// Accuracy: local on weapons, and bench crafts of global and local accuracy.
-		{id: "LocalAccuracy", stat: "local_accuracy", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("weapon", 1000), w("default", 0)}},
+		{id: "WeaponAccuracy", stat: "accuracy", min: 60, max: 70, generation: 2, weights: on("dagger")},
+		{id: "LocalAccuracy", stat: "local_accuracy", min: 10, max: 50, generation: 1, weights: on("weapon")},
 		{id: "CraftedAccuracy", stat: "accuracy", min: 20, max: 30, domain: 9, generation: 2, weights: none()},
 		{id: "CraftedLocalAccuracy", stat: "local_accuracy", min: 20, max: 30, domain: 9, generation: 2, weights: none()},
 		{id: "CritImplicitOld", stat: "old_knife_crit", min: 30, max: 30, generation: 3},
@@ -177,34 +220,61 @@ func implicitTestMods() []testMod {
 	return []testMod{
 		// An eldritch implicit of gloves, and a unique's mod of the same text.
 		{id: "UniqueSpeed", stat: "unique_speed", min: 5, max: 10, generation: 3},
-		{id: "EldritchSpeed", stat: "gloves_speed", min: 5, max: 10, generation: 28, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		{id: "FlaskEldritchSpeed", stat: "flask_speed", min: 5, max: 10, domain: 2, generation: 28, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
+		{id: "EldritchSpeed", stat: "gloves_speed", min: 5, max: 10, generation: 28, weights: on("gloves")},
+		{id: "FlaskEldritchSpeed", stat: "flask_speed", min: 5, max: 10, domain: 2, generation: 28, weights: on("gloves")},
 		// Chaos resistance as an explicit, and as a corrupted implicit of gloves.
 		{id: "ChaosRes", stat: "chaos_res", min: 10, max: 20, generation: 2, weights: []dataset.TagWeight{w("default", 1000)}},
 		{
 			id: "FlaskCorruptedChaosRes", stat: "flask_corrupted_chaos_res", min: 10, max: 20, domain: 2, generation: 5,
-			weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)},
+			weights: on("gloves"),
 		},
-		{id: "CorruptedChaosRes", stat: "corrupted_chaos_res", min: 10, max: 20, generation: 5, weights: []dataset.TagWeight{w("gloves", 1000), w("default", 0)}},
-		// Bench crafts of global and local energy shield, and local energy shield rolling on strength armour.
+		{id: "EaterChaosRes", stat: "eater_chaos_res", min: 21, max: 25, generation: 29, weights: on("gloves")},
+		{id: "CorruptedChaosRes", stat: "corrupted_chaos_res", min: 10, max: 20, generation: 5, weights: on("gloves")},
+		// Bench crafts of global and local energy shield, and local energy shield rolling on
+		// strength armour.
 		{id: "CraftedEnergyShield", stat: "energy_shield", min: 20, max: 30, domain: 9, generation: 1, weights: none()},
 		{id: "CraftedLocalEnergyShield", stat: "local_energy_shield", min: 20, max: 30, domain: 9, generation: 1, weights: none()},
-		{id: "LocalEnergyShield", stat: "local_energy_shield", min: 5, max: 15, generation: 1, weights: []dataset.TagWeight{w("str_armour", 1000), w("default", 0)}},
+		{id: "LocalEnergyShield", stat: "local_energy_shield", min: 5, max: 15, generation: 1, weights: on("str_armour")},
 		// An essence's local energy shield, and a retired belt mod.
 		{id: "EssenceLocalEnergyShield", stat: "local_energy_shield", min: 40, max: 50, generation: 1, weights: none()},
+		{id: "RecombinatorEnergyShield", stat: "recombinator_energy_shield", min: 26, max: 35, generation: 1, weights: none()},
 		{id: "EssenceEnergyShield", stat: "essence_energy_shield", min: 26, max: 35, generation: 1, weights: none()},
-		{id: "OldBeltEnergyShield", stat: "old_energy_shield", min: 25, max: 25, generation: 1, weights: []dataset.TagWeight{w("belt", 0), w("default", 0)}},
+		{id: "OldBeltEnergyShield", stat: "old_energy_shield", min: 25, max: 25, generation: 1, weights: off("belt")},
 		// Skill damage as an explicit, a helmet enchantment and an anointment.
 		{id: "SkillDamage", stat: "skill_damage", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
-		{id: "EnchantDamage", stat: "enchant_damage", min: 10, max: 20, generation: 10, weights: []dataset.TagWeight{w("helmet", 1000), w("default", 0)}},
-		{id: "EnchantVolley", stat: "volleys", min: 1, max: 1, generation: 10, weights: []dataset.TagWeight{w("helmet", 1000), w("default", 0)}},
+		{id: "EnchantDamage", stat: "enchant_damage", min: 10, max: 20, generation: 10, weights: on("helmet")},
+		{id: "EnchantVolley", stat: "volleys", min: 1, max: 1, generation: 10, weights: on("helmet")},
+		{id: "CraftEnchantDamage", stat: "craft_enchant_damage", min: 40, max: 40, generation: 3},
 		{id: "OldEnchantDamage", stat: "old_enchant_damage", min: 25, max: 25, generation: 10, weights: none()},
-		{id: "FlaskEnchantDamage", stat: "flask_enchant_damage", min: 10, max: 20, generation: 21, weights: []dataset.TagWeight{w("flask", 1000), w("default", 0)}},
+		{id: "FlaskEnchantDamage", stat: "flask_enchant_damage", min: 10, max: 20, generation: 21, weights: on("flask")},
 		{id: "AnointDamage", stat: "anoint_damage", min: 10, max: 20, generation: 19},
 		// The Twin Rings' implicits.
 		{id: "FireImplicit", stat: "fire_res", min: 10, max: 50, generation: 3},
 		{id: "ColdImplicit", stat: "cold_res", min: 10, max: 50, generation: 3},
 		{id: "FireImplicitHigh", stat: "fire_res", min: 60, max: 70, generation: 3},
+	}
+}
+
+// testBases are the bases of testDataset, each with its full tag list: its own, then those its
+// templates give it.
+func testBases() []dataset.ItemBase {
+	return []dataset.ItemBase{
+		{ID: hatBase, Class: "Helmet", Tags: []string{"str_armour", "helmet", "armour", "default"}, Armour: &dataset.ArmourValues{}},
+		{ID: glovesBase, Class: "Gloves", Tags: []string{"gloves", "armour", "default"}, Armour: &dataset.ArmourValues{}},
+		{ID: ringBase, Class: "Ring", Tags: []string{"ring", "default"}},
+		{ID: amuletBase, Class: "Amulet", Tags: []string{"amulet", "default"}},
+		{ID: beltBase, Class: "Belt", Tags: []string{"belt", "default"}},
+		{ID: knifeBase, Class: "Dagger", Tags: []string{"dagger", "weapon", "default"}, Implicits: []string{"CritImplicitKnife"}, Weapon: &dataset.WeaponValues{}},
+		{ID: flaskBase, Class: "LifeFlask", Tags: []string{"flask", "default"}},
+		{ID: jewelBase, Class: "Jewel", Tags: []string{"jewel", "default"}},
+		{ID: manaFlaskBase, Class: "ManaFlask", Tags: []string{"flask", "default"}},
+		{ID: hybridFlaskBase, Class: "HybridFlask", Tags: []string{"flask", "default"}},
+		{ID: utilityFlaskBase, Class: "UtilityFlask", Tags: []string{"flask", "default"}},
+		{ID: tinctureBase, Class: "Tincture", Tags: []string{"tincture", "default"}},
+		{ID: abyssJewelBase, Class: "AbyssJewel", Tags: []string{"abyss_jewel", "default"}},
+		{ID: twinFire, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicit"}},
+		{ID: twinCold, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"ColdImplicit"}},
+		{ID: twinFireHigh, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicitHigh"}},
 	}
 }
 
@@ -217,24 +287,14 @@ func testDataset() *dataset.Dataset {
 		Items: &dataset.Items{
 			Classes: []dataset.ItemClass{
 				{ID: "Helmet"}, {ID: "Gloves"}, {ID: "Ring"}, {ID: "Amulet"}, {ID: "Belt"}, {ID: "Dagger"}, {ID: "LifeFlask"}, {ID: "Jewel"},
+				{ID: "ManaFlask"}, {ID: "HybridFlask"}, {ID: "UtilityFlask"}, {ID: "Tincture"}, {ID: "AbyssJewel"},
 			},
 			Tags: []string{
-				"str_armour", "helmet", "gloves", "armour", "ring", "ring_shaper", "amulet", "belt", "dagger", "weapon", "flask", "jewel", "default",
+				"str_armour", "helmet", "gloves", "armour", "ring", "amulet", "belt", "dagger", "weapon", "flask", "jewel", "tincture",
+				"abyss_jewel", "default",
+				"ring_shaper", "ring_elder", "ring_crusader", "ring_eyrie", "ring_basilisk", "ring_adjudicator",
 			},
-			// Each base's full tag list: its own, then those its templates give it.
-			Bases: []dataset.ItemBase{
-				{ID: hatBase, Class: "Helmet", Tags: []string{"str_armour", "helmet", "armour", "default"}, Armour: &dataset.ArmourValues{}},
-				{ID: glovesBase, Class: "Gloves", Tags: []string{"gloves", "armour", "default"}, Armour: &dataset.ArmourValues{}},
-				{ID: ringBase, Class: "Ring", Tags: []string{"ring", "default"}},
-				{ID: amuletBase, Class: "Amulet", Tags: []string{"amulet", "default"}},
-				{ID: beltBase, Class: "Belt", Tags: []string{"belt", "default"}},
-				{ID: knifeBase, Class: "Dagger", Tags: []string{"dagger", "weapon", "default"}, Implicits: []string{"CritImplicitKnife"}, Weapon: &dataset.WeaponValues{}},
-				{ID: flaskBase, Class: "LifeFlask", Tags: []string{"flask", "default"}},
-				{ID: jewelBase, Class: "Jewel", Tags: []string{"jewel", "default"}},
-				{ID: twinFire, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicit"}},
-				{ID: twinCold, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"ColdImplicit"}},
-				{ID: twinFireHigh, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicitHigh"}},
-			},
+			Bases: testBases(),
 		},
 	}
 	stats := testStats()
@@ -265,6 +325,9 @@ func testDataset() *dataset.Dataset {
 			{ID: hatBase, Name: "Iron Hat"}, {ID: glovesBase, Name: "Iron Gloves"}, {ID: ringBase, Name: "Iron Ring"},
 			{ID: amuletBase, Name: "Iron Amulet"}, {ID: beltBase, Name: "Iron Belt"}, {ID: knifeBase, Name: "Knife"},
 			{ID: flaskBase, Name: "Iron Flask"}, {ID: jewelBase, Name: "Iron Jewel"},
+			{ID: manaFlaskBase, Name: "Iron Mana Flask"}, {ID: hybridFlaskBase, Name: "Iron Hybrid Flask"},
+			{ID: utilityFlaskBase, Name: "Iron Utility Flask"}, {ID: tinctureBase, Name: "Iron Tincture"},
+			{ID: abyssJewelBase, Name: "Iron Abyss Jewel"},
 			{ID: twinFire, Name: "Twin Ring"}, {ID: twinCold, Name: "Twin Ring"}, {ID: twinFireHigh, Name: "Twin Ring"},
 		},
 	}}
@@ -655,6 +718,114 @@ func TestParse(t *testing.T) {
 			"Rarity: RARE\nX\nIron Gloves\nImplicits: 1\nCurse Enemies with Frostbite on Hit\nCorrupted\n",
 			rare(glovesBase, line(build.Implicit, "Curse Enemies with Frostbite on Hit", "curse_frostbite", 20), "Corrupted"),
 			[]build.Code{items.ValueAssumed},
+		},
+		{
+			"an eater implicit",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 1\n+23% to Chaos Resistance\n",
+			rare(glovesBase, line(build.Implicit, "+23% to Chaos Resistance", "eater_chaos_res", 23)),
+			nil,
+		},
+		{
+			"an old eater implicit as a former implicit",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 1\n30% increased Area of Effect\n",
+			rare(glovesBase, line(build.Implicit, "30% increased Area of Effect", "old_eater_area", 30)),
+			nil,
+		},
+		{
+			"a mod whose first weight the ring has is 0: not on rings",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+155 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+155 to Ward", "ward", 155)),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+		},
+		{
+			"an Elder ring's mod",
+			"Rarity: RARE\nX\nIron Ring\nElder Item\nImplicits: 0\n+165 to Armour\n",
+			rare(ringBase, line(build.Explicit, "+165 to Armour", "armour", 165), "Elder Item"),
+			nil,
+		},
+		{
+			"a Crusader ring's mod",
+			"Rarity: RARE\nX\nIron Ring\nCrusader Item\nImplicits: 0\n+185 to Armour\n",
+			rare(ringBase, line(build.Explicit, "+185 to Armour", "armour", 185), "Crusader Item"),
+			nil,
+		},
+		{
+			"a Redeemer ring's mod",
+			"Rarity: RARE\nX\nIron Ring\nRedeemer Item\nImplicits: 0\n+205 to Armour\n",
+			rare(ringBase, line(build.Explicit, "+205 to Armour", "armour", 205), "Redeemer Item"),
+			nil,
+		},
+		{
+			"a Hunter ring's mod",
+			"Rarity: RARE\nX\nIron Ring\nHunter Item\nImplicits: 0\n+225 to Armour\n",
+			rare(ringBase, line(build.Explicit, "+225 to Armour", "armour", 225), "Hunter Item"),
+			nil,
+		},
+		{
+			"a Warlord ring's mod",
+			"Rarity: RARE\nX\nIron Ring\nWarlord Item\nImplicits: 0\n+245 to Armour\n",
+			rare(ringBase, line(build.Explicit, "+245 to Armour", "armour", 245), "Warlord Item"),
+			nil,
+		},
+		{
+			"a crafted line does not read given mods",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 0\n{crafted}+45 to maximum Energy Shield\n",
+			rare(glovesBase, line(build.Crafted, "+45 to maximum Energy Shield", "energy_shield", 45)),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
+		},
+		{
+			"an exact Crucible mod of a unique, as retired",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+170 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+170 to Ward", "crucible_unique_ward", 170)),
+			nil,
+		},
+		{
+			"a retired unveiled mod",
+			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n+180 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+180 to Ward", "old_unveiled_ward", 180)),
+			nil,
+		},
+		{
+			"a level the text does not show, from a mod's range: its high end",
+			"Rarity: RARE\nX\nIron Gloves\nImplicits: 1\nCurse Enemies with Vulnerability on Hit\nCorrupted\n",
+			rare(glovesBase, line(build.Implicit, "Curse Enemies with Vulnerability on Hit", "curse_vulnerability", 10), "Corrupted"),
+			nil,
+		},
+		{
+			"no essence stand-in of a jewel's domain: retired mods, the game's order, with a warning",
+			"Rarity: RARE\nX\nIron Jewel\nImplicits: 0\n+75 to maximum Mana\n",
+			rare(jewelBase, line(build.Explicit, "+75 to maximum Mana", "jewel_old_mana", 75)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"no essence stand-in of the item domain on a jewel: a bench craft out of range",
+			"Rarity: RARE\nX\nIron Jewel\nImplicits: 0\n+33 to maximum Energy Shield\n",
+			rare(jewelBase, line(build.Explicit, "+33 to maximum Energy Shield", "energy_shield", 33)),
+			[]build.Code{items.RollOutOfRange},
+		},
+		{
+			"without the dataset's bench crafts, no bench enchantment",
+			"Rarity: RARE\nX\nIron Belt\nImplicits: 1\n{enchant}40% increased Skill Damage\n",
+			rare(beltBase, line(build.Enchant, "40% increased Skill Damage", "skill_damage", 40)),
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"no elevated mod on a normal item",
+			"Rarity: NORMAL\nIron Ring\nShaper Item\nImplicits: 0\n+115 to Ward\n",
+			build.Item{Rarity: build.Normal, Base: ringBase, Flags: []string{"Shaper Item"}, Mods: []build.ModLine{line(build.Explicit, "+115 to Ward", "ward", 115)}},
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"no essence mod on a normal item",
+			"Rarity: NORMAL\nIron Gloves\nImplicits: 0\n+45 to maximum Energy Shield\n",
+			build.Item{Rarity: build.Normal, Base: glovesBase, Mods: []build.ModLine{line(build.Explicit, "+45 to maximum Energy Shield", "energy_shield", 45)}},
+			[]build.Code{items.LineAmbiguous},
+		},
+		{
+			"a retired mod named by a tag an influence gives is not retired on that item",
+			"Rarity: RARE\nX\nIron Ring\nShaper Item\nImplicits: 0\n+190 to Ward\n",
+			rare(ringBase, line(build.Explicit, "+190 to Ward", "ward", 190), "Shaper Item"),
+			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
 		},
 		{
 			"bases of one name: the one whose implicit reads the line",

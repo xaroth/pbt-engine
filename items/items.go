@@ -46,11 +46,30 @@ const statScope = "Metadata/StatDescriptions/stat_descriptions.txt"
 
 // Reader reads item text with one dataset. It is safe for concurrent use.
 type Reader struct {
-	set     *statdesc.Set
-	bases   map[string]*dataset.ItemBase
-	byName  map[string][]*dataset.ItemBase
-	mods    modIndex
-	version string
+	set      *statdesc.Set
+	bases    map[string]*dataset.ItemBase
+	byName   map[string][]*dataset.ItemBase
+	mods     modIndex
+	crafting crafting
+	version  string
+}
+
+// crafting is where bench crafts and essences put their mods: item classes by mod id. known is
+// false for a dataset that does not hold them.
+type crafting struct {
+	known          bool
+	bench, essence map[string][]string
+}
+
+func newCrafting(it *dataset.Items) crafting {
+	c := crafting{known: it.Crafting, bench: map[string][]string{}, essence: map[string][]string{}}
+	for _, m := range it.BenchCrafts {
+		c.bench[m.Mod] = m.Classes
+	}
+	for _, m := range it.EssenceMods {
+		c.essence[m.Mod] = m.Classes
+	}
+	return c
 }
 
 // NewReader indexes the items group, the stats and the English stat descriptions of s. A
@@ -78,7 +97,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		mods: indexMods(mods, stats), version: s.Manifest().Version,
+		mods: indexMods(mods, stats), crafting: newCrafting(it), version: s.Manifest().Version,
 	}
 	r.index(it.Bases, text.BaseNames)
 	return r, nil
