@@ -66,7 +66,7 @@ func Open(fsys fs.FS) (*Store, error) {
 			return nil, err
 		}
 	}
-	for _, name := range []string{charactersFile, constantsFile, questsFile, statsFile} {
+	for _, name := range []string{CharactersFile, ConstantsFile, QuestsFile, StatsFile} {
 		if _, ok := s.files[name]; !ok {
 			return nil, fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
 		}
@@ -80,9 +80,9 @@ func Open(fsys fs.FS) (*Store, error) {
 	s.characters = sync.OnceValues(s.loadCharacters)
 	s.constants = sync.OnceValues(s.loadConstants)
 	s.quests = sync.OnceValues(s.loadQuests)
-	_, hasItems := s.files[itemsFile]
-	if _, hasMods := s.files[modsFile]; hasItems != hasMods {
-		return nil, fmt.Errorf("%s: items group needs both %s and %s: %w", ManifestName, itemsFile, modsFile, ErrInvalid)
+	_, hasItems := s.files[ItemsFile]
+	if _, hasMods := s.files[ModsFile]; hasItems != hasMods {
+		return nil, fmt.Errorf("%s: items group needs both %s and %s: %w", ManifestName, ItemsFile, ModsFile, ErrInvalid)
 	}
 	s.items = sync.OnceValues(s.loadItems)
 	s.mods = sync.OnceValues(s.loadMods)
@@ -184,14 +184,14 @@ func registerFile(s *Store, f File) error {
 // isSingleFile reports whether name is the file of a group that has one file per dataset.
 func isSingleFile(name string) bool {
 	switch name {
-	case statsFile, charactersFile, constantsFile, questsFile, itemsFile, modsFile, skillsFile, buffsFile, monstersFile:
+	case StatsFile, CharactersFile, ConstantsFile, QuestsFile, ItemsFile, ModsFile, SkillsFile, BuffsFile, MonstersFile:
 		return true
 	}
 	return false
 }
 
 func (s *Store) loadStats() (statsGroup, error) {
-	return readGroup(s, statsFile, func(b []byte) (statsGroup, error) {
+	return readGroup(s, StatsFile, func(b []byte) (statsGroup, error) {
 		stats, err := decodeStats(b)
 		if err != nil {
 			return statsGroup{}, err
@@ -206,7 +206,7 @@ func (s *Store) loadCharacters() ([]Character, error) {
 	if err != nil {
 		return nil, err
 	}
-	cs, err := readGroup(s, charactersFile, func(b []byte) ([]Character, error) { return decodeCharacters(b, st.index) })
+	cs, err := readGroup(s, CharactersFile, func(b []byte) ([]Character, error) { return decodeCharacters(b, st.index) })
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (s *Store) loadCharacters() ([]Character, error) {
 }
 
 func (s *Store) loadConstants() ([]Constant, error) {
-	cs, err := readGroup(s, constantsFile, decodeConstants)
+	cs, err := readGroup(s, ConstantsFile, decodeConstants)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (s *Store) loadQuests() ([]Quest, error) {
 	if err != nil {
 		return nil, err
 	}
-	qs, err := readGroup(s, questsFile, func(b []byte) ([]Quest, error) { return decodeQuests(b, st.index) })
+	qs, err := readGroup(s, QuestsFile, func(b []byte) ([]Quest, error) { return decodeQuests(b, st.index) })
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (s *Store) loadTree(variant string) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	name := treePrefix + variant + fbSuffix
+	name := TreeFile(variant)
 	t, err := readGroup(s, name, func(b []byte) (Tree, error) { return decodeTree(b, st.index) })
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (s *Store) loadText(language string) (*Text, error) {
 	if err != nil {
 		return nil, err
 	}
-	name := textPrefix + language + fbSuffix
+	name := TextFile(language)
 	t, err := readGroup(s, name, decodeText)
 	if err != nil {
 		return nil, err

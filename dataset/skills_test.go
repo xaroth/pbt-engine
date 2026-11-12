@@ -432,7 +432,7 @@ func TestSkillNamesWriteErrors(t *testing.T) {
 
 // skillsFile builds a skills file with the given active skills, each restricted to the item
 // class index weapon, for layouts Write never produces.
-func skillsFile(actives []string, weapon uint16, classes []string) []byte {
+func SkillsFile(actives []string, weapon uint16, classes []string) []byte {
 	b := flatbuffers.NewBuilder(0)
 	offs := make([]flatbuffers.UOffsetT, len(actives))
 	for i, a := range actives {
@@ -483,10 +483,10 @@ func TestSkillsReadErrors(t *testing.T) {
 		{name: "truncated", want: "skills.fb: malformed", fsys: replaced("skills.fb", skills[:len(skills)/2])},
 		{name: "wrong identifier", want: "skills.fb: wrong file identifier", fsys: replaced("skills.fb", good["constants.fb"].Data)},
 		{name: "stat not in stats group", want: `skills.fb: unknown stat "display_minion_monster_type"`, fsys: replaced("stats.fb", fewStats)},
-		{name: "index out of range", want: "skills.fb: item class 1 out of range (1)", fsys: replaced("skills.fb", skillsFile([]string{"a"}, 1, []string{"Staff"}))},
+		{name: "index out of range", want: "skills.fb: item class 1 out of range (1)", fsys: replaced("skills.fb", SkillsFile([]string{"a"}, 1, []string{"Staff"}))},
 		{
 			name: "fails validation", want: "skills.fb: active skill a repeated",
-			fsys: replaced("skills.fb", skillsFile([]string{"a", "a"}, 0, []string{"Staff"})),
+			fsys: replaced("skills.fb", SkillsFile([]string{"a", "a"}, 0, []string{"Staff"})),
 		},
 	}
 	for _, testCase := range testCases {

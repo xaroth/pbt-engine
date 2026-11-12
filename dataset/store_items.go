@@ -11,7 +11,7 @@ func (s *Store) Items() (*Items, error) { return s.items() }
 func (s *Store) Mods() ([]Mod, error) { return s.mods() }
 
 func (s *Store) missingItems() error {
-	if _, ok := s.files[itemsFile]; ok {
+	if _, ok := s.files[ItemsFile]; ok {
 		return nil
 	}
 	return &MissingGroupError{Version: s.manifest.Version, Group: "items"}
@@ -21,7 +21,7 @@ func (s *Store) loadItems() (*Items, error) {
 	if err := s.missingItems(); err != nil {
 		return nil, err
 	}
-	it, err := readGroup(s, itemsFile, decodeItems)
+	it, err := readGroup(s, ItemsFile, decodeItems)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (s *Store) loadMods() ([]Mod, error) {
 	if err != nil {
 		return nil, err
 	}
-	mods, err := readGroup(s, modsFile, func(b []byte) ([]Mod, error) { return decodeMods(b, st.index, it.Tags) })
+	mods, err := readGroup(s, ModsFile, func(b []byte) ([]Mod, error) { return decodeMods(b, st.index, it.Tags) })
 	if err != nil {
 		return nil, err
 	}

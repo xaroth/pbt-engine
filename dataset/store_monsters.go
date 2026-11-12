@@ -8,15 +8,15 @@ import "fmt"
 func (s *Store) Monsters() (*Monsters, error) { return s.monsters() }
 
 func (s *Store) checkMonstersFiles() error {
-	_, hasMonsters := s.files[monstersFile]
-	if _, hasSkills := s.files[skillsFile]; hasMonsters && !hasSkills {
-		return fmt.Errorf("%s: %s needs %s: %w", ManifestName, monstersFile, skillsFile, ErrInvalid)
+	_, hasMonsters := s.files[MonstersFile]
+	if _, hasSkills := s.files[SkillsFile]; hasMonsters && !hasSkills {
+		return fmt.Errorf("%s: %s needs %s: %w", ManifestName, MonstersFile, SkillsFile, ErrInvalid)
 	}
 	return nil
 }
 
 func (s *Store) loadMonsters() (*Monsters, error) {
-	if _, ok := s.files[monstersFile]; !ok {
+	if _, ok := s.files[MonstersFile]; !ok {
 		return nil, &MissingGroupError{Version: s.manifest.Version, Group: "monsters"}
 	}
 	st, err := s.stats()
@@ -27,13 +27,13 @@ func (s *Store) loadMonsters() (*Monsters, error) {
 	if err != nil {
 		return nil, err
 	}
-	m, err := readGroup(s, monstersFile, func(b []byte) (Monsters, error) { return decodeMonsters(b, st.index) })
+	m, err := readGroup(s, MonstersFile, func(b []byte) (Monsters, error) { return decodeMonsters(b, st.index) })
 	if err != nil {
 		return nil, err
 	}
 	effects, _ := idSet("granted effect", sk.GrantedEffects, grantedEffectID)
 	if err := validateMonsters(len(st.stats), effects, &m); err != nil {
-		return nil, fmt.Errorf("%s: %w", monstersFile, err)
+		return nil, fmt.Errorf("%s: %w", MonstersFile, err)
 	}
 	return &m, nil
 }

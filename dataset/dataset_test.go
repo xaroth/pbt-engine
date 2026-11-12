@@ -446,7 +446,7 @@ func TestWriteErrors(t *testing.T) {
 
 // charactersFile builds a characters file with one character whose stats use the given file
 // indexes, for layouts Write never produces.
-func charactersFile(ids []string, stats []uint32) []byte {
+func CharactersFile(ids []string, stats []uint32) []byte {
 	b := flatbuffers.NewBuilder(0)
 	idOffs := make([]flatbuffers.UOffsetT, len(ids))
 	for i, id := range ids {
@@ -551,15 +551,15 @@ func TestReadErrors(t *testing.T) {
 		{name: "stats too few for characters", want: `characters.fb: unknown stat "base_maximum_all_resistances_%"`, fsys: replace(0, oneStatBytes)},
 		{
 			name: "stat ids unsorted", want: `characters.fb: stat ids not sorted and unique at "level"`,
-			fsys: replace(1, charactersFile([]string{"life_per_level", "level"}, []uint32{0})),
+			fsys: replace(1, CharactersFile([]string{"life_per_level", "level"}, []uint32{0})),
 		},
 		{
 			name: "stat id repeated", want: `characters.fb: stat ids not sorted and unique at "level"`,
-			fsys: replace(1, charactersFile([]string{"level", "level"}, []uint32{0, 1})),
+			fsys: replace(1, CharactersFile([]string{"level", "level"}, []uint32{0, 1})),
 		},
 		{
 			name: "stat index out of range", want: "characters.fb: character Metadata/Characters/Str/Str: stat 2 out of range (2 ids)",
-			fsys: replace(1, charactersFile([]string{"level", "life_per_level"}, []uint32{2})),
+			fsys: replace(1, CharactersFile([]string{"level", "life_per_level"}, []uint32{2})),
 		},
 		{
 			name: "capability at default version", want: `capability "armour": version 1`, is: dataset.ErrInvalid,

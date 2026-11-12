@@ -15,7 +15,7 @@ func (d *Dataset) itemsGroup() []group {
 	if d.Items == nil {
 		return nil
 	}
-	return []group{{itemsFile, encodeItems(d.Items)}, {modsFile, encodeMods(d.Stats, d.Mods)}}
+	return []group{{ItemsFile, encodeItems(d.Items)}, {ModsFile, encodeMods(d.Stats, d.Mods)}}
 }
 
 // encodeItems writes it; Write validates it first, so every class and tag a base names exists.

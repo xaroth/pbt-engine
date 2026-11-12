@@ -16,7 +16,7 @@ func (d *Dataset) buffsGroup() []group {
 	if d.Buffs == nil {
 		return nil
 	}
-	return []group{{buffsFile, encodeBuffs(d.Stats, d.Buffs)}}
+	return []group{{BuffsFile, encodeBuffs(d.Stats, d.Buffs)}}
 }
 
 // buffStats returns the stat handles b uses.
