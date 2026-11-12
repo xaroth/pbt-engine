@@ -352,6 +352,12 @@ func (r *Reader) benchCraft(t target) func(*dataset.Mod) bool {
 	}
 }
 
+// listedEssence reports whether the dataset lists m as an essence mod, which counts only where
+// it lists it (see essence).
+func (r *Reader) listedEssence(m *dataset.Mod) bool {
+	return r.crafting.known && r.crafting.essence[m.ID] != nil
+}
+
 // formerCraft is a crafted mod of a magic or rare item like t that the bench no longer offers:
 // one the dataset's bench crafts do not list. The dataset does not say which items it went on,
 // so one with a local stat counts on armour and weapons only. Without the list every craft is
@@ -365,10 +371,12 @@ func (r *Reader) enchantCraft(m *dataset.Mod, t target) bool {
 	return m.Domain != domainCrafted && slices.Contains(r.crafting.bench[m.ID], t.base.Class)
 }
 
-// fitsStandIn reports whether t can take m while the dataset does not say which items a bench
-// craft or an essence applies to: a mod with a local stat only on armour and weapons.
+// fitsStandIn reports whether t can take m where nothing says which items m goes on: a mod with
+// a local stat only on armour and weapons, or in the item's own domain other than the item
+// domain, such as a flask's mods, whose local stats are the flask's.
 func (r *Reader) fitsStandIn(m *dataset.Mod, t target) bool {
-	return t.base.Armour != nil || t.base.Weapon != nil || !slices.ContainsFunc(r.mods.stats[m], isLocal)
+	return t.base.Armour != nil || t.base.Weapon != nil || m.Domain == t.domain && t.domain != domainItem ||
+		!slices.ContainsFunc(r.mods.stats[m], isLocal)
 }
 
 // namesNoKind reports whether m's weights name no tag but "default".
@@ -381,11 +389,7 @@ func namesNoKind(m *dataset.Mod) bool {
 // of mods and mods of retired crafting, but not an essence mod (see essence). Weights on a tag
 // an influence gives are elevated mods (see elevated).
 func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
-	if !magicOrRare(t) || !affix(m) || !affixDomain(m, t) || len(m.SpawnWeights) == 0 || spawns(m) {
-		return false
-	}
-	if r.crafting.known && r.crafting.essence[m.ID] != nil {
-		// An essence mod counts only where the dataset lists it.
+	if !retiredAffixOf(m, t) || r.listedEssence(m) {
 		return false
 	}
 	if namesNoKind(m) {
@@ -397,6 +401,12 @@ func (r *Reader) retiredAffix(m *dataset.Mod, t target) bool {
 	return slices.ContainsFunc(m.SpawnWeights, func(w dataset.TagWeight) bool {
 		return w.Tag != defaultTag && slices.Contains(t.base.Tags, w.Tag)
 	})
+}
+
+// retiredAffixOf reports whether m is a prefix or suffix of a magic or rare item like t, of its
+// domains, with spawn weights that are all 0.
+func retiredAffixOf(m *dataset.Mod, t target) bool {
+	return magicOrRare(t) && affix(m) && affixDomain(m, t) && len(m.SpawnWeights) > 0 && !spawns(m)
 }
 
 // passiveTreeMod is a Crucible or Scourge mod of t's domain. Neither can be added today, so they

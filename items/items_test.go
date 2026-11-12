@@ -73,7 +73,8 @@ func testStats() [][2]string {
 		{"essence_ring_ward", "+{0} to Ward"},
 		{"delve_jewel_ward", "+{0} to Ward"}, {"jewel_elevated_ward", "+{0} to Ward"}, {"old_unveiled_shaper_ward", "+{0} to Ward"},
 		{"mana", "+{0} to maximum Mana"}, {"flask_mana", "+{0} to maximum Mana"}, {"old_flask_mana", "+{0} to maximum Mana"},
-		{"jewel_mana", "+{0} to maximum Mana"}, {"tincture_mana", "+{0} to maximum Mana"}, {"abyss_mana", "+{0} to maximum Mana"},
+		{"jewel_mana", "+{0} to maximum Mana"},
+		{"local_flask_mana", "+{0} to maximum Mana"}, {"tincture_mana", "+{0} to maximum Mana"}, {"abyss_mana", "+{0} to maximum Mana"},
 		{"jewel_old_mana", "+{0} to maximum Mana"}, {"jewel_retired_mana", "+{0} to maximum Mana"},
 		{"crit", "{0}% increased Critical Strike Chance"}, {"flask_old_crit", "{0}% increased Critical Strike Chance"},
 		// A number written into the text: the reader gives the stat a filler value.
@@ -117,7 +118,7 @@ func w(tag string, weight int32) dataset.TagWeight {
 // testMods are the mods of testDataset, one or a few per rule; testDataset's bases name the
 // implicits.
 func testMods() []testMod {
-	return slices.Concat(explicitTestMods(), wardTestMods(), otherWardTestMods(), implicitTestMods())
+	return slices.Concat(explicitTestMods(), wardTestMods(), otherWardTestMods(), moreWardTestMods(), implicitTestMods())
 }
 
 // none weights a mod 0 everywhere.
@@ -170,6 +171,11 @@ func otherWardTestMods() []testMod {
 		{id: "CrucibleUniqueWard", stat: "crucible_unique_ward", min: 170, max: 170, generation: 32, weights: none()},
 		{id: "OldUnveiledShaperWard", stat: "old_unveiled_shaper_ward", min: 190, max: 190, domain: 28, generation: 2, weights: off("ring_shaper")},
 		{id: "OldUnveiledWard", stat: "old_unveiled_ward", min: 180, max: 180, domain: 28, generation: 2, weights: off("ring")},
+	}
+}
+
+func moreWardTestMods() []testMod {
+	return []testMod{
 		// A mod of everything but rings: the first weight whose tag the item has decides.
 		{id: "NotRingWard", stat: "not_ring_ward", min: 150, max: 160, generation: 1, weights: []dataset.TagWeight{w("ring", 0), w("default", 1000)}},
 		// Armour on rings of each influence.
@@ -202,6 +208,7 @@ func otherWardTestMods() []testMod {
 		// Mana as an item mod, a flask mod, a retired flask mod and a jewel mod.
 		{id: "Mana", stat: "mana", min: 10, max: 50, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
 		{id: "FlaskMana", stat: "flask_mana", min: 10, max: 50, domain: 2, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
+		{id: "OldLocalFlaskMana", stat: "local_flask_mana", min: 90, max: 90, domain: 2, generation: 1, weights: none()},
 		{id: "OldFlaskMana", stat: "old_flask_mana", min: 60, max: 60, domain: 2, generation: 1, weights: none()},
 		{id: "JewelMana", stat: "jewel_mana", min: 10, max: 50, domain: 10, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
 		{id: "TinctureMana", stat: "tincture_mana", min: 10, max: 50, domain: 34, generation: 1, weights: []dataset.TagWeight{w("default", 1000)}},
@@ -688,19 +695,19 @@ func TestParse(t *testing.T) {
 		{
 			"a flask enchantment",
 			"Rarity: MAGIC\nIron Flask\nImplicits: 1\n{enchant}15% increased Skill Damage\n",
-			magic("Iron Flask", flaskBase, line(build.Enchant, "15% increased Skill Damage", "flask_enchant_damage", 15)),
+			magicFlask(line(build.Enchant, "15% increased Skill Damage", "flask_enchant_damage", 15)),
 			nil,
 		},
 		{
 			"a flask's mod of the flask domain",
 			"Rarity: MAGIC\nIron Flask\nImplicits: 0\n+30 to maximum Mana\n",
-			magic("Iron Flask", flaskBase, line(build.Explicit, "+30 to maximum Mana", "flask_mana", 30)),
+			magicFlask(line(build.Explicit, "+30 to maximum Mana", "flask_mana", 30)),
 			nil,
 		},
 		{
 			"a retired flask mod weighted on default only",
 			"Rarity: MAGIC\nIron Flask\nImplicits: 0\n+60 to maximum Mana\n",
-			magic("Iron Flask", flaskBase, line(build.Explicit, "+60 to maximum Mana", "old_flask_mana", 60)),
+			magicFlask(line(build.Explicit, "+60 to maximum Mana", "old_flask_mana", 60)),
 			nil,
 		},
 		{
@@ -896,6 +903,12 @@ func TestParse(t *testing.T) {
 			[]build.Code{items.LineAmbiguous, items.RollOutOfRange},
 		},
 		{
+			"a retired flask mod with a local stat, on a flask",
+			"Rarity: MAGIC\nIron Flask\nImplicits: 0\n+90 to maximum Mana\n",
+			magicFlask(line(build.Explicit, "+90 to maximum Mana", "local_flask_mana", 90)),
+			nil,
+		},
+		{
 			"bases of one name: the one whose implicit reads the line",
 			"Rarity: NORMAL\nTwin Ring\nImplicits: 1\n+20% to Cold Resistance\n",
 			twin(twinCold, line(build.Implicit, "+20% to Cold Resistance", "cold_res", 20)),
@@ -952,9 +965,9 @@ func rare(base string, l build.ModLine, flags ...string) build.Item {
 	return build.Item{Rarity: build.Rare, Name: "X", Base: base, Flags: flags, Mods: []build.ModLine{l}}
 }
 
-// magic is a magic item named name of base with one line.
-func magic(name, base string, l build.ModLine) build.Item {
-	return build.Item{Rarity: build.Magic, Name: name, Base: base, Mods: []build.ModLine{l}}
+// magicFlask is a magic Iron Flask with one line.
+func magicFlask(l build.ModLine) build.Item {
+	return build.Item{Rarity: build.Magic, Name: "Iron Flask", Base: flaskBase, Mods: []build.ModLine{l}}
 }
 
 // unique is a unique item named "X" of base with one line.
