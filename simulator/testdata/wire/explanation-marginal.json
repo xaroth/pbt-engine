@@ -72,7 +72,8 @@
     {
       "source": {
         "kind": "rule",
-        "rule": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
+        "id": "strength-bonus-life",
+        "text": "Strength bonus to maximum life (1 per 2, constant life_per_strength)"
       },
       "value": 19,
       "total": 18.87999999999988,

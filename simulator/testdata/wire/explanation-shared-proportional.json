@@ -1,0 +1,74 @@
+{
+  "output": {
+    "key": "player.cold_resistance",
+    "label": "Cold Resistance",
+    "unit": "%",
+    "places": 0
+  },
+  "view": "proportional",
+  "version": "3.29.3.3",
+  "amount": -45,
+  "effective": -45,
+  "value": -45,
+  "capBy": [],
+  "lines": [
+    {
+      "source": {
+        "kind": "quest",
+        "quest": "a5q6",
+        "flag": "a5q6-CompletedBoss"
+      },
+      "value": -30,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": -30,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "quest",
+        "quest": "a10q3",
+        "flag": "EndGameAvailable"
+      },
+      "value": -30,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": -30,
+          "via": [],
+          "from": null
+        }
+      ]
+    },
+    {
+      "source": {
+        "kind": "node",
+        "node": 21,
+        "effect": 0
+      },
+      "value": 15,
+      "total": 0,
+      "parts": [
+        {
+          "op": "base",
+          "value": 15,
+          "via": [
+            "fire_resistance_modifiers_to_cold_and_lightning_%"
+          ],
+          "from": {
+            "kind": "node",
+            "node": 20,
+            "effect": 0
+          }
+        }
+      ]
+    }
+  ],
+  "tree": null
+}

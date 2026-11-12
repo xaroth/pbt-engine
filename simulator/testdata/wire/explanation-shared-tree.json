@@ -1,0 +1,158 @@
+{
+  "output": {
+    "key": "player.cold_resistance",
+    "label": "Cold Resistance",
+    "unit": "%",
+    "places": 0
+  },
+  "view": "tree",
+  "version": "3.29.3.3",
+  "amount": -45,
+  "effective": -45,
+  "value": -45,
+  "capBy": [],
+  "lines": [],
+  "tree": {
+    "stat": "cold_resistance_capped",
+    "formula": "resistance capped by its maximum",
+    "terms": [],
+    "overridden": false,
+    "total": -45,
+    "capped": -45,
+    "value": -45,
+    "reads": [
+      {
+        "stat": "cold_resistance",
+        "formula": "",
+        "terms": [
+          {
+            "source": {
+              "kind": "quest",
+              "quest": "a5q6",
+              "flag": "a5q6-CompletedBoss"
+            },
+            "op": "base",
+            "value": -30,
+            "stat": "elemental_resistance",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "quest",
+              "quest": "a10q3",
+              "flag": "EndGameAvailable"
+            },
+            "op": "base",
+            "value": -30,
+            "stat": "elemental_resistance",
+            "rate": 1,
+            "held": true
+          },
+          {
+            "source": {
+              "kind": "node",
+              "node": 20,
+              "effect": 0
+            },
+            "op": "base",
+            "value": 15,
+            "stat": "fire_resistance",
+            "rate": 0.5,
+            "held": true
+          }
+        ],
+        "overridden": false,
+        "total": -45,
+        "capped": -45,
+        "value": -45,
+        "reads": [
+          {
+            "stat": "fire_resistance_modifiers_to_cold_and_lightning_%",
+            "formula": "",
+            "terms": [
+              {
+                "source": {
+                  "kind": "node",
+                  "node": 21,
+                  "effect": 0
+                },
+                "op": "base",
+                "value": 50,
+                "stat": "",
+                "rate": 1,
+                "held": true
+              }
+            ],
+            "overridden": false,
+            "total": 50,
+            "capped": 50,
+            "value": 50,
+            "reads": [],
+            "repeat": false
+          }
+        ],
+        "repeat": false
+      },
+      {
+        "stat": "effective_maximum_cold_resistance",
+        "formula": "effective maximum resistance",
+        "terms": [],
+        "overridden": false,
+        "total": 75,
+        "capped": 75,
+        "value": 75,
+        "reads": [
+          {
+            "stat": "elemental_maximum_resistances_are_highest",
+            "formula": "",
+            "terms": [],
+            "overridden": false,
+            "total": 0,
+            "capped": 0,
+            "value": 0,
+            "reads": [],
+            "repeat": false
+          },
+          {
+            "stat": "maximum_cold_resistance",
+            "formula": "",
+            "terms": [
+              {
+                "source": {
+                  "kind": "character",
+                  "id": "Metadata/Characters/Str/Str"
+                },
+                "op": "base",
+                "value": 75,
+                "stat": "maximum_all_resistances",
+                "rate": 1,
+                "held": true
+              }
+            ],
+            "overridden": false,
+            "total": 75,
+            "capped": 75,
+            "value": 75,
+            "reads": [
+              {
+                "stat": "maximum_fire_resistance_modifiers_to_cold_and_lightning_%",
+                "formula": "",
+                "terms": [],
+                "overridden": false,
+                "total": 0,
+                "capped": 0,
+                "value": 0,
+                "reads": [],
+                "repeat": false
+              }
+            ],
+            "repeat": false
+          }
+        ],
+        "repeat": false
+      }
+    ],
+    "repeat": false
+  }
+}
