@@ -1,0 +1,64 @@
+namespace fb;
+
+file_identifier "PBLY";
+
+// Angles are in degrees clockwise from straight up, by orbit index.
+table Orbit {
+  radius: double;
+  angles: [double] (required);
+}
+
+table GroupBackground {
+  // A key of the group background sprite sheet, such as PSGroupBackground3.
+  image: string (required);
+  // The image is the top half; the bottom half is its mirror.
+  half_image: bool;
+}
+
+table LayoutGroup {
+  id: uint32;
+  x: double;
+  y: double;
+  // Orbit rings drawn around the group.
+  orbits: [ubyte] (required);
+  // Absent: no background.
+  background: GroupBackground;
+  proxy: bool;
+}
+
+table LayoutNode {
+  id: uint32;
+  // 0: not drawn on the tree.
+  group: uint32;
+  orbit: ubyte;
+  orbit_index: ushort;
+  icon: string (required);
+  // Mastery nodes only.
+  mastery_inactive_icon: string;
+  mastery_active_icon: string;
+  mastery_active_effect: string;
+}
+
+table ClassArt {
+  class_id: uint32;
+  image: string (required);
+  x: double;
+  y: double;
+}
+
+table Layout {
+  variant: string (required);
+  min_x: double;
+  min_y: double;
+  max_x: double;
+  max_y: double;
+  orbits: [Orbit] (required);
+  // Sorted by id.
+  groups: [LayoutGroup] (required);
+  // Sorted by id.
+  nodes: [LayoutNode] (required);
+  // Sorted by class_id.
+  class_art: [ClassArt] (required);
+}
+
+root_type Layout;

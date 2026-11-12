@@ -2,7 +2,7 @@
 // JSON manifest.
 package dataset
 
-//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs schema/items.fbs schema/mods.fbs schema/skills.fbs schema/buffs.fbs schema/monsters.fbs
+//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs schema/items.fbs schema/mods.fbs schema/skills.fbs schema/buffs.fbs schema/monsters.fbs schema/layout.fbs
 
 import (
 	"bytes"
