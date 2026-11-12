@@ -37,21 +37,34 @@ const FormatVersion = 1
 // ManifestName is the manifest's file name inside a dataset directory.
 const ManifestName = "manifest.json"
 
+// File names of the table groups that have one file per dataset, as manifests list them.
 const (
-	statsFile      = "stats.fb"
-	charactersFile = "characters.fb"
-	constantsFile  = "constants.fb"
-	questsFile     = "quests.fb"
-	itemsFile      = "items.fb"
-	modsFile       = "mods.fb"
-	skillsFile     = "skills.fb"
-	buffsFile      = "buffs.fb"
-	monstersFile   = "monsters.fb"
-	treePrefix     = "tree-"
-	textPrefix     = "text-"
-	layoutPrefix   = "layout-"
-	fbSuffix       = ".fb"
+	StatsFile      = "stats.fb"
+	CharactersFile = "characters.fb"
+	ConstantsFile  = "constants.fb"
+	QuestsFile     = "quests.fb"
+	ItemsFile      = "items.fb"
+	ModsFile       = "mods.fb"
+	SkillsFile     = "skills.fb"
+	BuffsFile      = "buffs.fb"
+	MonstersFile   = "monsters.fb"
 )
+
+const (
+	treePrefix   = "tree-"
+	textPrefix   = "text-"
+	layoutPrefix = "layout-"
+	fbSuffix     = ".fb"
+)
+
+// TreeFile returns the file name of the tree of variant, such as "standard".
+func TreeFile(variant string) string { return treePrefix + variant + fbSuffix }
+
+// TextFile returns the file name of the text of language, such as "en".
+func TextFile(language string) string { return textPrefix + language + fbSuffix }
+
+// LayoutFile returns the file name of the layout of the tree of variant.
+func LayoutFile(variant string) string { return layoutPrefix + variant + fbSuffix }
 
 // group is a table group file as Write writes it.
 type group struct {
@@ -75,10 +88,10 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 		return Manifest{}, err
 	}
 	groups := slices.Concat([]group{
-		{statsFile, encodeStats(d.Stats)},
-		{charactersFile, encodeCharacters(d.Stats, d.Characters)},
-		{constantsFile, encodeConstants(d.Constants)},
-		{questsFile, encodeQuests(d.Stats, d.Quests)},
+		{StatsFile, encodeStats(d.Stats)},
+		{CharactersFile, encodeCharacters(d.Stats, d.Characters)},
+		{ConstantsFile, encodeConstants(d.Constants)},
+		{QuestsFile, encodeQuests(d.Stats, d.Quests)},
 	}, d.taggedGroups(), d.itemsGroup(), d.skillsGroup(), d.buffsGroup(), d.monstersGroup())
 	m := d.Manifest
 	m.Format = FormatVersion
@@ -105,13 +118,13 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 func (d *Dataset) taggedGroups() []group {
 	groups := make([]group, 0, len(d.Trees)+len(d.Layouts)+len(d.Texts))
 	for _, t := range d.Trees {
-		groups = append(groups, group{treePrefix + t.Variant + fbSuffix, encodeTree(d.Stats, t)})
+		groups = append(groups, group{TreeFile(t.Variant), encodeTree(d.Stats, t)})
 	}
 	for _, l := range d.Layouts {
-		groups = append(groups, group{layoutPrefix + l.Variant + fbSuffix, encodeLayout(l)})
+		groups = append(groups, group{LayoutFile(l.Variant), encodeLayout(l)})
 	}
 	for _, t := range d.Texts {
-		groups = append(groups, group{textPrefix + t.Language + fbSuffix, encodeText(t)})
+		groups = append(groups, group{TextFile(t.Language), encodeText(t)})
 	}
 	return groups
 }

@@ -144,7 +144,7 @@ func (d *Dataset) skillsGroup() []group {
 	if d.Skills == nil {
 		return nil
 	}
-	return []group{{skillsFile, encodeSkills(d.Stats, d.Skills)}}
+	return []group{{SkillsFile, encodeSkills(d.Stats, d.Skills)}}
 }
 
 // encodeSkills writes s; Write validates it first, so its tables fit their indexes.

@@ -11,7 +11,7 @@ import (
 func (s *Store) Buffs() (*Buffs, error) { return s.buffs() }
 
 func (s *Store) loadBuffs() (*Buffs, error) {
-	if _, ok := s.files[buffsFile]; !ok {
+	if _, ok := s.files[BuffsFile]; !ok {
 		return nil, &MissingGroupError{Version: s.manifest.Version, Group: "buffs"}
 	}
 	st, err := s.stats()
@@ -25,12 +25,12 @@ func (s *Store) loadBuffs() (*Buffs, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := readGroup(s, buffsFile, func(buf []byte) (Buffs, error) { return decodeBuffs(buf, st.index) })
+	b, err := readGroup(s, BuffsFile, func(buf []byte) (Buffs, error) { return decodeBuffs(buf, st.index) })
 	if err != nil {
 		return nil, err
 	}
 	if err := validateBuffs(len(st.stats), items, &b); err != nil {
-		return nil, fmt.Errorf("%s: %w", buffsFile, err)
+		return nil, fmt.Errorf("%s: %w", BuffsFile, err)
 	}
 	return &b, nil
 }

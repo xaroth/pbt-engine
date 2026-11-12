@@ -13,7 +13,7 @@ func (d *Dataset) monstersGroup() []group {
 	if d.Monsters == nil {
 		return nil
 	}
-	return []group{{monstersFile, encodeMonsters(d.Stats, d.Monsters)}}
+	return []group{{MonstersFile, encodeMonsters(d.Stats, d.Monsters)}}
 }
 
 // monsterStats returns the stat handles m uses.

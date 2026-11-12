@@ -292,7 +292,7 @@ type itemsLayout struct {
 	craftClasses, essenceClasses []uint32
 }
 
-func itemsFile(l itemsLayout) []byte {
+func ItemsFile(l itemsLayout) []byte {
 	b := flatbuffers.NewBuilder(0)
 	baseID := b.CreateString("Base")
 	tagRefs := uint32Vec(b, fb.ItemBaseStartTagsVector, l.baseTags)
@@ -364,7 +364,7 @@ func withoutCrafting(it *dataset.Items) {
 
 // modsFile builds a mods file with the given stat and tag ids and one mod whose stats and tags
 // use the given indexes, for layouts Write never produces.
-func modsFile(statIDs, tagIDs []string, stats, tags []uint32) []byte {
+func ModsFile(statIDs, tagIDs []string, stats, tags []uint32) []byte {
 	b := flatbuffers.NewBuilder(0)
 	id, typ := b.CreateString("Mod"), b.CreateString("Type")
 	fb.ModStartStatsVector(b, len(stats))
@@ -422,7 +422,7 @@ func TestModGameModeAbsent(t *testing.T) {
 	}
 	withoutCrafting(d.Items)
 	d.Mods, d.Texts = nil, nil
-	s, err := dataset.Open(withFile(t, written(t, d), "mods.fb", modsFile(nil, nil, nil, nil)))
+	s, err := dataset.Open(withFile(t, written(t, d), "mods.fb", ModsFile(nil, nil, nil, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +444,7 @@ func TestItemsWithoutCrafting(t *testing.T) {
 	withoutCrafting(d.Items)
 	d.Items.Classes, d.Items.Tags, d.Items.Bases = d.Items.Classes[:1], []string{"default"}, nil
 	d.Mods, d.Texts = nil, nil
-	s, err := dataset.Open(withFile(t, written(t, d), "items.fb", itemsFile(itemsLayout{tags: []string{"default"}})))
+	s, err := dataset.Open(withFile(t, written(t, d), "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}})))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,53 +510,53 @@ func TestItemsReadErrors(t *testing.T) {
 		{name: "truncated mods", want: "mods.fb: malformed", fsys: withFile(t, good, "mods.fb", good["mods.fb"].Data[:40])},
 		{
 			name: "class out of range", want: "items.fb: base Base: class 1 out of range (1 classes)",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, class: 1})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, class: 1})),
 		},
 		{
 			name: "base tag out of range", want: "items.fb: base Base: tag 1 out of range (1 tags)",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, baseTags: []uint32{1}})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, baseTags: []uint32{1}})),
 		},
 		{
 			name: "repeated tag", want: "tag default repeated",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default", "default"}})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default", "default"}})),
 		},
 		{
 			name: "unknown flask kind", want: "base Base: unknown flask kind 9",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, flaskKind: &unknownKind})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, flaskKind: &unknownKind})),
 		},
 		{
 			name: "mod tag ids unsorted", want: `mods.fb: tag ids not sorted and unique at "default"`,
-			fsys: withFile(t, good, "mods.fb", modsFile(nil, []string{"life", "default"}, nil, nil)),
+			fsys: withFile(t, good, "mods.fb", ModsFile(nil, []string{"life", "default"}, nil, nil)),
 		},
 		{
 			name: "mod tag ids repeated", want: `mods.fb: tag ids not sorted and unique at "default"`,
-			fsys: withFile(t, good, "mods.fb", modsFile(nil, []string{"default", "default"}, nil, nil)),
+			fsys: withFile(t, good, "mods.fb", ModsFile(nil, []string{"default", "default"}, nil, nil)),
 		},
 		{
 			name: "mod stat index out of range", want: "mods.fb: mod Mod: stat 1 out of range (1 ids)",
-			fsys: withFile(t, good, "mods.fb", modsFile([]string{"level"}, nil, []uint32{1}, nil)),
+			fsys: withFile(t, good, "mods.fb", ModsFile([]string{"level"}, nil, []uint32{1}, nil)),
 		},
 		{
 			name: "mod tag index out of range", want: "mods.fb: mod Mod: tag 1 out of range (1 tags)",
-			fsys: withFile(t, good, "mods.fb", modsFile(nil, []string{"default"}, nil, []uint32{1})),
+			fsys: withFile(t, good, "mods.fb", ModsFile(nil, []string{"default"}, nil, []uint32{1})),
 		},
 		{name: "implicit not in mods", want: "implicit BlockImplicit not in mods", fsys: withFile(t, good, "mods.fb", otherFiles["mods.fb"].Data)},
 		{name: "craft mod not in mods", want: "bench craft CraftedLife1: mod not in mods", fsys: withFile(t, good, "mods.fb", noCraftModFiles["mods.fb"].Data)},
 		{
 			name: "craft class out of range", want: "items.fb: bench craft Crafted: class 1 out of range (1 classes)",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{1}})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{1}})),
 		},
 		{
 			name: "essence mod class out of range", want: "items.fb: essence mod Crafted: class 1 out of range (1 classes)",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, essenceClasses: []uint32{1}})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, essenceClasses: []uint32{1}})),
 		},
 		{
 			name: "crafting fields without the flag", want: "1 bench crafts with crafting false",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{0}})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{0}})),
 		},
 		{
 			name: "craft without classes", want: "bench craft Crafted: no item classes",
-			fsys: withFile(t, good, "items.fb", itemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{}})),
+			fsys: withFile(t, good, "items.fb", ItemsFile(itemsLayout{tags: []string{"default"}, craftClasses: []uint32{}})),
 		},
 		{name: "mod tag not in items", want: `mods.fb: unknown tag "zzz"`, fsys: withFile(t, good, "mods.fb", otherTagsFiles["mods.fb"].Data)},
 		{

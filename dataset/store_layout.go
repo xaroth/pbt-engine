@@ -14,7 +14,7 @@ func (s *Store) Layout(variant string) (*Layout, error) {
 }
 
 func (s *Store) loadLayout(variant string) (*Layout, error) {
-	name := layoutPrefix + variant + fbSuffix
+	name := LayoutFile(variant)
 	t, err := s.Tree(variant)
 	if err != nil {
 		return nil, err

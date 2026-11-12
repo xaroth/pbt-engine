@@ -246,7 +246,7 @@ func TestBuffsWriteErrors(t *testing.T) {
 
 // buffsFile builds a buffs file with buffs of the given ids, each carrying stat index stat, for
 // layouts Write never produces.
-func buffsFile(ids []string, stat uint32, statIDs []string) []byte {
+func BuffsFile(ids []string, stat uint32, statIDs []string) []byte {
 	b := flatbuffers.NewBuilder(0)
 	offs := make([]flatbuffers.UOffsetT, len(ids))
 	for i, id := range ids {
@@ -286,8 +286,8 @@ func TestBuffsReadErrors(t *testing.T) {
 		{name: "truncated", want: "buffs.fb: malformed", fsys: replaced("buffs.fb", buffs[:len(buffs)/2])},
 		{name: "wrong identifier", want: "buffs.fb: wrong file identifier", fsys: replaced("buffs.fb", good["constants.fb"].Data)},
 		{name: "stat not in stats group", want: `buffs.fb: unknown stat "actual_current_frenzy_charges"`, fsys: replaced("stats.fb", fewStats)},
-		{name: "stat index out of range", want: "buffs.fb: stat 1 out of range (1 ids)", fsys: replaced("buffs.fb", buffsFile([]string{"a"}, 1, []string{"level"}))},
-		{name: "fails validation", want: "buffs.fb: buff a repeated", fsys: replaced("buffs.fb", buffsFile([]string{"a", "a"}, 0, []string{"level"}))},
+		{name: "stat index out of range", want: "buffs.fb: stat 1 out of range (1 ids)", fsys: replaced("buffs.fb", BuffsFile([]string{"a"}, 1, []string{"level"}))},
+		{name: "fails validation", want: "buffs.fb: buff a repeated", fsys: replaced("buffs.fb", BuffsFile([]string{"a", "a"}, 0, []string{"level"}))},
 		{
 			name: "flasks without items group", want: "buffs.fb: flask buffs or tinctures without the items group",
 			fsys: rewritten(t, written(t, noItems), "buffs.fb", buffs),

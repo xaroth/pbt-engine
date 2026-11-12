@@ -278,7 +278,7 @@ type monstersLayout struct {
 	baseStat        uint32
 }
 
-func monstersFile(l monstersLayout) []byte {
+func MonstersFile(l monstersLayout) []byte {
 	b := flatbuffers.NewBuilder(0)
 	vector := func(start func(*flatbuffers.Builder, int) flatbuffers.UOffsetT, offs ...flatbuffers.UOffsetT) flatbuffers.UOffsetT {
 		start(b, len(offs))
@@ -331,7 +331,7 @@ func TestMonstersReadErrors(t *testing.T) {
 	with := func(change func(l *monstersLayout)) []byte {
 		l := layout
 		change(&l)
-		return monstersFile(l)
+		return MonstersFile(l)
 	}
 	testCases := []struct {
 		name, want string
@@ -377,7 +377,7 @@ func TestMonstersReadErrors(t *testing.T) {
 func TestMonstersLayoutValid(t *testing.T) {
 	t.Parallel()
 	fsys := rewritten(t, written(t, withMonsters()), "monsters.fb",
-		monstersFile(monstersLayout{statIDs: []string{"level"}, tagIDs: []string{"a", "b"}, tags: []uint32{1}, varietyType: "t"}))
+		MonstersFile(monstersLayout{statIDs: []string{"level"}, tagIDs: []string{"a", "b"}, tags: []uint32{1}, varietyType: "t"}))
 	s, err := dataset.Open(fsys)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
