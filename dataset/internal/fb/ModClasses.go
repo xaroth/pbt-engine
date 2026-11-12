@@ -6,42 +6,42 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 )
 
-type BenchCraft struct {
+type ModClasses struct {
 	_tab flatbuffers.Table
 }
 
-func GetRootAsBenchCraft(buf []byte, offset flatbuffers.UOffsetT) *BenchCraft {
+func GetRootAsModClasses(buf []byte, offset flatbuffers.UOffsetT) *ModClasses {
 	n := flatbuffers.GetUOffsetT(buf[offset:])
-	x := &BenchCraft{}
+	x := &ModClasses{}
 	x.Init(buf, n+offset)
 	return x
 }
 
-func FinishBenchCraftBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+func FinishModClassesBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
 	builder.Finish(offset)
 }
 
-func GetSizePrefixedRootAsBenchCraft(buf []byte, offset flatbuffers.UOffsetT) *BenchCraft {
+func GetSizePrefixedRootAsModClasses(buf []byte, offset flatbuffers.UOffsetT) *ModClasses {
 	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
-	x := &BenchCraft{}
+	x := &ModClasses{}
 	x.Init(buf, n+offset+flatbuffers.SizeUint32)
 	return x
 }
 
-func FinishSizePrefixedBenchCraftBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
+func FinishSizePrefixedModClassesBuffer(builder *flatbuffers.Builder, offset flatbuffers.UOffsetT) {
 	builder.FinishSizePrefixed(offset)
 }
 
-func (rcv *BenchCraft) Init(buf []byte, i flatbuffers.UOffsetT) {
+func (rcv *ModClasses) Init(buf []byte, i flatbuffers.UOffsetT) {
 	rcv._tab.Bytes = buf
 	rcv._tab.Pos = i
 }
 
-func (rcv *BenchCraft) Table() flatbuffers.Table {
+func (rcv *ModClasses) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-func (rcv *BenchCraft) Mod() []byte {
+func (rcv *ModClasses) Mod() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -49,7 +49,7 @@ func (rcv *BenchCraft) Mod() []byte {
 	return nil
 }
 
-func (rcv *BenchCraft) Classes(j int) uint32 {
+func (rcv *ModClasses) Classes(j int) uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
@@ -58,7 +58,7 @@ func (rcv *BenchCraft) Classes(j int) uint32 {
 	return 0
 }
 
-func (rcv *BenchCraft) ClassesLength() int {
+func (rcv *ModClasses) ClassesLength() int {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
@@ -66,7 +66,7 @@ func (rcv *BenchCraft) ClassesLength() int {
 	return 0
 }
 
-func (rcv *BenchCraft) MutateClasses(j int, n uint32) bool {
+func (rcv *ModClasses) MutateClasses(j int, n uint32) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
@@ -75,18 +75,18 @@ func (rcv *BenchCraft) MutateClasses(j int, n uint32) bool {
 	return false
 }
 
-func BenchCraftStart(builder *flatbuffers.Builder) {
+func ModClassesStart(builder *flatbuffers.Builder) {
 	builder.StartObject(2)
 }
-func BenchCraftAddMod(builder *flatbuffers.Builder, mod flatbuffers.UOffsetT) {
+func ModClassesAddMod(builder *flatbuffers.Builder, mod flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(mod), 0)
 }
-func BenchCraftAddClasses(builder *flatbuffers.Builder, classes flatbuffers.UOffsetT) {
+func ModClassesAddClasses(builder *flatbuffers.Builder, classes flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(classes), 0)
 }
-func BenchCraftStartClassesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+func ModClassesStartClassesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
-func BenchCraftEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+func ModClassesEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
 }
