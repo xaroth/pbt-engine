@@ -155,8 +155,20 @@ func (rcv *ItemBase) Flask(obj *FlaskValues) *FlaskValues {
 	return nil
 }
 
+func (rcv *ItemBase) ModDomain() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *ItemBase) MutateModDomain(n int32) bool {
+	return rcv._tab.MutateInt32Slot(20, n)
+}
+
 func ItemBaseStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(9)
 }
 func ItemBaseAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -187,6 +199,9 @@ func ItemBaseAddWeapon(builder *flatbuffers.Builder, weapon flatbuffers.UOffsetT
 }
 func ItemBaseAddFlask(builder *flatbuffers.Builder, flask flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(flask), 0)
+}
+func ItemBaseAddModDomain(builder *flatbuffers.Builder, modDomain int32) {
+	builder.PrependInt32Slot(8, modDomain, 0)
 }
 func ItemBaseEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

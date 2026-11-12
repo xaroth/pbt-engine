@@ -110,8 +110,28 @@ func (rcv *Items) BasesLength() int {
 	return 0
 }
 
+func (rcv *Items) BenchCrafts(obj *BenchCraft, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Items) BenchCraftsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func ItemsStart(builder *flatbuffers.Builder) {
-	builder.StartObject(3)
+	builder.StartObject(4)
 }
 func ItemsAddClasses(builder *flatbuffers.Builder, classes flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(classes), 0)
@@ -129,6 +149,12 @@ func ItemsAddBases(builder *flatbuffers.Builder, bases flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(bases), 0)
 }
 func ItemsStartBasesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func ItemsAddBenchCrafts(builder *flatbuffers.Builder, benchCrafts flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(benchCrafts), 0)
+}
+func ItemsStartBenchCraftsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func ItemsEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
