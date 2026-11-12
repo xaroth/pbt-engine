@@ -12,7 +12,8 @@ import (
 // The names below alias the game's types so hosts can read results without importing the
 // rules. Explanations get types of their own when their game-neutral part leaves the rules.
 
-// Output describes one output a simulation reports: its key, label, unit and decimal places.
+// Output describes one output a simulation reports: its key, label, unit, decimal
+// places, group and display order.
 type Output = poe1.Output
 
 // Outputs returns the outputs of the sim's game, in display order. Consumers render from it

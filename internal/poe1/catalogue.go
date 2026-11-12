@@ -22,19 +22,30 @@ const (
 	UnitPerSecond = "/s"
 )
 
+// Groups of outputs: the panel a consumer shows an output in.
+const (
+	// GroupSheet is the character sheet: attributes, pools, armour and evasion, resistances
+	// and regeneration.
+	GroupSheet = "sheet"
+)
+
 // Output is a named value of the sheet a consumer can ask for and render without knowing the
-// engine stats: its engine stat, a label, a unit and the decimal places it shows.
+// engine stats: its engine stat, a label, a unit, the decimal places it shows, its group and
+// its display order.
 type Output struct {
 	Key    output.Key `json:"key"`
 	Label  string     `json:"label"`
 	Unit   string     `json:"unit"`
 	Places int        `json:"places"`
-	stat   string
+	Group  string     `json:"group"`
+	// Order is the output's position in the catalogue; lower shows first.
+	Order int `json:"order"`
+	stat  string
 }
 
-// Outputs returns the catalogue of the character sheet, in display order.
+// Outputs returns the catalogue of outputs, in display order.
 func Outputs() []Output {
-	return []Output{
+	out := group(GroupSheet, []Output{
 		{Key: Strength, Label: "Strength", stat: statStrength},
 		{Key: Dexterity, Label: "Dexterity", stat: statDexterity},
 		{Key: Intelligence, Label: "Intelligence", stat: statIntelligence},
@@ -64,7 +75,19 @@ func Outputs() []Output {
 			Key: EnergyShieldRegeneration, Label: "Energy Shield Regeneration", Unit: UnitPerSecond, Places: regenerationPlaces,
 			stat: statEnergyShieldRegeneration,
 		},
+	})
+	for i := range out {
+		out[i].Order = i
 	}
+	return out
+}
+
+// group returns outputs with their group set to g.
+func group(g string, outputs []Output) []Output {
+	for i := range outputs {
+		outputs[i].Group = g
+	}
+	return outputs
 }
 
 // Output returns the value of catalogue output k.

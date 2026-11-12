@@ -16,12 +16,14 @@
       "description": "A catalogue entry: an output's key and how to show its value.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "label", "unit", "places"],
+      "required": ["key", "label", "unit", "places", "group", "order"],
       "properties": {
         "key": { "type": "string", "description": "The output key, such as \"player.life\"." },
         "label": { "type": "string" },
         "unit": { "$ref": "#/$defs/Unit" },
-        "places": { "type": "integer", "minimum": 0, "description": "Decimal places to show." }
+        "places": { "type": "integer", "minimum": 0, "description": "Decimal places to show." },
+        "group": { "$ref": "#/$defs/OutputGroup" },
+        "order": { "type": "integer", "minimum": 0, "description": "Position in the catalogue; lower shows first." }
       }
     },
     "Unit": {
@@ -29,17 +31,24 @@
       "description": "An output's unit: none, percent or per second.",
       "enum": ["", "%", "/s"]
     },
+    "OutputGroup": {
+      "title": "OutputGroup",
+      "description": "The panel an output is shown in: the character sheet.",
+      "enum": ["sheet"]
+    },
     "OutputValue": {
       "title": "OutputValue",
       "description": "An output's value with its catalogue entry. The value is not rounded to places.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "label", "unit", "places", "value"],
+      "required": ["key", "label", "unit", "places", "group", "order", "value"],
       "properties": {
         "key": { "type": "string" },
         "label": { "type": "string" },
         "unit": { "$ref": "#/$defs/Unit" },
         "places": { "type": "integer", "minimum": 0 },
+        "group": { "$ref": "#/$defs/OutputGroup" },
+        "order": { "type": "integer", "minimum": 0 },
         "value": { "type": "number" }
       }
     },
@@ -72,12 +81,14 @@
       "description": "One output before and after.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "label", "unit", "places", "before", "after", "abs", "pct", "changed"],
+      "required": ["key", "label", "unit", "places", "group", "order", "before", "after", "abs", "pct", "changed"],
       "properties": {
         "key": { "type": "string" },
         "label": { "type": "string" },
         "unit": { "$ref": "#/$defs/Unit" },
         "places": { "type": "integer", "minimum": 0 },
+        "group": { "$ref": "#/$defs/OutputGroup" },
+        "order": { "type": "integer", "minimum": 0 },
         "before": { "type": "number" },
         "after": { "type": "number" },
         "abs": { "type": "number", "description": "after - before." },

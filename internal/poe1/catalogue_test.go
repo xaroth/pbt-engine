@@ -51,3 +51,16 @@ func TestOutputKeys(t *testing.T) {
 		}
 	}
 }
+
+// Every output has a group and its display order is its position in the catalogue.
+func TestOutputGroupsAndOrder(t *testing.T) {
+	t.Parallel()
+	for i, o := range poe1.Outputs() {
+		if o.Group == "" {
+			t.Errorf("%s has no group", o.Key)
+		}
+		if o.Order != i {
+			t.Errorf("%s: order %d, want %d", o.Key, o.Order, i)
+		}
+	}
+}
