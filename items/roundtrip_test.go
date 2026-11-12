@@ -25,7 +25,9 @@ import (
 //   - enchant: every labyrinth enchantment that spawns, as an {enchant} line;
 //   - unique: every unique mod, on a unique item;
 //   - crafted and unmarked craft: every bench craft, with and without its {crafted} marker, on
-//     the first base a prefix or suffix of its stat spawns on;
+//     the first base of each class the bench lists for it (leaving out crafts it no longer
+//     offers), or without the crafting fields on the first base a prefix or suffix of its stat
+//     spawns on;
 //   - essence: every mod the dataset says an essence adds, on a base of each class it lists.
 //
 // A line is wrong when it reads as a stat the mod does not have, or a value its text shows
@@ -62,6 +64,10 @@ func TestRoundTrip(t *testing.T) {
 		"crafted":        {1890, 0, 0, 0, 0},
 		"unmarked craft": {1890, 0, 0, 0, 0},
 	}
+	if g.crafting {
+		// Counts for a dataset with the crafting fields are pinned with the first such pin.
+		want = map[string][5]int{}
+	}
 	for set, cases := range g.sets() {
 		t.Run(set, func(t *testing.T) {
 			t.Parallel()
@@ -70,7 +76,7 @@ func TestRoundTrip(t *testing.T) {
 			}
 			w, ok := want[set]
 			if !ok {
-				t.Fatalf("no counts pinned for %d lines", len(cases))
+				t.Fatalf("no counts pinned for %d lines (crafting fields: %t)", len(cases), g.crafting)
 			}
 			if got := g.check(t, r, cases); got != w {
 				t.Errorf("lines, wrong, warned, current, silent: got %v, want %v", got, w)
@@ -178,6 +184,8 @@ type generator struct {
 	names    map[string]string
 	crafting bool
 	essences []dataset.ModClasses
+	// bench holds the item classes of each bench craft, with the crafting fields.
+	bench map[string][]string
 	// tagSets are each base's tags, alone and with those each influence flag gives.
 	tagSets map[*dataset.ItemBase][]influenced
 	// rolling are the prefixes and suffixes of the item domain by their first stat.
@@ -205,7 +213,7 @@ func newGenerator(t *testing.T, s *dataset.Store) *generator {
 	}
 	g := &generator{
 		set: set, mods: mods, byID: map[string]*dataset.Mod{}, stats: stats, names: baseNames(text.BaseNames),
-		crafting: it.Crafting, essences: it.EssenceMods,
+		crafting: it.Crafting, essences: it.EssenceMods, bench: map[string][]string{},
 		tagSets: map[*dataset.ItemBase][]influenced{}, rolling: map[uint32][]*dataset.Mod{},
 	}
 	for i := range it.Bases {
@@ -213,6 +221,9 @@ func newGenerator(t *testing.T, s *dataset.Store) *generator {
 			g.bases = append(g.bases, &it.Bases[i])
 			g.tagSets[&it.Bases[i]] = withInfluences(it.Bases[i].Tags)
 		}
+	}
+	for _, c := range it.BenchCrafts {
+		g.bench[c.Mod] = c.Classes
 	}
 	for i := range g.mods {
 		m := &g.mods[i]
@@ -269,7 +280,17 @@ func isAffix(m *dataset.Mod) bool {
 	return (m.Generation == 1 || m.Generation == 2) && m.GameMode != rtRuthless && len(m.Stats) > 0
 }
 
-// rtDomain returns the mod domain of items of class, as the reader takes it.
+// domain returns the mod domain of base b: its own with the crafting fields, else the one the
+// reader takes for its class.
+func (g *generator) domain(b *dataset.ItemBase) int32 {
+	if g.crafting {
+		return b.ModDomain
+	}
+	return rtDomain(b.Class)
+}
+
+// rtDomain returns the mod domain of items of class, as the reader takes it without the crafting
+// fields.
 func rtDomain(class string) int32 {
 	switch class {
 	case "LifeFlask", "ManaFlask", "HybridFlask", "UtilityFlask":
@@ -287,7 +308,7 @@ func rtDomain(class string) int32 {
 // onBase reports whether m's domain is that of base b's mods: its own, or Delve and unveiled
 // mods on items.
 func (g *generator) onBase(m *dataset.Mod, b *dataset.ItemBase) bool {
-	d := rtDomain(b.Class)
+	d := g.domain(b)
 	return m.Domain == d || d == 1 && (m.Domain == rtDelve || m.Domain == rtUnveiled)
 }
 
@@ -357,8 +378,7 @@ func (g *generator) place(m *dataset.Mod) []item {
 	case m.GameMode == rtRuthless || len(m.Stats) == 0:
 		return nil
 	case m.Domain == rtCrafted:
-		b := g.craftBase(m)
-		return []item{{set: "crafted", base: b, marker: "{crafted}"}, {set: "unmarked craft", base: b}}
+		return g.craftItems(m)
 	case isAffix(m):
 		b, flag := g.spawnBase(m)
 		return []item{
@@ -382,13 +402,38 @@ func (g *generator) place(m *dataset.Mod) []item {
 	return nil
 }
 
+// craftItems places bench craft m, with and without its marker: with the crafting fields on the
+// first base of each class the bench lists for it, and not at all when the bench no longer
+// offers it; without them on the first base a prefix or suffix of its stat spawns on.
+func (g *generator) craftItems(m *dataset.Mod) []item {
+	bases := []*dataset.ItemBase{g.craftBase(m)}
+	if g.crafting {
+		bases = g.firstOfClasses(g.bench[m.ID])
+	}
+	out := make([]item, 0, 2*len(bases))
+	for _, b := range bases {
+		out = append(out, item{set: "crafted", base: b, marker: "{crafted}"}, item{set: "unmarked craft", base: b})
+	}
+	return out
+}
+
+// firstOfClasses returns the first base of each of classes.
+func (g *generator) firstOfClasses(classes []string) []*dataset.ItemBase {
+	var out []*dataset.ItemBase
+	for _, class := range classes {
+		if i := slices.IndexFunc(g.bases, func(b *dataset.ItemBase) bool { return b.Class == class }); i >= 0 {
+			out = append(out, g.bases[i])
+		}
+	}
+	return out
+}
+
 // essenceItems places essence mod e on the first base of each class it lists.
 func (g *generator) essenceItems(e dataset.ModClasses) []item {
-	var out []item
-	for _, class := range e.Classes {
-		if i := slices.IndexFunc(g.bases, func(b *dataset.ItemBase) bool { return b.Class == class }); i >= 0 {
-			out = append(out, item{set: "essence", base: g.bases[i]})
-		}
+	bases := g.firstOfClasses(e.Classes)
+	out := make([]item, 0, len(bases))
+	for _, b := range bases {
+		out = append(out, item{set: "essence", base: b})
 	}
 	return out
 }
@@ -460,7 +505,7 @@ func (g *generator) spawnBase(m *dataset.Mod) (*dataset.ItemBase, string) {
 // dataset does not say which items a bench craft applies to.
 func (g *generator) craftBase(m *dataset.Mod) *dataset.ItemBase {
 	for _, b := range g.bases {
-		if rtDomain(b.Class) == 1 && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
+		if g.domain(b) == 1 && slices.ContainsFunc(g.rolling[m.Stats[0].Stat], func(x *dataset.Mod) bool { return rtSpawns(x, b.Tags) }) {
 			return b
 		}
 	}
@@ -474,7 +519,7 @@ func (g *generator) uniqueBase(m *dataset.Mod) *dataset.ItemBase {
 	if slices.ContainsFunc(m.Stats, func(st dataset.ModStat) bool { return strings.HasPrefix(g.stats[st.Stat].ID, "local_") }) {
 		return g.craftBase(m)
 	}
-	i := slices.IndexFunc(g.bases, func(b *dataset.ItemBase) bool { return rtDomain(b.Class) == 1 && b.Armour == nil && b.Weapon == nil })
+	i := slices.IndexFunc(g.bases, func(b *dataset.ItemBase) bool { return g.domain(b) == 1 && b.Armour == nil && b.Weapon == nil })
 	return g.bases[i]
 }
 
