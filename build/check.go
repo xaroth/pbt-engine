@@ -359,16 +359,7 @@ func (c *Checked) node(id uint32) *dataset.Node {
 // checkConnected warns about allocated nodes no path of allocated nodes joins to the class
 // start or the ascendancy start. They stay allocated: jewels can make such trees legal.
 func (c *Checked) checkConnected() {
-	allocated := map[uint32]bool{c.class.StartNode: true}
-	for _, n := range c.nodes {
-		allocated[n.ID] = true
-	}
-	roots := []uint32{c.class.StartNode}
-	if c.ascStart != nil {
-		allocated[c.ascStart.ID] = true
-		roots = append(roots, c.ascStart.ID)
-	}
-	reached := c.reach(roots, allocated)
+	reached := c.joined(c.allocatedSet())
 	var lost []string
 	for _, n := range c.nodes {
 		if !reached[n.ID] {
