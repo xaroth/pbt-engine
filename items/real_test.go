@@ -209,6 +209,26 @@ func sampleGolden(t *testing.T) map[string][]build.StatValue {
 	return out
 }
 
+// TestSampleBases parses every item of the statdesc sample and checks the bases of one name:
+// each Two-Stone Ring is the one whose implicit its implicit line reads as.
+func TestSampleBases(t *testing.T) {
+	t.Parallel()
+	r, _ := realReader(t)
+	want := map[string]string{
+		"rare Two-Stone Ring (Fire/Cold)": "Metadata/Items/Rings/Ring14",
+		"rare Two-Stone Ring":             "Metadata/Items/Rings/Ring12",
+	}
+	for _, s := range sampleItems(t) {
+		it, _, err := r.Parse(s.text)
+		if err != nil {
+			t.Fatalf("%s: %v", s.label, err)
+		}
+		if w, ok := want[s.label]; ok && it.Base != w {
+			t.Errorf("%s: base %s, want %s", s.label, it.Base, w)
+		}
+	}
+}
+
 type sampleItem struct {
 	label, text string
 }
