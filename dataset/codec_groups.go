@@ -100,6 +100,7 @@ func encodeText(t Text) []byte {
 	addBuffs := optionalNames(b, nameList{fb.TextStartBuffNamesVector, fb.TextAddBuffNames, t.BuffNames})
 	addMonsters := optionalNames(b, nameList{fb.TextStartMonsterNamesVector, fb.TextAddMonsterNames, t.MonsterNames})
 	addOverrides := optionalNames(b, nameList{fb.TextStartOverrideNamesVector, fb.TextAddOverrideNames, t.OverrideNames})
+	addTimeless := optionalNames(b, nameList{fb.TextStartTimelessNamesVector, fb.TextAddTimelessNames, t.TimelessNames})
 	lang := b.CreateString(t.Language)
 	fb.TextStart(b)
 	fb.TextAddLanguage(b, lang)
@@ -112,6 +113,7 @@ func encodeText(t Text) []byte {
 	addBuffs()
 	addMonsters()
 	addOverrides()
+	addTimeless()
 	fb.FinishTextBuffer(b, fb.TextEnd(b))
 	return b.FinishedBytes()
 }
@@ -132,6 +134,7 @@ func decodeText(buf []byte) (Text, error) {
 	t.BuffNames = decodeNames(root.BuffNamesLength(), root.BuffNames)
 	t.MonsterNames = decodeNames(root.MonsterNamesLength(), root.MonsterNames)
 	t.OverrideNames = decodeNames(root.OverrideNamesLength(), root.OverrideNames)
+	t.TimelessNames = decodeNames(root.TimelessNamesLength(), root.TimelessNames)
 	t.AscendancyNames = decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames)
 	return t, nil
 }
