@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 
 	"github.com/xaroth/pbt-engine/dataset/remote"
+	"github.com/xaroth/pbt-engine/dataset/remote/httpfetch"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 )
 
@@ -43,7 +44,7 @@ func run(ctx context.Context, dir string, versions []string) error {
 	if len(versions) == 0 {
 		versions = realdata.Versions()
 	}
-	src := remote.HTTP{Base: remote.DefaultSource}
+	src := httpfetch.Source{Base: remote.DefaultSource}
 	var errs []error
 	for _, v := range versions {
 		id := realdata.ID(v)

@@ -18,15 +18,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"maps"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/xaroth/pbt-engine/dataset"
 )
@@ -34,14 +31,13 @@ import (
 // IndexName is the index's name at the source.
 const IndexName = "index.json"
 
-// DefaultSource is pbt-data's bucket.
+// DefaultSource is pbt-data's bucket, which httpfetch.Source fetches from.
 const DefaultSource = "https://pbt-data.xaroth.nl/"
 
 // Problems Pull and PullID report.
 var (
 	ErrUnknownLeague = errors.New("league not in the index")
 	ErrMismatch      = errors.New("content does not match its hash")
-	ErrStatus        = errors.New("unexpected HTTP status")
 )
 
 // Permissions of what Pull writes: published data, readable by all.
@@ -53,41 +49,6 @@ const (
 // Fetcher reads a file from a source by its slash-separated path, such as blobs/<sha256>.
 type Fetcher interface {
 	Fetch(ctx context.Context, name string) ([]byte, error)
-}
-
-// HTTP fetches from Base, a URL ending in a slash, with Client, or without one a client that
-// gives up on a request after fetchTimeout.
-type HTTP struct {
-	Base   string
-	Client *http.Client
-}
-
-// fetchTimeout bounds one file's request: the largest is a few MB.
-const fetchTimeout = 2 * time.Minute
-
-// Fetch gets Base+name and fails on any status but 200.
-func (h HTTP) Fetch(ctx context.Context, name string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.Base+name, nil)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", name, err)
-	}
-	c := h.Client
-	if c == nil {
-		c = &http.Client{Timeout: fetchTimeout}
-	}
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", name, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch %s: %w %s", h.Base+name, ErrStatus, resp.Status)
-	}
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", name, err)
-	}
-	return b, nil
 }
 
 // Result is what Pull or PullID did for one dataset.
