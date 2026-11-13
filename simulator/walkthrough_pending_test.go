@@ -24,7 +24,6 @@ type pending struct {
 // capabilities are what pending steps wait for.
 func capabilities() []string {
 	return []string{
-		"an enemy actor",
 		"skills on a build",
 		"charges in config",
 		"conditions derived from the build",

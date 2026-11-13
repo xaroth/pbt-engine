@@ -49,8 +49,6 @@ func (n need) missing(s symbolSet) bool {
 
 func needSkillSim(syms ...string) need { return need{what: "skill simulation", waitsOn: syms} }
 
-func needEnemy(syms ...string) need { return need{what: "enemy", waitsOn: syms} }
-
 func needDerived(syms ...string) need { return need{what: "derived conditions", waitsOn: syms} }
 
 func needBuildNew() need {
@@ -107,12 +105,8 @@ func sketchSetup() []sketchPart {
 	return []sketchPart{
 		{name: "open the datasets", run: sketchOpen},
 		{name: "resolve a league", run: sketchResolve},
-		{name: "make a sim against a pinnacle boss", code: `sim, err := simulator.New(res.Store, simulator.Enemy(poe1.Pinnacle))`,
-			needs: []need{needEnemy("simulator.Enemy", "poe1.Pinnacle")}},
-		// The rest of the sketch needs a sim, so this one has no enemy.
-		{name: "make a sim", run: sketchNew},
-		{name: "set the enemy's fire resistance", code: `sim.Configure(simulator.Set(poe1.EnemyFireResist, 40))`,
-			needs: []need{needEnemy("poe1.EnemyFireResist")}},
+		{name: "make a sim against a pinnacle boss", run: sketchNew},
+		{name: "set the enemy's fire resistance", run: sketchEnemyResistance},
 		{name: "read the config, its keys and the outputs", run: sketchReadConfig},
 	}
 }
@@ -139,10 +133,7 @@ func sketchEdit() []sketchPart {
 
 func sketchRun() []sketchPart {
 	return []sketchPart{
-		{name: "simulate against a map boss", code: `stats, err := sim.Simulate(next, simulator.Enemy(poe1.Map(83)))`,
-			needs: []need{needEnemy("simulator.Enemy", "poe1.Map")}},
-		// The rest of the sketch needs stats, so this call has no enemy.
-		{name: "simulate", run: sketchSimulate},
+		{name: "simulate against a map boss", run: sketchSimulate},
 		{name: "a build the dataset cannot take is ErrUnreconcilable", run: sketchUnreconcilable},
 		{name: "read an output", run: sketchGet},
 		{name: "read a skill's average hit", code: `stats.Skill(fireball).Get(poe1.AverageHit)`,
@@ -298,11 +289,17 @@ func sketchResolve(t *testing.T, s *sketchState) {
 }
 
 func sketchNew(t *testing.T, s *sketchState) {
-	sim, err := simulator.New(s.res.Store)
+	sim, err := simulator.New(s.res.Store, simulator.Set(poe1.Enemy, poe1.EnemyPinnacle))
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.sim = sim
+}
+
+func sketchEnemyResistance(t *testing.T, s *sketchState) {
+	if err := s.sim.Configure(simulator.Set(poe1.EnemyFireResistance, 40)); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func sketchReadConfig(t *testing.T, s *sketchState) {
@@ -443,7 +440,7 @@ func sketchEditTarget(t *testing.T, s *sketchState) {
 }
 
 func sketchSimulate(t *testing.T, s *sketchState) {
-	s.stats = simulate(t, s.sim, s.next)
+	s.stats = simulate(t, s.sim, s.next, simulator.Set(poe1.Enemy, poe1.EnemyBoss), simulator.Set(poe1.EnemyLevel, 83))
 }
 
 func sketchUnreconcilable(t *testing.T, s *sketchState) {

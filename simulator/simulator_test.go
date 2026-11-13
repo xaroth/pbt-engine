@@ -230,6 +230,14 @@ func TestConfigKeys(t *testing.T) {
 	want := []simulator.ConfigKey{
 		{Name: "campaign", Default: raw("complete")[0], Values: raw("complete", "acts-6-10", "acts-1-5")},
 		{Name: "bandits", Default: raw("")[0], Values: raw("", "kill-all", "help-alira", "help-kraityn", "help-oak")},
+		{Name: "enemy", Default: raw("pinnacle")[0], Values: raw("none", "boss", "pinnacle", "uber")},
+		{Name: "enemy-level", Default: json.RawMessage("84")},
+		{Name: "enemy-fire-resistance", Default: json.RawMessage("50")},
+		{Name: "enemy-cold-resistance", Default: json.RawMessage("50")},
+		{Name: "enemy-lightning-resistance", Default: json.RawMessage("50")},
+		{Name: "enemy-chaos-resistance", Default: json.RawMessage("30")},
+		{Name: "enemy-armour", Default: json.RawMessage("61989")},
+		{Name: "enemy-evasion", Default: json.RawMessage("10143")},
 	}
 	if diff := cmp.Diff(want, keys); diff != "" {
 		t.Errorf("config keys (-want +got):\n%s", diff)

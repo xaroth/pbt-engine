@@ -1,8 +1,5 @@
-make a sim against a pinnacle boss: enemy
-set the enemy's fire resistance: enemy
 make a build from scratch: build.New
 set charges in the build's config: charge config keys
-simulate against a map boss: enemy
 read a skill's average hit: skill simulation
 a condition with no source warns: derived conditions
 read a derived condition and its source: derived conditions
