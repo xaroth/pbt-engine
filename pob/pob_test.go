@@ -21,8 +21,9 @@ const (
 	scion    = "Metadata/Characters/StrDexInt/StrDexInt"
 )
 
-// registry holds one poe1 dataset, 3.29.3.5, with the names FromXML reads: Marauder, and
-// Chieftain as named in the standard and alternate trees.
+// registry holds one poe1 dataset, 3.29.3.5, with the names FromXML reads: Marauder,
+// Chieftain as named in the standard and alternate trees, a tattoo, a runegraft, and two
+// overrides that share a name.
 func registry(t *testing.T) *dataset.Registry {
 	t.Helper()
 	return registryOf(t, testDataset())
@@ -40,6 +41,10 @@ func testDataset() *dataset.Dataset {
 				{Variant: "standard", ID: "Chieftain", Name: "Chieftain"},
 				{Variant: "ruthless", ID: "Chieftain", Name: "Chieftain"},
 				{Variant: "alternate", ID: "Chieftain", Name: "Antiquarian"},
+			},
+			OverrideNames: []dataset.Name{
+				{ID: "Twin1", Name: "Tattoo of the Twins"}, {ID: "Twin2", Name: "Tattoo of the Twins"},
+				{ID: "Valako4", Name: "Tattoo of the Valako Shieldbearer"}, {ID: "runegraft_8", Name: "Runegraft of the Warp"},
 			},
 		}},
 	}
@@ -68,6 +73,11 @@ func tree(variant string) dataset.Tree {
 			{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}, {ID: "Berserker"}, {ID: "Chieftain"}}},
 		},
 		Nodes: []dataset.Node{{ID: 1, Kind: dataset.ClassStart}, {ID: 2, Kind: dataset.ClassStart}},
+		Overrides: []dataset.NodeOverride{
+			{ID: "Twin1", Icon: "twin.png"}, {ID: "Twin2", Icon: "twin.png"},
+			{ID: "Valako4", Icon: "shield.png", Target: dataset.SmallAttribute},
+			{ID: "runegraft_8", Kind: dataset.Runegraft, Icon: "warp.png", Target: dataset.MasteryTarget},
+		},
 	}
 }
 
@@ -133,19 +143,46 @@ func TestFromXML(t *testing.T) {
 	}
 	wantWarnings := []build.Warning{
 		{Code: pob.ClusterNodeDropped, Subject: "nodes 65601,65602", Message: "2 cluster jewel nodes dropped; cluster jewels are not imported"},
+		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`},
 		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input not modelled (true)"},
 		{Code: pob.SkillIgnored, Subject: "RF", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SkillIgnored, Subject: "Flame Dash", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SpecIgnored, Subject: "Leveling", Message: "only the active tree is imported"},
 		{Code: pob.AscendancyIgnored, Subject: "2", Message: "secondary ascendancy not imported"},
 		{Code: pob.PantheonIgnored, Subject: "Arakaali", Message: "pantheon not imported"},
-		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `node override "Tattoo of the Tasalio Shaman" not imported`},
 		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "not equipped in the active item set; not imported"},
 		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "not read: items: dataset 3.29.3.5 has no items group; not imported"},
 		{Code: pob.JewelIgnored, Subject: "node 26725", Message: `jewel "Corruption Spark" not imported`},
 		{Code: pob.ItemIgnored, Subject: "Seething Divine Life Flask of Staunching", Message: `slot "Flask 1" is not an equipment slot; not imported`},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
+		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+}
+
+// FromXML keeps a tattoo and a runegraft by the ids their names map to; a name two overrides
+// share is left out.
+func TestFromXMLOverrides(t *testing.T) {
+	t.Parallel()
+	const file = `<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="None" bandit="None"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes="4139,11505,26196">
+		<Overrides>
+			<Override nodeId="11505" dn="Tattoo of the Valako Shieldbearer" icon="x.png"/>
+			<Override nodeId="4139" dn="Runegraft of the Warp"/>
+			<Override nodeId="26196" dn="Tattoo of the Twins"/>
+		</Overrides>
+	</Spec></Tree>
+</PathOfBuilding>`
+	b, warnings, err := pob.FromXML([]byte(file), registry(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(map[uint32]string{11505: "Valako4", 4139: "runegraft_8"}, b.Overrides); diff != "" {
+		t.Errorf("overrides (-want +got):\n%s", diff)
+	}
+	want := []build.Warning{{Code: pob.OverrideIgnored, Subject: "node 26196", Message: `2 overrides are named "Tattoo of the Twins"; not imported`}}
+	if diff := cmp.Diff(want, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
 	}
 }

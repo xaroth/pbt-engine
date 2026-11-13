@@ -29,8 +29,9 @@ var (
 
 // Warning codes of ToXML: each names something in the build that the file does not hold.
 const (
-	ConfigNotExported build.Code = "pob-config-not-exported"
-	ItemNotExported   build.Code = "pob-item-not-exported"
+	ConfigNotExported   build.Code = "pob-config-not-exported"
+	ItemNotExported     build.Code = "pob-item-not-exported"
+	OverrideNotExported build.Code = "pob-override-not-exported"
 )
 
 const xmlTrue = "true"
@@ -43,9 +44,10 @@ var gameVersion = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.|$)`)
 // ToXML writes b as a PoB build file that FromXML reads back to b. Names come from the
 // English text of the dataset reg resolves for b's version, or of the newest poe1 dataset
 // when it has none (warning VersionFallback). The file holds one tree with b's class,
-// ascendancy, level, nodes and mastery choices; the bandit choice and the campaign stage as
+// ascendancy, level, nodes, mastery choices and overrides; the bandit choice and the campaign stage as
 // PoB's resistance penalty; and b's skill groups with their gems and main skill. A bandit
-// choice PoB has no option for, other config values and items give warnings. A gem the dataset
+// choice PoB has no option for, an override the text does not name, other config values and
+// items give warnings. A gem the dataset
 // lacks is written by id only, with warning GemUnknown. ErrGame, ErrClass, ErrAscendancy and
 // ErrVersion are a build the file cannot name.
 func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, error) {
@@ -148,7 +150,23 @@ func (ex *exporter) tree(s *dataset.Store, treeVersion string, bl *outBuild) (ou
 		}
 		spec.AscendClassID, bl.Ascendancy = a+1, text.AscendancyNames[j].Name
 	}
+	spec.Overrides = ex.overrides(text)
 	return outTree{Active: 1, Specs: []outSpec{spec}}, nil
+}
+
+// overrides names b's overrides as PoB does, by their English names.
+func (ex *exporter) overrides(text *dataset.Text) []outOverride {
+	var out []outOverride
+	for _, node := range slices.Sorted(maps.Keys(ex.b.Overrides)) {
+		id := ex.b.Overrides[node]
+		i := slices.IndexFunc(text.OverrideNames, func(n dataset.Name) bool { return n.ID == id })
+		if i < 0 {
+			ex.warnf(OverrideNotExported, nodeSubject(node), "override %q has no English name; not exported", id)
+			continue
+		}
+		out = append(out, outOverride{Node: node, Name: text.OverrideNames[i].Name})
+	}
+	return out
 }
 
 func joinNodes(nodes []uint32) string {
@@ -345,11 +363,17 @@ type outTree struct {
 }
 
 type outSpec struct {
-	TreeVersion   string `xml:"treeVersion,attr"`
-	ClassID       int    `xml:"classId,attr"`
-	AscendClassID int    `xml:"ascendClassId,attr"`
-	Nodes         string `xml:"nodes,attr"`
-	Masteries     string `xml:"masteryEffects,attr"`
+	TreeVersion   string        `xml:"treeVersion,attr"`
+	ClassID       int           `xml:"classId,attr"`
+	AscendClassID int           `xml:"ascendClassId,attr"`
+	Nodes         string        `xml:"nodes,attr"`
+	Masteries     string        `xml:"masteryEffects,attr"`
+	Overrides     []outOverride `xml:"Overrides>Override,omitempty"`
+}
+
+type outOverride struct {
+	Node uint32 `xml:"nodeId,attr"`
+	Name string `xml:"dn,attr"`
 }
 
 type outConfig struct {
