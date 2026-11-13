@@ -294,6 +294,11 @@ func validateNames(texts []Text, trees []Tree) error {
 				return fmt.Errorf("text %s: name for unknown override %s: %w", t.Language, n.ID, ErrInvalid)
 			}
 		}
+		for _, n := range t.TimelessNames {
+			if !names.timeless[n.ID] {
+				return fmt.Errorf("text %s: name for unknown timeless passive %s: %w", t.Language, n.ID, ErrInvalid)
+			}
+		}
 	}
 	return nil
 }
@@ -303,10 +308,11 @@ type treeNames struct {
 	nodes        map[uint32]bool
 	ascendancies map[string]bool // "<variant>/<id>"
 	overrides    map[string]bool
+	timeless     map[string]bool // TimelessReplacement ids
 }
 
 func collectTreeNames(trees []Tree) treeNames {
-	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, overrides: map[string]bool{}}
+	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, overrides: map[string]bool{}, timeless: map[string]bool{}}
 	for _, t := range trees {
 		for _, n := range t.Nodes {
 			names.nodes[n.ID] = true
@@ -321,6 +327,11 @@ func collectTreeNames(trees []Tree) treeNames {
 		}
 		for _, o := range t.Overrides {
 			names.overrides[o.ID] = true
+		}
+		for _, v := range t.TimelessVersions {
+			for _, r := range v.Replacements {
+				names.timeless[r.ID] = true
+			}
 		}
 	}
 	return names

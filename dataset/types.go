@@ -55,6 +55,8 @@ type Text struct {
 	MonsterNames []Name
 	// OverrideNames are keyed by NodeOverride.ID.
 	OverrideNames []Name
+	// TimelessNames are keyed by TimelessReplacement.ID.
+	TimelessNames []Name
 }
 
 // NodeName is the display name of a passive node.

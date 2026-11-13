@@ -72,6 +72,8 @@ table Text {
   monster_names: [Name];
   // Keyed by tree override id; absent in datasets without overrides.
   override_names: [Name];
+  // Keyed by timeless replacement passive id; absent in datasets without timeless names.
+  timeless_names: [Name];
 }
 
 root_type Text;

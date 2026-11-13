@@ -10,9 +10,11 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// withTimeless returns sample with the standard tree's None and Vaal timeless versions.
+// withTimeless returns sample with the standard tree's None, Vaal and Karui timeless versions
+// and the English names of the Vaal replacements.
 func withTimeless() *dataset.Dataset {
 	d := sample()
+	d.Texts[0].TimelessNames = []dataset.Name{{ID: "vaal_keystone_1", Name: "Divine Flesh"}, {ID: "vaal_notable_random_1", Name: "Tempered by War"}}
 	d.Trees[0].TimelessVersions = []dataset.TimelessVersion{
 		{ID: "None"},
 		{
@@ -80,6 +82,9 @@ func TestTimelessWriteErrors(t *testing.T) {
 		{name: "range reversed", want: `version "Vaal" addition 0: range reversed`, change: func(v []dataset.TimelessVersion) {
 			v[1].Additions[0].Stats[0].Min = 13
 		}},
+		{name: "name for unknown passive", want: "name for unknown timeless passive vaal_keystone_1", change: func(v []dataset.TimelessVersion) {
+			v[1].Replacements[0].ID = "x0"
+		}},
 		{name: "too many addition stats", want: `version "Vaal" addition 0: 3 stats, at most 2`, change: func(v []dataset.TimelessVersion) {
 			v[1].Additions[0].Stats = []dataset.StatRange{{Stat: 0}, {Stat: 1}, {Stat: 2}}
 		}},
@@ -92,5 +97,23 @@ func TestTimelessWriteErrors(t *testing.T) {
 			_, err := dataset.Write(t.TempDir(), d)
 			checkError(t, err, dataset.ErrInvalid, testCase.want)
 		})
+	}
+}
+
+// TestTimelessNames reads the timeless names from the names file alone.
+func TestTimelessNames(t *testing.T) {
+	t.Parallel()
+	d := withTimeless()
+	full := written(t, d)
+	s, err := dataset.Open(without(full, dataset.TextFile("en"), dataset.StatsFile, dataset.CharactersFile))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	got, err := s.Names("en")
+	if err != nil {
+		t.Fatalf("Names: %v", err)
+	}
+	if diff := gocmp.Diff(d.Texts[0].TimelessNames, got.TimelessNames); diff != "" {
+		t.Errorf("timeless names (-want +got):\n%s", diff)
 	}
 }
