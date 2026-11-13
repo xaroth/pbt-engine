@@ -102,7 +102,7 @@ func TestPointBudget(t *testing.T) {
 			}
 			must(t, config.Set(&v, poe1.Bandits, testCase.bandits))
 			cfg, _ := config.Resolve(poe1.ConfigSpecs(), config.Layer{Source: config.FromBuild, Values: v})
-			got, err := poe1.PointBudget(c, cfg)
+			_, got, err := poe1.PointBudget(c, cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -138,7 +138,7 @@ func TestPointBudgetRealTree(t *testing.T) {
 		var v config.Values
 		must(t, config.Set(&v, poe1.Bandits, poe1.BanditsKillAll))
 		cfg, _ := config.Resolve(poe1.ConfigSpecs(), config.Layer{Source: config.FromBuild, Values: v})
-		ws, err := poe1.PointBudget(c, cfg)
+		_, ws, err := poe1.PointBudget(c, cfg)
 		if err != nil || len(ws) != 0 {
 			t.Errorf("%s: %v, %v", version, ws, err)
 		}

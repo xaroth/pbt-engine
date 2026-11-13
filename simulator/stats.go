@@ -20,6 +20,7 @@ type Stats struct {
 	keys     []output.Key
 	warnings []Warning
 	cfg      config.Resolved
+	budget   Budget
 	build    *build.Build
 	checked  *build.Checked
 	items    []poe1.Item
@@ -73,6 +74,10 @@ func (st *Stats) Get(k output.Key) (float64, bool) {
 
 // Keys returns the outputs computed, in the rules' display order or as asked for.
 func (st *Stats) Keys() []output.Key { return slices.Clone(st.keys) }
+
+// Budget returns the points the build can spend under the config the simulation resolved.
+// The points it uses are build.Checked.Points.
+func (st *Stats) Budget() Budget { return st.budget }
 
 // Warnings returns what the simulation went on without and what it did about each.
 func (st *Stats) Warnings() []Warning { return slices.Clone(st.warnings) }

@@ -53,6 +53,10 @@ const (
 // Warning is something a simulation went on without; its message says what was done.
 type Warning = build.Warning
 
+// Budget is the passive and ascendancy points a build can spend under its config. A build
+// over it keeps its nodes and has a warning.
+type Budget = poe1.Budget
+
 // maxIdle is how many idle sheets a sim keeps over all build shapes; the least recently used
 // goes first. A whole-tree sheet is about a megabyte.
 const maxIdle = 16
@@ -175,6 +179,7 @@ type run struct {
 	checked  *build.Checked
 	shape    shape
 	cfg      config.Resolved
+	budget   Budget
 	items    []poe1.Item
 	warnings []Warning
 }
@@ -212,11 +217,12 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	for _, p := range problems {
 		r.warnings = append(r.warnings, configWarning(p))
 	}
-	budget, err := poe1.PointBudget(c, r.cfg)
+	var over []Warning
+	r.budget, over, err = poe1.PointBudget(c, r.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
-	r.warnings = append(r.warnings, budget...)
+	r.warnings = append(r.warnings, over...)
 	return r, nil
 }
 
@@ -240,8 +246,8 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 		return nil, err
 	}
 	st := &Stats{
-		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, build: r.build,
-		checked: r.checked, items: r.items, sim: s,
+		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, budget: r.budget,
+		build: r.build, checked: r.checked, items: r.items, sim: s,
 	}
 	for _, k := range keys {
 		v, err := sh.Output(k)
