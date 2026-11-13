@@ -7,6 +7,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 0,
       "value": 32
     },
@@ -16,6 +17,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 1,
       "value": 0
     },
@@ -25,6 +27,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 2,
       "value": 0
     },
@@ -34,6 +37,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 3,
       "value": 1327
     },
@@ -43,6 +47,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 4,
       "value": 0
     },
@@ -52,6 +57,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 5,
       "value": 0
     },
@@ -61,6 +67,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 6,
       "value": 0
     },
@@ -70,6 +77,7 @@
       "unit": "",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 7,
       "value": 0
     },
@@ -79,6 +87,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 8,
       "value": -60
     },
@@ -88,6 +97,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 9,
       "value": -60
     },
@@ -97,6 +107,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 10,
       "value": -60
     },
@@ -106,6 +117,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 11,
       "value": -60
     },
@@ -115,6 +127,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 12,
       "value": 75
     },
@@ -124,6 +137,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 13,
       "value": 75
     },
@@ -133,6 +147,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 14,
       "value": 75
     },
@@ -142,6 +157,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 15,
       "value": 75
     },
@@ -151,6 +167,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 16,
       "value": -60
     },
@@ -160,6 +177,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 17,
       "value": -60
     },
@@ -169,6 +187,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 18,
       "value": -60
     },
@@ -178,6 +197,7 @@
       "unit": "%",
       "places": 0,
       "group": "sheet",
+      "better": "higher",
       "order": 19,
       "value": -60
     },
@@ -187,6 +207,7 @@
       "unit": "/s",
       "places": 1,
       "group": "sheet",
+      "better": "higher",
       "order": 20,
       "value": 0
     },
@@ -196,6 +217,7 @@
       "unit": "/s",
       "places": 1,
       "group": "sheet",
+      "better": "higher",
       "order": 21,
       "value": 0
     },
@@ -205,6 +227,7 @@
       "unit": "/s",
       "places": 1,
       "group": "sheet",
+      "better": "higher",
       "order": 22,
       "value": 0
     }

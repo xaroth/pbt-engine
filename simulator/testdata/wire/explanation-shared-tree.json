@@ -5,6 +5,7 @@
     "unit": "%",
     "places": 0,
     "group": "sheet",
+    "better": "higher",
     "order": 9
   },
   "view": "tree",
