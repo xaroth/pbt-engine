@@ -40,8 +40,16 @@ const (
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.
 const (
-	Campaign = rules.Campaign
-	Bandits  = rules.Bandits
+	Campaign                 = rules.Campaign
+	Bandits                  = rules.Bandits
+	Enemy                    = rules.Enemy
+	EnemyLevel               = rules.EnemyLevel
+	EnemyFireResistance      = rules.EnemyFireResistance
+	EnemyColdResistance      = rules.EnemyColdResistance
+	EnemyLightningResistance = rules.EnemyLightningResistance
+	EnemyChaosResistance     = rules.EnemyChaosResistance
+	EnemyArmour              = rules.EnemyArmour
+	EnemyEvasion             = rules.EnemyEvasion
 )
 
 // CampaignStage is how far the character is through the story campaign: the value of
@@ -68,3 +76,21 @@ const (
 	BanditsHelpKraityn  = rules.BanditsHelpKraityn
 	BanditsHelpOak      = rules.BanditsHelpOak
 )
+
+// EnemyKind is what the enemy is, a normal monster or a boss of some tier: the value of Enemy.
+// Enemy keys without a value take the kind's values.
+type EnemyKind = rules.EnemyKind
+
+// Enemy kinds. EnemyPinnacle is the default.
+const (
+	EnemyNone     = rules.EnemyNone
+	EnemyBoss     = rules.EnemyBoss
+	EnemyPinnacle = rules.EnemyPinnacle
+	EnemyUber     = rules.EnemyUber
+)
+
+// MonsterLevel is a monster's level, from 1: the value of EnemyLevel.
+type MonsterLevel = rules.MonsterLevel
+
+// Rating is an armour or evasion rating, from 0: the value of EnemyArmour and EnemyEvasion.
+type Rating = rules.Rating
