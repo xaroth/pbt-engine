@@ -1,6 +1,7 @@
 package build
 
 import (
+	"cmp"
 	"maps"
 	"reflect"
 	"slices"
@@ -99,13 +100,14 @@ func (it *Item) Clone() *Item {
 // Items are a build's equipped items by slot.
 type Items map[Slot]Item
 
-func (is Items) clone() Items {
-	if is == nil {
+// cloneItems returns a deep copy of items by slot or jewels by socket.
+func cloneItems[M ~map[K]Item, K comparable](m M) M {
+	if m == nil {
 		return nil
 	}
-	c := make(Items, len(is))
-	for s, it := range is {
-		c[s] = *it.Clone()
+	c := make(M, len(m))
+	for k, it := range m {
+		c[k] = *it.Clone()
 	}
 	return c
 }
@@ -138,18 +140,18 @@ func (b *Build) applyItem(e Edit) {
 	b.Items[e.Slot] = it
 }
 
-// itemsDiff returns the edits that turn a into b: slots b leaves empty, then items b changes
-// or adds, each in slot order.
-func itemsDiff(a, b Items) []Edit {
+// itemsDiff returns the edits that turn a into b, items by slot or jewels by socket: places b
+// leaves empty, then items b changes or adds, each in key order.
+func itemsDiff[K cmp.Ordered](a, b map[K]Item, remove func(K) Edit, put func(K, Item) Edit) []Edit {
 	var out []Edit
-	for _, s := range slices.Sorted(maps.Keys(a)) {
-		if _, ok := b[s]; !ok {
-			out = append(out, Unequip(s))
+	for _, k := range slices.Sorted(maps.Keys(a)) {
+		if _, ok := b[k]; !ok {
+			out = append(out, remove(k))
 		}
 	}
-	for _, s := range slices.Sorted(maps.Keys(b)) {
-		if x, ok := a[s]; !ok || !reflect.DeepEqual(x, b[s]) {
-			out = append(out, Equip(s, b[s]))
+	for _, k := range slices.Sorted(maps.Keys(b)) {
+		if x, ok := a[k]; !ok || !reflect.DeepEqual(x, b[k]) {
+			out = append(out, put(k, b[k]))
 		}
 	}
 	return out

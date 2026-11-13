@@ -67,6 +67,8 @@ type Build struct {
 	Skills Skills `json:"skills,omitzero"`
 	// Items are the equipped items by slot.
 	Items Items `json:"items,omitzero"`
+	// Jewels maps a jewel socket node's id to the jewel in it.
+	Jewels Jewels `json:"jewels,omitempty"`
 }
 
 // Parse decodes a build file. Unknown fields, another format and trailing data are errors.
@@ -113,7 +115,8 @@ func (b *Build) Clone() *Build {
 	c.Overrides = maps.Clone(b.Overrides)
 	c.Config = b.Config.Clone()
 	c.Skills = b.Skills.clone()
-	c.Items = b.Items.clone()
+	c.Items = cloneItems(b.Items)
+	c.Jewels = cloneItems(b.Jewels)
 	return &c
 }
 
