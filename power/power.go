@@ -213,10 +213,10 @@ func (w *walk) cost(path []uint32) (passive, ascendancy int) {
 	return passive, ascendancy
 }
 
-// takeable reports whether the walk may enter n.
-func (w *walk) takeable(n *dataset.Node) bool {
+// takeable reports whether the walk may step from node from, a seed or not, to its neighbour n.
+func (w *walk) takeable(from, n *dataset.Node, fromSeed bool) bool {
 	return n != nil && n.Kind != dataset.ClassStart && n.Kind != dataset.AscendancyStart &&
-		(n.Ascendancy == "" || n.Ascendancy == w.ascendancy)
+		(n.Ascendancy == "" || n.Ascendancy == w.ascendancy) && build.Crosses(from, n, fromSeed)
 }
 
 // run walks to depth limit (no limit when 0 or less) and returns the nodes reached beyond the
@@ -231,7 +231,7 @@ func (w *walk) run(limit int) []uint32 {
 			continue
 		}
 		for _, nb := range n.Neighbours {
-			if _, seen := w.depth[nb]; seen || !w.takeable(w.node(nb)) {
+			if _, seen := w.depth[nb]; seen || !w.takeable(n, w.node(nb), w.depth[id] == 0) {
 				continue
 			}
 			w.depth[nb], w.parent[nb] = w.depth[id]+1, id

@@ -9,9 +9,10 @@ import (
 
 // AllocatePath returns the edit that allocates node with the shortest path of unallocated nodes
 // joining it to the allocated nodes or the class or ascendancy start, node last. A path takes
-// no class start, no node of another ascendancy (their starts included) and no option of a
-// choice node that already takes one, and ends at a mastery: a mastery's edges say which
-// notables unlock it. It reports false when node is allocated or a start, or no path reaches it.
+// no start, no node of another ascendancy and no option of a choice node that already takes
+// one, crosses between the ascendancy and the main tree only as Crosses allows, and ends at a
+// mastery: a mastery's edges say which notables unlock it. It reports false when node is
+// allocated or a start, or no path reaches it.
 func (c *Checked) AllocatePath(node uint32) (Edit, bool) {
 	seeds := c.starts()
 	maps.Copy(seeds, c.allocatedSet())
@@ -35,7 +36,7 @@ func (c *Checked) AllocatePath(node uint32) (Edit, bool) {
 			continue
 		}
 		for _, nb := range n.Neighbours {
-			if _, seen := parent[nb]; seen || !c.takeable(c.node(nb), taken) {
+			if _, seen := parent[nb]; seen || !c.takeable(n, c.node(nb), seeds[id], taken) {
 				continue
 			}
 			parent[nb] = id
@@ -67,13 +68,25 @@ func (c *Checked) takenChoices() map[uint32]bool {
 	return taken
 }
 
-// takeable reports whether a path may enter n; taken holds the choice nodes with an option.
-func (c *Checked) takeable(n *dataset.Node, taken map[uint32]bool) bool {
-	if n == nil || n.Kind == dataset.ClassStart || (n.Ascendancy != "" && n.Ascendancy != c.build.Ascendancy) {
+// takeable reports whether a path may step from node from, allocated or not, to its neighbour
+// to; taken holds the choice nodes with an option.
+func (c *Checked) takeable(from, to *dataset.Node, fromAllocated bool, taken map[uint32]bool) bool {
+	if to == nil || to.Kind == dataset.ClassStart || to.Kind == dataset.AscendancyStart || (to.Ascendancy != "" && to.Ascendancy != c.build.Ascendancy) {
 		return false
 	}
-	p := c.choiceOf(n)
+	if !Crosses(from, to, fromAllocated) {
+		return false
+	}
+	p := c.choiceOf(to)
 	return p == nil || !taken[p.ID]
+}
+
+// Crosses reports whether a path may step from node from to its neighbour to as far as
+// ascendancies go. As in the game, a path enters an ascendancy only at its start and leaves it
+// for the main tree only from an allocated node, such as an Ascendant's allocated "Path of the
+// Marauder".
+func Crosses(from, to *dataset.Node, fromAllocated bool) bool {
+	return from.Ascendancy == to.Ascendancy || (to.Ascendancy == "" && fromAllocated)
 }
 
 // DeallocateBranch returns the edits that deallocate node and the allocated nodes joined to the
