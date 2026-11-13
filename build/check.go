@@ -409,7 +409,7 @@ func (c *Checked) choiceOf(n *dataset.Node) *dataset.Node {
 }
 
 // reach returns the nodes reachable from roots through nodes in allowed, all of them allocated
-// or starts, stepping only where crosses allows. A mastery is reached but not passed through:
+// or starts, stepping only where Crosses allows. A mastery is reached but not passed through:
 // its edges say which notables unlock it, not a path.
 func (c *Checked) reach(roots []uint32, allowed map[uint32]bool) map[uint32]bool {
 	reached := map[uint32]bool{}
@@ -423,7 +423,7 @@ func (c *Checked) reach(roots []uint32, allowed map[uint32]bool) map[uint32]bool
 		reached[id] = true
 		if n := c.node(id); n != nil && n.Kind != dataset.Mastery {
 			for _, nb := range n.Neighbours {
-				if allowed[nb] && !reached[nb] && crosses(n, c.node(nb), true) {
+				if allowed[nb] && !reached[nb] && Crosses(n, c.node(nb), true) {
 					queue = append(queue, nb)
 				}
 			}

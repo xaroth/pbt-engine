@@ -118,3 +118,40 @@ func BenchmarkNodes(b *testing.B) {
 		})
 	}
 }
+
+// As in the game, a path leaves an ascendancy for the main tree only from an allocated node:
+// for a fresh Scion Ascendant, the path to main-tree node 39821, beside the unallocated "Path of
+// the Ranger", takes main-tree nodes only.
+func TestRealAscendantPathStaysInMainTree(t *testing.T) {
+	t.Parallel()
+	s := realdata.Open(t, realdata.Current)
+	sim, err := simulator.New(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := build.New(s, "Metadata/Characters/StrDexInt/StrDexInt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := c.Build()
+	b.Ascendancy = "Ascendant"
+	tree, err := s.Tree(build.DefaultVariant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const besideRangerPath = 39821
+	nps := nodes(t, sim, &b, power.Outputs(poe1.Life))
+	i := slices.IndexFunc(nps, func(np power.NodePower) bool { return np.Node == besideRangerPath })
+	if i < 0 {
+		t.Fatalf("no candidate %d", besideRangerPath)
+	}
+	np := nps[i]
+	for _, n := range tree.Nodes {
+		if n.Ascendancy != "" && slices.Contains(np.Path, n.ID) {
+			t.Errorf("path %v takes node %d of %s, want main-tree nodes only", np.Path, n.ID, n.Ascendancy)
+		}
+	}
+	if np.AscendancyPoints != 0 {
+		t.Errorf("got %d ascendancy points, want 0", np.AscendancyPoints)
+	}
+}
