@@ -11,12 +11,12 @@ import (
 	"github.com/xaroth/pbt-engine/simulator"
 )
 
-// Sockets of the 3.29 tree, named by a keystone or notable in their Large radius.
+// Sockets of the 3.29 tree, named by a keystone in their Large radius.
 const (
-	mindOverMatterSocket   = 36634 // Witch, by Mind Over Matter
-	unwaveringStanceSocket = 28475 // Marauder and Duelist, by Unwavering Stance
-	largeClusterSocket     = 7960  // Witch outer large cluster socket, by Acrimony
-	mindOverMatter         = 34098
+	agnosticSocket = 26196 // between Templar and Witch, by The Agnostic
+	ironWillSocket = 6230  // by Scion, Iron Will and Necromantic Aegis
+	conduitSocket  = 48768 // by Scion, Conduit and Solipsism
+	theAgnostic    = 19732
 )
 
 func TestNodesInRadius(t *testing.T) {
@@ -26,7 +26,7 @@ func TestNodesInRadius(t *testing.T) {
 		t.Fatal(err)
 	}
 	large := simulator.Radius{ID: "Large"}
-	for socket, want := range map[uint32]int{mindOverMatterSocket: 31, unwaveringStanceSocket: 34, largeClusterSocket: 34} {
+	for socket, want := range map[uint32]int{agnosticSocket: 79, ironWillSocket: 100, conduitSocket: 96} {
 		nodes, err := sim.NodesInRadius(build.DefaultVariant, socket, large)
 		if err != nil {
 			t.Fatal(err)
@@ -37,16 +37,16 @@ func TestNodesInRadius(t *testing.T) {
 	}
 
 	// The Large ring starts at 1400, outside the Medium disc of 1200.
-	ring, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatterSocket, simulator.Radius{ID: "Large", Ring: true})
+	ring, err := sim.NodesInRadius(build.DefaultVariant, agnosticSocket, simulator.Radius{ID: "Large", Ring: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	inner, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatterSocket, simulator.Radius{ID: "Medium"})
+	inner, err := sim.NodesInRadius(build.DefaultVariant, agnosticSocket, simulator.Radius{ID: "Medium"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ring) != 12 || len(inner) == 0 {
-		t.Errorf("Large ring: %d nodes, want 12; Medium disc: %d nodes", len(ring), len(inner))
+	if len(ring) != 33 || len(inner) == 0 {
+		t.Errorf("Large ring: %d nodes, want 33; Medium disc: %d nodes", len(ring), len(inner))
 	}
 	for _, n := range ring {
 		if slices.Contains(inner, n) {
@@ -54,10 +54,10 @@ func TestNodesInRadius(t *testing.T) {
 		}
 	}
 
-	if _, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatter, large); !errors.Is(err, simulator.ErrNotSocket) {
-		t.Errorf("Mind Over Matter as socket: %v, want ErrNotSocket", err)
+	if _, err := sim.NodesInRadius(build.DefaultVariant, theAgnostic, large); !errors.Is(err, simulator.ErrNotSocket) {
+		t.Errorf("The Agnostic as socket: %v, want ErrNotSocket", err)
 	}
-	if _, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatterSocket, simulator.Radius{ID: "Huge"}); !errors.Is(err, dataset.ErrNotInDataset) {
+	if _, err := sim.NodesInRadius(build.DefaultVariant, agnosticSocket, simulator.Radius{ID: "Huge"}); !errors.Is(err, dataset.ErrNotInDataset) {
 		t.Errorf("unknown radius: %v, want ErrNotInDataset", err)
 	}
 }

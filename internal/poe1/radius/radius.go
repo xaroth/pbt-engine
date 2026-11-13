@@ -24,13 +24,18 @@ type Area struct {
 	Inner, Outer float64
 }
 
+// layoutPerRadius converts the game's jewel radii to layout units. The tree export's
+// coordinates have been 1.2 times the radii's units since 3.16: a Large radius (1500) drawn in
+// the 3.30 client spans 1800 layout units, as in Path of Building (Data.lua, jewelRadii 3_16).
+const layoutPerRadius = 1.2
+
 // Disc is the area of a jewel of radius r.
-func Disc(r dataset.JewelRadius) Area { return Area{Outer: float64(r.Radius)} }
+func Disc(r dataset.JewelRadius) Area { return Area{Outer: layoutPerRadius * float64(r.Radius)} }
 
 // Ring is the ring of radius r that Thread of Hope reaches, which leaves out the disc inside
 // it.
 func Ring(r dataset.JewelRadius) Area {
-	return Area{Inner: float64(r.RingInner), Outer: float64(r.RingOuter)}
+	return Area{Inner: layoutPerRadius * float64(r.RingInner), Outer: layoutPerRadius * float64(r.RingOuter)}
 }
 
 // Index finds the passives in an area around the sockets of one tree variant.
