@@ -149,6 +149,68 @@ table Clusters {
   notables: [ClusterNotable];
 }
 
+// The PassiveType of an alternate passive row: the kinds of passive it applies to.
+enum TimelessKind: ubyte {
+  None,
+  SmallAttribute,
+  SmallNormal,
+  Notable,
+  Keystone,
+  JewelSocket,
+}
+
+// A stat and the range its value rolls in.
+struct StatRange {
+  // Index into the tree's stat_ids.
+  stat: uint32;
+  min: int32;
+  max: int32;
+}
+
+// An AlternatePassiveSkills row: a passive that replaces one in a timeless jewel's radius.
+table TimelessReplacement {
+  // Game id; data only, as some ids do not match their stats.
+  id: string (required);
+  kinds: [TimelessKind];
+  // Row order.
+  stats: [StatRange];
+  weight: uint32;
+  // RandomMin and RandomMax.
+  additions_min: int32;
+  additions_max: int32;
+  // Set on keystones.
+  conqueror_index: uint32;
+  conqueror_version: uint32;
+}
+
+// An AlternatePassiveAdditions row: stats a timeless jewel adds to a passive in its radius.
+table TimelessAddition {
+  // Game id; data only.
+  id: string (required);
+  kinds: [TimelessKind];
+  // Row order.
+  stats: [StatRange];
+  weight: uint32;
+}
+
+// An AlternateTreeVersions row with its replacements and additions, in table order.
+table TimelessVersion {
+  // Such as Vaal.
+  id: string (required);
+  small_attribute_replaced: bool;
+  small_normal_replaced: bool;
+  small_attribute_additions_min: int32;
+  small_attribute_additions_max: int32;
+  small_normal_additions_min: int32;
+  small_normal_additions_max: int32;
+  notable_additions_min: int32;
+  notable_additions_max: int32;
+  // Percent.
+  notable_replacement_chance: int32;
+  replacements: [TimelessReplacement];
+  additions: [TimelessAddition];
+}
+
 table Ascendancy {
   id: string (required);
 }
@@ -181,6 +243,8 @@ table Tree {
   jewel_radii: [JewelRadius];
   // Absent in trees without cluster jewels.
   clusters: Clusters;
+  // Table order, so a version's index is its game row; absent in trees without them.
+  timeless_versions: [TimelessVersion];
 }
 
 root_type Tree;
