@@ -18,7 +18,8 @@ const (
 const banditKillAllFlag = "a2q7-QuestRewardTaken"
 
 // Budget is the points a character can spend: Passive is Level + Quests + Granted, the parts
-// it is made of; Ascendancy is what the labyrinths give.
+// it is made of; Ascendancy is what the labyrinths give, for the ascendancy and the bloodline
+// together.
 type Budget struct {
 	Passive    int `json:"passive"`
 	Ascendancy int `json:"ascendancy"`
@@ -33,7 +34,8 @@ type Budget struct {
 
 // PointBudget returns the points c can spend under cfg, and warns when c allocates more.
 // Ascendancy points are at most what all labyrinths give, since the config does not say which
-// are done. Nodes stay allocated. It fails when the quests group does not load.
+// are done. A bloodline's nodes spend from the same ascendancy points and have no cap of their
+// own (https://www.poewiki.net/wiki/Ascendancy_class). Nodes stay allocated. It fails when the quests group does not load.
 func PointBudget(c *build.Checked, cfg config.Resolved) (Budget, []build.Warning, error) {
 	quests, err := c.Store().Quests()
 	if err != nil {

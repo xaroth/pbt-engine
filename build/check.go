@@ -193,8 +193,8 @@ func (c *Checked) Warnings() []Warning { return slices.Clone(c.warnings) }
 func (c *Checked) Masteries() []MasteryChoice { return slices.Clone(c.masteries) }
 
 // Points returns the passive points the allocation uses: passive nodes other than the class
-// start, ascendancy nodes other than the ascendancy start, and the points the allocated nodes
-// grant. An option of a multiple-choice node is free: its parent paid the point.
+// start, ascendancy and bloodline nodes other than their starts, and the points the allocated
+// nodes grant. A bloodline spends ascendancy points. An option of a multiple-choice node is free: its parent paid the point.
 func (c *Checked) Points() (passive, ascendancy, granted int) {
 	for _, n := range c.nodes {
 		switch {

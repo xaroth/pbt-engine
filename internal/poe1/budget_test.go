@@ -13,7 +13,8 @@ import (
 
 // budgetStore has campaign quests worth 1 (act 1), 1 (the bandit kill, act 2), 1 (act 7) and
 // 2 (a10q3) passive points and one labyrinth worth 2 ascendancy points; the Marauder tree is a
-// chain 1 (start) to 11, and Juggernaut nodes 21 to 23 hang off its start 20.
+// chain 1 (start) to 11, Juggernaut nodes 21 to 23 hang off its start 20, and bloodline Oshabi
+// nodes 31 and 32 off its start 30.
 func budgetStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	tree := dataset.Tree{
@@ -36,6 +37,11 @@ func budgetStore(t *testing.T) *dataset.Store {
 	for id := uint32(21); id <= 23; id++ {
 		tree.Nodes = append(tree.Nodes, dataset.Node{ID: id, Ascendancy: "Juggernaut", Neighbours: []uint32{20}})
 	}
+	tree.Nodes = append(tree.Nodes, dataset.Node{ID: 30, Kind: dataset.AscendancyStart, Ascendancy: "Oshabi", Neighbours: []uint32{31, 32}})
+	for id := uint32(31); id <= 32; id++ {
+		tree.Nodes = append(tree.Nodes, dataset.Node{ID: id, Ascendancy: "Oshabi", Neighbours: []uint32{30}})
+	}
+	tree.AlternateAscendancies = []dataset.Ascendancy{{ID: "Oshabi"}}
 	d := &dataset.Dataset{
 		Manifest:   dataset.Manifest{Game: "poe1", Version: "3.29.3.3"},
 		Characters: []dataset.Character{{ID: "Metadata/Characters/Str/Str"}},
@@ -75,6 +81,8 @@ func TestPointBudget(t *testing.T) {
 		campaign poe1.CampaignStage
 		bandits  poe1.BanditChoice
 		codes    []build.Code
+		// bloodline is the build's bloodline, Oshabi when set.
+		bloodline bool
 	}{
 		// level 5: 4 points; complete and the kill: 5 quest points
 		{name: "complete, kill all, at budget", nodes: chain(9), bandits: poe1.BanditsKillAll},
@@ -86,12 +94,19 @@ func TestPointBudget(t *testing.T) {
 			codes: []build.Code{poe1.PointsOverBudget}},
 		{name: "acts 1 to 5", nodes: chain(5), campaign: poe1.CampaignActs1To5},
 		{name: "ascendancy over", nodes: append(chain(1), 21, 22, 23), codes: []build.Code{poe1.AscendancyPointsOverBudget}},
+		// the bloodline spends from the labyrinths' 2 as the ascendancy does
+		{name: "ascendancy and bloodline at budget", nodes: append(chain(1), 21, 30, 31), bloodline: true},
+		{name: "ascendancy and bloodline over", nodes: append(chain(1), 21, 30, 31, 32), bloodline: true,
+			codes: []build.Code{poe1.AscendancyPointsOverBudget}},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			b := &build.Build{Format: 1, Game: "poe1", Version: "3.29", Class: "Metadata/Characters/Str/Str", Ascendancy: "Juggernaut",
 				Level: 5, Nodes: testCase.nodes}
+			if testCase.bloodline {
+				b.Bloodline = "Oshabi"
+			}
 			c, warnings, err := build.Check(b, s)
 			if err != nil || len(warnings) != 0 {
 				t.Fatal(err, warnings)
