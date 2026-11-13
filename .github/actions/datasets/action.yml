@@ -10,9 +10,9 @@ runs:
     - uses: actions/cache@v6
       with:
         path: ${{ env.PBT_DATASETS }}
-        key: pbt-datasets-${{ hashFiles('internal/realdata/realdata.go') }}
+        key: pbt-datasets-pinned-${{ hashFiles('internal/realdata/realdata.go') }}
     - name: Fetch the pinned datasets by id
       shell: bash
       run: |
         go run ./internal/realdata/fetch "$PBT_DATASETS"
-        echo "Datasets under PBT_DATASETS: $(du -sh "$PBT_DATASETS" | cut -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
+        echo "Datasets under PBT_DATASETS: $(du -sh "$PBT_DATASETS" | cut -f1) in $(ls "$PBT_DATASETS" | tr "\n" " ")" | tee -a "$GITHUB_STEP_SUMMARY"
