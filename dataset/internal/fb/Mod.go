@@ -231,8 +231,28 @@ func (rcv *Mod) MutateGameMode(n int32) bool {
 	return rcv._tab.MutateInt32Slot(26, n)
 }
 
+func (rcv *Mod) GrantedSkills(obj *GrantedSkill, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Mod) GrantedSkillsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func ModStart(builder *flatbuffers.Builder) {
-	builder.StartObject(12)
+	builder.StartObject(13)
 }
 func ModAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -287,6 +307,12 @@ func ModStartGenerationWeightsVector(builder *flatbuffers.Builder, numElems int)
 }
 func ModAddGameMode(builder *flatbuffers.Builder, gameMode int32) {
 	builder.PrependInt32Slot(11, gameMode, 0)
+}
+func ModAddGrantedSkills(builder *flatbuffers.Builder, grantedSkills flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(12, flatbuffers.UOffsetT(grantedSkills), 0)
+}
+func ModStartGrantedSkillsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
 }
 func ModEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

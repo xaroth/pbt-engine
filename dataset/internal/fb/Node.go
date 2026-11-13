@@ -194,8 +194,21 @@ func (rcv *Node) MutateMultipleChoiceOption(n bool) bool {
 	return rcv._tab.MutateBoolSlot(22, n)
 }
 
+func (rcv *Node) GrantedSkill(obj *GrantedSkill) *GrantedSkill {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(GrantedSkill)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func NodeStart(builder *flatbuffers.Builder) {
-	builder.StartObject(10)
+	builder.StartObject(11)
 }
 func NodeAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -238,6 +251,9 @@ func NodeAddMultipleChoice(builder *flatbuffers.Builder, multipleChoice bool) {
 }
 func NodeAddMultipleChoiceOption(builder *flatbuffers.Builder, multipleChoiceOption bool) {
 	builder.PrependBoolSlot(9, multipleChoiceOption, false)
+}
+func NodeAddGrantedSkill(builder *flatbuffers.Builder, grantedSkill flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(grantedSkill), 0)
 }
 func NodeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

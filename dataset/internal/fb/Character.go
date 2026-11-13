@@ -128,8 +128,44 @@ func (rcv *Character) StatsLength() int {
 	return 0
 }
 
+func (rcv *Character) UnarmedMinDamage() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Character) MutateUnarmedMinDamage(n int32) bool {
+	return rcv._tab.MutateInt32Slot(18, n)
+}
+
+func (rcv *Character) UnarmedMaxDamage() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Character) MutateUnarmedMaxDamage(n int32) bool {
+	return rcv._tab.MutateInt32Slot(20, n)
+}
+
+func (rcv *Character) UnarmedAttackTime() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Character) MutateUnarmedAttackTime(n int32) bool {
+	return rcv._tab.MutateInt32Slot(22, n)
+}
+
 func CharacterStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(10)
 }
 func CharacterAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -154,6 +190,15 @@ func CharacterAddStats(builder *flatbuffers.Builder, stats flatbuffers.UOffsetT)
 }
 func CharacterStartStatsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(8, numElems, 4)
+}
+func CharacterAddUnarmedMinDamage(builder *flatbuffers.Builder, unarmedMinDamage int32) {
+	builder.PrependInt32Slot(7, unarmedMinDamage, 0)
+}
+func CharacterAddUnarmedMaxDamage(builder *flatbuffers.Builder, unarmedMaxDamage int32) {
+	builder.PrependInt32Slot(8, unarmedMaxDamage, 0)
+}
+func CharacterAddUnarmedAttackTime(builder *flatbuffers.Builder, unarmedAttackTime int32) {
+	builder.PrependInt32Slot(9, unarmedAttackTime, 0)
 }
 func CharacterEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
