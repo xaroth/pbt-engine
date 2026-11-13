@@ -1,5 +1,11 @@
 // Package simulator is the public surface of the engine: a Sim holds one dataset and its
 // config, and simulates builds against it. It reads no files; the host opens the dataset.
+//
+// Stats, Diff, sweep Result and Explanation encode to JSON for hosts that send results on,
+// such as a browser worker to its UI; wire.schema.json (JSON Schema 2020-12) describes them,
+// for generating types in other languages. Every field is always present except the optional
+// fields of an edit, lists keep the engine's order, and a percentage change from 0 is null, so
+// equal results give equal bytes. Sim.Outputs encodes to the catalogue entries alone.
 package simulator
 
 import (
