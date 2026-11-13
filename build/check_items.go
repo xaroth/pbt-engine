@@ -11,12 +11,14 @@ import (
 
 // Warning codes of Check for items.
 const (
-	ItemsUnchecked   Code = "items-unchecked"
-	ItemSlotUnknown  Code = "item-slot-unknown"
-	ItemBaseUnknown  Code = "item-base-unknown"
-	ItemSlotMismatch Code = "item-slot-mismatch"
-	ItemLineUnread   Code = "item-line-unread"
-	ItemStatUnknown  Code = "item-stat-unknown"
+	ItemsUnchecked     Code = "items-unchecked"
+	ItemSlotUnknown    Code = "item-slot-unknown"
+	ItemBaseUnknown    Code = "item-base-unknown"
+	ItemSlotMismatch   Code = "item-slot-mismatch"
+	ItemLineUnread     Code = "item-line-unread"
+	ItemStatUnknown    Code = "item-stat-unknown"
+	ItemOffhandBlocked Code = "item-offhand-blocked"
+	ItemQuiverNoBow    Code = "item-quiver-no-bow"
 )
 
 // oneHandClasses are the ItemClass.IDs of weapons that can be held in either hand.
@@ -27,11 +29,16 @@ func oneHandClasses() []string {
 	}
 }
 
+// twoHandClasses are the ItemClass.IDs of weapons that take both hands.
+func twoHandClasses() []string {
+	return []string{"Bow", "Staff", "Warstaff", "Two Hand Sword", "Two Hand Axe", "Two Hand Mace", "FishingRod"}
+}
+
 // slotClasses returns the ItemClass.IDs an item in slot s can be of.
 func slotClasses(s Slot) []string {
 	switch s {
 	case SlotWeapon, SlotWeaponSwap:
-		return append(oneHandClasses(), "Bow", "Staff", "Warstaff", "Two Hand Sword", "Two Hand Axe", "Two Hand Mace", "FishingRod")
+		return append(oneHandClasses(), twoHandClasses()...)
 	case SlotOffhand, SlotOffhandSwap:
 		return append(oneHandClasses(), "Shield", "Quiver")
 	case SlotHelmet:
@@ -77,7 +84,42 @@ func (c *Checked) checkItems() error {
 		}
 		c.build.Items[s] = it
 	}
+	c.checkHands(data)
 	return nil
+}
+
+// checkHands leaves out an offhand item the game refuses beside the weapon: anything beside a
+// two-handed weapon other than a quiver beside a bow, and a quiver beside a weapon that is not
+// a bow. A quiver with no weapon is kept, as the game keeps it when the bow comes off.
+func (c *Checked) checkHands(data *dataset.Items) {
+	off, ok := c.build.Items[SlotOffhand]
+	if !ok {
+		return
+	}
+	subject := "item " + string(SlotOffhand)
+	offClass := baseClass(data, off.Base)
+	weapon, armed := c.build.Items[SlotWeapon]
+	weaponClass := baseClass(data, weapon.Base)
+	switch {
+	case armed && weaponClass == "Bow" && offClass == "Quiver":
+	case armed && slices.Contains(twoHandClasses(), weaponClass):
+		c.warnf(ItemOffhandBlocked, subject, "a %s beside a two-handed %s, which the game refuses; offhand left out", offClass, weaponClass)
+		delete(c.build.Items, SlotOffhand)
+	case offClass != "Quiver":
+	case armed:
+		c.warnf(ItemQuiverNoBow, subject, "a Quiver beside a %s, which the game refuses; left out", weaponClass)
+		delete(c.build.Items, SlotOffhand)
+	default:
+		c.warnf(ItemQuiverNoBow, subject, "a Quiver with no bow equipped; kept")
+	}
+}
+
+// baseClass returns the ItemClass.ID of base id, or "" when data has no such base.
+func baseClass(data *dataset.Items, id string) string {
+	if i := slices.IndexFunc(data.Bases, func(b dataset.ItemBase) bool { return b.ID == id }); i >= 0 {
+		return data.Bases[i].Class
+	}
+	return ""
 }
 
 // checkItem fixes it as the dataset says, or reports false to unequip it.
