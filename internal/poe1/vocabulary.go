@@ -55,6 +55,20 @@ const (
 	statPercentOfLifeRegeneratedPerSecond                = "percent_of_life_regenerated_per_second"
 	statPercentOfManaRegeneratedPerSecond                = "percent_of_mana_regenerated_per_second"
 	statStrength                                         = "strength"
+	statMaximumPowerCharges                              = "maximum_power_charges"
+	statMaximumFrenzyCharges                             = "maximum_frenzy_charges"
+	statMaximumEnduranceCharges                          = "maximum_endurance_charges"
+	statMinimumPowerCharges                              = "minimum_power_charges"
+	statMinimumFrenzyCharges                             = "minimum_frenzy_charges"
+	statMinimumEnduranceCharges                          = "minimum_endurance_charges"
+	statPowerCharges                                     = "power_charges"
+	statFrenzyCharges                                    = "frenzy_charges"
+	statEnduranceCharges                                 = "endurance_charges"
+	statMaximumEnduranceChargesAreMaximumFrenzyCharges   = "maximum_endurance_charges_are_maximum_frenzy_charges"
+	statMaximumFortification                             = "maximum_fortification"
+	statHasMaximumFortification                          = "has_maximum_fortification"
+	statFortification                                    = "fortification"
+	statFortificationAbove20                             = "fortification_above_20"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -77,10 +91,16 @@ const (
 // the "Life Regeneration rate"; life_regeneration is the total the sheet shows. The same for
 // mana and energy shield.
 //
+// power_charges, frenzy_charges and endurance_charges are the charges the character has: its
+// minimum, at most its maximum, as PoB counts them by default (charges not in use).
+// fortification is the character's Fortification: its maximum while has_maximum_fortification
+// is set, else none, as PoB counts it by default (not Fortified); fortification_above_20 is
+// the part above 20.
+//
 // number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
 // counters, since every allocatable mastery carries its group's count at 1.
 func engineStats() []string {
-	return []string{
+	return slices.Concat([]string{
 		statChaosResistanceIsDoubled,
 		statElementalMaximumResistancesAreHighest,
 		statLifeRegenerationIsNotApplied,
@@ -122,6 +142,7 @@ func engineStats() []string {
 		statPercentOfLifeRegeneratedPerSecond,
 		statPercentOfManaRegeneratedPerSecond,
 		statStrength,
+	}, chargeStats(), []string{
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,
 		statEffectiveMaximumLightningResistance,
@@ -132,6 +153,26 @@ func engineStats() []string {
 		statLifeRegeneration,
 		statManaRegeneration,
 		statEnergyShieldRegeneration,
+	})
+}
+
+// chargeStats are the engine stats of charges and Fortification, in registration order.
+func chargeStats() []string {
+	return []string{
+		statMaximumEnduranceChargesAreMaximumFrenzyCharges,
+		statHasMaximumFortification,
+		statMaximumPowerCharges,
+		statMaximumFrenzyCharges,
+		statMaximumEnduranceCharges,
+		statMinimumPowerCharges,
+		statMinimumFrenzyCharges,
+		statMinimumEnduranceCharges,
+		statPowerCharges,
+		statFrenzyCharges,
+		statEnduranceCharges,
+		statMaximumFortification,
+		statFortification,
+		statFortificationAbove20,
 	}
 }
 
