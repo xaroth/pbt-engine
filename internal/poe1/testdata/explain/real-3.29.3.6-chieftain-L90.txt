@@ -269,6 +269,14 @@ Life Regeneration: 66.7/s  [tree, dataset 3.29.3.6]
       base 0.5  node 10238
       base 1.8  node 24383
       base 0.5  node 42659
+      base 0  node 48109
+      endurance_charges = 0 [minimum charges, capped by the maximum]
+        minimum_endurance_charges = 0
+        maximum_endurance_charges = 5 [maximum endurance charges]
+          base 3  character Metadata/Characters/Str/Str
+          base 1  node 11730
+          base 1  node 37326
+          maximum_endurance_charges_are_maximum_frenzy_charges = 0
 
 Life Regeneration: 66.7/s  [proportional, dataset 3.29.3.6]
       -66.71  node 21650 (more)
