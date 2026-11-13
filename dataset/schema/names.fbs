@@ -1,0 +1,18 @@
+include "text.fbs";
+
+namespace fb;
+
+file_identifier "PBTN";
+
+// The names of one language that a host needs without the stat descriptions: a copy of the
+// text group's character, ascendancy and node names.
+table Names {
+  language: string (required);
+  // Sorted by id.
+  node_names: [NodeName] (required);
+  // Keyed by character id.
+  character_names: [Name] (required);
+  ascendancy_names: [AscendancyName] (required);
+}
+
+root_type Names;

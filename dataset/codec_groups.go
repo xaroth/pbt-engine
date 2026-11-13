@@ -90,28 +90,9 @@ func encodeVariant(b *flatbuffers.Builder, v statdesc.Variant) flatbuffers.UOffs
 func encodeText(t Text) []byte {
 	b := flatbuffers.NewBuilder(0)
 	scopes := encodeScopes(b, t.Descriptions)
-	nodeOffs := make([]flatbuffers.UOffsetT, len(t.NodeNames))
-	for i, n := range t.NodeNames {
-		name := b.CreateString(n.Name)
-		fb.NodeNameStart(b)
-		fb.NodeNameAddId(b, n.ID)
-		fb.NodeNameAddName(b, name)
-		nodeOffs[i] = fb.NodeNameEnd(b)
-	}
-	nodes := tableVector(b, fb.TextStartNodeNamesVector, nodeOffs)
+	nodes := nodeNameVector(b, fb.TextStartNodeNamesVector, t.NodeNames)
 	chars := nameVector(b, fb.TextStartCharacterNamesVector, t.CharacterNames)
-	ascOffs := make([]flatbuffers.UOffsetT, len(t.AscendancyNames))
-	for i, n := range t.AscendancyNames {
-		variant := b.CreateSharedString(n.Variant)
-		id := b.CreateString(n.ID)
-		name := b.CreateString(n.Name)
-		fb.AscendancyNameStart(b)
-		fb.AscendancyNameAddVariant(b, variant)
-		fb.AscendancyNameAddId(b, id)
-		fb.AscendancyNameAddName(b, name)
-		ascOffs[i] = fb.AscendancyNameEnd(b)
-	}
-	ascs := tableVector(b, fb.TextStartAscendancyNamesVector, ascOffs)
+	ascs := ascendancyNameVector(b, fb.TextStartAscendancyNamesVector, t.AscendancyNames)
 	addItems := optionalNames(b, nameList{fb.TextStartItemClassNamesVector, fb.TextAddItemClassNames, t.ItemClassNames},
 		nameList{fb.TextStartBaseNamesVector, fb.TextAddBaseNames, t.BaseNames}, nameList{fb.TextStartModNamesVector, fb.TextAddModNames, t.ModNames})
 	addSkills := optionalNames(b, nameList{fb.TextStartGemNamesVector, fb.TextAddGemNames, t.GemNames},
@@ -139,11 +120,7 @@ func decodeText(buf []byte) (Text, error) {
 	}
 	root := fb.GetRootAsText(buf, 0)
 	t := Text{Language: string(root.Language()), Descriptions: decodeScopes(root)}
-	var nn fb.NodeName
-	for i := range root.NodeNamesLength() {
-		root.NodeNames(&nn, i)
-		t.NodeNames = append(t.NodeNames, NodeName{ID: nn.Id(), Name: string(nn.Name())})
-	}
+	t.NodeNames = decodeNodeNames(root.NodeNamesLength(), root.NodeNames)
 	t.CharacterNames = decodeNames(root.CharacterNamesLength(), root.CharacterNames)
 	t.ItemClassNames = decodeNames(root.ItemClassNamesLength(), root.ItemClassNames)
 	t.BaseNames = decodeNames(root.BaseNamesLength(), root.BaseNames)
@@ -152,11 +129,7 @@ func decodeText(buf []byte) (Text, error) {
 	t.SkillNames = decodeNames(root.SkillNamesLength(), root.SkillNames)
 	t.BuffNames = decodeNames(root.BuffNamesLength(), root.BuffNames)
 	t.MonsterNames = decodeNames(root.MonsterNamesLength(), root.MonsterNames)
-	var an fb.AscendancyName
-	for i := range root.AscendancyNamesLength() {
-		root.AscendancyNames(&an, i)
-		t.AscendancyNames = append(t.AscendancyNames, AscendancyName{Variant: string(an.Variant()), ID: string(an.Id()), Name: string(an.Name())})
-	}
+	t.AscendancyNames = decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames)
 	return t, nil
 }
 
@@ -206,6 +179,59 @@ func decodeNames(n int, get func(*fb.Name, int) bool) []Name {
 	for i := range out {
 		get(&name, i)
 		out[i] = Name{ID: string(name.Id()), Name: string(name.Name())}
+	}
+	return out
+}
+
+func nodeNameVector(b *flatbuffers.Builder, start startFunc, names []NodeName) flatbuffers.UOffsetT {
+	offs := make([]flatbuffers.UOffsetT, len(names))
+	for i, n := range names {
+		name := b.CreateString(n.Name)
+		fb.NodeNameStart(b)
+		fb.NodeNameAddId(b, n.ID)
+		fb.NodeNameAddName(b, name)
+		offs[i] = fb.NodeNameEnd(b)
+	}
+	return tableVector(b, start, offs)
+}
+
+func decodeNodeNames(n int, get func(*fb.NodeName, int) bool) []NodeName {
+	if n == 0 {
+		return nil
+	}
+	out := make([]NodeName, n)
+	var nn fb.NodeName
+	for i := range out {
+		get(&nn, i)
+		out[i] = NodeName{ID: nn.Id(), Name: string(nn.Name())}
+	}
+	return out
+}
+
+func ascendancyNameVector(b *flatbuffers.Builder, start startFunc, names []AscendancyName) flatbuffers.UOffsetT {
+	offs := make([]flatbuffers.UOffsetT, len(names))
+	for i, n := range names {
+		variant := b.CreateSharedString(n.Variant)
+		id := b.CreateString(n.ID)
+		name := b.CreateString(n.Name)
+		fb.AscendancyNameStart(b)
+		fb.AscendancyNameAddVariant(b, variant)
+		fb.AscendancyNameAddId(b, id)
+		fb.AscendancyNameAddName(b, name)
+		offs[i] = fb.AscendancyNameEnd(b)
+	}
+	return tableVector(b, start, offs)
+}
+
+func decodeAscendancyNames(n int, get func(*fb.AscendancyName, int) bool) []AscendancyName {
+	if n == 0 {
+		return nil
+	}
+	out := make([]AscendancyName, n)
+	var an fb.AscendancyName
+	for i := range out {
+		get(&an, i)
+		out[i] = AscendancyName{Variant: string(an.Variant()), ID: string(an.Id()), Name: string(an.Name())}
 	}
 	return out
 }

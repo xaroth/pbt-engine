@@ -2,7 +2,7 @@
 // JSON manifest.
 package dataset
 
-//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs schema/items.fbs schema/mods.fbs schema/skills.fbs schema/buffs.fbs schema/monsters.fbs schema/layout.fbs
+//go:generate flatc --go -o internal schema/stats.fbs schema/characters.fbs schema/text.fbs schema/names.fbs schema/constants.fbs schema/tree.fbs schema/quests.fbs schema/items.fbs schema/mods.fbs schema/skills.fbs schema/buffs.fbs schema/monsters.fbs schema/layout.fbs
 
 import (
 	"bytes"
@@ -114,9 +114,10 @@ func Write(dir string, d *Dataset) (Manifest, error) {
 	return m, nil
 }
 
-// taggedGroups returns the groups with one file per tree variant or language.
+// taggedGroups returns the groups with one file per tree variant or language: each text also
+// gives a names file.
 func (d *Dataset) taggedGroups() []group {
-	groups := make([]group, 0, len(d.Trees)+len(d.Layouts)+len(d.Texts))
+	groups := make([]group, 0, len(d.Trees)+len(d.Layouts)+2*len(d.Texts))
 	for _, t := range d.Trees {
 		groups = append(groups, group{TreeFile(t.Variant), encodeTree(d.Stats, t)})
 	}
@@ -124,7 +125,7 @@ func (d *Dataset) taggedGroups() []group {
 		groups = append(groups, group{LayoutFile(l.Variant), encodeLayout(l)})
 	}
 	for _, t := range d.Texts {
-		groups = append(groups, group{TextFile(t.Language), encodeText(t)})
+		groups = append(groups, group{TextFile(t.Language), encodeText(t)}, group{NamesFile(t.Language), encodeNamesGroup(t.Names())})
 	}
 	return groups
 }

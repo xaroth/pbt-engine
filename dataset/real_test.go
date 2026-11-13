@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/dataset"
@@ -11,27 +13,15 @@ import (
 )
 
 // TestRewriteRealDatasets reads every group of the pinned datasets under $PBT_DATASETS, which
-// must include items, skills, buffs and monsters, and writes them again: each file and the id
-// come out unchanged.
+// must include items, skills, buffs and monsters, and writes them again: each file comes out
+// unchanged, and the id too apart from the names files a dataset written before them gains.
 func TestRewriteRealDatasets(t *testing.T) {
 	t.Parallel()
-	root := realdata.Root(t)
-	ents, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dirs := map[string]string{}
-	for _, e := range ents {
-		dir := filepath.Join(root, e.Name())
-		if m, err := dataset.ReadManifest(os.DirFS(dir)); err == nil {
-			dirs[m.Version] = dir
-		}
-	}
 	for _, version := range realdata.Versions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
 			m := realdata.Open(t, version).Manifest()
-			dir := dirs[version]
+			dir := realDir(t, version)
 			d, err := readAll(os.DirFS(dir))
 			if err != nil {
 				t.Fatal(err)
@@ -45,8 +35,8 @@ func TestRewriteRealDatasets(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Write: %v", err)
 			}
-			if got.ID != m.ID {
-				t.Errorf("id: got %s, want %s", got.ID, m.ID)
+			if want := withNamesFiles(m, got); got.ID != want.ID {
+				t.Errorf("id: got %s, want %s", got.ID, want.ID)
 			}
 			for _, f := range m.Files {
 				a, errA := os.ReadFile(filepath.Join(dir, f.Name))
@@ -57,4 +47,40 @@ func TestRewriteRealDatasets(t *testing.T) {
 			}
 		})
 	}
+}
+
+// withNamesFiles returns pinned with the names files of written added when pinned has none, as
+// a dataset written before the names group gains them on a rewrite, and its id updated.
+func withNamesFiles(pinned, written dataset.Manifest) dataset.Manifest {
+	isNames := func(f dataset.File) bool { return strings.HasPrefix(f.Name, "names-") }
+	if slices.ContainsFunc(pinned.Files, isNames) {
+		return pinned
+	}
+	out := pinned
+	out.Files = slices.Clone(pinned.Files)
+	for _, f := range written.Files {
+		if isNames(f) {
+			out.Files = append(out.Files, f)
+		}
+	}
+	out.ID = dataset.ContentID(out)
+	return out
+}
+
+// realDir returns the directory under $PBT_DATASETS that holds the pinned dataset of version.
+func realDir(tb testing.TB, version string) string {
+	tb.Helper()
+	root := realdata.Root(tb)
+	ents, err := os.ReadDir(root)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	for _, e := range ents {
+		dir := filepath.Join(root, e.Name())
+		if m, err := dataset.ReadManifest(os.DirFS(dir)); err == nil && m.Version == version && m.ID == realdata.ID(version) {
+			return dir
+		}
+	}
+	tb.Fatalf("no pinned dataset %s under %s", version, root)
+	return ""
 }

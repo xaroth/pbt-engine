@@ -2,7 +2,7 @@
   "format": 1,
   "game": "poe1",
   "version": "3.28.0.16",
-  "id": "91f51ccd5697a2407ff75e1d010de9b43eab833581179a370e7efba96a5ed68d",
+  "id": "33274adfb9e28c7e2da86a3eaf1fa364103cdec642b30b12cd881d8d5aec30cc",
   "source": {
     "fixtureOf": "ab036e6f7a2a49481a99d34d1b79a2bdf1e09329bc748f36038e0f6cec41dcb9"
   },
@@ -36,6 +36,11 @@
       "name": "text-en.fb",
       "size": 30916,
       "sha256": "61a6251a2165a3858304e460ffd5ca67a34349c3533e39b20e485b7ac7318be7"
+    },
+    {
+      "name": "names-en.fb",
+      "size": 60,
+      "sha256": "103460d90f1d3c197165789a57748ddd0f8224173eecc23d0eec694b1ed56282"
     }
   ]
 }
