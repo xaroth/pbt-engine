@@ -62,7 +62,7 @@ type SkillStatSet struct {
 	// DamageEffectiveness and BaseMultiplier are in ten-thousandths, added to 1.
 	DamageEffectiveness, BaseMultiplier int32
 	// Stats are the set's implicit and constant stats, its level row's stats and the stats of
-	// the gem's quality.
+	// the gem's quality. Quality stats are in every set, so a skill uses one set, not their sum.
 	Stats []StatValue
 }
 

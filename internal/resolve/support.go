@@ -13,7 +13,9 @@ import (
 // support applies when the skill can be supported, shares a weapon class with the support if
 // the support restricts them, and has the types the support allows and none it excludes. Types
 // a support adds can let another support apply, so supports are tried until none more apply.
-// The rest warn.
+// Every support is then checked again against the final types, so one that a later support's
+// types exclude does not apply whatever the group's order; the types it added stay. The rest
+// warn.
 func (r *skillResolver) supportedTypes(i int, g build.SkillGroup, ge *dataset.GrantedEffect, sk *Skill) []bool {
 	active := r.actives[ge.ActiveSkill]
 	types := make([]bool, len(r.data.Types))
@@ -38,10 +40,9 @@ func (r *skillResolver) supportedTypes(i int, g build.SkillGroup, ge *dataset.Gr
 			}
 		}
 	}
-	for k, sp := range pending {
-		if !applied[k] {
-			r.warnf(SupportNotApplied, sp.src, "%s does not support %s: %s; left out",
-				sp.effect.ID, ge.ID, r.notSupported(ge, active, sp.effect, types, minion))
+	for _, sp := range pending {
+		if why := r.notSupported(ge, active, sp.effect, types, minion); why != "" {
+			r.warnf(SupportNotApplied, sp.src, "%s does not support %s: %s; left out", sp.effect.ID, ge.ID, why)
 			continue
 		}
 		sk.Supports = append(sk.Supports, r.support(g.Slot, sp))

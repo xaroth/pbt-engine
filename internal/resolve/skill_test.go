@@ -21,6 +21,7 @@ const (
 	closeCombatGem   = "Metadata/Items/Gems/SupportGemCloseCombat"
 	meleePhysicalGem = "Metadata/Items/Gems/SupportGemMeleePhysicalDamage"
 	addedFireGem     = "Metadata/Items/Gems/SupportGemAddedFireDamage"
+	spellEchoGem     = "Metadata/Items/Gems/SupportGemMulticast"
 )
 
 func active(id string, quality int) build.Gem {
@@ -102,6 +103,16 @@ func TestMainSkillSupports(t *testing.T) {
 			"types another support adds",
 			[]build.Gem{active(freezingPulseGem, 0), support(multiTotemGem, 20), support(spellTotemGem, 20)},
 			[]string{"SupportMultipleTotems", "SupportSpellTotem"}, nil, "",
+		},
+		{
+			"excluded by types a later support adds",
+			[]build.Gem{active(freezingPulseGem, 0), support(spellEchoGem, 20), support(spellTotemGem, 20)},
+			[]string{"SupportSpellTotem"}, []int{1}, "excludes",
+		},
+		{
+			"excluded by types an earlier support adds",
+			[]build.Gem{active(freezingPulseGem, 0), support(spellTotemGem, 20), support(spellEchoGem, 20)},
+			[]string{"SupportSpellTotem"}, []int{2}, "excludes",
 		},
 		{"without the support that adds types", []build.Gem{active(freezingPulseGem, 0), support(multiTotemGem, 20)}, nil, []int{1}, "lacks the types"},
 	}
