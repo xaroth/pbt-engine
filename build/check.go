@@ -96,6 +96,7 @@ type Checked struct {
 	tree      *dataset.Tree
 	class     *dataset.Class
 	character *dataset.Character
+	chars     []dataset.Character
 	nodes     []*dataset.Node
 	ascStart  *dataset.Node
 	masteries []MasteryChoice
@@ -146,7 +147,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("build: load characters: %w", err)
 	}
-	c.tree = tree
+	c.tree, c.chars = tree, chars
 	if !c.setClass(chars) {
 		ps.addf(ErrClass, 0, "%q", b.Class)
 		return nil, nil, ps.err()
@@ -287,11 +288,7 @@ func (c *Checked) checkAscendancy() {
 		b.Ascendancy = ""
 		return
 	}
-	for i := range c.tree.Nodes {
-		if n := &c.tree.Nodes[i]; n.Kind == dataset.AscendancyStart && n.Ascendancy == b.Ascendancy {
-			c.ascStart = n
-		}
-	}
+	c.ascStart = c.ascendancyStart(b.Ascendancy)
 }
 
 func (c *Checked) checkLevel() {
