@@ -6,11 +6,11 @@ import "fmt"
 // reads that variant's tree too, to check the layout places exactly its nodes. A dataset
 // without the layout returns an error matching ErrNotInDataset.
 func (s *Store) Layout(variant string) (*Layout, error) {
-	load, ok := s.layouts[variant]
+	l, ok := s.layouts[variant]
 	if !ok {
 		return nil, fmt.Errorf("dataset %s has no %s layout: %w", s.manifest.Version, variant, ErrNotInDataset)
 	}
-	return load()
+	return l.get(func() (*Layout, error) { return s.loadLayout(variant) })
 }
 
 func (s *Store) loadLayout(variant string) (*Layout, error) {

@@ -7,11 +7,11 @@ import "fmt"
 // characters and its classes are not checked against them; Write and Tree check them. With
 // Names, a host lists classes without loading the stats or text groups.
 func (s *Store) Classes(variant string) ([]Class, error) {
-	load, ok := s.classes[variant]
+	l, ok := s.classes[variant]
 	if !ok {
 		return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
 	}
-	return load()
+	return l.get(func() ([]Class, error) { return s.loadClasses(variant) })
 }
 
 func (s *Store) loadClasses(variant string) ([]Class, error) {

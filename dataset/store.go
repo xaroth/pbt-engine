@@ -24,22 +24,34 @@ type Store struct {
 	fsys     fs.FS
 	files    map[string]File
 
-	stats      func() (statsGroup, error)
-	characters func() ([]Character, error)
-	constants  func() ([]Constant, error)
-	quests     func() ([]Quest, error)
-	items      func() (*Items, error)
-	mods       func() ([]Mod, error)
-	skills     func() (*Skills, error)
-	buffs      func() (*Buffs, error)
-	monsters   func() (*Monsters, error)
+	stats      lazy[statsGroup]
+	characters lazy[[]Character]
+	constants  lazy[[]Constant]
+	quests     lazy[[]Quest]
+	items      lazy[*Items]
+	mods       lazy[[]Mod]
+	skills     lazy[*Skills]
+	buffs      lazy[*Buffs]
+	monsters   lazy[*Monsters]
 	// trees, classes, texts, names and layouts are keyed by variant and language, fixed by the
 	// manifest.
-	trees   map[string]func() (*Tree, error)
-	classes map[string]func() ([]Class, error)
-	texts   map[string]func() (*Text, error)
-	names   map[string]func() (*Names, error)
-	layouts map[string]func() (*Layout, error)
+	trees   map[string]*lazy[*Tree]
+	classes map[string]*lazy[[]Class]
+	texts   map[string]*lazy[*Text]
+	names   map[string]*lazy[*Names]
+	layouts map[string]*lazy[*Layout]
+}
+
+// lazy holds a group loaded on first use. The load function is given at each call rather than
+// stored by Open, so a program that never reads a group does not link its decoder.
+type lazy[T any] struct {
+	once sync.Once
+	load func() (T, error)
+}
+
+func (l *lazy[T]) get(load func() (T, error)) (T, error) {
+	l.once.Do(func() { l.load = sync.OnceValues(load) })
+	return l.load()
 }
 
 type statsGroup struct {
@@ -60,11 +72,11 @@ func Open(fsys fs.FS) (*Store, error) {
 		manifest: m,
 		fsys:     fsys,
 		files:    make(map[string]File, len(m.Files)),
-		trees:    map[string]func() (*Tree, error){},
-		classes:  map[string]func() ([]Class, error){},
-		texts:    map[string]func() (*Text, error){},
-		names:    map[string]func() (*Names, error){},
-		layouts:  map[string]func() (*Layout, error){},
+		trees:    map[string]*lazy[*Tree]{},
+		classes:  map[string]*lazy[[]Class]{},
+		texts:    map[string]*lazy[*Text]{},
+		names:    map[string]*lazy[*Names]{},
+		layouts:  map[string]*lazy[*Layout]{},
 	}
 	for _, f := range m.Files {
 		if err := registerFile(s, f); err != nil {
@@ -81,22 +93,13 @@ func Open(fsys fs.FS) (*Store, error) {
 			return nil, fmt.Errorf("%s: layout %s has no tree of that variant: %w", ManifestName, v, ErrInvalid)
 		}
 	}
-	s.stats = sync.OnceValues(s.loadStats)
-	s.characters = sync.OnceValues(s.loadCharacters)
-	s.constants = sync.OnceValues(s.loadConstants)
-	s.quests = sync.OnceValues(s.loadQuests)
 	_, hasItems := s.files[ItemsFile]
 	if _, hasMods := s.files[ModsFile]; hasItems != hasMods {
 		return nil, fmt.Errorf("%s: items group needs both %s and %s: %w", ManifestName, ItemsFile, ModsFile, ErrInvalid)
 	}
-	s.items = sync.OnceValues(s.loadItems)
-	s.mods = sync.OnceValues(s.loadMods)
-	s.skills = sync.OnceValues(s.loadSkills)
-	s.buffs = sync.OnceValues(s.loadBuffs)
 	if err := s.checkMonstersFiles(); err != nil {
 		return nil, err
 	}
-	s.monsters = sync.OnceValues(s.loadMonsters)
 	return s, nil
 }
 
@@ -133,65 +136,65 @@ func (s *Store) Manifest() Manifest { return s.manifest }
 
 // Stats returns the stats group, shared and read-only.
 func (s *Store) Stats() ([]Stat, error) {
-	g, err := s.stats()
+	g, err := s.statsGroup()
 	return g.stats, err
 }
 
 // HasStat reports whether the stats group has stat id.
 func (s *Store) HasStat(id string) (bool, error) {
-	g, err := s.stats()
+	g, err := s.statsGroup()
 	_, ok := g.index[id]
 	return ok && err == nil, err
 }
 
 // Characters returns the characters group, shared and read-only.
-func (s *Store) Characters() ([]Character, error) { return s.characters() }
+func (s *Store) Characters() ([]Character, error) { return s.characters.get(s.loadCharacters) }
 
 // Constants returns the edition constants group, shared and read-only.
-func (s *Store) Constants() ([]Constant, error) { return s.constants() }
+func (s *Store) Constants() ([]Constant, error) { return s.constants.get(s.loadConstants) }
 
 // Quests returns the quest rewards group, shared and read-only.
-func (s *Store) Quests() ([]Quest, error) { return s.quests() }
+func (s *Store) Quests() ([]Quest, error) { return s.quests.get(s.loadQuests) }
 
 // Tree returns the tree of one variant, such as "standard", shared and read-only.
 func (s *Store) Tree(variant string) (*Tree, error) {
-	load, ok := s.trees[variant]
+	l, ok := s.trees[variant]
 	if !ok {
 		return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
 	}
-	return load()
+	return l.get(func() (*Tree, error) { return s.loadTree(variant) })
 }
 
 // Text returns the display text of one language, such as "en", shared and read-only. Its node,
 // ascendancy, item, skill, buff and monster names are not checked against the groups they
 // name, which it does not read; Write checks them.
 func (s *Store) Text(language string) (*Text, error) {
-	load, ok := s.texts[language]
+	l, ok := s.texts[language]
 	if !ok {
 		return nil, fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, language, ErrNotInDataset)
 	}
-	return load()
+	return l.get(func() (*Text, error) { return s.loadText(language) })
 }
 
-// registerFile records f and, for a file of a group with one file per variant or language, how
-// to load it.
+// registerFile records f and, for a file of a group with one file per variant or language, a
+// place to keep it once loaded.
 func registerFile(s *Store, f File) error {
 	s.files[f.Name] = f
 	switch {
 	case isSingleFile(f.Name):
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
-		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
-		s.classes[variant] = sync.OnceValues(func() ([]Class, error) { return s.loadClasses(variant) })
+		s.trees[variant] = &lazy[*Tree]{}
+		s.classes[variant] = &lazy[[]Class]{}
 	case isGroup(f.Name, layoutPrefix):
 		variant := groupTag(f.Name, layoutPrefix)
-		s.layouts[variant] = sync.OnceValues(func() (*Layout, error) { return s.loadLayout(variant) })
+		s.layouts[variant] = &lazy[*Layout]{}
 	case isGroup(f.Name, textPrefix):
 		lang := groupTag(f.Name, textPrefix)
-		s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
+		s.texts[lang] = &lazy[*Text]{}
 	case isGroup(f.Name, namesPrefix):
 		lang := groupTag(f.Name, namesPrefix)
-		s.names[lang] = sync.OnceValues(func() (*Names, error) { return s.loadNames(lang) })
+		s.names[lang] = &lazy[*Names]{}
 	default:
 		return fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
 	}
@@ -257,6 +260,8 @@ func loadsFirst(name string) []string {
 	return nil
 }
 
+func (s *Store) statsGroup() (statsGroup, error) { return s.stats.get(s.loadStats) }
+
 func (s *Store) loadStats() (statsGroup, error) {
 	return readGroup(s, StatsFile, func(b []byte) (statsGroup, error) {
 		stats, err := decodeStats(b)
@@ -269,7 +274,7 @@ func (s *Store) loadStats() (statsGroup, error) {
 }
 
 func (s *Store) loadCharacters() ([]Character, error) {
-	st, err := s.stats()
+	st, err := s.statsGroup()
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +294,7 @@ func (s *Store) loadConstants() ([]Constant, error) {
 }
 
 func (s *Store) loadQuests() ([]Quest, error) {
-	st, err := s.stats()
+	st, err := s.statsGroup()
 	if err != nil {
 		return nil, err
 	}
@@ -301,11 +306,11 @@ func (s *Store) loadQuests() ([]Quest, error) {
 }
 
 func (s *Store) loadTree(variant string) (*Tree, error) {
-	st, err := s.stats()
+	st, err := s.statsGroup()
 	if err != nil {
 		return nil, err
 	}
-	chars, err := s.characters()
+	chars, err := s.Characters()
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +329,7 @@ func (s *Store) loadTree(variant string) (*Tree, error) {
 }
 
 func (s *Store) loadText(language string) (*Text, error) {
-	chars, err := s.characters()
+	chars, err := s.Characters()
 	if err != nil {
 		return nil, err
 	}
