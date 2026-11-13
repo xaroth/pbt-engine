@@ -36,13 +36,31 @@
     "order": 3
   },
   {
+    "key": "player.unreserved_life",
+    "label": "Unreserved Life",
+    "unit": "",
+    "places": 0,
+    "group": "sheet",
+    "better": "higher",
+    "order": 4
+  },
+  {
     "key": "player.mana",
     "label": "Mana",
     "unit": "",
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 4
+    "order": 5
+  },
+  {
+    "key": "player.unreserved_mana",
+    "label": "Unreserved Mana",
+    "unit": "",
+    "places": 0,
+    "group": "sheet",
+    "better": "higher",
+    "order": 6
   },
   {
     "key": "player.energy_shield",
@@ -51,7 +69,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 5
+    "order": 7
   },
   {
     "key": "player.armour",
@@ -60,7 +78,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 6
+    "order": 8
   },
   {
     "key": "player.evasion_rating",
@@ -69,7 +87,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 7
+    "order": 9
   },
   {
     "key": "player.fire_resistance",
@@ -78,7 +96,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 8
+    "order": 10
   },
   {
     "key": "player.cold_resistance",
@@ -87,7 +105,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 9
+    "order": 11
   },
   {
     "key": "player.lightning_resistance",
@@ -96,7 +114,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 10
+    "order": 12
   },
   {
     "key": "player.chaos_resistance",
@@ -105,7 +123,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 11
+    "order": 13
   },
   {
     "key": "player.maximum_fire_resistance",
@@ -114,7 +132,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 12
+    "order": 14
   },
   {
     "key": "player.maximum_cold_resistance",
@@ -123,7 +141,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 13
+    "order": 15
   },
   {
     "key": "player.maximum_lightning_resistance",
@@ -132,7 +150,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 14
+    "order": 16
   },
   {
     "key": "player.maximum_chaos_resistance",
@@ -141,7 +159,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 15
+    "order": 17
   },
   {
     "key": "player.uncapped_fire_resistance",
@@ -150,7 +168,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 16
+    "order": 18
   },
   {
     "key": "player.uncapped_cold_resistance",
@@ -159,7 +177,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 17
+    "order": 19
   },
   {
     "key": "player.uncapped_lightning_resistance",
@@ -168,7 +186,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 18
+    "order": 20
   },
   {
     "key": "player.uncapped_chaos_resistance",
@@ -177,7 +195,7 @@
     "places": 0,
     "group": "sheet",
     "better": "higher",
-    "order": 19
+    "order": 21
   },
   {
     "key": "player.life_regeneration",
@@ -186,7 +204,7 @@
     "places": 1,
     "group": "sheet",
     "better": "higher",
-    "order": 20
+    "order": 22
   },
   {
     "key": "player.mana_regeneration",
@@ -195,7 +213,7 @@
     "places": 1,
     "group": "sheet",
     "better": "higher",
-    "order": 21
+    "order": 23
   },
   {
     "key": "player.energy_shield_regeneration",
@@ -204,6 +222,6 @@
     "places": 1,
     "group": "sheet",
     "better": "higher",
-    "order": 22
+    "order": 24
   }
 ]
