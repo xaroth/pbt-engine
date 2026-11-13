@@ -38,6 +38,8 @@ table Node {
   neighbours: [uint32] (required);
   multiple_choice: bool;
   multiple_choice_option: bool;
+  // PassiveSkills.GrantedEffectsPerLevel; absent on nodes that grant no skill.
+  granted_skill: GrantedSkill;
 }
 
 enum OverrideKind: ubyte {

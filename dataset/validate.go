@@ -45,7 +45,8 @@ func (d *Dataset) validate() error {
 		}
 	}
 	return errors.Join(validateNames(d.Texts, d.Trees), d.validateLayouts(),
-		d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup(), d.validateMonstersGroup())
+		d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup(), d.validateMonstersGroup(),
+		d.validateGrantedSkills())
 }
 
 func errVariant(v string) error {
@@ -79,6 +80,9 @@ func validateCharacters(n int, chars []Character) error {
 	for _, c := range chars {
 		if err := sortedStats("character "+c.ID, c.Stats, n); err != nil {
 			return err
+		}
+		if c.UnarmedDamage.Min > c.UnarmedDamage.Max || c.UnarmedAttackTime < 0 {
+			return fmt.Errorf("character %s: unarmed damage reversed or attack time negative: %w", c.ID, ErrInvalid)
 		}
 	}
 	return nil

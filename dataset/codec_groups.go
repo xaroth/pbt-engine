@@ -514,6 +514,7 @@ func encodeNode(b *flatbuffers.Builder, st statTable, n Node) flatbuffers.UOffse
 	}
 	effects := tableVector(b, fb.NodeStartMasteryEffectsVector, effOffs)
 	neighbours := uint32Vector(b, fb.NodeStartNeighboursVector, n.Neighbours)
+	granted := encodeGrantedSkill(b, n.GrantedSkill)
 	fb.NodeStart(b)
 	fb.NodeAddId(b, n.ID)
 	fb.NodeAddKind(b, fb.NodeKind(n.Kind))
@@ -525,6 +526,9 @@ func encodeNode(b *flatbuffers.Builder, st statTable, n Node) flatbuffers.UOffse
 	fb.NodeAddNeighbours(b, neighbours)
 	fb.NodeAddMultipleChoice(b, n.MultipleChoice)
 	fb.NodeAddMultipleChoiceOption(b, n.MultipleChoiceOption)
+	if granted != 0 {
+		fb.NodeAddGrantedSkill(b, granted)
+	}
 	return fb.NodeEnd(b)
 }
 
@@ -646,6 +650,10 @@ func decodeNode(n *fb.Node, h []uint32) (Node, error) {
 	}
 	for j := range n.NeighboursLength() {
 		node.Neighbours = append(node.Neighbours, n.Neighbours(j))
+	}
+	if g := n.GrantedSkill(nil); g != nil {
+		gs := decodeGrantedSkill(g)
+		node.GrantedSkill = &gs
 	}
 	return node, nil
 }

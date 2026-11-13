@@ -133,6 +133,8 @@ type Mod struct {
 	// GameMode is Mods.GameMode as the game numbers it: 0 when the mod exists in every game
 	// mode, 1 in standard only, 2 in Ruthless only.
 	GameMode int32
+	// GrantedSkills are the skills the mod grants, in game order.
+	GrantedSkills []GrantedSkill
 }
 
 // ModStat is a stat handle of a mod with its range. The Ruthless range equals Min and Max when

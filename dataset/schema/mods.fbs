@@ -1,3 +1,5 @@
+include "characters.fbs";
+
 namespace fb;
 
 file_identifier "PBMD";
@@ -39,6 +41,8 @@ table Mod {
   generation_weights: [TagWeight];
   // Mods.GameMode, a GameModes row: 0 in every game mode, 1 standard only, 2 Ruthless only.
   game_mode: int32;
+  // Mods.GrantedEffectsPerLevelKeys, in game order.
+  granted_skills: [GrantedSkill];
 }
 
 table Mods {

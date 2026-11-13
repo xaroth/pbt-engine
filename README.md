@@ -14,10 +14,10 @@ A dataset holds one game version as one FlatBuffers file per table group plus a 
 
 | Files | Holds |
 |---|---|
-| `stats.fb`, `characters.fb`, `constants.fb`, `quests.fb`, `tree-<variant>.fb` | Stats, characters, edition constants, quest rewards and the passive trees (standard, ruthless, alternate) with the tattoos and runegrafts their nodes can take: what every simulation reads |
+| `stats.fb`, `characters.fb`, `constants.fb`, `quests.fb`, `tree-<variant>.fb` | Stats, characters with their unarmed damage, edition constants, quest rewards and the passive trees (standard, ruthless, alternate) with the tattoos and runegrafts their nodes can take and the skills nodes grant: what every simulation reads |
 | `text-<lang>.fb`, `names-<lang>.fb` | Per language: stat description templates and display names, for display and text parsing; the names file holds character, ascendancy, node, tattoo and runegraft names alone |
 | `layout-<variant>.fb` | Where a tree variant's nodes and art are drawn, for drawing the tree |
-| `items.fb`, `mods.fb` (optional) | Base items, bench crafts, essences and item mods |
+| `items.fb`, `mods.fb` (optional) | Base items, bench crafts, essences and item mods with the skills they grant |
 | `skills.fb` (optional) | Gems, granted effects and active skills |
 | `buffs.fb` (optional) | Buffs, utility flask buffs and tinctures |
 | `monsters.fb` (optional, needs skills) | Monster varieties, types and tables, and the links from skills to monsters |
