@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/xaroth/pbt-engine/dataset/art.schema.json",
+  "title": "Art",
+  "description": "The art manifest of a dataset: the art files, where each passive tree icon is on the sprite sheets, and the face image of each class and ascendancy. Its SHA-256 identifies it.",
+  "anyOf": [{ "$ref": "#/$defs/ArtManifest" }],
+  "$defs": {
+    "ArtManifest": {
+      "title": "ArtManifest",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "sprites"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ArtFile" },
+          "description": "Every art file, each named once."
+        },
+        "sprites": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/SpriteSheet" } },
+          "description": "Per sprite kind, such as \"normalActive\", one sheet per zoom level, from the lowest zoom to the highest."
+        },
+        "classFaces": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Optional. The name in files of each base class's face, by character id."
+        },
+        "ascendancyFaces": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Optional. The name in files of each ascendancy's face, by ascendancy id."
+        }
+      }
+    },
+    "ArtFile": {
+      "title": "ArtFile",
+      "description": "A file the manifest lists, which the bucket serves by its SHA-256.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "size", "sha256"],
+      "properties": {
+        "name": { "type": "string" },
+        "size": { "type": "integer", "minimum": 0, "description": "In bytes." },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "SpriteSheet": {
+      "title": "SpriteSheet",
+      "description": "The icons of one sprite kind at one zoom level. At its zoom, one tree unit takes zoom sheet pixels.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zoom", "file", "width", "height", "coords"],
+      "properties": {
+        "zoom": { "type": "number", "exclusiveMinimum": 0 },
+        "file": { "type": "string", "description": "The name of the sheet's file in files." },
+        "width": { "type": "integer", "minimum": 0, "description": "In sheet pixels." },
+        "height": { "type": "integer", "minimum": 0, "description": "In sheet pixels." },
+        "coords": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/SheetRect" },
+          "description": "Each icon's rectangle on the sheet, by icon name."
+        }
+      }
+    },
+    "SheetRect": {
+      "title": "SheetRect",
+      "description": "A rectangle on a sheet, in sheet pixels.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "integer", "minimum": 0 },
+        "y": { "type": "integer", "minimum": 0 },
+        "w": { "type": "integer", "minimum": 0 },
+        "h": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
