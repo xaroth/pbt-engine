@@ -223,5 +223,14 @@
     "group": "sheet",
     "better": "higher",
     "order": 24
+  },
+  {
+    "key": "player.spell_block_chance",
+    "label": "Chance to Block Spell Damage",
+    "unit": "%",
+    "places": 0,
+    "group": "defence",
+    "better": "higher",
+    "order": 25
   }
 ]
