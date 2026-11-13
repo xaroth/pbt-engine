@@ -1093,6 +1093,7 @@ func TestParseRejects(t *testing.T) {
 		"Rarity: NORMAL\nPaper Hat\nImplicits: 0":        items.ErrUnknownBase,
 		"Rarity: NORMAL\nPaper Hat (Cold)\nImplicits: 0": items.ErrUnknownBase,
 		"Rarity: MAGIC\nSturdy Paper Hat\nImplicits: 0":  items.ErrUnknownBase,
+		"--------\n--------":                             items.ErrFormat,
 	} {
 		if _, _, err := r.Parse(text); !errors.Is(err, want) {
 			t.Errorf("%q: got %v, want %v", text, err, want)
