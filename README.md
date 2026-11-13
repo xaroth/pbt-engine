@@ -22,6 +22,8 @@ A dataset holds one game version as one FlatBuffers file per table group plus a 
 | `buffs.fb` (optional) | Buffs, utility flask buffs and tinctures |
 | `monsters.fb` (optional, needs skills) | Monster varieties, types and tables, and the links from skills to monsters |
 
+The art that goes with a dataset (sprite sheets and class and ascendancy faces) is listed in an art manifest, published beside it and named by its SHA-256: `dataset.ArtManifest`, whose JSON `dataset/art.schema.json` describes.
+
 A manifest can list capabilities: the rule version a mechanic needs in that dataset (`dataset.Capabilities`). Rules choose formulas by these versions, never by game version.
 
 ## Develop
@@ -34,7 +36,7 @@ go test ./...
 golangci-lint run
 ```
 
-Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures, the dataset groups, the walkthrough, the API sketch) read the datasets under `$PBT_DATASETS` by exact version and dataset id, pinned in `internal/realdata` (3.28.0.16 and 3.29.3.6). They skip without `$PBT_DATASETS` and fail when it lacks a pinned dataset. `internal/realdata/fetch` fetches them by id from pbt-data's bucket, one directory per version, reusing what the directory holds:
+Tests that need real datasets (sheets, goldens, node power, the semantics table and its fixtures, the dataset groups, the walkthrough, the API sketch) read the datasets under `$PBT_DATASETS` by exact version and dataset id, pinned in `internal/realdata` (3.28.0.16 and 3.29.3.6), and the art manifests published with them. They skip without `$PBT_DATASETS` and fail when it lacks a pinned dataset. `internal/realdata/fetch` fetches them by id from pbt-data's bucket, one directory per version and the art manifests under `art/`, reusing what the directory holds:
 
 ```sh
 go run ./internal/realdata/fetch /tmp/pbt-datasets

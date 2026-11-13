@@ -1,7 +1,10 @@
-// Package realdata names the real datasets the tests read from $PBT_DATASETS and opens them.
+// Package realdata names the real datasets and art manifests the tests read from $PBT_DATASETS
+// and opens them.
 package realdata
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io/fs"
 	"maps"
 	"os"
@@ -27,11 +30,44 @@ var ids = map[string]string{
 	Current:  "f9bfe4de4f58bfaa7848ff5ff26852480c8af50ebd7d40b6fbc62e8f7ebc33b9",
 }
 
+// artIDs are the art manifest ids, each the manifest's SHA-256, published with the pinned
+// versions.
+//
+//nolint:gochecknoglobals // a constant table
+var artIDs = map[string]string{
+	Previous: "e2f7515a17c9aca763dd858efb730da07a96b95a7df166a11a920905381a73f8",
+	Current:  "8c92af83fe2c417d7fc289c9afb5d921a0842c9d38992415251cbafaf1b89511",
+}
+
 // fetchHint tells how to put the pinned datasets under $PBT_DATASETS.
 const fetchHint = "fetch them with go run ./internal/realdata/fetch \"$PBT_DATASETS\""
 
 // ID returns the dataset id pinned for version, or "" when version is not pinned.
 func ID(version string) string { return ids[version] }
+
+// ArtID returns the art manifest id pinned for version, or "" when version is not pinned.
+func ArtID(version string) string { return artIDs[version] }
+
+// ArtPath is where fetch puts the art manifest with id under the datasets root.
+func ArtPath(root, id string) string { return filepath.Join(root, "art", id+".json") }
+
+// ArtManifest returns the JSON of the art manifest pinned for version, from $PBT_DATASETS. It
+// skips without $PBT_DATASETS and fails when the manifest is missing or not the pinned one.
+func ArtManifest(tb testing.TB, version string) []byte {
+	tb.Helper()
+	id, ok := artIDs[version]
+	if !ok {
+		tb.Fatalf("realdata: %s is not a pinned version", version)
+	}
+	b, err := os.ReadFile(ArtPath(Root(tb), id))
+	if err != nil {
+		tb.Fatalf("art manifest of %s: %v: %s", version, err, fetchHint)
+	}
+	if sum := sha256.Sum256(b); hex.EncodeToString(sum[:]) != id {
+		tb.Fatalf("art manifest of %s does not match its id %s: %s", version, id, fetchHint)
+	}
+	return b
+}
 
 // Versions are the pinned versions, oldest first.
 func Versions() []string {
