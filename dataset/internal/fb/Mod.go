@@ -251,8 +251,28 @@ func (rcv *Mod) GrantedSkillsLength() int {
 	return 0
 }
 
+func (rcv *Mod) RuthlessGrantedSkills(obj *GrantedSkill, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Mod) RuthlessGrantedSkillsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func ModStart(builder *flatbuffers.Builder) {
-	builder.StartObject(13)
+	builder.StartObject(14)
 }
 func ModAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -312,6 +332,12 @@ func ModAddGrantedSkills(builder *flatbuffers.Builder, grantedSkills flatbuffers
 	builder.PrependUOffsetTSlot(12, flatbuffers.UOffsetT(grantedSkills), 0)
 }
 func ModStartGrantedSkillsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func ModAddRuthlessGrantedSkills(builder *flatbuffers.Builder, ruthlessGrantedSkills flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(13, flatbuffers.UOffsetT(ruthlessGrantedSkills), 0)
+}
+func ModStartRuthlessGrantedSkillsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func ModEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
