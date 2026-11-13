@@ -184,7 +184,7 @@ func readItemsRecorded(t *testing.T, m dataset.Manifest, b *build.Build, data []
 		equipped[slot] = true
 		it, _, err := sim.Data().Item(file.Items[i].Text)
 		if err != nil {
-			continue // such as a Relic, which the reader does not take yet
+			continue // an item the reader does not take
 		}
 		if err := out.Apply(build.Equip(slot, it)); err != nil {
 			t.Fatal(err)

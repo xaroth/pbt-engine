@@ -433,6 +433,15 @@ func TestParse(t *testing.T) {
 			nil,
 		},
 		{
+			"relic: a unique",
+			"Rarity: RELIC\nDoom Cap\nIron Hat\nImplicits: 0\n+30 to maximum Life\n",
+			build.Item{
+				Rarity: build.Unique, Name: "Doom Cap", Base: hatBase,
+				Mods: []build.ModLine{line(build.Explicit, "+30 to maximum Life", "base_maximum_life", 30)},
+			},
+			nil,
+		},
+		{
 			"magic ring: base inside the name, a range, an unread line",
 			"Rarity: MAGIC\nSturdy Iron Ring of Life\nImplicits: 0\n+(20-30) to maximum Life\nGrants a wish\n",
 			build.Item{

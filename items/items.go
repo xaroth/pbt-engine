@@ -114,8 +114,9 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 // of one name, the one whose implicits read the item's implicit lines. Each mod
 // line is read through the stat descriptions; a line that reads in several ways is read as one
 // the item can have (see choose). A line nothing reads is a warning and stays without stats.
-// Properties Path of Building adds for itself, such as "LevelReq" or "Prefix", are ignored. It
-// fails with ErrFormat on text without a rarity, name or implicit count, and ErrUnknownBase.
+// Properties Path of Building adds for itself, such as "LevelReq" or "Prefix", are ignored. A
+// Relic reads as a unique. It fails with ErrFormat on text without a rarity, name or implicit
+// count, and ErrUnknownBase.
 func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 	p, err := split(text)
 	if err != nil {
