@@ -68,9 +68,12 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // dataset reg resolves for that version, or of the newest poe1 dataset when it has none
 // (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
 // and the campaign stage from PoB's resistance penalty. The active skill set's groups, with
-// their gems resolved through the dataset's skills group (see build.Skills). Everything else in
-// the file gives a warning: other specs, cluster jewel nodes (dropped), jewels, node overrides,
-// config inputs, items, pantheon, a secondary ascendancy, and of the skills: groups an item or
+// their gems resolved through the dataset's skills group (see build.Skills). The active item
+// set's items in the equipment slots, weapon swap included, read through the dataset's items
+// group; the reader's warnings on the lines it reads are not repeated, as build.Check gives
+// them. Everything else in the file gives a warning: other specs, cluster jewel nodes
+// (dropped), jewels, node overrides, config inputs, pantheon, a secondary ascendancy, items in
+// other slots, not equipped or not read, and of the skills: groups an item or
 // the tree grants (and the main skill when it is one of them), gems the dataset lacks, gems of
 // a name or skill id the dataset cannot choose between (imported as the first), slots without
 // sockets, the switches of a Vaal gem's two skills, and every group when the dataset has no
@@ -101,7 +104,10 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	if b.Skills, err = im.skills(store); err != nil {
 		return nil, nil, err
 	}
-	im.leftOut()
+	im.treeLeftOut()
+	if b.Items, err = im.items(store); err != nil {
+		return nil, nil, err
+	}
 	return b, im.warnings, nil
 }
 
@@ -287,12 +293,6 @@ func stageOf(penalty string) (poe1.CampaignStage, bool) {
 	return "", false
 }
 
-// leftOut warns about everything else in the file that the build does not hold.
-func (im *importer) leftOut() {
-	im.treeLeftOut()
-	im.itemsLeftOut()
-}
-
 func (im *importer) treeLeftOut() {
 	f := im.file
 	for i, s := range f.Specs {
@@ -310,23 +310,6 @@ func (im *importer) treeLeftOut() {
 	}
 	for _, o := range im.spec.Overrides {
 		im.warnf(OverrideIgnored, nodeSubject(o.Node), "node override %q not imported", o.Name)
-	}
-}
-
-// itemsLeftOut warns per item; an item in a jewel socket of the active tree is a jewel.
-func (im *importer) itemsLeftOut() {
-	jewels := map[int]uint32{}
-	for _, s := range im.spec.Sockets {
-		if s.Item != 0 {
-			jewels[s.Item] = s.Node
-		}
-	}
-	for _, it := range im.file.Items {
-		if node, ok := jewels[it.ID]; ok {
-			im.warnf(JewelIgnored, nodeSubject(node), "jewel %q not imported", it.Name)
-			continue
-		}
-		im.warnf(ItemIgnored, cmp.Or(it.Name, "item "+strconv.Itoa(it.ID)), "items are not imported")
 	}
 }
 

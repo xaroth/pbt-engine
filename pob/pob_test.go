@@ -109,6 +109,9 @@ Glorious Plate</Item>
 		<Item id="3">Rarity: RARE
 Corruption Spark
 Crimson Jewel</Item>
+		<Item id="4">Rarity: MAGIC
+Seething Divine Life Flask of Staunching</Item>
+		<ItemSet id="1"><Slot name="Body Armour" itemId="2"/><Slot name="Flask 1" itemId="4"/></ItemSet>
 	</Items>
 	<Skills><SkillSet id="1"><Skill label="RF"><Gem nameSpec="Righteous Fire"/></Skill><Skill><Gem nameSpec="Flame Dash"/></Skill></SkillSet></Skills>
 </PathOfBuilding>`
@@ -137,9 +140,10 @@ func TestFromXML(t *testing.T) {
 		{Code: pob.AscendancyIgnored, Subject: "2", Message: "secondary ascendancy not imported"},
 		{Code: pob.PantheonIgnored, Subject: "Arakaali", Message: "pantheon not imported"},
 		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `node override "Tattoo of the Tasalio Shaman" not imported`},
-		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "items are not imported"},
-		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "items are not imported"},
+		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "not equipped in the active item set; not imported"},
+		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "not read: items: dataset 3.29.3.5 has no items group; not imported"},
 		{Code: pob.JewelIgnored, Subject: "node 26725", Message: `jewel "Corruption Spark" not imported`},
+		{Code: pob.ItemIgnored, Subject: "Seething Divine Life Flask of Staunching", Message: `slot "Flask 1" is not an equipment slot; not imported`},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)

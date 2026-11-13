@@ -35,7 +35,7 @@ const full = `<?xml version="1.0" encoding="UTF-8"?>
 			<Placeholder name="enemyLevel" number="84"/>
 		</ConfigSet>
 	</Config>
-	<Items activeItemSet="1">
+	<Items activeItemSet="2">
 		<Item id="1">
 			Rarity: RARE
 			Doom Crown
@@ -48,7 +48,13 @@ Rarity: RARE
 Corruption Spark
 Crimson Jewel
 </Item>
-		<ItemSet id="1"><Slot name="Helmet" itemId="1"/></ItemSet>
+		<ItemSet id="1"><Slot name="Helmet" itemId="3"/></ItemSet>
+		<ItemSet id="2">
+			<Slot name="Helmet" itemId="1"/>
+			<Slot name="Ring 1" itemId="0"/>
+			<Slot name="Flask 1" itemId="2" active="true"/>
+			<SocketIdURL name="Jewel 26725" nodeId="26725"/>
+		</ItemSet>
 	</Items>
 	<Skills activeSkillSet="1">
 		<SkillSet id="1">
@@ -91,7 +97,12 @@ func TestParse(t *testing.T) {
 			{"usePowerCharges", "boolean", "true"},
 			{"enemyIsBoss", "string", "Pinnacle"},
 		},
-		Items: []pobxml.Item{{1, "Doom Crown"}, {2, "Seething Divine Life Flask of Staunching"}, {3, "Corruption Spark"}},
+		Items: []pobxml.Item{
+			{1, "Doom Crown", "\n\t\t\tRarity: RARE\n\t\t\tDoom Crown\n\t\t\tRoyal Burgonet\n\t\t"},
+			{2, "Seething Divine Life Flask of Staunching", "Rarity: MAGIC\nSeething Divine Life Flask of Staunching"},
+			{3, "Corruption Spark", "\nRarity: RARE\nCorruption Spark\nCrimson Jewel\n"},
+		},
+		Equipped: []pobxml.Equipped{{"Helmet", 1}, {"Flask 1", 2}},
 		Skills: []pobxml.SkillGroup{
 			{Label: "RF", Slot: "Body Armour", Enabled: true, MainActiveSkill: 1, Gems: []pobxml.Gem{
 				{
@@ -115,6 +126,8 @@ func TestParseWithoutSets(t *testing.T) {
 		<Build level="12" className="Witch" ascendClassName="None" mainSkillIndex="2"/>
 		<Tree><Spec treeVersion="3_10" nodes="1,2"/></Tree>
 		<Config><Input name="resistancePenalty" number="-30"/></Config>
+		<Items><Item id="4">Rarity: NORMAL
+Iron Ring</Item><Slot name="Ring 2" itemId="4"/></Items>
 		<Skills><Skill><Gem nameSpec="Fireball"/></Skill></Skills>
 	</PathOfBuilding>`))
 	if err != nil {
@@ -129,6 +142,9 @@ func TestParseWithoutSets(t *testing.T) {
 	want := []pobxml.SkillGroup{{Enabled: true, Gems: []pobxml.Gem{{Name: "Fireball", Enabled: true, EnableGlobal1: true, EnableGlobal2: true}}}}
 	if !reflect.DeepEqual(f.Skills, want) || f.Build.MainSocketGroup != 2 {
 		t.Errorf("skills %+v, main %d, want %+v, main 2", f.Skills, f.Build.MainSocketGroup, want)
+	}
+	if want := []pobxml.Equipped{{"Ring 2", 4}}; !reflect.DeepEqual(f.Equipped, want) {
+		t.Errorf("equipped %+v, want %+v", f.Equipped, want)
 	}
 }
 
