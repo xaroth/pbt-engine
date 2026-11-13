@@ -1,10 +1,10 @@
 // Package remote keeps local copies of published datasets. A source is addressed by content:
 //
-//	index.json            {"<game>": {"<league>": {"version": "...", "dataset": "<id>", "art": "<sha256>"}}}
+//	index.json            {"<game>": {"<league>": {"version": "...", "dataset": "<id>", "art": "<sha256>", "format": 1}}}
 //	manifests/<id>.json   a dataset's manifest, by its dataset id
 //	blobs/<sha256>        every file a manifest lists, by its SHA-256
 //
-// Pull keeps the latest dataset of each league; PullID fetches one dataset by its id. Each
+// Pull keeps the latest dataset of each league in dataset.FormatVersion; PullID fetches one dataset by its id. Each
 // fetches only what the local copy lacks and checks every byte: a manifest against the id it
 // was fetched by, a file against its SHA-256.
 package remote
@@ -48,12 +48,24 @@ const (
 	filePerm = 0o644
 )
 
-// Entry is a league's latest dataset in the index: its game version, its dataset id and the
-// SHA-256 of its tree-art manifest.
+// Entry is a league's latest dataset in the index: its game version, its dataset id, the
+// SHA-256 of its tree-art manifest and its dataset format.
 type Entry struct {
 	Version string `json:"version"`
 	Dataset string `json:"dataset"`
 	Art     string `json:"art"`
+	Format  int    `json:"format"`
+}
+
+// UnmarshalJSON reads an entry without a format as format 1, which entries had before they named it.
+func (e *Entry) UnmarshalJSON(b []byte) error {
+	type plain Entry
+	p := plain{Format: 1}
+	if err := json.Unmarshal(b, &p); err != nil {
+		return fmt.Errorf("entry: %w", err)
+	}
+	*e = Entry(p)
+	return nil
 }
 
 // Index is index.json: per game, per league.
@@ -112,7 +124,8 @@ type Result struct {
 // Pull brings the latest datasets of game's leagues in dir up to date with the source, dir
 // holding one directory per league. Without leagues it pulls every league of game in the index.
 // Each league is pulled as PullID pulls the dataset the index names, which must be of game and
-// the version the index gives. A league that fails keeps its old copy and does not stop the
+// the version the index gives. A league whose entry is in another format than
+// dataset.FormatVersion fails with dataset.ErrFormat before anything is fetched for it. A league that fails keeps its old copy and does not stop the
 // others: Pull returns the results of the leagues pulled together with the joined errors of
 // those that failed.
 func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) ([]Result, error) {
@@ -131,9 +144,9 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 	out := make([]Result, 0, len(leagues))
 	var errs []error
 	for _, league := range leagues {
-		e, ok := entries[league]
-		if !ok || !validName(league) {
-			errs = append(errs, fmt.Errorf("%w: %s %s", ErrUnknownLeague, game, league))
+		e, err := latest(entries, game, league)
+		if err != nil {
+			errs = append(errs, err)
 			continue
 		}
 		r, err := pull(ctx, f, filepath.Join(dir, league), e.Dataset, func(m dataset.Manifest) error {
@@ -150,6 +163,18 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 		out = append(out, r)
 	}
 	return out, errors.Join(errs...)
+}
+
+// latest is league's entry in entries, the index of game, when Pull can follow it.
+func latest(entries map[string]Entry, game, league string) (Entry, error) {
+	e, ok := entries[league]
+	if !ok || !validName(league) {
+		return e, fmt.Errorf("%w: %s %s", ErrUnknownLeague, game, league)
+	}
+	if e.Format != dataset.FormatVersion {
+		return e, fmt.Errorf("pull %s %s: %w %d, want %d", game, league, dataset.ErrFormat, e.Format, dataset.FormatVersion)
+	}
+	return e, nil
 }
 
 // PullID makes dir a copy of the dataset with id. A dir that already holds it is left alone;
