@@ -64,15 +64,9 @@ func setupSteps() []step {
 		{name: "open the datasets the host hands in", run: openDatasets},
 		{name: "resolve a league to its newest dataset", run: resolveLeague},
 		{name: "make a sim", run: makeSim},
-		{name: "make a sim against a pinnacle boss", pending: &pending{
-			needs: "an enemy actor", waitsOn: []string{"simulator.Enemy", "poe1.Pinnacle"},
-			code: `sim, err := simulator.New(res.Store, simulator.Enemy(poe1.Pinnacle))`,
-		}},
+		{name: "make a sim against a pinnacle boss", run: pinnacleSim},
 		{name: "configure the sim and read its config", run: configureSim},
-		{name: "set the enemy's fire resistance on the sim", pending: &pending{
-			needs: "an enemy actor", waitsOn: []string{"poe1.EnemyFireResist"},
-			code: `sim.Configure(simulator.Set(poe1.EnemyFireResist, 40))`,
-		}},
+		{name: "set the enemy's fire resistance on the sim", run: enemyResistance},
 		{name: "import a Path of Building file", run: importPoB},
 		{name: "import a Path of Building share code", run: importShareCode},
 		{name: "parse a build file", run: parseBuildFile},
@@ -92,10 +86,7 @@ func editSteps() []step {
 			code: `next.Config.Set(poe1.PowerCharges, 3)`,
 		}},
 		{name: "simulate", run: simulateNext},
-		{name: "simulate against a map boss for one call", pending: &pending{
-			needs: "an enemy actor", waitsOn: []string{"simulator.Enemy", "poe1.Map"},
-			code: `stats, err := sim.Simulate(next, simulator.Enemy(poe1.Map(83)))`,
-		}},
+		{name: "simulate against a map boss for one call", run: simulateMapBoss},
 		{name: "a build the dataset cannot take is an error", run: unreconcilable},
 	}
 }
@@ -222,6 +213,30 @@ func makeSim(t *testing.T, w *walk) {
 		}
 	}
 	w.sim = sim
+}
+
+// pinnacleSim makes a sim whose enemy is a pinnacle boss, the default enemy.
+func pinnacleSim(t *testing.T, w *walk) {
+	sim, err := simulator.New(w.res.Store, simulator.Set(poe1.Enemy, poe1.EnemyPinnacle))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(sim.Config()[poe1.Enemy.Name()]); got != `"pinnacle"` {
+		t.Errorf("sim config enemy %s, want \"pinnacle\"", got)
+	}
+}
+
+func enemyResistance(t *testing.T, w *walk) {
+	sim, err := simulator.New(w.res.Store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sim.Configure(simulator.Set(poe1.EnemyFireResistance, 40)); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(sim.Config()[poe1.EnemyFireResistance.Name()]); got != "40" {
+		t.Errorf("sim config enemy fire resistance %s, want 40", got)
+	}
 }
 
 func configureSim(t *testing.T, w *walk) {
@@ -426,6 +441,17 @@ func simulateNext(t *testing.T, w *walk) {
 	w.stats = simulate(t, w.sim, w.next)
 	if got, want := w.stats.Version(), w.res.Store.Manifest().Version; got != want {
 		t.Errorf("simulated on %s, want %s", got, want)
+	}
+}
+
+// simulateMapBoss sets a level 83 map boss for one call only; the sim keeps its own config.
+func simulateMapBoss(t *testing.T, w *walk) {
+	st := simulate(t, w.sim, w.next, simulator.Set(poe1.Enemy, poe1.EnemyBoss), simulator.Set(poe1.EnemyLevel, 83))
+	if len(st.Warnings()) != len(w.stats.Warnings()) {
+		t.Errorf("warnings %v, want those of the plain simulation %v", st.Warnings(), w.stats.Warnings())
+	}
+	if _, ok := w.sim.Config()[poe1.Enemy.Name()]; ok {
+		t.Error("the call's enemy stayed on the sim")
 	}
 }
 
