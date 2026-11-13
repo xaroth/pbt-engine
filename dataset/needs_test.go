@@ -99,5 +99,8 @@ func load(s *dataset.Store, name string) error {
 	if language, ok := strings.CutPrefix(name, "text-"); ok {
 		return discard(s.Text(strings.TrimSuffix(language, ".fb")))
 	}
+	if language, ok := strings.CutPrefix(name, "names-"); ok {
+		return discard(s.Names(strings.TrimSuffix(language, ".fb")))
+	}
 	return fmt.Errorf("%w for %s", errNoLoader, name)
 }
