@@ -43,6 +43,9 @@ func (d *Dataset) grants() []grant {
 		for _, g := range m.GrantedSkills {
 			grants = append(grants, grant{"mod " + m.ID, g})
 		}
+		for _, g := range m.RuthlessGrantedSkills {
+			grants = append(grants, grant{"mod " + m.ID + " in Ruthless", g})
+		}
 	}
 	for _, t := range d.Trees {
 		for _, n := range t.Nodes {

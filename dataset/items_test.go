@@ -412,8 +412,9 @@ func stringVec(b *flatbuffers.Builder, start func(*flatbuffers.Builder, int) fla
 	return b.EndVector(len(ss))
 }
 
-// TestModGameModeAbsent reads a mods file written without game modes, as files from before the
-// field existed are: every mod is in all game modes.
+// TestModGameModeAbsent reads a mods file written without game modes, granted skills and Ruthless
+// granted skills, as files from before those fields are: every mod is in all game modes and
+// grants nothing.
 func TestModGameModeAbsent(t *testing.T) {
 	t.Parallel()
 	d := withItems()

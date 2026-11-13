@@ -43,6 +43,9 @@ table Mod {
   game_mode: int32;
   // Mods.GrantedEffectsPerLevelKeys, in game order.
   granted_skills: [GrantedSkill];
+  // Mods.GrantedEffectRuthless, in game order: the skills the mod grants in Ruthless when it has
+  // its own for Ruthless.
+  ruthless_granted_skills: [GrantedSkill];
 }
 
 table Mods {
