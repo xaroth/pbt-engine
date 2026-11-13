@@ -81,6 +81,17 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 type regeneration struct {
 	total, flat, percent, rate, pool string
 	off                              []string
+	// carried is another pool's regeneration that applies to this pool instead, or nil.
+	carried *carriedRegeneration
+}
+
+// carriedRegeneration is the flat and percent regeneration of another pool that applies to
+// this one while flag is set: "Life Regeneration is applied to Energy Shield instead". The
+// percentage is of this pool. Each part carries over only when positive, and the other pool's
+// regeneration rate does not; this pool's rate scales both. All follow PoB (CalcDefence.lua,
+// Zealot's Oath); the text does not say.
+type carriedRegeneration struct {
+	flag, flat, percent string
 }
 
 func regenerations() []regeneration {
@@ -94,6 +105,13 @@ func regenerations() []regeneration {
 			total: statManaRegeneration, flat: statManaRegeneratedPerSecond, percent: statPercentOfManaRegeneratedPerSecond,
 			rate: statManaRegenerationRate, pool: statMaximumMana,
 		},
+		{
+			total: statEnergyShieldRegeneration, flat: statEnergyShieldRegeneratedPerSecond,
+			percent: statPercentOfEnergyShieldRegeneratedPerSecond, rate: statEnergyShieldRegenerationRate, pool: statMaximumEnergyShield,
+			carried: &carriedRegeneration{
+				flag: statLifeRegenerationAppliesToEnergyShield, flat: statLifeRegeneratedPerSecond, percent: statPercentOfLifeRegeneratedPerSecond,
+			},
+		},
 	}
 }
 
@@ -103,6 +121,11 @@ const (
 	// percentScale turns a percentage into a fraction.
 	percentScale = 100
 )
+
+// carriedIDs is a carriedRegeneration by stat id.
+type carriedIDs struct {
+	flag, flat, percent core.StatID
+}
 
 // regenerationDef completes def when it is a pool's total regeneration: the flat amount plus
 // the percentage of the pool, then the regeneration rate's increases and more multipliers,
@@ -119,9 +142,13 @@ func regenerationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef 
 		for _, name := range rg.off {
 			off = append(off, mustID(ids, name))
 		}
+		var carried *carriedIDs
+		if c := rg.carried; c != nil {
+			carried = &carriedIDs{flag: mustID(ids, c.flag), flat: mustID(ids, c.flat), percent: mustID(ids, c.percent)}
+		}
 		def.Includes = []core.StatID{mustID(ids, rg.flat), mustID(ids, rg.rate)}
 		def.Round, def.Places = core.RoundHalf, regenerationPlaces
-		def.FormulaName, def.Attribute = formulaRegeneration, regenerationAttribute(percent, pool, off)
+		def.FormulaName, def.Attribute = formulaRegeneration, regenerationAttribute(percent, pool, off, carried)
 		def.Formula = func(rd core.Reader, a core.Agg) float64 {
 			for _, f := range off {
 				if rd.Stat(f) != 0 {
@@ -129,21 +156,20 @@ func regenerationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef 
 				}
 			}
 			base := a.Base + float64(rd.Stat(pool)*rd.Stat(percent))/percentScale
+			if carried != nil && rd.Stat(carried.flag) != 0 {
+				base += max(rd.Stat(carried.flat), 0) + float64(rd.Stat(pool)*max(rd.Stat(carried.percent), 0))/percentScale
+			}
 			return base * (1 + a.Inc/percentScale) * a.More
 		}
-	}
-	if def.Name == statEnergyShieldRegeneration {
-		def.Round, def.Places = core.RoundHalf, regenerationPlaces
-		def.Formula = lifeRegenerationAsEnergyShield(ids)
-		def.FormulaName, def.Attribute = formulaLifeRegenerationAsEnergyShield, lifeRegenerationAsEnergyShieldAttribute(ids)
 	}
 	return def
 }
 
 // regenerationAttribute splits a pool's regeneration: flat terms and the pool times the
-// percentage, credited to the percentage's sources, then the rate's increases and more. While
-// an off flag is set the value is 0 and the flag's sources are listed at 0.
-func regenerationAttribute(percent, pool core.StatID, off []core.StatID) core.Attribute {
+// percentage, credited to the percentage's sources, and the carried parts credited to theirs,
+// then the rate's increases and more. While an off flag is set the value is 0 and the flag's
+// sources are listed at 0.
+func regenerationAttribute(percent, pool core.StatID, off []core.StatID, carried *carriedIDs) core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		for _, f := range off {
 			if a.Stat(f) != 0 {
@@ -154,46 +180,15 @@ func regenerationAttribute(percent, pool core.StatID, off []core.StatID) core.At
 		if pct := a.Stat(percent); pct != 0 {
 			base = append(base, a.Spread(core.SelfRef(percent), float64(a.Stat(pool)*pct)/percentScale, core.OpBase)...)
 		}
+		if carried != nil && a.Stat(carried.flag) != 0 {
+			if v := a.Stat(carried.flat); v > 0 {
+				base = append(base, a.Spread(core.SelfRef(carried.flat), v, core.OpBase)...)
+			}
+			if pct := a.Stat(carried.percent); pct > 0 {
+				base = append(base, a.Spread(core.SelfRef(carried.percent), float64(a.Stat(pool)*pct)/percentScale, core.OpBase)...)
+			}
+		}
 		return core.Attribution{Parts: a.Layers(base), Amount: a.Explanation().Total}
-	}
-}
-
-// lifeRegenerationAsEnergyShieldAttribute credits the flat and percent life regeneration
-// sources that carry over.
-func lifeRegenerationAsEnergyShieldAttribute(ids map[string]core.StatID) core.Attribute {
-	on := mustID(ids, statLifeRegenerationAppliesToEnergyShield)
-	flat, percent := mustID(ids, statLifeRegeneratedPerSecond), mustID(ids, statPercentOfLifeRegeneratedPerSecond)
-	pool := mustID(ids, statMaximumEnergyShield)
-	return func(a *core.Attributor) core.Attribution {
-		at := core.Attribution{Amount: a.Explanation().Total}
-		if a.Stat(on) == 0 {
-			return at
-		}
-		if v := a.Stat(flat); v > 0 {
-			at.Parts = a.Spread(core.SelfRef(flat), v, core.OpBase)
-		}
-		if pct := a.Stat(percent); pct > 0 {
-			at.Parts = append(at.Parts, a.Spread(core.SelfRef(percent), float64(a.Stat(pool)*pct)/percentScale, core.OpBase)...)
-		}
-		return at
-	}
-}
-
-// lifeRegenerationAsEnergyShield is energy shield regeneration while "Life Regeneration is
-// applied to Energy Shield instead": the flat life regeneration plus the life regeneration
-// percentage of maximum energy shield. Each carries over only when positive, so a negative
-// flat life regeneration (as from life regeneration per 1% of a negative uncapped fire
-// resistance) gives none. Life regeneration rate modifiers do not carry over. Both follow PoB
-// (CalcDefence.lua, Zealot's Oath); the text does not say.
-func lifeRegenerationAsEnergyShield(ids map[string]core.StatID) core.Formula {
-	on := mustID(ids, statLifeRegenerationAppliesToEnergyShield)
-	flat, percent := mustID(ids, statLifeRegeneratedPerSecond), mustID(ids, statPercentOfLifeRegeneratedPerSecond)
-	pool := mustID(ids, statMaximumEnergyShield)
-	return func(rd core.Reader, _ core.Agg) float64 {
-		if rd.Stat(on) == 0 {
-			return 0
-		}
-		return max(rd.Stat(flat), 0) + float64(rd.Stat(pool)*max(rd.Stat(percent), 0))/percentScale
 	}
 }
 
@@ -275,15 +270,14 @@ func effectiveMaximum(own core.StatID, ids map[string]core.StatID) core.Formula 
 
 // Formula names shown in explanations.
 const (
-	formulaRegeneration                   = "regeneration"
-	formulaLifeRegenerationAsEnergyShield = "life regeneration applied to energy shield"
-	formulaChaosResistance                = "chaos resistance"
-	formulaEffectiveMaximum               = "effective maximum resistance"
-	formulaCappedResistance               = "resistance capped by its maximum"
-	formulaTransfers                      = "conversion and gain as extra"
-	formulaTransferIncreases              = "increases of a transfer"
-	formulaTransferMore                   = "more multipliers of a transfer"
-	formulaTransferSource                 = "amount a transfer starts from"
+	formulaRegeneration      = "regeneration"
+	formulaChaosResistance   = "chaos resistance"
+	formulaEffectiveMaximum  = "effective maximum resistance"
+	formulaCappedResistance  = "resistance capped by its maximum"
+	formulaTransfers         = "conversion and gain as extra"
+	formulaTransferIncreases = "increases of a transfer"
+	formulaTransferMore      = "more multipliers of a transfer"
+	formulaTransferSource    = "amount a transfer starts from"
 )
 
 // chaosResistanceAttribute is the default rule, plus the doubling as a more part credited to

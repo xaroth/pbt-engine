@@ -15,6 +15,9 @@ const (
 	statEffectiveMaximumColdResistance                   = "effective_maximum_cold_resistance"
 	statEffectiveMaximumLightningResistance              = "effective_maximum_lightning_resistance"
 	statEnergyShieldRegeneration                         = "energy_shield_regeneration"
+	statEnergyShieldRegeneratedPerSecond                 = "energy_shield_regenerated_per_second"
+	statEnergyShieldRegenerationRate                     = "energy_shield_regeneration_rate"
+	statPercentOfEnergyShieldRegeneratedPerSecond        = "percent_of_energy_shield_regenerated_per_second"
 	statNoStrengthBonusToMaximumLife                     = "no_strength_bonus_to_maximum_life"
 	statNoIntelligenceBonusToMaximumMana                 = "no_intelligence_bonus_to_maximum_mana"
 	statNoDexterityBonusToEvasionRating                  = "no_dexterity_bonus_to_evasion_rating"
@@ -71,7 +74,7 @@ const (
 // per second"), percent_of_life_regenerated_per_second a share of maximum life ("Regenerate 1%
 // of Life per second"), and life_regeneration_rate holds the increases and more multipliers of
 // the "Life Regeneration rate"; life_regeneration is the total the sheet shows. The same for
-// mana.
+// mana and energy shield.
 func engineStats() []string {
 	return []string{
 		statChaosResistanceIsDoubled,
@@ -94,6 +97,8 @@ func engineStats() []string {
 		statChaosResistance,
 		statColdResistance,
 		statDexterity,
+		statEnergyShieldRegeneratedPerSecond,
+		statEnergyShieldRegenerationRate,
 		statEvasionRating,
 		statIntelligence,
 		statLevel,
@@ -108,6 +113,7 @@ func engineStats() []string {
 		statMaximumLife,
 		statMaximumLightningResistance,
 		statMaximumMana,
+		statPercentOfEnergyShieldRegeneratedPerSecond,
 		statPercentOfLifeRegeneratedPerSecond,
 		statPercentOfManaRegeneratedPerSecond,
 		statStrength,

@@ -3,7 +3,6 @@ attack_mana_cost_+% global: not a sheet value, by id: mana cost: {0}% increased 
 base_chaos_damage_resistance_% buff: not the player: enemies: Nearby Enemies have {0:+d}% to Chaos Resistance
 base_cold_damage_resistance_% buff: not the player: enemies: Nearby Enemies have {0:+d}% to Cold Resistance
 base_energy_shield_gained_on_enemy_death global: not a sheet value, by id: recovery on events: Gain {0} Energy Shield per Enemy Killed
-base_energy_shield_regeneration_rate_per_minute global: not a sheet value: energy shield recharge and recovery: Regenerate {0} Energy Shield per second
 base_life_gain_per_target global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Hit with Attacks
 base_life_gained_on_enemy_death global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Killed
 base_life_gained_on_spell_hit global: not a sheet value, by id: recovery on events: Gain {0} Life per Enemy Hit with Spells
