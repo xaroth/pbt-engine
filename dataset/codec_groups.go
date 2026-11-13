@@ -99,6 +99,7 @@ func encodeText(t Text) []byte {
 		nameList{fb.TextStartSkillNamesVector, fb.TextAddSkillNames, t.SkillNames})
 	addBuffs := optionalNames(b, nameList{fb.TextStartBuffNamesVector, fb.TextAddBuffNames, t.BuffNames})
 	addMonsters := optionalNames(b, nameList{fb.TextStartMonsterNamesVector, fb.TextAddMonsterNames, t.MonsterNames})
+	addOverrides := optionalNames(b, nameList{fb.TextStartOverrideNamesVector, fb.TextAddOverrideNames, t.OverrideNames})
 	lang := b.CreateString(t.Language)
 	fb.TextStart(b)
 	fb.TextAddLanguage(b, lang)
@@ -110,6 +111,7 @@ func encodeText(t Text) []byte {
 	addSkills()
 	addBuffs()
 	addMonsters()
+	addOverrides()
 	fb.FinishTextBuffer(b, fb.TextEnd(b))
 	return b.FinishedBytes()
 }
@@ -129,6 +131,7 @@ func decodeText(buf []byte) (Text, error) {
 	t.SkillNames = decodeNames(root.SkillNamesLength(), root.SkillNames)
 	t.BuffNames = decodeNames(root.BuffNamesLength(), root.BuffNames)
 	t.MonsterNames = decodeNames(root.MonsterNamesLength(), root.MonsterNames)
+	t.OverrideNames = decodeNames(root.OverrideNamesLength(), root.OverrideNames)
 	t.AscendancyNames = decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames)
 	return t, nil
 }
@@ -140,8 +143,8 @@ type nameList struct {
 }
 
 // optionalNames writes the lists of one group, all of them or, when every list is empty, none,
-// so a text without them keeps the bytes it had before the group existed. It returns what adds
-// the written lists to the Text table being built.
+// so a file without them keeps the bytes it had before the group existed. It returns what adds
+// the written lists to the table being built.
 func optionalNames(b *flatbuffers.Builder, lists ...nameList) (add func()) {
 	if !slices.ContainsFunc(lists, func(l nameList) bool { return len(l.names) > 0 }) {
 		return func() {}
@@ -402,6 +405,7 @@ func encodeTree(all []Stat, t Tree) []byte {
 	classes := tableVector(b, fb.TreeStartClassesVector, classOffs)
 	alt := ascendancyVector(b, fb.TreeStartAlternateAscendanciesVector, t.AlternateAscendancies)
 	jewels := uint32Vector(b, fb.TreeStartJewelSlotsVector, t.JewelSlots)
+	overrides := encodeOverrides(b, st, t.Overrides)
 	variant := b.CreateString(t.Variant)
 	ids := stringVector(b, fb.TreeStartStatIdsVector, st.ids)
 	fb.TreeStart(b)
@@ -413,6 +417,9 @@ func encodeTree(all []Stat, t Tree) []byte {
 	fb.TreeAddNodes(b, nodes)
 	fb.TreeAddJewelSlots(b, jewels)
 	fb.TreeAddStatIds(b, ids)
+	if overrides != 0 {
+		fb.TreeAddOverrides(b, overrides)
+	}
 	fb.FinishTreeBuffer(b, fb.TreeEnd(b))
 	return b.FinishedBytes()
 }
@@ -426,7 +433,64 @@ func treeStatLists(t Tree) [][]StatValue {
 			lists = append(lists, e.Stats)
 		}
 	}
+	for _, o := range t.Overrides {
+		lists = append(lists, o.Stats)
+	}
 	return lists
+}
+
+// encodeOverrides returns 0 for no overrides, so a tree without them keeps the bytes it had
+// before trees held them.
+func encodeOverrides(b *flatbuffers.Builder, st statTable, overrides []NodeOverride) flatbuffers.UOffsetT {
+	if len(overrides) == 0 {
+		return 0
+	}
+	offs := make([]flatbuffers.UOffsetT, len(overrides))
+	for i, o := range overrides {
+		id := b.CreateString(o.ID)
+		stats := statValueVector(b, fb.NodeOverrideStartStatsVector, st.toLocal(o.Stats, true))
+		icon := b.CreateSharedString(o.Icon)
+		excluded := uint32Vector(b, fb.NodeOverrideStartExcludedNodesVector, o.ExcludedNodes)
+		fb.NodeOverrideStart(b)
+		fb.NodeOverrideAddId(b, id)
+		fb.NodeOverrideAddKind(b, fb.OverrideKind(o.Kind))
+		fb.NodeOverrideAddStats(b, stats)
+		fb.NodeOverrideAddIcon(b, icon)
+		fb.NodeOverrideAddTarget(b, fb.OverrideTarget(o.Target))
+		fb.NodeOverrideAddMinNeighbours(b, o.MinNeighbours)
+		fb.NodeOverrideAddMaxNeighbours(b, o.MaxNeighbours)
+		fb.NodeOverrideAddExcludedNodes(b, excluded)
+		offs[i] = fb.NodeOverrideEnd(b)
+	}
+	return tableVector(b, fb.TreeStartOverridesVector, offs)
+}
+
+func decodeOverrides(root *fb.Tree, h []uint32) ([]NodeOverride, error) {
+	if root.OverridesLength() == 0 {
+		return nil, nil
+	}
+	out := make([]NodeOverride, root.OverridesLength())
+	var o fb.NodeOverride
+	for i := range out {
+		root.Overrides(&o, i)
+		stats, err := fromLocal(&o, h, true)
+		if err != nil {
+			return nil, fmt.Errorf("override %s: %w", o.Id(), err)
+		}
+		out[i] = NodeOverride{
+			ID:            string(o.Id()),
+			Kind:          OverrideKind(o.Kind()),
+			Stats:         stats,
+			Icon:          string(o.Icon()),
+			Target:        OverrideTarget(o.Target()),
+			MinNeighbours: o.MinNeighbours(),
+			MaxNeighbours: o.MaxNeighbours(),
+		}
+		for j := range o.ExcludedNodesLength() {
+			out[i].ExcludedNodes = append(out[i].ExcludedNodes, o.ExcludedNodes(j))
+		}
+	}
+	return out, nil
 }
 
 func encodeNode(b *flatbuffers.Builder, st statTable, n Node) flatbuffers.UOffsetT {
@@ -510,6 +574,9 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 	}
 	for j := range root.JewelSlotsLength() {
 		t.JewelSlots = append(t.JewelSlots, root.JewelSlots(j))
+	}
+	if t.Overrides, err = decodeOverrides(root, h); err != nil {
+		return Tree{}, err
 	}
 	return t, nil
 }

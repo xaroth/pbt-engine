@@ -70,6 +70,17 @@ func sample() *dataset.Dataset {
 					},
 				},
 				JewelSlots: []uint32{2},
+				Overrides: []dataset.NodeOverride{
+					{
+						ID: "Tasalio3", Kind: dataset.Tattoo, Stats: []dataset.StatValue{{Stat: 2, Value: 5}},
+						Icon: "Art/2DArt/SkillIcons/passives/CurseCastSpeed.png", Target: dataset.SmallIntelligence,
+					},
+					{
+						ID: "runegraft_8", Kind: dataset.Runegraft, Stats: []dataset.StatValue{{Stat: 0, Value: 1}, {Stat: 1, Value: 100}},
+						Icon: "Art/2DArt/SkillIcons/passives/AtlasTrees/RuneGraftingIcon13.png", Target: dataset.MasteryTarget,
+						MinNeighbours: 2, MaxNeighbours: 4, ExcludedNodes: []uint32{2},
+					},
+				},
 			},
 			{Variant: "ruthless"},
 		},
@@ -95,6 +106,7 @@ func sampleTexts() []dataset.Text {
 			NodeNames:       []dataset.NodeName{{ID: 1, Name: "MARAUDER"}, {ID: 2, Name: "Strength"}},
 			CharacterNames:  []dataset.Name{{ID: "Metadata/Characters/Str/Str", Name: "Marauder"}},
 			AscendancyNames: []dataset.AscendancyName{{Variant: "standard", ID: "Juggernaut", Name: "Juggernaut"}},
+			OverrideNames:   []dataset.Name{{ID: "Tasalio3", Name: "Tattoo of the Tasalio Shaman"}, {ID: "runegraft_8", Name: "Runegraft of Bellows"}},
 		},
 		{Language: "zh-hant"},
 	}
@@ -300,6 +312,9 @@ func renumbered() *dataset.Dataset {
 			remap(e.Stats, false)
 		}
 	}
+	for _, o := range d.Trees[0].Overrides {
+		remap(o.Stats, true)
+	}
 	return d
 }
 
@@ -423,6 +438,24 @@ func TestWriteErrors(t *testing.T) {
 			name: "name for unknown ascendancy", want: "name for unknown ascendancy Juggernaut in tree ruthless",
 			change: func(d *dataset.Dataset) { d.Texts[0].AscendancyNames[0].Variant = "ruthless" },
 		},
+		{name: "unsorted overrides", want: "overrides not sorted or repeated", change: func(d *dataset.Dataset) {
+			o := d.Trees[0].Overrides
+			o[0], o[1] = o[1], o[0]
+		}},
+		{name: "repeated override", want: `overrides not sorted or repeated at "Tasalio3"`, change: func(d *dataset.Dataset) {
+			d.Trees[0].Overrides[1].ID = "Tasalio3"
+		}},
+		{name: "override stat out of range", want: `override "Tasalio3": stat 9 out of range`, change: func(d *dataset.Dataset) {
+			d.Trees[0].Overrides[0].Stats[0].Stat = 9
+		}},
+		{name: "override without icon", want: `override "Tasalio3": no icon`, change: func(d *dataset.Dataset) { d.Trees[0].Overrides[0].Icon = "" }},
+		{name: "override of unknown target", want: `override "Tasalio3": unknown target 10`, change: func(d *dataset.Dataset) {
+			d.Trees[0].Overrides[0].Target = 10
+		}},
+		{name: "override excluding an unknown node", want: `override "runegraft_8": excluded node 5 not in tree`, change: func(d *dataset.Dataset) {
+			d.Trees[0].Overrides[1].ExcludedNodes = []uint32{5}
+		}},
+		{name: "name for unknown override", want: "name for unknown override x", change: func(d *dataset.Dataset) { d.Texts[0].OverrideNames[0].ID = "x" }},
 	}
 	for _, testCase := range treeCases {
 		t.Run(testCase.name, func(t *testing.T) {

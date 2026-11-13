@@ -5,7 +5,7 @@ namespace fb;
 file_identifier "PBTN";
 
 // The names of one language that a host needs without the stat descriptions: a copy of the
-// text group's character, ascendancy and node names.
+// text group's character, ascendancy, node and override names.
 table Names {
   language: string (required);
   // Sorted by id.
@@ -13,6 +13,8 @@ table Names {
   // Keyed by character id.
   character_names: [Name] (required);
   ascendancy_names: [AscendancyName] (required);
+  // Keyed by tree override id; absent in datasets without overrides.
+  override_names: [Name];
 }
 
 root_type Names;

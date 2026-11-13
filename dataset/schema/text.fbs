@@ -70,6 +70,8 @@ table Text {
   buff_names: [Name];
   // Keyed by monster variety id; absent in datasets without monster names.
   monster_names: [Name];
+  // Keyed by tree override id; absent in datasets without overrides.
+  override_names: [Name];
 }
 
 root_type Text;

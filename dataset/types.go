@@ -53,6 +53,8 @@ type Text struct {
 	BuffNames []Name
 	// MonsterNames are keyed by MonsterVariety.ID.
 	MonsterNames []Name
+	// OverrideNames are keyed by NodeOverride.ID.
+	OverrideNames []Name
 }
 
 // NodeName is the display name of a passive node.
@@ -154,6 +156,8 @@ type Tree struct {
 	// Nodes are sorted by ID.
 	Nodes      []Node
 	JewelSlots []uint32
+	// Overrides are the tattoos and runegrafts a node of the tree can take, sorted by ID.
+	Overrides []NodeOverride
 }
 
 // Class is a character class as the tree sees it; its index in Tree.Classes is its class id.
@@ -171,6 +175,9 @@ type Class struct {
 type Ascendancy struct {
 	ID string
 }
+
+// unknown is the String of a value outside its enumeration.
+const unknown = "unknown"
 
 // NodeKind classifies passive nodes.
 type NodeKind uint8
@@ -206,7 +213,7 @@ func (k NodeKind) String() string {
 	case Proxy:
 		return "proxy"
 	}
-	return "unknown"
+	return unknown
 }
 
 // Node is a passive tree node.

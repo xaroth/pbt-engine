@@ -121,8 +121,28 @@ func (rcv *Names) AscendancyNamesLength() int {
 	return 0
 }
 
+func (rcv *Names) OverrideNames(obj *Name, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Names) OverrideNamesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func NamesStart(builder *flatbuffers.Builder) {
-	builder.StartObject(4)
+	builder.StartObject(5)
 }
 func NamesAddLanguage(builder *flatbuffers.Builder, language flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(language), 0)
@@ -143,6 +163,12 @@ func NamesAddAscendancyNames(builder *flatbuffers.Builder, ascendancyNames flatb
 	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(ascendancyNames), 0)
 }
 func NamesStartAscendancyNamesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func NamesAddOverrideNames(builder *flatbuffers.Builder, overrideNames flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(overrideNames), 0)
+}
+func NamesStartOverrideNamesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func NamesEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
