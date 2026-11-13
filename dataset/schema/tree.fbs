@@ -40,6 +40,43 @@ table Node {
   multiple_choice_option: bool;
 }
 
+enum OverrideKind: ubyte {
+  Tattoo,
+  Runegraft,
+}
+
+// The nodes an override may replace.
+enum OverrideTarget: ubyte {
+  SmallStrength,
+  SmallDexterity,
+  SmallIntelligence,
+  // A small node of any one attribute.
+  SmallAttribute,
+  // A notable that grants +30 to the attribute.
+  StrengthNotable,
+  DexterityNotable,
+  IntelligenceNotable,
+  Keystone,
+  Mastery,
+  AscendancyNotable,
+}
+
+// A tattoo or runegraft: stats that take the place of an allocated node's own.
+table NodeOverride {
+  // PassiveSkillOverrides id, such as Tasalio3.
+  id: string (required);
+  kind: OverrideKind;
+  stats: [StatValue] (required);
+  // Art path, as layout node icons name it.
+  icon: string (required);
+  target: OverrideTarget;
+  // Bounds on the replaced node's neighbour count; 0 is no bound.
+  min_neighbours: int32;
+  max_neighbours: int32;
+  // Nodes it may not replace, sorted.
+  excluded_nodes: [uint32];
+}
+
 table Ascendancy {
   id: string (required);
 }
@@ -66,6 +103,8 @@ table Tree {
   jewel_slots: [uint32] (required);
   // Stat ids the file uses, sorted, so the file does not depend on the stats group's order.
   stat_ids: [string] (required);
+  // Sorted by id; absent in trees without overrides.
+  overrides: [NodeOverride];
 }
 
 root_type Tree;
