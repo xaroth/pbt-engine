@@ -202,9 +202,11 @@ type run struct {
 	cfg     config.Resolved
 	budget  Budget
 	items   []poe1.Item
-	// skill is the main skill, nil when the build has none.
-	skill    *resolve.Skill
-	warnings []Warning
+	// skill is the main skill, nil when the build has none; reserving are the other skills
+	// that reserve life or mana.
+	skill     *resolve.Skill
+	reserving []*resolve.Skill
+	warnings  []Warning
 }
 
 // prepare checks b and resolves its config against the sim config snapshot sim.
@@ -253,7 +255,8 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 }
 
 // mainSkill resolves the run's main skill, none when the build has no group with an active
-// gem to resolve or the dataset has no skills group (the build check warns about that).
+// gem to resolve or the dataset has no skills group (the build check warns about that), and
+// the other skills that reserve life or mana.
 func mainSkill(r *run) error {
 	if len(r.checked.Build().Skills.Groups) == 0 {
 		return nil
@@ -261,21 +264,43 @@ func mainSkill(r *run) error {
 	sk, warnings, err := resolve.MainSkill(r.checked, poe1.GemBonuses())
 	switch {
 	case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
+	case err != nil:
+		return fmt.Errorf("simulator: %w", err)
+	default:
+		r.skill = sk
+		r.warnings = append(r.warnings, warnings...)
+	}
+	return reservingSkills(r)
+}
+
+// reservingSkills resolves the run's skills other than its main skill that reserve life or
+// mana.
+func reservingSkills(r *run) error {
+	all, err := resolve.Skills(r.checked, poe1.GemBonuses())
+	switch {
+	case errors.Is(err, dataset.ErrNotInDataset):
 		return nil
 	case err != nil:
 		return fmt.Errorf("simulator: %w", err)
 	}
-	r.skill = sk
-	r.warnings = append(r.warnings, warnings...)
+	main := r.skill
+	for _, s := range all {
+		if !poe1.Reserves(s.Skill) || main != nil && s.Skill.Source == main.Source && s.Skill.GrantedEffect == main.GrantedEffect {
+			continue
+		}
+		r.reserving = append(r.reserving, s.Skill)
+		r.warnings = append(r.warnings, s.Warnings...)
+	}
 	return nil
 }
 
-// skills returns the run's skills for the sheet: the main skill, if any.
+// skills returns the run's skills for the sheet: the main skill first, if any, then the other
+// reserving skills.
 func (r *run) skills() []*resolve.Skill {
 	if r.skill == nil {
-		return nil
+		return r.reserving
 	}
-	return []*resolve.Skill{r.skill}
+	return append([]*resolve.Skill{r.skill}, r.reserving...)
 }
 
 // switchTo switches sh to the run's level, nodes, masteries, items, skills and config.
@@ -307,7 +332,7 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	}
 	st := &Stats{
 		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, budget: r.budget,
-		build: r.build, checked: r.checked, items: r.items, skill: r.skill, sim: s,
+		build: r.build, checked: r.checked, items: r.items, skill: r.skill, skills: r.skills(), sim: s,
 	}
 	for _, k := range keys {
 		v, err := sh.Output(k)

@@ -305,12 +305,15 @@ func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot
 	return sh.applyRule(e, v, src)
 }
 
-// addBaseValues adds the rules' base values of movement speed and damage.
+// addBaseValues adds the rules' base values of movement speed, damage and efficiencies.
 func (sh *Sheet) addBaseValues() error {
 	if err := sh.addBaseMovementSpeed(); err != nil {
 		return err
 	}
-	return sh.addBaseDamage()
+	if err := sh.addBaseDamage(); err != nil {
+		return err
+	}
+	return sh.addBaseEfficiencies()
 }
 
 // addCount adds counter sv to its own stat and to number_of_allocated_masteries.

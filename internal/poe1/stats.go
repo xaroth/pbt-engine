@@ -72,9 +72,11 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield,
 		statChaosResistanceIsDoubled, statElementalMaximumResistancesAreHighest,
 		statLifeRegenerationIsNotApplied, statLifeRegenerationAppliesToEnergyShield,
-		statMaximumEnduranceChargesAreMaximumFrenzyCharges, statHasMaximumFortification:
+		statMaximumEnduranceChargesAreMaximumFrenzyCharges, statHasMaximumFortification,
+		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana:
 		def.Flag = true
 	}
+	def = costDef(reservationDef(def, ids), ids)
 	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
@@ -279,6 +281,10 @@ const (
 	formulaTransferIncreases = "increases of a transfer"
 	formulaTransferMore      = "more multipliers of a transfer"
 	formulaTransferSource    = "amount a transfer starts from"
+	formulaSkillReservation  = "reservation of a skill"
+	formulaReserved          = "reservation of a pool"
+	formulaUnreserved        = "pool less its reservation"
+	formulaSkillCost         = "cost of a skill"
 )
 
 // chaosResistanceAttribute is the default rule, plus the doubling as a more part credited to

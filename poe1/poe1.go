@@ -14,8 +14,10 @@ const (
 	Dexterity                   = rules.Dexterity
 	Intelligence                = rules.Intelligence
 	Life                        = rules.Life
+	ReservedLife                = rules.ReservedLife
 	UnreservedLife              = rules.UnreservedLife
 	Mana                        = rules.Mana
+	ReservedMana                = rules.ReservedMana
 	UnreservedMana              = rules.UnreservedMana
 	EnergyShield                = rules.EnergyShield
 	Armour                      = rules.Armour
@@ -42,6 +44,8 @@ const (
 	ColdDamageModifier          = rules.ColdDamageModifier
 	LightningDamageModifier     = rules.LightningDamageModifier
 	ChaosDamageModifier         = rules.ChaosDamageModifier
+	ManaCost                    = rules.ManaCost
+	LifeCost                    = rules.LifeCost
 )
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.
