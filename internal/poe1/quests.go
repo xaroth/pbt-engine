@@ -98,7 +98,7 @@ func (sh *Sheet) SetLevel(level int) error {
 	}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.LevelSource{},
 		Stats: []resolve.StatValue{{Stat: resolve.LevelStat, Value: float64(level)}}}
-	_, err := sh.add(&bd, sh.table, sh.gameVersion)
+	_, err := sh.add(&bd, sh.table, sh.gameVersion, -1)
 	return err
 }
 

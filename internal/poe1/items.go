@@ -168,7 +168,7 @@ func (sh *Sheet) SetItems(items []Item) error {
 		bd := resolve.Bundle{
 			Actor: resolve.Player, Scope: resolve.Global, Source: resolve.ItemSource{Slot: it.Slot, Name: it.Name}, Stats: it.Stats,
 		}
-		src, err := sh.add(&bd, sh.table, sh.gameVersion)
+		src, err := sh.add(&bd, sh.table, sh.gameVersion, -1)
 		if err != nil {
 			return err
 		}
