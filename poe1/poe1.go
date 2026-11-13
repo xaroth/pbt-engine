@@ -14,7 +14,9 @@ const (
 	Dexterity                   = rules.Dexterity
 	Intelligence                = rules.Intelligence
 	Life                        = rules.Life
+	UnreservedLife              = rules.UnreservedLife
 	Mana                        = rules.Mana
+	UnreservedMana              = rules.UnreservedMana
 	EnergyShield                = rules.EnergyShield
 	Armour                      = rules.Armour
 	EvasionRating               = rules.EvasionRating

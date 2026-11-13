@@ -52,7 +52,11 @@ func Outputs() []Output {
 		{Key: Dexterity, Label: "Dexterity", Better: output.Higher, stat: statDexterity},
 		{Key: Intelligence, Label: "Intelligence", Better: output.Higher, stat: statIntelligence},
 		{Key: Life, Label: "Life", Better: output.Higher, stat: statMaximumLife},
+		// Unreserved is the pool minus its reservation. Nothing in the sheet reserves yet (only
+		// skills do, and they are not simulated), so it is the whole pool.
+		{Key: UnreservedLife, Label: "Unreserved Life", Better: output.Higher, stat: statMaximumLife},
 		{Key: Mana, Label: "Mana", Better: output.Higher, stat: statMaximumMana},
+		{Key: UnreservedMana, Label: "Unreserved Mana", Better: output.Higher, stat: statMaximumMana},
 		{Key: EnergyShield, Label: "Energy Shield", Better: output.Higher, stat: statMaximumEnergyShield},
 		{Key: Armour, Label: "Armour", Better: output.Higher, stat: statArmour},
 		{Key: EvasionRating, Label: "Evasion Rating", Better: output.Higher, stat: statEvasionRating},
