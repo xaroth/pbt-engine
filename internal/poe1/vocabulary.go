@@ -69,6 +69,9 @@ const (
 	statHasMaximumFortification                          = "has_maximum_fortification"
 	statFortification                                    = "fortification"
 	statFortificationAbove20                             = "fortification_above_20"
+	statSpellBlockChance                                 = "spell_block_chance"
+	statMaximumSpellBlockChance                          = "maximum_spell_block_chance"
+	statSpellBlockChanceCapped                           = "spell_block_chance_capped"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -96,6 +99,9 @@ const (
 // fortification is the character's Fortification: its maximum while has_maximum_fortification
 // is set, else none, as PoB counts it by default (not Fortified); fortification_above_20 is
 // the part above 20.
+//
+// spell_block_chance is the uncapped chance to block spell damage, maximum_spell_block_chance
+// its cap and spell_block_chance_capped the value the sheet shows.
 //
 // number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
 // counters, since every allocatable mastery carries its group's count at 1.
@@ -143,6 +149,9 @@ func engineStats() []string {
 		statPercentOfManaRegeneratedPerSecond,
 		statStrength,
 	}, chargeStats(), []string{
+		statSpellBlockChance,
+		statMaximumSpellBlockChance,
+		statSpellBlockChanceCapped,
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,
 		statEffectiveMaximumLightningResistance,
@@ -180,7 +189,6 @@ func chargeStats() []string {
 func ruleNames() []string {
 	return []string{
 		ruleConvert,
-		"energy_shield_from_spell_block_chance",
 		ruleGainAsExtra,
 	}
 }

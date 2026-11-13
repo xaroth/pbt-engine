@@ -250,6 +250,16 @@
       "better": "higher",
       "order": 24,
       "value": 0
+    },
+    {
+      "key": "player.spell_block_chance",
+      "label": "Chance to Block Spell Damage",
+      "unit": "%",
+      "places": 0,
+      "group": "defence",
+      "better": "higher",
+      "order": 25,
+      "value": 0
     }
   ],
   "warnings": [

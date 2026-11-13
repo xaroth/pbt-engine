@@ -35,6 +35,7 @@ const (
 	LifeRegeneration            = rules.LifeRegeneration
 	ManaRegeneration            = rules.ManaRegeneration
 	EnergyShieldRegeneration    = rules.EnergyShieldRegeneration
+	SpellBlockChance            = rules.SpellBlockChance
 )
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.

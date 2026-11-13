@@ -1,18 +1,21 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 94 authored, 86 unknown, 1 display-only, 0 gaps, 1728 outside
-unknown by reason: condition 50, items 18, event 7, reservation 4, context 3, scale 2, rule 1, unestablished 1
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 101 authored, 95 unknown, 1 display-only, 0 gaps, 1712 outside
+unknown by reason: condition 55, items 23, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
 unvalidated life_per_level global, uses 9: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
 unknown shield_armour_+% global, uses 9: items: depends on equipped items, which builds do not have yet
+unknown spell_block_with_staff_% global, uses 9: items: depends on equipped items, which builds do not have yet
 unknown additional_maximum_all_elemental_resistances_%_with_reserved_life_and_mana global, uses 8: reservation: depends on reserved life or mana, which needs skills
 unvalidated life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance global, uses 8: fire_resistance is the uncapped value; the text does not say how a negative or fractional uncapped resistance counts. Whole steps, negative below 0, as in PoB (ModStore.lua PerStat)
+unknown shield_spell_block_% global, uses 8: items: depends on equipped items, which builds do not have yet
 unvalidated base_maximum_all_resistances_% global, uses 7: no description text; 'all resistances' read from the stat id as fire, cold, lightning and chaos, which include maximum_all_resistances. A new character's maximum resistances in game would validate it
 unvalidated dexterity_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unknown evasion_+%_if_hit_recently global, uses 7: condition: hit recently
 unvalidated intelligence_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unvalidated level global, uses 7: its description has no text; meaning read from the stat id. The level bundle carries the build's level under it
 unvalidated mana_per_level global, uses 7: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum mana in game would validate it
+unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equipped items, which builds do not have yet
 unvalidated strength_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which builds do not have yet
 unvalidated X_to_armour_per_2_strength global, uses 5: the text says per 2 Strength; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
@@ -25,8 +28,10 @@ unknown evasion_rating_+%_while_tincture_active global, uses 5: condition: activ
 unknown life_regeneration_%_per_minute_if_detonated_mine_recently global, uses 5: condition: detonated a mine recently
 unknown maximum_life_and_mana_+%_if_red_and_blue_socket_on_staff global, uses 5: items: depends on equipped items, which builds do not have yet
 unknown resist_all_elements_+%_while_holding_shield global, uses 5: items: depends on equipped items, which builds do not have yet
+unknown spell_block_chance_%_while_holding_staff_or_shield global, uses 5: items: depends on equipped items, which builds do not have yet
 unknown armour_and_evasion_+%_if_red_and_green_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which builds do not have yet
 unknown guardian_gain_life_regeneration_per_minute_%_for_1_second_every_10_seconds global, uses 4: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
+unknown spell_block_%_per_5_attack_block global, uses 4: scale: scales with the chance to block attack damage, which is not a sheet value yet
 unknown shield_maximum_energy_shield_+% global, uses 3: items: depends on equipped items, which builds do not have yet
 unknown X_armour_if_you_have_blocked_recently global, uses 2: condition: blocked recently
 unknown armour_+%_if_you_havent_been_hit_recently global, uses 2: condition: not hit recently
@@ -43,6 +48,7 @@ unknown gain_maximum_life_instead_of_maximum_es_from_armour global, uses 2: item
 unvalidated mana_%_to_add_as_energy_shield global, uses 2: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unknown mana_regeneration_rate_+%_while_stationary global, uses 2: condition: stationary
 unknown regenerate_energy_shield_equal_to_%_evasion_rating_over_1_second_every_4_seconds global, uses 2: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
+unknown you_and_allies_additional_spell_block_%_if_cast_spell_recently global, uses 2: condition: cast a spell recently
 unknown additional_chaos_resistance_against_damage_over_time_% global, uses 1: context: applies against damage over time only; the sheet's resistance has no damage context
 unknown additional_maximum_all_elemental_resistances_%_if_killed_cursed_enemy_recently global, uses 1: condition: killed a cursed enemy recently
 unknown armour_+%_if_have_been_hit_recently global, uses 1: condition: hit recently
@@ -51,7 +57,11 @@ unknown armour_+_per_10_unreserved_max_mana global, uses 1: reservation: depends
 unknown armour_and_evasion_+%_during_onslaught global, uses 1: condition: Onslaught
 unknown armour_and_evasion_+%_while_fortified global, uses 1: condition: Fortified
 unknown banner_resist_all_elements_% global, uses 1: condition: a placed Banner
+unknown block_spells_chance_%_while_holding_shield global, uses 1: items: depends on equipped items, which builds do not have yet
 unknown body_armour_defences_doubled_while_no_gems_in_body_armour global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown chance_to_block_spells_%_if_cast_a_spell_recently global, uses 1: condition: cast a spell recently
+unknown chance_to_block_spells_%_if_used_retaliation_recently global, uses 1: condition: used a Retaliation Skill recently
+unknown chance_to_block_spells_%_while_channelling global, uses 1: condition: channelling
 unvalidated chaos_damage_resistance_is_doubled global, uses 1: the text does not say whether doubling applies before or after other modifiers or more than once; the total is doubled once, as PoB does
 unknown damage_+%_for_you_and_allies_affected_by_your_auras global, uses 1: context: increased damage, which is not simulated yet; applies to the player always, as an aura of the node's own
 unknown damage_reduction_rating_from_body_armour_doubled global, uses 1: items: depends on equipped items, which builds do not have yet
@@ -69,11 +79,14 @@ omitted keystone_blood_magic global, uses 1: Skills Cost Life instead of Mana; S
 omitted keystone_chaos_inoculation global, uses 1: Immune to Chaos Damage
 unknown keystone_divine_shield global, uses 1: condition: physical damage prevented from hits recently
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life
+unvalidated keystone_glancing_blows global, uses 1: the text does not say whether doubling applies before or after other modifiers; the total is doubled, as PoB does (a 100% more multiplier)
+omitted keystone_glancing_blows global, uses 1: Chance to Block Attack Damage is doubled; You take 65% of Damage from Blocked Hits
 unvalidated keystone_iron_reflexes global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 omitted keystone_magebane global, uses 1: +1% Chance to Suppress Spell Damage per 15 Dexterity
 omitted keystone_miracle_of_thaumaturgy global, uses 1: While not on Full Life, Sacrifice 20% of Mana per Second to Recover that much Life
 unknown keystone_projectile_evasion global, uses 1: context: changes evasion rating against projectile and melee attacks only; the sheet's evasion rating has no attack context
 omitted keystone_solipsism global, uses 1: 2% reduced Duration of Elemental Ailments on you per 15 Intelligence
+omitted keystone_versatile_combatant global, uses 1: -10% to maximum Chance to Block Attack Damage; +2% Chance to Block Spell Damage for each 1% Overcapped Chance to Block Attack Damage, since the chance to block attack damage is not a sheet value yet
 unknown keystone_veterans_awareness global, uses 1: condition: affected by a non-Vaal Guard Skill
 unknown life_recovery_rate_+% global, uses 1: unestablished: whether Life Recovery rate scales regeneration is not stated by its text; an in-game observation would establish it
 unknown life_regeneration_%_per_minute_if_player_minion_died_recently global, uses 1: condition: a minion died recently
@@ -91,12 +104,12 @@ unknown mana_recovery_rate_+%_while_affected_by_a_mana_flask global, uses 1: con
 unknown mana_regeneration_+%_for_4_seconds_on_movement_skill_use global, uses 1: condition: used a Movement Skill recently
 unknown mana_regeneration_rate_+%_if_enemy_frozen_recently global, uses 1: condition: frozen an enemy recently
 unknown mana_regeneration_rate_+%_if_enemy_shocked_recently global, uses 1: condition: shocked an enemy recently
-unknown mana_regeneration_rate_+%_per_1%_spell_block_chance global, uses 1: scale: scales with the chance to block spell damage, which is not a sheet value yet
+unvalidated mana_regeneration_rate_+%_per_1%_spell_block_chance global, uses 1: the chance is the capped one, counted in whole steps, as PoB does (PerStat on SpellBlockChance); the text does not say
 unknown mana_regeneration_rate_+%_per_raised_spectre global, uses 1: condition: per Raised Spectre
 unknown mana_regeneration_rate_per_minute_%_if_inflicted_exposure_recently global, uses 1: condition: inflicted Exposure recently
 unknown mana_regeneration_rate_per_minute_%_per_active_totem global, uses 1: condition: per Summoned Totem
 unknown maximum_energy_shield_+_per_X_body_armour_evasion_rating global, uses 1: items: depends on equipped items, which builds do not have yet
-unknown maximum_energy_shield_increased_by_spell_block_chance global, uses 1: rule energy_shield_from_spell_block_chance: increases maximum energy shield by the chance to block spell damage
+unvalidated maximum_energy_shield_increased_by_spell_block_chance global, uses 1: read as 1% increased maximum Energy Shield per 1% capped Chance to Block Spell Damage, counted in whole steps; PoB adds the unrounded chance, once however many sources have the stat
 unvalidated maximum_life_%_to_add_as_maximum_armour global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unvalidated maximum_life_%_to_add_as_maximum_energy_shield global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unvalidated maximum_life_%_to_convert_to_maximum_energy_shield global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
@@ -110,6 +123,7 @@ unknown regenerate_%_life_over_1_second_when_stunned global, uses 1: event: reco
 unknown regenerate_%_maximum_energy_shield_over_2_seconds_on_consuming_corpse global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown regenerate_%_maximum_mana_over_2_seconds_on_consuming_corpse global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unvalidated regenerate_energy_shield_instead_of_life global, uses 1: the text does not say whether life regeneration rate modifiers carry over; flat and percent life regeneration apply to energy shield without them, as PoB does
+unknown spell_block_%_while_at_max_power_charges global, uses 1: condition: at maximum Power Charges
 unknown warcry_physical_damage_reduction_rating_+%_per_5_power_for_8_seconds global, uses 1: condition: Warcry used in the past 8 seconds, and its Power
 unknown you_and_allies_affected_by_your_placed_banners_regenerate_%_life_per_minute_per_resource global, uses 1: condition: near your placed Banner, per Valour
 unknown you_and_nearby_allies_armour_+_if_have_impaled_recently global, uses 1: condition: impaled recently

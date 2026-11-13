@@ -61,6 +61,7 @@ marked_enemies_cannot_regenerate_life global: not the player, by id: enemy stat:
 maximum_life_+%_for_corpses_you_create global: not a sheet value: corpses: Corpses you Spawn have {0}% reduced Maximum Life
 maximum_physical_damage_reduction_% global: listed: reads "to maximum Armour", but its id and Character.ot value (90) make it the cap on physical damage reduction from armour: {0:+d}% to maximum Armour
 mine_damage_penetrates_%_elemental_resistance global: not a sheet value, by id: penetration: Mine Damage Penetrates {0}% Elemental Resistances
+minion_additional_spell_block_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% Chance to Block Spell Damage
 minion_chaos_resistance_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% to Chaos Resistance
 minion_elemental_resistance_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% to all Elemental Resistances
 minion_life_recovery_rate_+% global: not the player, by id: minion, totem or golem stat: Minions have {0}% increased Life Recovery rate
