@@ -49,6 +49,8 @@ func TestAllocatePath(t *testing.T) {
 		{"from the ascendancy start", "Juggernaut", []uint32{1}, 14, []uint32{13, 14}},
 		{"a mastery", "Juggernaut", []uint32{1, 3}, 4, []uint32{4}},
 		{"not through a mastery", "Juggernaut", []uint32{1, 3}, 30, nil},
+		{"a proxy", "Juggernaut", []uint32{1, 3}, 40, nil},
+		{"not through a proxy", "Juggernaut", []uint32{1, 3}, 41, nil},
 		{"allocated", "Juggernaut", []uint32{1, 3}, 3, nil},
 		{"the class start", "Juggernaut", []uint32{3}, 1, nil},
 		{"another class start", "Juggernaut", []uint32{1, 3}, 2, nil},
@@ -249,7 +251,7 @@ func (bt *bruteTree) step(u, v uint32) bool {
 
 func (bt *bruteTree) enterable(id uint32) bool {
 	n := bt.nodes[id]
-	if n.Kind == dataset.ClassStart || n.Kind == dataset.AscendancyStart || (n.Ascendancy != "" && n.Ascendancy != bt.asc) {
+	if n.Kind == dataset.ClassStart || n.Kind == dataset.AscendancyStart || n.Kind == dataset.Proxy || (n.Ascendancy != "" && n.Ascendancy != bt.asc) {
 		return false
 	}
 	if p := bt.choice(n); p != 0 {

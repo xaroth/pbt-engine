@@ -34,6 +34,7 @@ const (
 	NodeRepeated          Code = "node-repeated"
 	NodeOtherAscendancy   Code = "node-other-ascendancy"
 	NodeOtherClassStart   Code = "node-other-class-start"
+	NodeProxy             Code = "node-proxy"
 	NodesDisconnected     Code = "nodes-disconnected"
 	MasteryNotAllocated   Code = "mastery-not-allocated"
 	MasteryEffectUnknown  Code = "mastery-effect-unknown"
@@ -108,9 +109,9 @@ type MasteryChoice struct {
 }
 
 // Check checks b against the dataset s and fixes what it can: it clears an ascendancy of
-// another class, clamps the level to 1 to 100, drops unknown, repeated and other classes' or
-// ascendancies' nodes and mastery choices that do not fit, each with a warning. It warns
-// without a fix about nodes not connected to the class or ascendancy start and about
+// another class, clamps the level to 1 to 100, drops unknown, repeated and proxy nodes, other
+// classes' or ascendancies' nodes, and mastery choices that do not fit, each with a warning.
+// It warns without a fix about nodes not connected to the class or ascendancy start and about
 // allocated masteries with no choice. Against the dataset's skills group it drops unknown gems,
 // clears unknown variants and slots without sockets, corrects which gems are supports, clamps
 // gem levels and quality, and moves a main skill or active gem that does not fit to the first,
@@ -331,6 +332,8 @@ func (c *Checked) nodeProblem(id uint32, n *dataset.Node) (Warning, bool) {
 		return Warning{NodeOtherAscendancy, subject, fmt.Sprintf("a node of %s; dropped", n.Ascendancy)}, true
 	case n.Kind == dataset.ClassStart && n.ID != c.class.StartNode:
 		return Warning{NodeOtherClassStart, subject, "another class's start; dropped"}, true
+	case n.Kind == dataset.Proxy:
+		return Warning{NodeProxy, subject, "a proxy node, which only a jewel allocates; dropped"}, true
 	}
 	return Warning{}, false
 }

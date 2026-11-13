@@ -10,7 +10,7 @@ import (
 // AllocatePath returns the edit that allocates node with the shortest path of unallocated nodes
 // joining it to the allocated nodes or the class or ascendancy start, node last. A path takes
 // no start, no node of another ascendancy and no option of a choice node that already takes
-// one, crosses between the ascendancy and the main tree only as Crosses allows, and ends at a
+// one, steps only where Crosses allows, and ends at a
 // mastery: a mastery's edges say which notables unlock it. It reports false when node is
 // allocated or a start, or no path reaches it.
 func (c *Checked) AllocatePath(node uint32) (Edit, bool) {
@@ -82,10 +82,14 @@ func (c *Checked) takeable(from, to *dataset.Node, fromAllocated bool, taken map
 }
 
 // Crosses reports whether a path may step from node from to its neighbour to as far as
-// ascendancies go. As in the game, a path enters an ascendancy only at its start and leaves it
-// for the main tree only from an allocated node, such as an Ascendant's allocated "Path of the
-// Marauder".
+// proxies and ascendancies go. As in the game, a path never enters a proxy, such as a cluster
+// jewel socket's, which only a jewel allocates; it enters an ascendancy only at its start and
+// leaves it for the main tree only from an allocated node, such as an Ascendant's allocated
+// "Path of the Marauder".
 func Crosses(from, to *dataset.Node, fromAllocated bool) bool {
+	if to.Kind == dataset.Proxy {
+		return false
+	}
 	return from.Ascendancy == to.Ascendancy || (to.Ascendancy == "" && fromAllocated)
 }
 

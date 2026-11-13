@@ -25,6 +25,7 @@ const (
 // nodes 10 and 12 (Juggernaut, from its start 20; 12 grants a point) and 11 (Berserker);
 // Ranger starts at 2. Masteries 4 and 5 hang off 3 and share effect 7; 30 is reached only
 // through mastery 4; 6 joins nothing. Juggernaut's 13 is a choice node with options 14 and 15.
+// Proxy 40 hangs off 3, and 41 off 40 only.
 func testStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	return openStore(t, testDataset())
@@ -44,7 +45,7 @@ func testDataset() *dataset.Dataset {
 			Nodes: []dataset.Node{
 				{ID: 1, Kind: dataset.ClassStart, Neighbours: []uint32{3}},
 				{ID: 2, Kind: dataset.ClassStart, Neighbours: []uint32{3}},
-				{ID: 3, Neighbours: []uint32{1, 2, 4, 5}, Stats: []dataset.StatValue{{Stat: 0, Value: 10}}},
+				{ID: 3, Neighbours: []uint32{1, 2, 4, 5, 40}, Stats: []dataset.StatValue{{Stat: 0, Value: 10}}},
 				{ID: 4, Kind: dataset.Mastery, Neighbours: []uint32{3, 30}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 8}}},
 				{ID: 5, Kind: dataset.Mastery, Neighbours: []uint32{3}, MasteryEffects: []dataset.MasteryEffect{{ID: 7}, {ID: 9}}},
 				{ID: 6},
@@ -56,6 +57,8 @@ func testDataset() *dataset.Dataset {
 				{ID: 15, Ascendancy: "Juggernaut", Neighbours: []uint32{13}, MultipleChoiceOption: true},
 				{ID: 20, Kind: dataset.AscendancyStart, Ascendancy: "Juggernaut", Neighbours: []uint32{10, 12, 13}},
 				{ID: 30, Neighbours: []uint32{4}},
+				{ID: 40, Kind: dataset.Proxy, Neighbours: []uint32{3, 41}},
+				{ID: 41, Kind: dataset.Notable, Neighbours: []uint32{40}},
 			},
 		}},
 	}
@@ -263,6 +266,13 @@ func TestCheckWarnings(t *testing.T) {
 					t.Errorf("nodes %v", b.Nodes)
 				}
 			}},
+		{"proxy", func(b *build.Build) { b.Nodes = append(b.Nodes, 40) }, []build.Code{build.NodeProxy},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if slices.Contains(b.Nodes, 40) {
+					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
 		{"through a mastery", func(b *build.Build) {
 			b.Nodes = append(b.Nodes, 4, 30)
 			b.Masteries = map[uint32]uint32{4: 7}
@@ -301,6 +311,15 @@ func TestCheckWarnings(t *testing.T) {
 			t.Parallel()
 			checkWarnings(t, s, testCase.edit, testCase.codes, testCase.check)
 		})
+	}
+}
+
+func TestEditWarningsProxy(t *testing.T) {
+	t.Parallel()
+	c := checked(t, testStore(t), juggernaut())
+	got := c.EditWarnings([]build.Edit{build.Allocate(40)})
+	if len(got) != 1 || got[0].Code != build.NodeProxy {
+		t.Errorf("warnings %v, want one %s", got, build.NodeProxy)
 	}
 }
 
