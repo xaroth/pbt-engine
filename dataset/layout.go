@@ -12,7 +12,8 @@ import (
 type Layout struct {
 	// Variant is the Tree.Variant the layout places.
 	Variant string
-	// MinX, MinY, MaxX and MaxY bound the drawn tree.
+	// MinX, MinY, MaxX and MaxY are the tree export's own bounds. They leave out nodes and art
+	// at the tree's edge; Bounds encloses everything drawn.
 	MinX, MinY, MaxX, MaxY float64
 	// Orbits are indexed by orbit number.
 	Orbits []Orbit
@@ -134,6 +135,38 @@ func (l *Layout) Position(id uint32) (x, y float64, ok bool) {
 	o := l.Orbits[n.Orbit]
 	sin, cos := math.Sincos(o.Angle(n.OrbitIndex) * math.Pi / 180) //nolint:mnd // degrees to radians
 	return l.Groups[g].X + o.Radius*sin, l.Groups[g].Y - o.Radius*cos, true
+}
+
+// Bounds is a rectangle in layout coordinates.
+type Bounds struct {
+	MinX, MinY, MaxX, MaxY float64
+}
+
+// artReach is how far art drawn on the tree reaches from the node or group centre it is drawn
+// on: half the widest ascendancy background (ClassesAscendant, 1531 across in 3.29), drawn
+// centred on its start's group. Group backgrounds and node art are smaller.
+const artReach = 766
+
+// Bounds returns the rectangle that encloses every node, group and the art drawn on them,
+// ascendancies and their backgrounds included. It is zero for a layout without groups.
+func (l *Layout) Bounds() Bounds {
+	if len(l.Groups) == 0 {
+		return Bounds{}
+	}
+	b := Bounds{MinX: math.Inf(1), MinY: math.Inf(1), MaxX: math.Inf(-1), MaxY: math.Inf(-1)}
+	add := func(x, y float64) {
+		b.MinX, b.MaxX = min(b.MinX, x), max(b.MaxX, x)
+		b.MinY, b.MaxY = min(b.MinY, y), max(b.MaxY, y)
+	}
+	for _, g := range l.Groups {
+		add(g.X, g.Y)
+	}
+	for _, n := range l.Nodes {
+		if x, y, ok := l.Position(n.ID); ok {
+			add(x, y)
+		}
+	}
+	return Bounds{MinX: b.MinX - artReach, MinY: b.MinY - artReach, MaxX: b.MaxX + artReach, MaxY: b.MaxY + artReach}
 }
 
 // validateLayout checks l against the tree of its variant, nil when there is none.

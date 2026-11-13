@@ -19,6 +19,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 )
 
 // withLayout is sample with a second class and a layout for its standard tree: node 1 at the
@@ -93,6 +94,112 @@ func TestLayoutPosition(t *testing.T) {
 				t.Errorf("Position(%d): got (%v, %v, %v), want (%v, %v, %v)", testCase.id, x, y, ok, testCase.x, testCase.y, testCase.wantOK)
 			}
 		})
+	}
+}
+
+func TestLayoutBounds(t *testing.T) {
+	t.Parallel()
+	l := dataset.Layout{
+		Orbits: []dataset.Orbit{{Radius: 0, Slots: 1}, {Radius: 100, Slots: 6}},
+		Groups: []dataset.LayoutGroup{{ID: 1}, {ID: 2, X: 1000, Y: -500}},
+		Nodes: []dataset.LayoutNode{
+			{ID: 1, Group: 1, Icon: "a"},
+			// Straight up from group 2.
+			{ID: 2, Group: 2, Orbit: 1, Icon: "a"},
+			{ID: 3, Icon: "a"},
+		},
+	}
+	// The extents of groups and nodes, (0, -600) to (1000, 0), and 766 around them.
+	want := dataset.Bounds{MinX: -766, MinY: -1366, MaxX: 1766, MaxY: 766}
+	if got := l.Bounds(); got != want {
+		t.Errorf("Bounds: got %+v, want %+v", got, want)
+	}
+	if got := (&dataset.Layout{}).Bounds(); got != (dataset.Bounds{}) {
+		t.Errorf("Bounds of an empty layout: got %+v, want zero", got)
+	}
+}
+
+// TestLayoutBoundsRealTree checks Bounds on the current tree against the extents of what is
+// drawn: every node, every group background and every ascendancy background, sized as the art
+// manifest of 3.29 (8c92af83) sizes them at zoom 1.
+func TestLayoutBoundsRealTree(t *testing.T) {
+	t.Parallel()
+	s := realdata.Open(t, realdata.Current)
+	tree, err := s.Tree("standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := s.Layout("standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	groupBackground := map[string][2]float64{
+		"PSGroupBackground1": {360, 360}, "PSGroupBackground2": {466, 466},
+		// A half image: the art is the top half, mirrored below.
+		"PSGroupBackground3": {740, 2 * 374},
+	}
+	ascendancyBackground := func(id string) [2]float64 {
+		switch id {
+		case "Ascendant", "Luminary", "Reliquarian":
+			return [2]float64{1530, 1530}
+		}
+		if slices.ContainsFunc(tree.Classes, func(c dataset.Class) bool {
+			return slices.ContainsFunc(c.Ascendancies, func(a dataset.Ascendancy) bool { return a.ID == id })
+		}) {
+			return [2]float64{1300, 1300}
+		}
+		return [2]float64{1480, 1400} // a bloodline
+	}
+
+	drawn := dataset.Bounds{MinX: math.Inf(1), MinY: math.Inf(1), MaxX: math.Inf(-1), MaxY: math.Inf(-1)}
+	add := func(x, y float64, size [2]float64) {
+		drawn.MinX, drawn.MaxX = min(drawn.MinX, x-size[0]/2), max(drawn.MaxX, x+size[0]/2)
+		drawn.MinY, drawn.MaxY = min(drawn.MinY, y-size[1]/2), max(drawn.MaxY, y+size[1]/2)
+	}
+	groups := map[uint32]dataset.LayoutGroup{}
+	for _, g := range l.Groups {
+		groups[g.ID] = g
+		if g.Background != nil {
+			size, ok := groupBackground[g.Background.Image]
+			if !ok {
+				t.Fatalf("group %d: no size for background %s", g.ID, g.Background.Image)
+			}
+			add(g.X, g.Y, size)
+		}
+	}
+	var berserker float64
+	for i, n := range tree.Nodes {
+		if x, y, ok := l.Position(n.ID); ok {
+			add(x, y, [2]float64{})
+		}
+		if n.Kind == dataset.AscendancyStart {
+			g := groups[l.Nodes[i].Group]
+			add(g.X, g.Y, ascendancyBackground(n.Ascendancy))
+			if n.Ascendancy == "Berserker" {
+				berserker = g.X
+			}
+		}
+	}
+
+	got := l.Bounds()
+	t.Logf("bounds %+v, drawn %+v, export's (%v, %v) to (%v, %v)", got, drawn, l.MinX, l.MinY, l.MaxX, l.MaxY)
+	if math.Abs(berserker+11294) > 100 {
+		t.Errorf("Berserker's start group at x %v, want near -11294", berserker)
+	}
+	slackX, slackY := 0.05*(drawn.MaxX-drawn.MinX), 0.05*(drawn.MaxY-drawn.MinY)
+	for _, edge := range []struct {
+		name               string
+		got, drawn, outset float64
+		slack              float64
+	}{
+		{"min x", got.MinX, drawn.MinX, drawn.MinX - got.MinX, slackX},
+		{"max x", got.MaxX, drawn.MaxX, got.MaxX - drawn.MaxX, slackX},
+		{"min y", got.MinY, drawn.MinY, drawn.MinY - got.MinY, slackY},
+		{"max y", got.MaxY, drawn.MaxY, got.MaxY - drawn.MaxY, slackY},
+	} {
+		if edge.outset < 0 || edge.outset > edge.slack {
+			t.Errorf("%s: got %v, drawn to %v; want it enclosed, within %v", edge.name, edge.got, edge.drawn, edge.slack)
+		}
 	}
 }
 
