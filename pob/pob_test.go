@@ -3,6 +3,7 @@ package pob_test
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/pob"
 )
 
@@ -142,13 +144,13 @@ func TestFromXML(t *testing.T) {
 		t.Errorf("build (-want +got):\n%s", diff)
 	}
 	wantWarnings := []build.Warning{
+		{Code: pob.AscendancyIgnored, Subject: "2", Message: "no secondary ascendancy 2 in the standard tree of dataset 3.29.3.5; not imported"},
 		{Code: pob.ClusterNodeDropped, Subject: "nodes 65601,65602", Message: "2 cluster jewel nodes dropped; cluster jewels are not imported"},
 		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`},
 		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input not modelled (true)"},
 		{Code: pob.SkillIgnored, Subject: "RF", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SkillIgnored, Subject: "Flame Dash", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SpecIgnored, Subject: "Leveling", Message: "only the active tree is imported"},
-		{Code: pob.AscendancyIgnored, Subject: "2", Message: "secondary ascendancy not imported"},
 		{Code: pob.PantheonIgnored, Subject: "Arakaali", Message: "pantheon not imported"},
 		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "not equipped in the active item set; not imported"},
 		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "not read: items: dataset 3.29.3.5 has no items group; not imported"},
@@ -157,6 +159,40 @@ func TestFromXML(t *testing.T) {
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+}
+
+// TestFromXMLBloodlineReal imports a 3.29 Gladiator with the Trialmaster bloodline, PoB's
+// fourth secondary ascendancy, and two of its nodes, on the pinned dataset.
+func TestFromXMLBloodlineReal(t *testing.T) {
+	t.Parallel()
+	reg := &dataset.Registry{}
+	if _, err := reg.Add(realdata.Record(t, realdata.Current)); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join("testdata", "trialmaster-bloodline.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, warnings, err := pob.FromXML(data, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) > 0 {
+		t.Errorf("warnings %v", warnings)
+	}
+	if b.Bloodline != "Trialmaster" {
+		t.Errorf("bloodline %q, want Trialmaster", b.Bloodline)
+	}
+	c, checked, err := build.Check(b, reg.Stores("poe1")[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(checked) > 0 {
+		t.Errorf("check: %v", checked)
+	}
+	if got := c.Build().Nodes; len(got) != 4 {
+		t.Errorf("nodes %v, want the Gladiator start, the Trialmaster start and two Trialmaster nodes", got)
 	}
 }
 
@@ -302,21 +338,21 @@ func TestFromXMLErrors(t *testing.T) {
 func TestFileVersion(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		name, xml, want string
-		err             error
+		name, xml, version, variant string
+		err                         error
 	}{
-		{"standard", xmlOf(`className="Marauder"`, `treeVersion="3_29"`, ""), "3.29", nil},
-		{"ruthless", xmlOf(`className="Exile"`, `treeVersion="3_28_ruthless"`, ""), "3.28", nil},
-		{"not xml", "eNrtfWlz2zq", "", pob.ErrNotPoB},
-		{"poe2", "<PathOfBuilding2><Build/></PathOfBuilding2>", "", pob.ErrPoE2},
-		{"tree version", xmlOf(`className="Marauder"`, `treeVersion="3.29"`, ""), "", pob.ErrTreeVersion},
+		{"standard", xmlOf(`className="Marauder"`, `treeVersion="3_29"`, ""), "3.29", "standard", nil},
+		{"ruthless", xmlOf(`className="Exile"`, `treeVersion="3_28_ruthless"`, ""), "3.28", "ruthless", nil},
+		{"not xml", "eNrtfWlz2zq", "", "", pob.ErrNotPoB},
+		{"poe2", "<PathOfBuilding2><Build/></PathOfBuilding2>", "", "", pob.ErrPoE2},
+		{"tree version", xmlOf(`className="Marauder"`, `treeVersion="3.29"`, ""), "", "", pob.ErrTreeVersion},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := pob.FileVersion([]byte(testCase.xml))
-			if got != testCase.want || !errors.Is(err, testCase.err) {
-				t.Errorf("got %q, %v, want %q, %v", got, err, testCase.want, testCase.err)
+			version, variant, err := pob.FileVersion([]byte(testCase.xml))
+			if version != testCase.version || variant != testCase.variant || !errors.Is(err, testCase.err) {
+				t.Errorf("got %q, %q, %v, want %q, %q, %v", version, variant, err, testCase.version, testCase.variant, testCase.err)
 			}
 		})
 	}

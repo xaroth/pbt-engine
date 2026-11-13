@@ -15,10 +15,12 @@ import (
 // when the dataset lacks it.
 
 // ImportFiles returns the files pob.FromXML reads from the dataset it resolves the file's
-// version to: the English text for class names, the skills group for gems, and the items group
-// and its mods for the equipped items. A file without equipped items reads no items or mods.
-func ImportFiles(m dataset.Manifest) []string {
-	return m.Needs(dataset.TextFile("en"), dataset.SkillsFile, dataset.ItemsFile, dataset.ModsFile)
+// version to, for a file of the tree variant pob.FileVersion gives: the English text for class
+// names, the tree of variant for the bloodline, the skills group for gems, and the items group
+// and its mods for the equipped items. A file without a bloodline reads no tree, and one
+// without equipped items reads no items or mods.
+func ImportFiles(m dataset.Manifest, variant string) []string {
+	return m.Needs(dataset.TextFile("en"), dataset.TreeFile(variant), dataset.SkillsFile, dataset.ItemsFile, dataset.ModsFile)
 }
 
 // ItemFiles returns the files Data.Item reads: the items group, its mods and the English text.

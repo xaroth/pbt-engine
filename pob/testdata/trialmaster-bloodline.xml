@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" className="Duelist" ascendClassName="Gladiator" bandit="None"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="4" ascendClassId="2" secondaryAscendClassId="4" nodes="32730,17297,60118,61092" masteryEffects=""/>
+	</Tree>
+</PathOfBuilding>
