@@ -105,8 +105,8 @@ type Sheet struct {
 	nodes map[resolve.NodeSource][]core.SourceID
 	// items maps an item, by slot and content, to its source.
 	items map[itemKey]core.SourceID
-	// skills holds the types of the skills of SetSkills, by slot.
-	skills [][]string
+	// skills holds the skills of SetSkills, by slot.
+	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.
 	skillSources map[skillKey][]core.SourceID
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
@@ -166,10 +166,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if err := sh.addAttributeBonuses(r.Constants); err != nil {
 		return nil, err
 	}
-	if err := sh.addBaseMovementSpeed(); err != nil {
-		return nil, err
-	}
-	if err := sh.addBaseDamage(); err != nil {
+	if err := sh.addBaseValues(); err != nil {
 		return nil, err
 	}
 	sh.SetConfig(cfg)
@@ -282,15 +279,9 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		e, ok := t.Lookup(sv.Stat, bd.Scope, v)
 		ruled := false
 		if ok && e.Status == semantics.Authored {
-			if err := sh.addMods(e, sv.Value, src, slot); err != nil {
+			var err error
+			if ruled, err = sh.addEntry(e, sv.Value, src, slot); err != nil {
 				return 0, err
-			}
-			// Rules act on the sheet's values, which a skill's own stats do not reach.
-			if slot < 0 {
-				var err error
-				if ruled, err = sh.applyRule(e, sv.Value, src); err != nil {
-					return 0, err
-				}
 			}
 		}
 		for _, n := range notesFor(e, ok, ruled) {
@@ -299,6 +290,27 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		}
 	}
 	return src, nil
+}
+
+// addEntry adds the modifiers and rule of authored entry e for a stat of value v, and reports
+// whether its rule was applied. Rules act on the sheet's values, which a skill's own stats (slot
+// not negative) do not reach, so they are not applied to them.
+func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot int) (bool, error) {
+	if err := sh.addMods(e, v, src, slot); err != nil {
+		return false, err
+	}
+	if slot >= 0 {
+		return false, nil
+	}
+	return sh.applyRule(e, v, src)
+}
+
+// addBaseValues adds the rules' base values of movement speed and damage.
+func (sh *Sheet) addBaseValues() error {
+	if err := sh.addBaseMovementSpeed(); err != nil {
+		return err
+	}
+	return sh.addBaseDamage()
 }
 
 // addCount adds counter sv to its own stat and to number_of_allocated_masteries.

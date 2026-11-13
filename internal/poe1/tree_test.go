@@ -144,10 +144,14 @@ func sheetOf(tb testing.TB, c *build.Checked, wholeTree bool, cfg config.Resolve
 	return sh
 }
 
-// sameOutputs fails unless every catalogue output of a and b has the same bits.
+// sameOutputs fails unless every sheet output of a and b has the same bits; these sheets hold
+// no skill.
 func sameOutputs(tb testing.TB, what string, a, b *poe1.Sheet) {
 	tb.Helper()
 	for _, o := range poe1.Outputs() {
+		if o.IsSkill() {
+			continue
+		}
 		x, err1 := a.Output(o.Key)
 		y, err2 := b.Output(o.Key)
 		if err1 != nil || err2 != nil || math.Float64bits(x) != math.Float64bits(y) {
@@ -282,11 +286,14 @@ func BenchmarkSwitchNode(b *testing.B) {
 	})
 }
 
-// outputs reads every catalogue output's bits.
+// outputs reads every sheet output's bits; these sheets hold no skill.
 func outputs(tb testing.TB, sh *poe1.Sheet) []uint64 {
 	tb.Helper()
 	out := make([]uint64, 0, len(poe1.Outputs()))
 	for _, o := range poe1.Outputs() {
+		if o.IsSkill() {
+			continue
+		}
 		v, err := sh.Output(o.Key)
 		if err != nil {
 			tb.Fatal(err)

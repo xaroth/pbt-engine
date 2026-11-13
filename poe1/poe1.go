@@ -37,6 +37,11 @@ const (
 	EnergyShieldRegeneration    = rules.EnergyShieldRegeneration
 	SpellBlockChance            = rules.SpellBlockChance
 	MovementSpeed               = rules.MovementSpeed
+	PhysicalDamageModifier      = rules.PhysicalDamageModifier
+	FireDamageModifier          = rules.FireDamageModifier
+	ColdDamageModifier          = rules.ColdDamageModifier
+	LightningDamageModifier     = rules.LightningDamageModifier
+	ChaosDamageModifier         = rules.ChaosDamageModifier
 )
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.

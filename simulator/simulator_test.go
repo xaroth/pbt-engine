@@ -154,7 +154,10 @@ func TestSimulate(t *testing.T) {
 	outputs := s.Outputs()
 	catalogue := make([]output.Key, 0, len(outputs))
 	for _, o := range outputs {
-		catalogue = append(catalogue, o.Key)
+		// The build has no main skill, so no skill outputs.
+		if !o.IsSkill() {
+			catalogue = append(catalogue, o.Key)
+		}
 	}
 	if diff := cmp.Diff(catalogue, st.Keys()); diff != "" {
 		t.Errorf("keys against the catalogue (-want +got):\n%s", diff)

@@ -70,6 +70,10 @@ type Explanation struct {
 	Lines []Line
 	// Tree is the root of the tree view.
 	Tree *TreeNode
+	// Skill is the skill whose context a skill output is read in, nil for a sheet output;
+	// Damage the damage types of the part of its damage read.
+	Skill  *resolve.GemSource
+	Damage []DamageType
 }
 
 // Line is one source's share (proportional) or loss (marginal).
@@ -124,9 +128,18 @@ func (sh *Sheet) Explain(k output.Key, v View) (*Explanation, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
-	n := core.Node{Stat: sh.stats[o.stat]}
+	n, err := sh.outputNode(o)
+	if err != nil {
+		return nil, fmt.Errorf("sheet: explain %s: %w", k, err)
+	}
 	ex := &Explanation{Output: o, View: v, Version: sh.version}
-	var err error
+	if o.IsSkill() {
+		src := sh.skills[0].source
+		ex.Skill = &src
+		if o.damage != 0 {
+			ex.Damage = []DamageType{o.damage}
+		}
+	}
 	switch v {
 	case Tree:
 		err = sh.explainTree(ex, n)
@@ -154,9 +167,9 @@ func amountStat(o Output) string {
 	return o.stat
 }
 
-// amount returns the total of o's amount stat.
-func (sh *Sheet) amount(o Output) (float64, error) {
-	e, err := sh.session.Explain(core.Node{Stat: sh.stats[amountStat(o)]})
+// amount returns the total of o's amount stat in context ctx.
+func (sh *Sheet) amount(o Output, ctx core.CtxID) (float64, error) {
+	e, err := sh.session.Explain(core.Node{Stat: sh.stats[amountStat(o)], Ctx: ctx})
 	if err != nil {
 		return 0, fmt.Errorf("amount: %w", err)
 	}
@@ -175,7 +188,7 @@ func (sh *Sheet) explainTree(ex *Explanation, n core.Node) error {
 		return err
 	}
 	ex.Tree, ex.Effective, ex.Value = root, root.Capped, root.Value
-	ex.Amount, err = sh.amount(ex.Output)
+	ex.Amount, err = sh.amount(ex.Output, n.Ctx)
 	return err
 }
 
@@ -330,14 +343,14 @@ func (sh *Sheet) explainMarginal(ex *Explanation, n core.Node) error {
 		return fmt.Errorf("marginal: %w", err)
 	}
 	ex.Effective, ex.Value = e.Capped, e.Value
-	if ex.Amount, err = sh.amount(ex.Output); err != nil {
+	if ex.Amount, err = sh.amount(ex.Output, n.Ctx); err != nil {
 		return err
 	}
 	values, err := sh.session.Marginal(n)
 	if err != nil {
 		return fmt.Errorf("marginal: %w", err)
 	}
-	totals, err := sh.session.Marginal(core.Node{Stat: sh.stats[amountStat(ex.Output)]})
+	totals, err := sh.session.Marginal(core.Node{Stat: sh.stats[amountStat(ex.Output)], Ctx: n.Ctx})
 	if err != nil {
 		return fmt.Errorf("marginal: %w", err)
 	}

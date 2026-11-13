@@ -110,4 +110,9 @@ const (
 	EnergyShieldRegeneration    output.Key = "player.energy_shield_regeneration"
 	SpellBlockChance            output.Key = "player.spell_block_chance"
 	MovementSpeed               output.Key = "player.movement_speed"
+	PhysicalDamageModifier      output.Key = "skill.physical_damage_modifier"
+	FireDamageModifier          output.Key = "skill.fire_damage_modifier"
+	ColdDamageModifier          output.Key = "skill.cold_damage_modifier"
+	LightningDamageModifier     output.Key = "skill.lightning_damage_modifier"
+	ChaosDamageModifier         output.Key = "skill.chaos_damage_modifier"
 )

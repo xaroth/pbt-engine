@@ -11,6 +11,7 @@ import (
 func TestOutputs(t *testing.T) {
 	t.Parallel()
 	sh := open(t, resolved(endgame()...))
+	setSkills(t, sh, skill(0, "Spell"))
 	seen := map[output.Key]bool{}
 	for _, o := range poe1.Outputs() {
 		if seen[o.Key] {
@@ -41,6 +42,8 @@ func TestOutputKeys(t *testing.T) {
 		poe1.MaximumFireResistance, poe1.MaximumColdResistance, poe1.MaximumLightningResistance, poe1.MaximumChaosResistance,
 		poe1.UncappedFireResistance, poe1.UncappedColdResistance, poe1.UncappedLightningResistance, poe1.UncappedChaosResistance,
 		poe1.LifeRegeneration, poe1.ManaRegeneration, poe1.EnergyShieldRegeneration, poe1.MovementSpeed, poe1.SpellBlockChance,
+		poe1.PhysicalDamageModifier, poe1.FireDamageModifier, poe1.ColdDamageModifier, poe1.LightningDamageModifier,
+		poe1.ChaosDamageModifier,
 	}
 	outputs := poe1.Outputs()
 	if len(outputs) != len(keys) {

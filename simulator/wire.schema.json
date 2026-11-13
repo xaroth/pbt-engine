@@ -34,8 +34,8 @@
     },
     "OutputGroup": {
       "title": "OutputGroup",
-      "description": "The panel an output is shown in: the character sheet, or defences.",
-      "enum": ["sheet", "defence"]
+      "description": "The panel an output is shown in: the character sheet, defences, or the main skill (read in its context).",
+      "enum": ["sheet", "defence", "skill"]
     },
     "Better": {
       "title": "Better",
@@ -76,11 +76,46 @@
       "description": "The result of one simulation: output values in display order or as asked for, and warnings.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "outputs", "warnings"],
+      "required": ["version", "outputs", "warnings", "skill"],
       "properties": {
         "version": { "type": "string", "description": "The dataset version simulated on." },
         "outputs": { "type": "array", "items": { "$ref": "#/$defs/OutputValue" } },
-        "warnings": { "type": "array", "items": { "$ref": "#/$defs/Warning" } }
+        "warnings": { "type": "array", "items": { "$ref": "#/$defs/Warning" } },
+        "skill": {
+          "oneOf": [
+            { "$ref": "#/$defs/MainSkill" },
+            { "type": "null" }
+          ],
+          "description": "The main skill the skill outputs are read in; null when the build has none, and then it has no skill outputs."
+        }
+      }
+    },
+    "MainSkill": {
+      "title": "MainSkill",
+      "description": "The main skill as simulated: its gem, granted effect, level and quality with what items and supports add, and its skill types with those its supports add.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "gem", "id", "grantedEffect", "level", "quality", "types"],
+      "properties": {
+        "group": { "type": "integer", "description": "The skill group, from 0." },
+        "gem": { "type": "integer", "description": "The gem in the group, from 0." },
+        "id": { "type": "string", "description": "The gem's id." },
+        "grantedEffect": { "type": "string" },
+        "level": { "type": "integer" },
+        "quality": { "type": "integer" },
+        "types": { "type": "array", "items": { "type": "string" }, "description": "ActiveSkillType ids." }
+      }
+    },
+    "GemRef": {
+      "title": "GemRef",
+      "description": "A gem in a skill group, by position and id.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "gem", "id"],
+      "properties": {
+        "group": { "type": "integer", "description": "The skill group, from 0." },
+        "gem": { "type": "integer", "description": "The gem in the group, from 0." },
+        "id": { "type": "string", "description": "The gem's id." }
       }
     },
     "Change": {
@@ -317,7 +352,7 @@
       "description": "An output explained in one view.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["output", "view", "version", "amount", "effective", "value", "capBy", "lines", "tree"],
+      "required": ["output", "view", "version", "amount", "effective", "value", "capBy", "lines", "tree", "skill", "damage"],
       "properties": {
         "output": { "$ref": "#/$defs/Output" },
         "view": { "$ref": "#/$defs/View" },
@@ -353,6 +388,18 @@
             { "type": "null" }
           ],
           "description": "The root of the tree view; null for the other views."
+        },
+        "skill": {
+          "oneOf": [
+            { "$ref": "#/$defs/GemRef" },
+            { "type": "null" }
+          ],
+          "description": "The skill whose context a skill output is read in; null for other outputs."
+        },
+        "damage": {
+          "type": "array",
+          "items": { "enum": ["physical", "fire", "cold", "lightning", "chaos"] },
+          "description": "The damage types of the part of the skill's damage read; empty for other outputs."
         }
       }
     },
@@ -537,6 +584,18 @@
               "type": "string",
               "description": "A rare or unique item's name, or a magic item's full name; empty for others."
             }
+          }
+        },
+        {
+          "description": "A skill's or support's own stats.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "group", "gem", "id"],
+          "properties": {
+            "kind": { "const": "gem" },
+            "group": { "type": "integer", "description": "The skill group, from 0." },
+            "gem": { "type": "integer", "description": "The gem in the group, from 0." },
+            "id": { "type": "string", "description": "The gem's id." }
           }
         },
         {

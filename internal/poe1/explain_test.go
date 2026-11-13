@@ -31,6 +31,7 @@ func fireSheet() []resolve.Bundle {
 func TestExplainProportional(t *testing.T) {
 	t.Parallel()
 	sh := open(t, resolved(fireSheet()...))
+	setSkills(t, sh, skill(0, "Spell"))
 	for _, o := range poe1.Outputs() {
 		ex := explainOf(t, sh, o.Key, poe1.Proportional)
 		sum := 0.0

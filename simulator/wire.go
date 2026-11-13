@@ -20,9 +20,20 @@ type wireValue struct {
 }
 
 type wireStats struct {
-	Version  string      `json:"version"`
-	Outputs  []wireValue `json:"outputs"`
-	Warnings []Warning   `json:"warnings"`
+	Version  string         `json:"version"`
+	Outputs  []wireValue    `json:"outputs"`
+	Warnings []Warning      `json:"warnings"`
+	Skill    *wireMainSkill `json:"skill"`
+}
+
+type wireMainSkill struct {
+	Group         int      `json:"group"`
+	Gem           int      `json:"gem"`
+	ID            string   `json:"id"`
+	GrantedEffect string   `json:"grantedEffect"`
+	Level         int      `json:"level"`
+	Quality       int      `json:"quality"`
+	Types         []string `json:"types"`
 }
 
 // wireChange is Change with its catalogue entry. Pct is null where Change.Pct is NaN, which
@@ -60,8 +71,8 @@ type wireResult struct {
 	Error    *string      `json:"error"`
 }
 
-// MarshalJSON encodes the values, each with its catalogue entry, the warnings and the dataset
-// version. It leaves out the build and config the Stats keeps for Explain.
+// MarshalJSON encodes the values, each with its catalogue entry, the warnings, the main skill
+// (null without one) and the dataset version. It leaves out the build and config the Stats keeps for Explain.
 func (st *Stats) MarshalJSON() ([]byte, error) { return marshal(st.wire(catalogue())) }
 
 // MarshalJSON encodes both sides, the change of each output computed on both, the edits
@@ -112,6 +123,12 @@ func (st *Stats) wire(cat map[output.Key]Output) wireStats {
 	w := wireStats{Version: st.Version(), Outputs: make([]wireValue, 0, len(st.keys)), Warnings: orEmpty(st.warnings)}
 	for _, k := range st.keys {
 		w.Outputs = append(w.Outputs, wireValue{Output: cat[k], Value: st.values[k]})
+	}
+	if sk, ok := st.MainSkill(); ok {
+		w.Skill = &wireMainSkill{
+			Group: sk.Group, Gem: sk.Gem, ID: sk.ID, GrantedEffect: sk.GrantedEffect,
+			Level: sk.Level, Quality: sk.Quality, Types: orEmpty(sk.Types),
+		}
 	}
 	return w
 }

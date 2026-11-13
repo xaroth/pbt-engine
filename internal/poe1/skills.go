@@ -17,6 +17,12 @@ var (
 	ErrDamageType = errors.New("unknown damage type")
 )
 
+// skillSlot is the skill in a slot: its gem and types.
+type skillSlot struct {
+	source resolve.GemSource
+	types  []string
+}
+
 // skillKey is a skill's sources by slot and content.
 type skillKey struct {
 	slot int
@@ -41,7 +47,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	}
 	sh.skills = sh.skills[:0]
 	for i, sk := range skills {
-		sh.skills = append(sh.skills, slices.Clone(sk.Types))
+		sh.skills = append(sh.skills, skillSlot{source: sk.Source, types: slices.Clone(sk.Types)})
 		k := skillKey{i, fmt.Sprint(*sk)}
 		if _, ok := sh.skillSources[k]; ok {
 			continue
@@ -115,7 +121,7 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType) (core.Node, 
 			return core.Node{}, fmt.Errorf("%w %d", ErrDamageType, d)
 		}
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i], damage))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i].types, damage))
 	return core.Node{Stat: id, Ctx: ctx}, nil
 }
 
