@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
 )
@@ -57,4 +58,85 @@ func TestMainSkillOutputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	validate(t, "Explanation", data)
+}
+
+// Skills that reserve take their share of the pools: a percentage of the maximum rounded up, a
+// flat amount, both after the supports' multipliers (level rows: Enlighten 10 at 64%,
+// Arrogance 20 at 201%, Added Fire Damage 20 at 120%). Arrogance moves the reservation to life,
+// Eternal Blessing removes it, and Autoexertion's support makes Seismic Cry reserve its 20%.
+// The main skill's mana cost is its level row's 20 with the support's multiplier, rounded down.
+func TestReservation(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	gem := func(id string, level int) build.Gem { return build.Gem{ID: gems + id, Level: level} }
+	sup := func(id string, level int) build.Gem { return build.Gem{ID: gems + id, Level: level, Support: true} }
+	pct := func(pool, permyriad float64) float64 { return math.Ceil(pool * permyriad / 10000) }
+	testCases := []struct {
+		name   string
+		groups [][]build.Gem
+		// life and mana reserved from the pools, given the maximum.
+		life, mana func(life, mana float64) float64
+	}{
+		{
+			name:   "percentage",
+			groups: [][]build.Gem{{gem("SkillGemHatred", 20)}},
+			mana:   func(_, m float64) float64 { return pct(m, 5000) },
+		},
+		{
+			name:   "flat and a multiplier",
+			groups: [][]build.Gem{{gem("SkillGemHatred", 20), sup("SupportGemAdditionalXP", 10)}, {gem("SkillGemPrecision", 20)}},
+			mana:   func(_, m float64) float64 { return 186 + pct(m, 5000*0.64) },
+		},
+		{
+			name:   "life instead of mana",
+			groups: [][]build.Gem{{gem("SkillGemDetermination", 20), sup("SupportGemBloodMagic", 20)}},
+			life:   func(l, _ float64) float64 { return pct(l, 5000*2.01) },
+		},
+		{
+			name:   "no reservation",
+			groups: [][]build.Gem{{gem("SkillGemHatred", 20), sup("SupportGemEternalBlessing", 20)}},
+		},
+		{
+			name:   "a support's reservation",
+			groups: [][]build.Gem{{gem("SkillGemSeismicCry", 20), gem("SkillGemCallToArms", 20)}},
+			mana:   func(_, m float64) float64 { return pct(m, 2000) },
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := marauderBuild(90)
+			b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{gem("SkillGemFireball", 20), sup("SupportGemAddedFireDamage", 20)}})
+			for _, g := range testCase.groups {
+				b.Skills.AddGroup(build.SkillGroup{Gems: g})
+			}
+			st := simulate(t, s, b)
+			life, mana := get(t, st, poe1.Life), get(t, st, poe1.Mana)
+			var wantLife, wantMana float64
+			if testCase.life != nil {
+				wantLife = testCase.life(life, mana)
+			}
+			if testCase.mana != nil {
+				wantMana = testCase.mana(life, mana)
+			}
+			for _, c := range []struct {
+				key  output.Key
+				want float64
+			}{
+				{poe1.ReservedLife, wantLife}, {poe1.UnreservedLife, life - wantLife},
+				{poe1.ReservedMana, wantMana}, {poe1.UnreservedMana, mana - wantMana},
+				{poe1.ManaCost, 24},
+			} {
+				if got := get(t, st, c.key); got != c.want {
+					t.Errorf("%s %v, want %v", c.key, got, c.want)
+				}
+			}
+			for _, k := range []output.Key{poe1.UnreservedMana, poe1.ManaCost} {
+				if _, err := st.Explain(k, simulator.Proportional); err != nil {
+					t.Errorf("explain %s: %v", k, err)
+				}
+			}
+		})
+	}
 }

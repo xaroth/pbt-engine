@@ -29,7 +29,7 @@
         "places": 0,
         "group": "sheet",
         "better": "higher",
-        "order": 10,
+        "order": 12,
         "value": -60
       },
       {
@@ -39,7 +39,7 @@
         "places": 1,
         "group": "sheet",
         "better": "higher",
-        "order": 22,
+        "order": 24,
         "value": 0
       }
     ],
@@ -82,7 +82,7 @@
         "places": 0,
         "group": "sheet",
         "better": "higher",
-        "order": 10,
+        "order": 12,
         "value": -60
       },
       {
@@ -92,7 +92,7 @@
         "places": 1,
         "group": "sheet",
         "better": "higher",
-        "order": 22,
+        "order": 24,
         "value": 0
       }
     ],
@@ -135,7 +135,7 @@
       "places": 0,
       "group": "sheet",
       "better": "higher",
-      "order": 10,
+      "order": 12,
       "before": -60,
       "after": -60,
       "abs": 0,
@@ -149,7 +149,7 @@
       "places": 1,
       "group": "sheet",
       "better": "higher",
-      "order": 22,
+      "order": 24,
       "before": 0,
       "after": 0,
       "abs": 0,

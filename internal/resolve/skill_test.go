@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
@@ -66,6 +67,7 @@ func TestMainSkillFireball(t *testing.T) {
 			"Triggerable", "ProjectilesFromUser", "CanRapidFire", "AreaSpell",
 		},
 		CastTime: 750,
+		Costs:    []dataset.Cost{{Type: "Mana", Amount: 20}},
 		StatSets: []resolve.SkillStatSet{{
 			ID: "Fireball", SpellCritChance: 500, DamageEffectiveness: 38000,
 			Stats: []resolve.StatValue{
@@ -203,5 +205,55 @@ func TestGroupSkillNoActiveSkill(t *testing.T) {
 		if _, _, err := resolve.GroupSkill(c, i, nil); !errors.Is(err, resolve.ErrNoActiveSkill) {
 			t.Errorf("group %d: got %v, want ErrNoActiveSkill", i+1, err)
 		}
+	}
+}
+
+// Skills resolves every enabled active gem outside the weapon swap, with each skill it has:
+// Vaal Haste's own and Haste. A group's supports apply to each of its skills, and an active
+// gem's support effect, Autoexertion's, supports the warcry beside it.
+func TestSkills(t *testing.T) {
+	t.Parallel()
+	b := testBuild(90)
+	b.Version = realdata.Current
+	disabled := active(fireballGem, 0)
+	disabled.Disabled = true
+	b.Skills = build.Skills{Groups: []build.SkillGroup{
+		{Gems: []build.Gem{active(fireballGem, 0), disabled, support(addedFireGem, 20), active(freezingPulseGem, 0)}},
+		{Slot: build.SlotWeaponSwap, Gems: []build.Gem{active(fireballGem, 0)}},
+		{Gems: []build.Gem{active("Metadata/Items/Gems/SkillGemVaalHaste", 0)}},
+		{Gems: []build.Gem{active("Metadata/Items/Gems/SkillGemSeismicCry", 0), active("Metadata/Items/Gems/SkillGemCallToArms", 0)}},
+	}}
+	c, _, err := build.Check(b, realdata.Open(t, realdata.Current))
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, err := resolve.Skills(c, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type skill struct {
+		group, gem  int
+		effect      string
+		supports    []string
+		reservation int32
+	}
+	got := make([]skill, 0, len(all))
+	for _, s := range all {
+		sp := make([]string, 0, len(s.Skill.Supports))
+		for _, x := range s.Skill.Supports {
+			sp = append(sp, x.GrantedEffect)
+		}
+		got = append(got, skill{s.Skill.Source.Group, s.Skill.Source.Gem, s.Skill.GrantedEffect, sp, s.Skill.Reservation.ManaPercent})
+	}
+	want := []skill{
+		{0, 0, "Fireball", []string{"SupportAddedFireDamage"}, 0},
+		{0, 3, "FreezingPulse", []string{"SupportAddedFireDamage"}, 0},
+		{2, 0, "VaalHaste", []string{}, 0},
+		{2, 0, "Haste", []string{}, 5000},
+		{3, 0, "SeismicCry", []string{"SupportAutoexertion"}, 2000},
+		{3, 1, "Autoexertion", []string{}, 0},
+	}
+	if diff := cmp.Diff(want, got, cmp.AllowUnexported(skill{})); diff != "" {
+		t.Errorf("skills (-want +got):\n%s", diff)
 	}
 }

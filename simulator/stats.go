@@ -25,7 +25,9 @@ type Stats struct {
 	checked  *build.Checked
 	items    []poe1.Item
 	skill    *resolve.Skill
-	sim      *Sim
+	// skills are the sheet's skills, the main skill first.
+	skills []*resolve.Skill
+	sim    *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
 	explainMu    sync.Mutex
@@ -131,8 +133,8 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	if err := sh.SetItems(st.items); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
-	if st.skill != nil {
-		if err := sh.SetSkills([]*resolve.Skill{st.skill}); err != nil {
+	if len(st.skills) > 0 {
+		if err := sh.SetSkills(st.skills); err != nil {
 			return nil, fmt.Errorf("simulator: explain: %w", err)
 		}
 	}
