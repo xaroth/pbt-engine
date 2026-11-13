@@ -177,7 +177,7 @@ func TestParseErrors(t *testing.T) {
 		name, data, want string
 	}{
 		{"not json", `{`, "build: unexpected EOF"},
-		{"unknown field", `{"format":1,"jewels":[]}`, `build: json: unknown field "jewels"`},
+		{"unknown field", `{"format":1,"flasks":[]}`, `build: json: unknown field "flasks"`},
 		{"other format", `{"format":2}`, "build: format 2, want 1"},
 		{"no format", `{"game":"poe1"}`, "build: format 0, want 1"},
 		{"trailing data", `{"format":1} {}`, "build: data after the build"},

@@ -131,7 +131,10 @@ type MasteryChoice struct {
 // they are. Against the items group it leaves out items in no item slot, of an unknown base
 // or of a class the slot does not take, and stats the dataset does not have, and warns about
 // mod lines not read as stats; it leaves out an offhand item the game refuses beside the
-// weapon, and warns about a quiver with no bow; a dataset without the group gets one warning. The weapon-swap
+// weapon, and warns about a quiver with no bow; a dataset without the group gets one warning.
+// It leaves out jewels in a node that is not a jewel socket and, against the items group,
+// jewels of an unknown base or not a jewel, and warns about jewels in a socket not allocated,
+// which it keeps. The weapon-swap
 // slots are not in use: their items are left out and the gems socketed in them disabled,
 // without a warning, so the skills they grant or hold are disabled too. It returns a
 // *CheckError when the game, tree variant or class does not fit, or the error of a dataset
@@ -277,7 +280,7 @@ func (c *Checked) editWarnings(e Edit, allocated map[uint32]bool) []Warning {
 		w, bad = c.overrideProblem(e.Node, e.Override, allocated[e.Node])
 	case OpClearMastery, OpClearOverride, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
 		OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
-		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip:
+		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip, OpSocketJewel, OpUnsocketJewel:
 	}
 	if bad {
 		return []Warning{w}

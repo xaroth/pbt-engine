@@ -57,7 +57,8 @@ type Edit struct {
 	Value json.RawMessage `json:"value,omitzero"`
 	// Skill addresses the group, and the gem, of a skill edit. SkillGroup for add-skill-group,
 	// Gem for add-gem; Slot, Quality and Enabled for the edits of that name, and Level for
-	// set-gem-level. Slot and Item for equip, Slot for unequip.
+	// set-gem-level. Slot and Item for equip, Slot for unequip. Node and Item for
+	// socket-jewel, Node for unsocket-jewel.
 	Skill      *SkillAt    `json:"skill,omitzero"`
 	SkillGroup *SkillGroup `json:"group,omitzero"`
 	Gem        *Gem        `json:"gem,omitzero"`
@@ -139,6 +140,8 @@ func (b *Build) apply(e Edit) error {
 		b.applyCharacter(e)
 	case OpEquip, OpUnequip:
 		b.applyItem(e)
+	case OpSocketJewel, OpUnsocketJewel:
+		b.applyJewel(e)
 	default:
 		if slices.Contains(skillOps(), e.Op) {
 			return b.Skills.apply(e)
@@ -207,8 +210,9 @@ func (b *Build) applyConfig(e Edit) {
 
 // Diff returns the edits that turn a into b: class, ascendancy, bloodline, level, nodes
 // deallocated then allocated, mastery choices cleared then set, overrides cleared then set,
-// config keys cleared then set, each in sorted order, then the skill groups, then the items. Version and format are not compared. Builds of
-// another game or tree variant cannot be turned into each other.
+// config keys cleared then set, each in sorted order, then the skill groups, then the items,
+// then the jewels. Version and format are not compared. Builds of another game or tree variant
+// cannot be turned into each other.
 func Diff(a, b *Build) ([]Edit, error) {
 	if a.Game != b.Game || a.Variant != b.Variant {
 		return nil, fmt.Errorf("%w: %s %s and %s %s", ErrNotComparable, a.Game, a.Variant, b.Game, b.Variant)
@@ -236,7 +240,8 @@ func Diff(a, b *Build) ([]Edit, error) {
 	out = append(out, choiceDiff(a.Overrides, b.Overrides, ClearOverride, SetOverride)...)
 	out = append(out, configDiff(a.Config, b.Config)...)
 	out = append(out, skillsDiff(a.Skills, b.Skills)...)
-	return append(out, itemsDiff(a.Items, b.Items)...), nil
+	out = append(out, itemsDiff(a.Items, b.Items, Unequip, Equip)...)
+	return append(out, itemsDiff(a.Jewels, b.Jewels, UnsocketJewel, SocketJewel)...), nil
 }
 
 // minus returns the ids in x and not in y, sorted and unique.

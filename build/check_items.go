@@ -59,15 +59,16 @@ func slotClasses(s Slot) []string {
 	return nil
 }
 
-// checkItems checks the items against the dataset's items group. Without one, it warns once
-// and keeps the items as they are.
+// checkItems checks the items and jewels against the dataset's items group. Without one, it
+// warns once and keeps them as they are, apart from jewels that are in no socket.
 func (c *Checked) checkItems() error {
-	if len(c.build.Items) == 0 {
+	if len(c.build.Items) == 0 && len(c.build.Jewels) == 0 {
 		return nil
 	}
 	data, err := c.store.Items()
 	if _, missing := errors.AsType[*dataset.MissingGroupError](err); missing {
 		c.warnf(ItemsUnchecked, "items", "dataset %s has no items group; items kept unchecked", c.store.Manifest().Version)
+		c.checkJewels(nil)
 		return nil
 	}
 	if err != nil {
@@ -85,6 +86,7 @@ func (c *Checked) checkItems() error {
 		c.build.Items[s] = it
 	}
 	c.checkHands(data)
+	c.checkJewels(data)
 	return nil
 }
 
@@ -129,15 +131,31 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		c.warnf(ItemSlotUnknown, subject, "no item slot %q; item left out", s)
 		return false
 	}
+	base := c.itemBase(subject, it, data)
+	if base == nil {
+		return false
+	}
+	if !slices.Contains(slotClasses(s), base.Class) {
+		c.warnf(ItemSlotMismatch, subject, "a %s does not fit the slot; item left out", base.Class)
+		return false
+	}
+	c.checkMods(subject, it)
+	return true
+}
+
+// itemBase returns the base of it, or warns and returns nil when data has none.
+func (c *Checked) itemBase(subject string, it *Item, data *dataset.Items) *dataset.ItemBase {
 	i := slices.IndexFunc(data.Bases, func(b dataset.ItemBase) bool { return b.ID == it.Base })
 	if i < 0 {
 		c.warnf(ItemBaseUnknown, subject, "base %s not in %s; item left out", it.Base, c.store.Manifest().Version)
-		return false
+		return nil
 	}
-	if class := data.Bases[i].Class; !slices.Contains(slotClasses(s), class) {
-		c.warnf(ItemSlotMismatch, subject, "a %s does not fit the slot; item left out", class)
-		return false
-	}
+	return &data.Bases[i]
+}
+
+// checkMods warns about the mod lines of it not read as stats and leaves out the stats the
+// dataset does not have.
+func (c *Checked) checkMods(subject string, it *Item) {
 	for j := range it.Mods {
 		m := &it.Mods[j]
 		if len(m.Stats) == 0 {
@@ -145,7 +163,7 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 			continue
 		}
 		m.Stats = slices.DeleteFunc(m.Stats, func(sv StatValue) bool {
-			// The stats group loaded above, so HasStat cannot fail.
+			// The stats group loaded in checkItems, so HasStat cannot fail.
 			if ok, _ := c.store.HasStat(sv.Stat); ok {
 				return false
 			}
@@ -153,7 +171,6 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 			return true
 		})
 	}
-	return true
 }
 
 // setAsideSwap leaves out the items in the weapon-swap slots and disables the gems socketed in

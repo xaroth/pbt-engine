@@ -99,6 +99,7 @@ func randBuild(r *rand.Rand) *build.Build {
 	randChoices(r, b)
 	b.Skills = randSkills(r)
 	b.Items = randItems(r)
+	b.Jewels = randJewels(r)
 	for _, k := range []string{"campaign", "bandits", "charges"} {
 		if r.IntN(2) == 0 {
 			if b.Config == nil {

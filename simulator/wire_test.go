@@ -239,6 +239,7 @@ func TestWireRoundTrip(t *testing.T) {
 		build.AddSkillGroup(group), build.RemoveSkillGroup(1), build.SetSkillSlot(0, build.SlotRing1), build.SetMainSkill(2),
 		build.AddGem(0, group.Gems[0]), build.RemoveGem(0, 1), build.SetActiveGem(0, 1), build.SetGemLevel(0, 1, 21),
 		build.SetGemQuality(0, 1, 23), build.SetGemEnabled(0, 1, true), build.Equip(build.SlotHelmet, item), build.Unequip(build.SlotBelt),
+		build.SocketJewel(26725, item), build.UnsocketJewel(26725),
 	}
 	for _, e := range edits {
 		roundTrip(t, "Edit", e)

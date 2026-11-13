@@ -190,7 +190,7 @@
       "properties": {
         "op": { "$ref": "#/$defs/EditOp" },
         "nodes": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
-        "node": { "type": "integer", "minimum": 0 },
+        "node": { "type": "integer", "minimum": 0, "description": "A node id; for socket-jewel and unsocket-jewel, a jewel socket's." },
         "effect": { "type": "integer", "minimum": 0 },
         "override": { "type": "string", "description": "A tattoo or runegraft of the tree, such as \"Tasalio3\"." },
         "level": { "type": "integer" },
@@ -215,7 +215,8 @@
         "allocate", "deallocate", "set-mastery", "clear-mastery", "set-override", "clear-override", "set-level", "set-class",
         "set-ascendancy", "set-bloodline", "set-config", "clear-config", "add-skill-group",
         "remove-skill-group", "set-skill-slot", "set-main-skill", "add-gem", "remove-gem",
-        "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"
+        "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip",
+        "socket-jewel", "unsocket-jewel"
       ]
     },
     "ConfigValue": {
