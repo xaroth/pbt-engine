@@ -88,6 +88,9 @@ func randBuild(r *rand.Rand) *build.Build {
 	if r.IntN(2) == 0 {
 		b.Ascendancy = "Juggernaut"
 	}
+	if r.IntN(2) == 0 {
+		b.Bloodline = "Oshabi"
+	}
 	for range r.IntN(8) {
 		b.Nodes = append(b.Nodes, uint32(r.IntN(12)))
 	}

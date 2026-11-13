@@ -284,14 +284,13 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	return out
 }
 
-// treeBundles returns the bundles of every node c's class and ascendancy can allocate: not
-// other ascendancies' nodes or other classes' starts.
+// treeBundles returns the bundles of every node c's class, ascendancy and bloodline can
+// allocate: not other ascendancies' nodes or other classes' starts.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
-	b := c.Build()
 	var out []Bundle
 	for i := range c.Tree().Nodes {
 		n := &c.Tree().Nodes[i]
-		if (n.Ascendancy != "" && n.Ascendancy != b.Ascendancy) || (n.Kind == dataset.ClassStart && n.ID != c.Class().StartNode) {
+		if !c.OwnsAscendancy(n.Ascendancy) || (n.Kind == dataset.ClassStart && n.ID != c.Class().StartNode) {
 			continue
 		}
 		out = append(out, nodeBundles(stats, n)...)

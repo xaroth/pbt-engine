@@ -25,7 +25,12 @@ var (
 	ErrFormat       = errors.New("build: format")
 )
 
-// Format is the build file format written by Encode. Parse rejects other formats.
+// Format is the build file format written by Encode. Parse rejects other formats. Until the
+// first release the format may be bumped freely, and older files need not stay readable. A
+// field added within a format is optional and left out when empty (omitzero), so a build that
+// does not use it stays readable by an engine that predates it. A map field also needs nil for
+// empty, by clearing it before encoding or with omitempty: omitzero writes {} for an empty map
+// that is not nil.
 const Format = 1
 
 // DefaultVariant is the tree variant of a build that names none.
@@ -44,7 +49,10 @@ type Build struct {
 	Class string `json:"class"`
 	// Ascendancy is an Ascendancy.ID of the class, or empty.
 	Ascendancy string `json:"ascendancy,omitzero"`
-	Level      int    `json:"level"`
+	// Bloodline is an Ascendancy.ID of the tree's AlternateAscendancies, or empty. Any class
+	// may take any of them.
+	Bloodline string `json:"bloodline,omitzero"`
+	Level     int    `json:"level"`
 	// Nodes are the allocated passive node ids (hashes), including ascendancy nodes.
 	Nodes []uint32 `json:"nodes"`
 	// Masteries maps an allocated mastery node's id to the id of its chosen effect.

@@ -8,11 +8,11 @@ import (
 )
 
 // AllocatePath returns the edit that allocates node with the shortest path of unallocated nodes
-// joining it to the allocated nodes or the class or ascendancy start, node last. A path takes
-// no start, no node of another ascendancy and no option of a choice node that already takes
-// one, steps only where Crosses allows, and ends at a
-// mastery: a mastery's edges say which notables unlock it. It reports false when node is
-// allocated or a start, or no path reaches it.
+// joining it to the allocated nodes or the class, ascendancy or bloodline start, node last. A
+// path takes no start, no node of another ascendancy or bloodline and no option of a choice
+// node that already takes one, steps only where Crosses allows, and ends at a mastery: a
+// mastery's edges say which notables unlock it. It reports false when node is allocated or a
+// start, or no path reaches it.
 func (c *Checked) AllocatePath(node uint32) (Edit, bool) {
 	seeds := c.starts()
 	maps.Copy(seeds, c.allocatedSet())
@@ -71,7 +71,7 @@ func (c *Checked) takenChoices() map[uint32]bool {
 // takeable reports whether a path may step from node from, allocated or not, to its neighbour
 // to; taken holds the choice nodes with an option.
 func (c *Checked) takeable(from, to *dataset.Node, fromAllocated bool, taken map[uint32]bool) bool {
-	if to == nil || to.Kind == dataset.ClassStart || to.Kind == dataset.AscendancyStart || (to.Ascendancy != "" && to.Ascendancy != c.build.Ascendancy) {
+	if to == nil || to.Kind == dataset.ClassStart || to.Kind == dataset.AscendancyStart || !c.OwnsAscendancy(to.Ascendancy) {
 		return false
 	}
 	if !Crosses(from, to, fromAllocated) {
@@ -94,9 +94,9 @@ func Crosses(from, to *dataset.Node, fromAllocated bool) bool {
 }
 
 // DeallocateBranch returns the edits that deallocate node and the allocated nodes joined to the
-// class or ascendancy start only through it, and clear the mastery choices of those. Nodes not
-// joined before stay, as jewels can make them legal. It reports false when node is not
-// allocated.
+// class, ascendancy or bloodline start only through it, and clear the mastery choices of those.
+// Nodes not joined before stay, as jewels can make them legal. It reports false when node is
+// not allocated.
 func (c *Checked) DeallocateBranch(node uint32) ([]Edit, bool) {
 	allocated := c.allocatedSet()
 	if !allocated[node] {
@@ -129,17 +129,22 @@ func (c *Checked) allocatedSet() map[uint32]bool {
 	return out
 }
 
-// starts returns the class start and, with an ascendancy, its start.
+// Starts returns the class start and the starts of the build's ascendancy and bloodline, sorted.
+func (c *Checked) Starts() []uint32 { return slices.Sorted(maps.Keys(c.starts())) }
+
+// starts returns the class start and the starts of the build's ascendancy and bloodline.
 func (c *Checked) starts() map[uint32]bool {
 	out := map[uint32]bool{c.class.StartNode: true}
-	if c.ascStart != nil {
-		out[c.ascStart.ID] = true
+	for _, s := range []*dataset.Node{c.ascStart, c.bloodStart} {
+		if s != nil {
+			out[s.ID] = true
+		}
 	}
 	return out
 }
 
-// joined returns the nodes a path of allocated nodes joins to the class or ascendancy start,
-// the starts included.
+// joined returns the nodes a path of allocated nodes joins to the class, ascendancy or
+// bloodline start, the starts included.
 func (c *Checked) joined(allocated map[uint32]bool) map[uint32]bool {
 	starts := c.starts()
 	allowed := maps.Clone(allocated)

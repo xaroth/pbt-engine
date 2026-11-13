@@ -361,6 +361,34 @@ func TestLevelsShareASheet(t *testing.T) {
 	}
 }
 
+// A bloodline node's stats reach the sheet, and a build with a bloodline does not take the idle
+// sheet of the same build without it. Bloodline Oshabi's node 21 (+40 life) hangs off its
+// start 20.
+func TestBloodlineSheet(t *testing.T) {
+	t.Parallel()
+	d := testDataset("3.29.3.3", 20)
+	tree := &d.Trees[0]
+	tree.Nodes = append(tree.Nodes,
+		dataset.Node{ID: 20, Kind: dataset.AscendancyStart, Ascendancy: "Oshabi", Neighbours: []uint32{21}},
+		dataset.Node{ID: 21, Ascendancy: "Oshabi", Neighbours: []uint32{20}, Stats: []dataset.StatValue{{Stat: 6, Value: 40}}})
+	tree.AlternateAscendancies = []dataset.Ascendancy{{ID: "Oshabi"}}
+	s, err := simulator.New(storeOf(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	without := get(t, simulate(t, s, marauderBuild(1)), poe1.Life)
+	b := marauderBuild(1, 20, 21)
+	b.Bloodline = "Oshabi"
+	with := get(t, simulate(t, s, b), poe1.Life)
+	// base_maximum_life +40 at level 1, before any increase
+	if with != without+40 {
+		t.Errorf("life %v with the bloodline node, %v without; want 40 more", with, without)
+	}
+	if n := s.IdleSheets(); n != 2 {
+		t.Errorf("%d idle sheets for builds with and without a bloodline, want 2", n)
+	}
+}
+
 // The pool keeps at most MaxIdle sheets, however many run at once.
 func TestPoolLimit(t *testing.T) {
 	t.Parallel()

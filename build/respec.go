@@ -21,9 +21,25 @@ func (c *Checked) ChangeAscendancy(id string) ([]Edit, bool) {
 	return append([]Edit{SetAscendancy(id)}, c.respec(func(n *dataset.Node) bool { return n.Ascendancy == old }, c.ascendancyStart(id))...), true
 }
 
+// ChangeBloodline returns the edits that change the build's bloodline to id, empty for none:
+// they set it, deallocate the old bloodline's nodes and clear their mastery choices, and swap
+// an allocated old bloodline start for the new one. It reports false when id is the build's
+// bloodline or not one of the tree's alternate ascendancies.
+func (c *Checked) ChangeBloodline(id string) ([]Edit, bool) {
+	old := c.build.Bloodline
+	if id == old || (id != "" && !slices.ContainsFunc(c.tree.AlternateAscendancies, func(a dataset.Ascendancy) bool { return a.ID == id })) {
+		return nil, false
+	}
+	if old == "" {
+		return []Edit{SetBloodline(id)}, true
+	}
+	return append([]Edit{SetBloodline(id)}, c.respec(func(n *dataset.Node) bool { return n.Ascendancy == old }, c.ascendancyStart(id))...), true
+}
+
 // ChangeClass returns the edits that change the build's class to class, a Character.ID, as a
 // respec does: they set it, clear the ascendancy, deallocate every node and clear every mastery
-// choice. An allocated old class start becomes the new class's start. It reports false when
+// choice. An allocated old class start becomes the new class's start. The bloodline stays, as
+// any class may take it, but its nodes go. It reports false when
 // class is the build's class or not in its tree and characters.
 func (c *Checked) ChangeClass(class string) ([]Edit, bool) {
 	i := slices.IndexFunc(c.tree.Classes, func(cl dataset.Class) bool { return cl.Character == class })
