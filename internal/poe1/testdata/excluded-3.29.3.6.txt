@@ -26,6 +26,7 @@ discipline_mana_reservation_efficiency_+% global: not a sheet value, by id: rese
 enemies_cursed_by_you_have_life_regeneration_rate_+% global: not the player, by id: enemy stat: Enemies Cursed by you have {}% increased Life Regeneration Rate
 enemies_poisoned_by_you_cannot_regen_life global: not the player, by id: enemy stat: Enemies Poisoned by you cannot Regenerate Life
 enemies_poisoned_by_you_chaos_resistance_+% global: not the player, by id: enemy stat: Enemies Poisoned by you have {0:+d}% to Chaos Resistance
+enemies_you_curse_have_15%_hinder global: not the player, by id: enemy stat: Enemies you Curse are Hindered, with 15% reduced Movement Speed
 energy_shield_recharge_+%_if_amulet_has_evasion_mod global: not a sheet value, by id: energy shield recharge and recovery: {0}% increased Energy Shield Recharge Rate if Equipped Amulet has an Explicit Evasion Modifier
 energy_shield_recharge_rate_+% global: not a sheet value, by id: energy shield recharge and recovery: {0}% increased Energy Shield Recharge Rate
 energy_shield_recharge_rate_+%_per_different_mastery global: not a sheet value, by id: energy shield recharge and recovery: {0}% reduced Energy Shield Recharge Rate for each different type of Mastery you have Allocated
@@ -69,6 +70,9 @@ minion_life_regeneration_rate_per_minute_% global: not the player, by id: minion
 minion_maximum_all_elemental_resistances_% global: not the player, by id: minion, totem or golem stat: Minions have {0:+d}% to all maximum Elemental Resistances
 minion_maximum_life_%_to_add_as_maximum_energy_shield global: not the player, by id: minion, totem or golem stat: Minions gain {0}% of Maximum Life as Extra Maximum Energy Shield
 minion_maximum_life_+% global: not the player, by id: minion, totem or golem stat: Minions have {0}% increased maximum Life
+minion_movement_speed_+% global: not the player, by id: minion, totem or golem stat: Minions have {0}% increased Movement Speed
+minion_movement_velocity_+%_for_each_herald_affecting_you global: not the player, by id: minion, totem or golem stat: Minions have {0}% increased Movement Speed for each Herald affecting you
+minion_summoned_recently_movement_speed_+% global: not the player, by id: minion, totem or golem stat: Minions created Recently have {0}% increased Movement Speed
 necromancer_defensive_notable_minion_maximum_life_+%_final global: not the player: minions and totems: Minions have {0}% less Maximum Life
 off_hand_claw_mana_gain_on_hit global: not a sheet value, by id: recovery on events: Gain {0} Mana per Enemy Hit with Off Hand Claw Attacks
 pathfinder_flask_life_to_recover_+%_final global: not a sheet value, by id: flask recovery: {0}% more Life Recovery from Flasks

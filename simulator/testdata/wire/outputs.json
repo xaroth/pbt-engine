@@ -225,12 +225,21 @@
     "order": 24
   },
   {
+    "key": "player.movement_speed",
+    "label": "Movement Speed",
+    "unit": "%",
+    "places": 0,
+    "group": "sheet",
+    "better": "higher",
+    "order": 25
+  },
+  {
     "key": "player.spell_block_chance",
     "label": "Chance to Block Spell Damage",
     "unit": "%",
     "places": 0,
     "group": "defence",
     "better": "higher",
-    "order": 25
+    "order": 26
   }
 ]
