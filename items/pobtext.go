@@ -61,6 +61,10 @@ func (p *parsed) names(lines []string) (int, error) {
 		return 0, fmt.Errorf("%w: no rarity line", ErrFormat)
 	}
 	p.item.Rarity = build.Rarity(strings.ToLower(rarity))
+	if p.item.Rarity == "relic" {
+		// A Relic is a unique of another look; its mods are the unique's.
+		p.item.Rarity = build.Unique
+	}
 	names := 1
 	switch p.item.Rarity {
 	case build.Rare, build.Unique:
