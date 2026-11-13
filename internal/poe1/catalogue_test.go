@@ -21,7 +21,7 @@ func TestOutputs(t *testing.T) {
 			t.Errorf("%s: %v", o.Key, err)
 		}
 	}
-	for name, want := range map[output.Key]float64{poe1.Life: 1134, poe1.FireResistance: -60, poe1.MaximumFireResistance: 75} {
+	for name, want := range map[output.Key]float64{poe1.Life: 1134, poe1.UnreservedLife: 1134, poe1.FireResistance: -60, poe1.MaximumFireResistance: 75} {
 		if got, err := sh.Output(name); err != nil || got != want {
 			t.Errorf("%s: got %v, %v, want %v", name, got, err, want)
 		}
@@ -35,7 +35,8 @@ func TestOutputs(t *testing.T) {
 func TestOutputKeys(t *testing.T) {
 	t.Parallel()
 	keys := []output.Key{
-		poe1.Strength, poe1.Dexterity, poe1.Intelligence, poe1.Life, poe1.Mana, poe1.EnergyShield, poe1.Armour,
+		poe1.Strength, poe1.Dexterity, poe1.Intelligence, poe1.Life, poe1.UnreservedLife, poe1.Mana, poe1.UnreservedMana,
+		poe1.EnergyShield, poe1.Armour,
 		poe1.EvasionRating, poe1.FireResistance, poe1.ColdResistance, poe1.LightningResistance, poe1.ChaosResistance,
 		poe1.MaximumFireResistance, poe1.MaximumColdResistance, poe1.MaximumLightningResistance, poe1.MaximumChaosResistance,
 		poe1.UncappedFireResistance, poe1.UncappedColdResistance, poe1.UncappedLightningResistance, poe1.UncappedChaosResistance,
