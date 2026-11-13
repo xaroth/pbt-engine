@@ -36,6 +36,7 @@ const (
 	ManaRegeneration            = rules.ManaRegeneration
 	EnergyShieldRegeneration    = rules.EnergyShieldRegeneration
 	SpellBlockChance            = rules.SpellBlockChance
+	MovementSpeed               = rules.MovementSpeed
 )
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.

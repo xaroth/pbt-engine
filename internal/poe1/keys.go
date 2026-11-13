@@ -109,4 +109,5 @@ const (
 	ManaRegeneration            output.Key = "player.mana_regeneration"
 	EnergyShieldRegeneration    output.Key = "player.energy_shield_regeneration"
 	SpellBlockChance            output.Key = "player.spell_block_chance"
+	MovementSpeed               output.Key = "player.movement_speed"
 )

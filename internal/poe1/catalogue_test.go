@@ -40,7 +40,7 @@ func TestOutputKeys(t *testing.T) {
 		poe1.EvasionRating, poe1.FireResistance, poe1.ColdResistance, poe1.LightningResistance, poe1.ChaosResistance,
 		poe1.MaximumFireResistance, poe1.MaximumColdResistance, poe1.MaximumLightningResistance, poe1.MaximumChaosResistance,
 		poe1.UncappedFireResistance, poe1.UncappedColdResistance, poe1.UncappedLightningResistance, poe1.UncappedChaosResistance,
-		poe1.LifeRegeneration, poe1.ManaRegeneration, poe1.EnergyShieldRegeneration, poe1.SpellBlockChance,
+		poe1.LifeRegeneration, poe1.ManaRegeneration, poe1.EnergyShieldRegeneration, poe1.MovementSpeed, poe1.SpellBlockChance,
 	}
 	outputs := poe1.Outputs()
 	if len(outputs) != len(keys) {

@@ -161,6 +161,9 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if err := sh.addAttributeBonuses(r.Constants); err != nil {
 		return nil, err
 	}
+	if err := sh.addBaseMovementSpeed(); err != nil {
+		return nil, err
+	}
 	sh.SetConfig(cfg)
 	s.Commit()
 	return sh, nil

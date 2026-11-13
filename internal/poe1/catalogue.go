@@ -24,8 +24,8 @@ const (
 
 // Groups of outputs: the panel a consumer shows an output in.
 const (
-	// GroupSheet is the character sheet: attributes, pools, armour and evasion, resistances
-	// and regeneration.
+	// GroupSheet is the character sheet: attributes, pools, armour and evasion, resistances,
+	// regeneration and movement speed.
 	GroupSheet = "sheet"
 	// GroupDefence is how the character avoids or mitigates hits: block.
 	GroupDefence = "defence"
@@ -83,6 +83,7 @@ func Outputs() []Output {
 			Key: EnergyShieldRegeneration, Label: "Energy Shield Regeneration", Better: output.Higher, Unit: UnitPerSecond, Places: regenerationPlaces,
 			stat: statEnergyShieldRegeneration,
 		},
+		{Key: MovementSpeed, Label: "Movement Speed", Better: output.Higher, Unit: UnitPercent, stat: statMovementSpeed},
 	}), group(GroupDefence, []Output{
 		{Key: SpellBlockChance, Label: "Chance to Block Spell Damage", Better: output.Higher, Unit: UnitPercent, stat: statSpellBlockChanceCapped},
 	})...)
