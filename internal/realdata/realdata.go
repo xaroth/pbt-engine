@@ -27,7 +27,7 @@ const (
 //nolint:gochecknoglobals // a constant table
 var ids = map[string]string{
 	Previous: "5f14cda3263e1d93da9969242fe91c41b0fbb5145ca4864b405947ddc1b13427",
-	Current:  "ed6dc86aa6f6843f76ce59fa9bc38718b357750f22475bde28826b5ef60e0468",
+	Current:  "a7ac693b1a4da19aecd8110379fa8c8f2b7bfdac1c48387573bb4d249ced86db",
 }
 
 // artIDs are the art manifest ids, each the manifest's SHA-256, published with the pinned
