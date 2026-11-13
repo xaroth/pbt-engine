@@ -170,6 +170,10 @@ type Tree struct {
 	JewelSlots []uint32
 	// Overrides are the tattoos and runegrafts a node of the tree can take, sorted by ID.
 	Overrides []NodeOverride
+	// JewelRadii are the jewel radii, in game table order.
+	JewelRadii []JewelRadius
+	// Clusters is what cluster jewels need.
+	Clusters Clusters
 }
 
 // Class is a character class as the tree sees it; its index in Tree.Classes is its class id.
