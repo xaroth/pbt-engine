@@ -1,0 +1,21 @@
+Item Class: Life Flasks
+Rarity: Magic
+Endless Eternal Life Flask of Alleviation
+--------
+Quality: +20% (augmented)
+Recovers 2496 (augmented) Life over 2 Seconds
+Consumes 15 of 45 Charges on use
+Currently has 45 Charges
+--------
+Requirements:
+Level: 65
+--------
+Item Level: 68
+--------
+{ Prefix Modifier "Endless" (Tier: 3) }
+26(26-30)% increased Charge Recovery
+{ Suffix Modifier "of Alleviation" (Tier: 3) }
+Grants Immunity to Bleeding for 11(9-11) seconds if used while Bleeding
+Grants Immunity to Corrupted Blood for 11(9-11) seconds if used while affected by Corrupted Blood
+--------
+Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.

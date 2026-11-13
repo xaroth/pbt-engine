@@ -1,0 +1,39 @@
+Item Class: Helmets
+Rarity: Unique
+Black Sun Crest
+Lacquered Helmet
+--------
+Quality: +26% (augmented)
+Armour: 372 (augmented)
+Evasion Rating: 179 (augmented)
+--------
+Requirements:
+Level: 70
+Str: 155
+Dex: 98
+Int: 73
+--------
+Sockets: B-G-R-R 
+--------
+Item Level: 78
+--------
+{ Corruption Implicit Modifier — Mana, Gem }
+Socketed Skill Gems get a 90% Cost & Reservation Multiplier — Unscalable Value
+--------
+{ Unique Modifier — Attribute }
+15(5-15)% increased Strength
+{ Unique Modifier — Attribute }
+10(5-15)% increased Intelligence
+{ Unique Modifier — Attribute }
+15(5-15)% increased Dexterity
+{ Unique Modifier — Gem }
++1 to Level of Socketed Gems
+{ Unique Modifier — Defences, Armour }
+108(100-150)% increased Armour
+{ Unique Modifier }
+40% reduced Light Radius
+--------
+The beasts we fear the most
+are the ones who dwell in total darkness.
+--------
+Corrupted

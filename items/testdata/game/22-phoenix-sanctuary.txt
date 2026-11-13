@@ -1,0 +1,42 @@
+Item Class: Body Armours
+Rarity: Rare
+You cannot use this item. Its stats will be ignored
+--------
+Phoenix Sanctuary
+Conquest Lamellar
+--------
+Quality: +20% (augmented)
+Armour: 3029 (augmented)
+Evasion Rating: 3184 (augmented)
+--------
+Requirements:
+Level: 84
+Str: 173 (unmet)
+Dex: 173 (unmet)
+Int: 117
+--------
+Sockets: B-B-B-G-R-G 
+--------
+Item Level: 86
+--------
+{ Searing Exarch Implicit Modifier (Lesser) }
+Flasks gain a Charge every 3 seconds
+{ Eater of Worlds Implicit Modifier (Lesser) — Aura }
+Purity of Elements has 20(19-21)% increased Aura Effect
+--------
+{ Prefix Modifier "Versatile" (Tier: 1) — Defences, Armour, Evasion }
++305(301-375) to Armour
++362(301-375) to Evasion Rating
+{ Prefix Modifier "Victor's" (Tier: 1) — Defences, Armour, Evasion }
+107(101-110)% increased Armour and Evasion
+{ Master Crafted Prefix Modifier "Upgraded" — Life, Defences, Armour, Evasion }
+20(18-21)% increased Armour and Evasion
++19(17-19) to maximum Life
+{ Suffix Modifier "of Life-giving" (Tier: 2) — Life }
+Regenerate 151.1(128.1-152) Life per second
+{ Suffix Modifier "of the Jaguar" (Tier: 3) — Attribute }
++39(38-42) to Dexterity
+{ Suffix Modifier "of the Maelstrom" (Tier: 3) — Elemental, Lightning, Resistance }
++41(36-41)% to Lightning Resistance
+Searing Exarch Item
+Eater of Worlds Item

@@ -1,0 +1,26 @@
+Item Class: Belts
+Rarity: Unique
+Ynda's Stand
+Studded Belt
+--------
+Quality (Defence Modifiers): +20% (augmented)
+--------
+Requirements:
+Level: 52
+--------
+Item Level: 84
+--------
+{ Implicit Modifier }
+22(20-30)% increased Stun Duration on Enemies
+--------
+{ Unique Modifier — Life }
+Regenerate 46.8(30-50) Life per second
+{ Unique Modifier — Elemental, Fire, Resistance }
++29(20-30)% to Fire Resistance
+{ Unique Modifier — Elemental, Cold, Resistance }
++24(20-30)% to Cold Resistance
+{ Unique Modifier — Defences  — 20% Increased }
+Gain Ward instead of 50% of Armour and Evasion Rating from Equipped Body Armour
+--------
+When all else was burning and overrun,
+she held the bridge to the very end.

@@ -1,0 +1,25 @@
+Item Class: Rings
+Rarity: Rare
+Armageddon Circle
+Vermillion Ring
+--------
+Intangibility: 49%
+--------
+Requirements:
+Level: 80
+--------
+Item Level: 85
+--------
+{ Implicit Modifier — Life }
+5(5-7)% increased maximum Life
+--------
+{ Prefix Modifier "Agile" (Tier: 7) — Defences, Evasion }
++10(3-10) to Evasion Rating
+{ Prefix Modifier "Seething" (Tier: 5) — Defences, Energy Shield }
++25(23-26) to maximum Energy Shield
+{ Master Crafted Prefix Modifier "Upgraded" (Rank: 3) — Life }
++53(41-55) to maximum Life
+{ Suffix Modifier "of the Phantom" (Tier: 2) — Attribute }
++49(43-50) to Dexterity
+{ Suffix Modifier "of Haast" (Tier: 1) — Elemental, Cold, Resistance }
++46(46-48)% to Cold Resistance

@@ -1,0 +1,38 @@
+Item Class: Sceptres
+Rarity: Unique
+Nycta's Lantern
+Crystal Sceptre
+--------
+Sceptre
+Quality: +20% (augmented)
+Physical Damage: 113-167 (augmented)
+Elemental Damage: 87-163 (augmented)
+Critical Strike Chance: 8.00%
+Attacks per Second: 1.25
+Weapon Range: 1.1 metres
+--------
+Requirements:
+Level: 67
+Str: 106
+Int: 109
+--------
+Sockets: B-W-W 
+--------
+Item Level: 85
+--------
+{ Implicit Modifier — Damage, Elemental }
+30% increased Elemental Damage
+--------
+{ Unique Modifier }
+50% increased Light Radius
+{ Unique Modifier — Damage, Physical, Attack }
+168(150-200)% increased Physical Damage
+{ Unique Modifier — Damage, Elemental, Fire, Attack }
+Adds 87(76-98) to 163(161-176) Fire Damage
+{ Unique Modifier }
+Battlemage — Unscalable Value
+(Gain Added Spell Damage equal to the Damage of your Main Hand Weapon)
+--------
+Left in her tomb by the lynch mob, 
+the flame inside still blazed bright after her death, 
+and so did hers.

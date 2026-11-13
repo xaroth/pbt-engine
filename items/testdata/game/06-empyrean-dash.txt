@@ -1,0 +1,39 @@
+Item Class: Boots
+Rarity: Rare
+Empyrean Dash
+Martyr Boots
+--------
+Armour: 232 (augmented)
+Energy Shield: 46 (augmented)
+--------
+Requirements:
+Level: 78
+Str: 148
+Dex: 106
+Int: 85
+--------
+Sockets: R-W-W-W 
+--------
+Item Level: 86
+--------
+{ Searing Exarch Implicit Modifier (Lesser) }
+Drops Sapped Ground while moving, lasting 2 seconds
+(Enemies on your Sapped Ground are Sapped. They deal 6% less Damage)
+{ Eater of Worlds Implicit Modifier (Lesser) — Life }
+7% increased Life Regeneration rate
+--------
+{ Prefix Modifier "Virile" (Tier: 2) — Life }
++113(100-114) to maximum Life
+{ Prefix Modifier "Hellion's" (Tier: 1) — Speed }
+35% increased Movement Speed
+{ Master Crafted Prefix Modifier "Upgraded" — Life, Defences, Armour, Energy Shield }
+19(18-21)% increased Armour and Energy Shield
++13(12-14) to maximum Life
+{ Suffix Modifier "of the Yeti" (Tier: 5) — Elemental, Cold, Resistance }
++29(24-29)% to Cold Resistance
+{ Suffix Modifier "of the Phoenix" (Tier: 1) — Life }
+Regenerate 91.8(64.1-96) Life per second
+{ Suffix Modifier "of the Genius" (Tier: 1) — Attribute }
++54(51-55) to Intelligence
+Searing Exarch Item
+Eater of Worlds Item

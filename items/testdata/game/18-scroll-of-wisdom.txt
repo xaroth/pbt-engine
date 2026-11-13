@@ -1,0 +1,10 @@
+Item Class: Stackable Currency
+Rarity: Currency
+Scroll of Wisdom
+--------
+Stack Size: 40/40
+--------
+Identifies an item
+--------
+Right click this item then left click an unidentified item to apply it.
+Shift click to unstack.

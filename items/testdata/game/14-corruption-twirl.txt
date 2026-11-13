@@ -1,0 +1,28 @@
+Item Class: Rings
+Rarity: Rare
+Corruption Twirl
+Coral Ring
+--------
+Requirements:
+Level: 64
+--------
+Item Level: 83
+--------
+Your Empowering Towers have 25% increased Effect (enchant)
+--------
+{ Implicit Modifier — Life }
++29(20-30) to maximum Life
+--------
+{ Prefix Modifier "Virile" (Tier: 1) — Life }
++75(100-114) to maximum Life
+{ Prefix Modifier "Sparking" (Tier: 5) — Damage, Elemental, Lightning, Attack }
+Adds 2(1-3) to 33(33-34) Lightning Damage to Attacks
+{ Master Crafted Prefix Modifier "Upgraded" — Damage, Elemental, Fire, Cold }
+Adds 11(10-12) to 16(14-16) Fire Damage
+Adds 10(10-12) to 15(14-16) Cold Damage
+{ Suffix Modifier "of Bameth" (Tier: 1) — Chaos, Resistance }
++35(31-35)% to Chaos Resistance
+{ Suffix Modifier "of the Ranger" (Tier: 1) — Attack }
++464(351-480) to Accuracy Rating
+{ Suffix Modifier "of the Goliath" (Tier: 4) — Attribute }
++37(33-37) to Strength

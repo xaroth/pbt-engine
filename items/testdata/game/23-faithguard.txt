@@ -1,0 +1,30 @@
+Item Class: Helmets
+Rarity: Unique
+Faithguard
+Runic Helm
+--------
+Quality: +20% (augmented)
+Ward: 70 (augmented)
+--------
+Requirements:
+Level: 70
+Str: 111
+Dex: 30
+Int: 98
+--------
+Sockets: R-R B-R 
+--------
+Item Level: 74
+--------
+{ Unique Modifier — Attribute }
++28(20-30) to Intelligence
+{ Unique Modifier — Defences }
+27(25-35)% increased Ward
+{ Unique Modifier — Defences }
+44(40-60)% faster Restoration of Ward
+{ Unique Modifier }
+16(15-25)% increased Light Radius
+{ Unique Modifier — Defences }
+Increases and Reductions to Maximum Energy Shield instead apply to Ward — Unscalable Value
+--------
+The priests of the Kalguur worshipped knowledge, not gods.
