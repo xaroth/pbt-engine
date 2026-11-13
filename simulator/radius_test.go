@@ -1,0 +1,63 @@
+package simulator_test
+
+import (
+	"errors"
+	"slices"
+	"testing"
+
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/simulator"
+)
+
+// Sockets of the 3.29 tree, named by a keystone or notable in their Large radius.
+const (
+	mindOverMatterSocket   = 36634 // Witch, by Mind Over Matter
+	unwaveringStanceSocket = 28475 // Marauder and Duelist, by Unwavering Stance
+	largeClusterSocket     = 7960  // Witch outer large cluster socket, by Acrimony
+	mindOverMatter         = 34098
+)
+
+func TestNodesInRadius(t *testing.T) {
+	t.Parallel()
+	sim, err := simulator.New(realdata.Open(t, realdata.Current))
+	if err != nil {
+		t.Fatal(err)
+	}
+	large := simulator.Radius{ID: "Large"}
+	for socket, want := range map[uint32]int{mindOverMatterSocket: 31, unwaveringStanceSocket: 34, largeClusterSocket: 34} {
+		nodes, err := sim.NodesInRadius(build.DefaultVariant, socket, large)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(nodes) != want {
+			t.Errorf("socket %d: %d nodes in Large radius, want %d", socket, len(nodes), want)
+		}
+	}
+
+	// The Large ring starts at 1400, outside the Medium disc of 1200.
+	ring, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatterSocket, simulator.Radius{ID: "Large", Ring: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatterSocket, simulator.Radius{ID: "Medium"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ring) != 12 || len(inner) == 0 {
+		t.Errorf("Large ring: %d nodes, want 12; Medium disc: %d nodes", len(ring), len(inner))
+	}
+	for _, n := range ring {
+		if slices.Contains(inner, n) {
+			t.Errorf("node %d is in the Large ring and the Medium disc", n)
+		}
+	}
+
+	if _, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatter, large); !errors.Is(err, simulator.ErrNotSocket) {
+		t.Errorf("Mind Over Matter as socket: %v, want ErrNotSocket", err)
+	}
+	if _, err := sim.NodesInRadius(build.DefaultVariant, mindOverMatterSocket, simulator.Radius{ID: "Huge"}); !errors.Is(err, dataset.ErrNotInDataset) {
+		t.Errorf("unknown radius: %v, want ErrNotInDataset", err)
+	}
+}
