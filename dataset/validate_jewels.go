@@ -12,7 +12,10 @@ func validateJewels(n int, ids map[uint32]bool, t Tree) error {
 	if err := validateJewelRadii(t); err != nil {
 		return err
 	}
-	return validateClusters(n, ids, t)
+	if err := validateClusters(n, ids, t); err != nil {
+		return err
+	}
+	return validateTimeless(n, t)
 }
 
 func validateJewelRadii(t Tree) error {
@@ -133,6 +136,51 @@ func (d *Dataset) validateClusterBases() error {
 			if !bases[j.Base] {
 				return fmt.Errorf("tree %s cluster jewel %s: base not in items: %w", t.Variant, j.Base, ErrInvalid)
 			}
+		}
+	}
+	return nil
+}
+
+const (
+	maxReplacementStats = 4
+	maxAdditionStats    = 2
+)
+
+func validateTimeless(n int, t Tree) error {
+	ids := map[string]bool{}
+	for _, v := range t.TimelessVersions {
+		what := fmt.Sprintf("tree %s timeless version %q", t.Variant, v.ID)
+		if v.ID == "" || ids[v.ID] {
+			return fmt.Errorf("%s: empty or repeated id: %w", what, ErrInvalid)
+		}
+		ids[v.ID] = true
+		for i, r := range v.Replacements {
+			if err := validateTimelessRow(n, fmt.Sprintf("%s replacement %d", what, i), r.Kinds, r.Stats, maxReplacementStats); err != nil {
+				return err
+			}
+		}
+		for i, a := range v.Additions {
+			if err := validateTimelessRow(n, fmt.Sprintf("%s addition %d", what, i), a.Kinds, a.Stats, maxAdditionStats); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateTimelessRow(n int, what string, kinds []TimelessKind, stats []StatRange, most int) error {
+	if slices.ContainsFunc(kinds, func(k TimelessKind) bool { return k < TimelessSmallAttribute || k > TimelessJewelSocket }) {
+		return fmt.Errorf("%s: unknown kind: %w", what, ErrInvalid)
+	}
+	if len(stats) > most {
+		return fmt.Errorf("%s: %d stats, at most %d: %w", what, len(stats), most, ErrInvalid)
+	}
+	for _, s := range stats {
+		if int(s.Stat) >= n {
+			return fmt.Errorf("%s: stat %d out of range (%d stats): %w", what, s.Stat, n, ErrInvalid)
+		}
+		if s.Min > s.Max {
+			return fmt.Errorf("%s: range reversed: %w", what, ErrInvalid)
 		}
 	}
 	return nil

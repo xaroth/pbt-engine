@@ -241,8 +241,28 @@ func (rcv *Tree) Clusters(obj *Clusters) *Clusters {
 	return nil
 }
 
+func (rcv *Tree) TimelessVersions(obj *TimelessVersion, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Tree) TimelessVersionsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func TreeStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(12)
 }
 func TreeAddVariant(builder *flatbuffers.Builder, variant flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(variant), 0)
@@ -297,6 +317,12 @@ func TreeStartJewelRadiiVector(builder *flatbuffers.Builder, numElems int) flatb
 }
 func TreeAddClusters(builder *flatbuffers.Builder, clusters flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(clusters), 0)
+}
+func TreeAddTimelessVersions(builder *flatbuffers.Builder, timelessVersions flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(timelessVersions), 0)
+}
+func TreeStartTimelessVersionsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
 }
 func TreeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
