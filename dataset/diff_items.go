@@ -98,7 +98,7 @@ func samePtr[T comparable](a, b *T) bool {
 func sameMod(a, b *tables, m, n Mod) bool {
 	return m.Domain == n.Domain && m.Generation == n.Generation && m.Level == n.Level && m.Type == n.Type &&
 		m.GameMode == n.GameMode && slices.Equal(m.Families, n.Families) && sameModStats(a, b, m.Stats, n.Stats) && sameModTags(m, n) &&
-		slices.Equal(m.GrantedSkills, n.GrantedSkills)
+		slices.Equal(m.GrantedSkills, n.GrantedSkills) && slices.Equal(m.RuthlessGrantedSkills, n.RuthlessGrantedSkills)
 }
 
 func sameModStats(a, b *tables, x, y []ModStat) bool {

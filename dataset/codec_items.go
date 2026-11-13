@@ -291,7 +291,8 @@ func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32,
 	added := uint32Vector(b, fb.ModStartAddedTagsVector, indexes(tagIndex, m.AddedTags))
 	spawn := tagWeightVector(b, fb.ModStartSpawnWeightsVector, tagIndex, m.SpawnWeights)
 	generationWeights := tagWeightVector(b, fb.ModStartGenerationWeightsVector, tagIndex, m.GenerationWeights)
-	granted := encodeGrantedSkills(b, m.GrantedSkills)
+	granted := encodeGrantedSkills(b, fb.ModStartGrantedSkillsVector, m.GrantedSkills)
+	ruthlessGranted := encodeGrantedSkills(b, fb.ModStartRuthlessGrantedSkillsVector, m.RuthlessGrantedSkills)
 	fb.ModStart(b)
 	fb.ModAddId(b, id)
 	fb.ModAddDomain(b, m.Domain)
@@ -308,12 +309,15 @@ func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32,
 	if granted != 0 {
 		fb.ModAddGrantedSkills(b, granted)
 	}
+	if ruthlessGranted != 0 {
+		fb.ModAddRuthlessGrantedSkills(b, ruthlessGranted)
+	}
 	return fb.ModEnd(b)
 }
 
 // encodeGrantedSkills returns 0 for none, so a mod without them keeps the bytes it had before
 // granted skills.
-func encodeGrantedSkills(b *flatbuffers.Builder, gs []GrantedSkill) flatbuffers.UOffsetT {
+func encodeGrantedSkills(b *flatbuffers.Builder, start startFunc, gs []GrantedSkill) flatbuffers.UOffsetT {
 	if len(gs) == 0 {
 		return 0
 	}
@@ -321,7 +325,7 @@ func encodeGrantedSkills(b *flatbuffers.Builder, gs []GrantedSkill) flatbuffers.
 	for i := range gs {
 		offs[i] = encodeGrantedSkill(b, &gs[i])
 	}
-	return tableVector(b, fb.ModStartGrantedSkillsVector, offs)
+	return tableVector(b, start, offs)
 }
 
 func tagWeightVector(b *flatbuffers.Builder, start startFunc, tagIndex map[string]uint32, ws []TagWeight) flatbuffers.UOffsetT {
@@ -398,19 +402,19 @@ func decodeMod(m *fb.Mod, h []uint32, tagIDs []string, intern interner) (Mod, er
 	if out.GenerationWeights, err = tagWeights(tagIDs, m.GenerationWeightsLength(), m.GenerationWeights); err != nil {
 		return Mod{}, err
 	}
-	out.GrantedSkills = decodeGrantedSkills(m)
+	out.GrantedSkills = decodeGrantedSkills(m.GrantedSkillsLength(), m.GrantedSkills)
+	out.RuthlessGrantedSkills = decodeGrantedSkills(m.RuthlessGrantedSkillsLength(), m.RuthlessGrantedSkills)
 	return out, nil
 }
 
-func decodeGrantedSkills(m *fb.Mod) []GrantedSkill {
-	n := m.GrantedSkillsLength()
+func decodeGrantedSkills(n int, at func(*fb.GrantedSkill, int) bool) []GrantedSkill {
 	if n == 0 {
 		return nil
 	}
 	out := make([]GrantedSkill, n)
 	var g fb.GrantedSkill
 	for i := range n {
-		m.GrantedSkills(&g, i)
+		at(&g, i)
 		out[i] = decodeGrantedSkill(&g)
 	}
 	return out

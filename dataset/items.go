@@ -135,6 +135,18 @@ type Mod struct {
 	GameMode int32
 	// GrantedSkills are the skills the mod grants, in game order.
 	GrantedSkills []GrantedSkill
+	// RuthlessGrantedSkills are the skills the mod grants in Ruthless, in game order, when it has
+	// its own for Ruthless. Use Grants.
+	RuthlessGrantedSkills []GrantedSkill
+}
+
+// Grants returns the skills m grants: in Ruthless its own for Ruthless when it has them,
+// otherwise GrantedSkills.
+func (m *Mod) Grants(ruthless bool) []GrantedSkill {
+	if ruthless && len(m.RuthlessGrantedSkills) > 0 {
+		return m.RuthlessGrantedSkills
+	}
+	return m.GrantedSkills
 }
 
 // ModStat is a stat handle of a mod with its range. The Ruthless range equals Min and Max when
