@@ -89,6 +89,7 @@ func capabilityVersions() map[string]int { return map[string]int{} }
 type Sheet struct {
 	session *core.Session
 	stats   map[string]core.StatID
+	ctx     contexts
 	// counters are the engine stats of the tree's counters (resolve.Counters): a bundle stat
 	// that is one adds its value to it and to number_of_allocated_masteries, without a table
 	// entry.
@@ -104,6 +105,10 @@ type Sheet struct {
 	nodes map[resolve.NodeSource][]core.SourceID
 	// items maps an item, by slot and content, to its source.
 	items map[itemKey]core.SourceID
+	// skills holds the skills of SetSkills, by slot.
+	skills []skillSlot
+	// skillSources maps a skill, by slot and content, to the sources of its own stats.
+	skillSources map[skillKey][]core.SourceID
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
 	marked bool
 }
@@ -152,16 +157,16 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if err != nil {
 		return nil, fmt.Errorf("sheet: %w", err)
 	}
-	sh := &Sheet{session: s, stats: md.stats, counters: md.counters, version: r.Version, table: t, gameVersion: v}
+	sh := &Sheet{session: s, stats: md.stats, ctx: md.ctx, counters: md.counters, version: r.Version, table: t, gameVersion: v}
 	for i := range r.Bundles {
-		if _, err := sh.add(&r.Bundles[i], t, v); err != nil {
+		if _, err := sh.add(&r.Bundles[i], t, v, -1); err != nil {
 			return nil, err
 		}
 	}
 	if err := sh.addAttributeBonuses(r.Constants); err != nil {
 		return nil, err
 	}
-	if err := sh.addBaseMovementSpeed(); err != nil {
+	if err := sh.addBaseValues(); err != nil {
 		return nil, err
 	}
 	sh.SetConfig(cfg)
@@ -215,6 +220,7 @@ func (sh *Sheet) proportion(name string) (core.Proportion, error) {
 type sheetModel struct {
 	model    *core.Model
 	stats    map[string]core.StatID
+	ctx      contexts
 	counters map[string]bool
 }
 
@@ -239,6 +245,7 @@ func modelFor(counters []string) *sheetModel {
 		md.stats[name] = b.MustAddStat(statDef(name, md.stats))
 	}
 	addTransferStats(&b, md.stats)
+	md.ctx = addContexts(&b)
 	for _, name := range counters {
 		if _, ok := md.stats[name]; !ok {
 			md.stats[name] = b.MustAddStat(core.StatDef{Name: name})
@@ -253,8 +260,9 @@ func modelFor(counters []string) *sheetModel {
 	return md
 }
 
-// add adds bd as a new source and returns it.
-func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion) (core.SourceID, error) {
+// add adds bd as a new source and returns it. Its modifiers apply in the context of the skill
+// in slot only, or everywhere when slot is negative.
+func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion, slot int) (core.SourceID, error) {
 	// Every modifier lands on core actor 0, so another actor's stats would stack onto the player.
 	if bd.Actor != resolve.Player {
 		return 0, fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
@@ -271,11 +279,8 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		e, ok := t.Lookup(sv.Stat, bd.Scope, v)
 		ruled := false
 		if ok && e.Status == semantics.Authored {
-			if err := sh.addMods(e, sv.Value, src); err != nil {
-				return 0, err
-			}
 			var err error
-			if ruled, err = sh.applyRule(e, sv.Value, src); err != nil {
+			if ruled, err = sh.addEntry(e, sv.Value, src, slot); err != nil {
 				return 0, err
 			}
 		}
@@ -285,6 +290,27 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		}
 	}
 	return src, nil
+}
+
+// addEntry adds the modifiers and rule of authored entry e for a stat of value v, and reports
+// whether its rule was applied. Rules act on the sheet's values, which a skill's own stats (slot
+// not negative) do not reach, so they are not applied to them.
+func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot int) (bool, error) {
+	if err := sh.addMods(e, v, src, slot); err != nil {
+		return false, err
+	}
+	if slot >= 0 {
+		return false, nil
+	}
+	return sh.applyRule(e, v, src)
+}
+
+// addBaseValues adds the rules' base values of movement speed and damage.
+func (sh *Sheet) addBaseValues() error {
+	if err := sh.addBaseMovementSpeed(); err != nil {
+		return err
+	}
+	return sh.addBaseDamage()
 }
 
 // addCount adds counter sv to its own stat and to number_of_allocated_masteries.
@@ -323,9 +349,18 @@ func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 	return out
 }
 
-func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID) error {
+// addMods adds e's modifiers for a stat of value from src; a modifier of the skill in slot
+// requires the slot's context, and slot is negative outside a skill.
+func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int) error {
 	for _, m := range e.Mods {
 		mod := core.Modifier{Stat: sh.stats[m.Stat], Op: m.Op, Value: m.Factor.Apply(value), Source: src}
+		if !m.Context.IsZero() || slot >= 0 {
+			p, err := predicate(sh.session.Model(), m.Context, sh.ctx, slot)
+			if err != nil {
+				return fmt.Errorf("sheet: %s: %w", e.Stat, err)
+			}
+			mod.Pred = p
+		}
 		if m.Per != nil {
 			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
 		}

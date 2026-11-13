@@ -241,5 +241,50 @@
     "group": "defence",
     "better": "higher",
     "order": 26
+  },
+  {
+    "key": "skill.physical_damage_modifier",
+    "label": "Physical Damage Modifier",
+    "unit": "%",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 27
+  },
+  {
+    "key": "skill.fire_damage_modifier",
+    "label": "Fire Damage Modifier",
+    "unit": "%",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 28
+  },
+  {
+    "key": "skill.cold_damage_modifier",
+    "label": "Cold Damage Modifier",
+    "unit": "%",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 29
+  },
+  {
+    "key": "skill.lightning_damage_modifier",
+    "label": "Lightning Damage Modifier",
+    "unit": "%",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 30
+  },
+  {
+    "key": "skill.chaos_damage_modifier",
+    "label": "Chaos Damage Modifier",
+    "unit": "%",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 31
   }
 ]

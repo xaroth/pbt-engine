@@ -10,7 +10,8 @@ import (
 
 // The JSON of an Explanation is part of the simulator's wire format; the schema in
 // simulator/wire.schema.json describes it. As there, every field is always present and lists
-// are never null, except Tree, which is null outside the tree view.
+// are never null, except Tree, which is null outside the tree view, and Skill, which is null for
+// a sheet output.
 
 type wireExplanation struct {
 	Output    Output        `json:"output"`
@@ -22,7 +23,18 @@ type wireExplanation struct {
 	CapBy     []string      `json:"capBy"`
 	Lines     []wireLine    `json:"lines"`
 	Tree      *wireTreeNode `json:"tree"`
+	Skill     *wireGem      `json:"skill"`
+	Damage    []string      `json:"damage"`
 }
+
+// wireGem is a gem by its group and index in the group, from 0, and its id.
+type wireGem struct {
+	Group int    `json:"group"`
+	Gem   int    `json:"gem"`
+	ID    string `json:"id"`
+}
+
+func gemOf(s resolve.GemSource) wireGem { return wireGem{Group: s.Group, Gem: s.Gem, ID: s.ID} }
 
 type wireLine struct {
 	Source Source         `json:"source"`
@@ -65,6 +77,14 @@ func (ex Explanation) MarshalJSON() ([]byte, error) {
 		Output: ex.Output, View: ex.View.String(), Version: ex.Version,
 		Amount: ex.Amount, Effective: ex.Effective, Value: ex.Value,
 		CapBy: orEmpty(ex.CapBy), Lines: make([]wireLine, 0, len(ex.Lines)), Tree: wireTree(ex.Tree),
+		Damage: make([]string, 0, len(ex.Damage)),
+	}
+	if ex.Skill != nil {
+		g := gemOf(*ex.Skill)
+		w.Skill = &g
+	}
+	for _, d := range ex.Damage {
+		w.Damage = append(w.Damage, d.String())
 	}
 	for _, l := range ex.Lines {
 		wl := wireLine{Source: l.Source, Value: l.Value, Total: l.Total, Parts: make([]wireLinePart, 0, len(l.Parts))}
@@ -95,7 +115,8 @@ func wireTree(n *TreeNode) *wireTreeNode {
 
 // MarshalJSON encodes the source as an object whose kind says which other fields it has:
 // character (id), level, node (node, effect: 0 for the node's own stats), quest (quest, flag),
-// item (slot, name: empty for an item without one) or rule (id, and text in English).
+// item (slot, name: empty for an item without one), gem (group, gem, id: a skill's or support's
+// own stats) or rule (id, and text in English).
 func (s Source) MarshalJSON() ([]byte, error) {
 	if s.Bundle == nil {
 		return marshal(struct {
@@ -126,6 +147,12 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Quest string `json:"quest"`
 			Flag  string `json:"flag"`
 		}{"quest", src.ID, src.Flag})
+	case resolve.GemSource:
+		return marshal(struct {
+			wireGem
+
+			Kind string `json:"kind"`
+		}{gemOf(src), "gem"})
 	case resolve.ItemSource:
 		return marshal(struct {
 			Kind string `json:"kind"`

@@ -151,5 +151,7 @@
       ]
     }
   ],
-  "tree": null
+  "tree": null,
+  "skill": null,
+  "damage": []
 }

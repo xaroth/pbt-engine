@@ -27,6 +27,10 @@ func (vocabulary) IsEngineStat(name string) bool {
 	}, name)
 }
 
+func (vocabulary) IsContext(name string) bool {
+	return slices.Contains([]string{"type.Attack", "type.Spell", "damage.fire", "damage.cold"}, name)
+}
+
 func (vocabulary) RuleParams(name string) ([]string, bool) {
 	if name == "gain_as_extra" {
 		return []string{"from", "to"}, true

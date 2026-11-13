@@ -142,7 +142,7 @@ func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
 	if workers <= 0 {
 		workers = runtime.GOMAXPROCS(0)
 	}
-	return &sweep{sim: s, base: r, keys: keys, before: st.values, co: co, snapshot: snapshot, workers: workers, tree: r.checked.Tree()}, nil
+	return &sweep{sim: s, base: r, keys: st.keys, before: st.values, co: co, snapshot: snapshot, workers: workers, tree: r.checked.Tree()}, nil
 }
 
 // work runs variants from jobs on its own sheet of the base's shape, switched to the base.
@@ -377,7 +377,10 @@ func (sw *sweep) full(edits []build.Edit) Result {
 	}
 	r := Result{Changes: make(map[output.Key]Change, len(sw.keys)), Warnings: sw.base.checked.EditWarnings(edits)}
 	for _, k := range sw.keys {
-		r.Changes[k] = change(sw.before[k], st.values[k])
+		// A skill output is gone when an edit leaves the build without a main skill.
+		if v, ok := st.values[k]; ok {
+			r.Changes[k] = change(sw.before[k], v)
+		}
 	}
 	return r
 }

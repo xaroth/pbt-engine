@@ -48,6 +48,7 @@ var (
 	errWithoutText    = errors.New("without text")
 	errWithHandlers   = errors.New("with handlers")
 	errWithText       = errors.New("with text")
+	errEmptyTerm      = errors.New("empty term")
 )
 
 // Format is the table file format Load reads.
@@ -56,12 +57,14 @@ const Format = 1
 // ErrInvalid is wrapped by every error Load returns for a malformed table.
 var ErrInvalid = errors.New("invalid semantics table")
 
-// Vocabulary names what a table may refer to: the engine stats and rules the rules code
-// defines. RuleParams returns the parameters a rule takes, each naming an engine stat, and false
-// for an unknown rule.
+// Vocabulary names what a table may refer to: the engine stats, rules and context values the
+// rules code defines. RuleParams returns the parameters a rule takes, each naming an engine
+// stat, and false for an unknown rule. IsContext reports whether name is a context value a
+// modifier may require, as "dimension.value".
 type Vocabulary interface {
 	IsEngineStat(name string) bool
 	RuleParams(name string) (params []string, ok bool)
+	IsContext(name string) bool
 }
 
 // Status says how far the meaning of a stat is known.
@@ -230,15 +233,29 @@ type Count struct {
 	AtLeast int32
 }
 
+// ContextFilter restricts a modifier to the contexts it applies in, by context value names
+// ("dimension.value"). A context matches when it has at least one value of every term of In
+// and none of NotIn: "Elemental Damage with Attack Skills" is In [[type.Attack], [damage.fire,
+// damage.cold, damage.lightning]]. The zero ContextFilter matches every context, the sheet's
+// included; one with a term matches no sheet value, since the sheet's context has no values.
+type ContextFilter struct {
+	In    [][]string
+	NotIn []string
+}
+
+// IsZero reports whether c matches every context.
+func (c ContextFilter) IsZero() bool { return len(c.In) == 0 && len(c.NotIn) == 0 }
+
 // Mod is one engine modifier a stat gives: engine stat, op and value as the game stat value
-// times Factor, scaled by Per when set and held only while If holds when set. Only an
-// override has a zero Factor, for effects such as "Removes all Mana".
+// times Factor, scaled by Per when set, held only while If holds when set, in the contexts
+// Context matches. Only an override has a zero Factor, for effects such as "Removes all Mana".
 type Mod struct {
-	Stat   string
-	Op     core.Op
-	Factor Ratio
-	Per    *Per
-	If     *Count
+	Stat    string
+	Op      core.Op
+	Factor  Ratio
+	Per     *Per
+	If      *Count
+	Context ContextFilter
 }
 
 // Entry is the meaning of one stat in one scope over a range of game versions.
@@ -343,6 +360,8 @@ type fileMod struct {
 	Factor string     `json:"factor"`
 	Per    *filePer   `json:"per"`
 	If     *fileCount `json:"if"`
+	In     [][]string `json:"in"`
+	NotIn  []string   `json:"notIn"`
 }
 
 type fileCount struct {
@@ -657,7 +676,34 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 	if m.If, err = parseCount(f.If); err != nil {
 		return Mod{}, err
 	}
+	if m.Context, err = parseContext(f.In, f.NotIn, vocab); err != nil {
+		return Mod{}, err
+	}
 	return m, nil
+}
+
+// parseContext checks that every name is a context value of vocab and no term is empty.
+func parseContext(in [][]string, notIn []string, vocab Vocabulary) (ContextFilter, error) {
+	for i, term := range in {
+		if len(term) == 0 {
+			return ContextFilter{}, fmt.Errorf("in: %w %d", errEmptyTerm, i)
+		}
+		for _, n := range term {
+			if !vocab.IsContext(n) {
+				return ContextFilter{}, fmt.Errorf("in: %w context %q", errUnknown, n)
+			}
+		}
+	}
+	for _, n := range notIn {
+		if !vocab.IsContext(n) {
+			return ContextFilter{}, fmt.Errorf("notIn: %w context %q", errUnknown, n)
+		}
+	}
+	c := ContextFilter{NotIn: slices.Clone(notIn)}
+	for _, term := range in {
+		c.In = append(c.In, slices.Clone(term))
+	}
+	return c, nil
 }
 
 func parsePer(f *filePer, vocab Vocabulary) (*Per, error) {

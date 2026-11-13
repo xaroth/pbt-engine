@@ -196,12 +196,14 @@ func (s *Sim) Simulate(b *build.Build, opts ...Option) (*Stats, error) {
 
 // run is one build prepared for a sheet: checked, its config resolved, its warnings so far.
 type run struct {
-	build    *build.Build
-	checked  *build.Checked
-	shape    shape
-	cfg      config.Resolved
-	budget   Budget
-	items    []poe1.Item
+	build   *build.Build
+	checked *build.Checked
+	shape   shape
+	cfg     config.Resolved
+	budget  Budget
+	items   []poe1.Item
+	// skill is the main skill, nil when the build has none.
+	skill    *resolve.Skill
 	warnings []Warning
 }
 
@@ -226,6 +228,9 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if err := s.compileItems(r, cb.Items); err != nil {
 		return nil, err
 	}
+	if err := mainSkill(r); err != nil {
+		return nil, err
+	}
 	sim = sim.Clone()
 	for k := range co.cleared {
 		sim.Clear(k)
@@ -247,7 +252,33 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	return r, nil
 }
 
-// switchTo switches sh to the run's level, nodes, masteries and config.
+// mainSkill resolves the run's main skill, none when the build has no group with an active
+// gem to resolve or the dataset has no skills group (the build check warns about that).
+func mainSkill(r *run) error {
+	if len(r.checked.Build().Skills.Groups) == 0 {
+		return nil
+	}
+	sk, warnings, err := resolve.MainSkill(r.checked, poe1.GemBonuses())
+	switch {
+	case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
+		return nil
+	case err != nil:
+		return fmt.Errorf("simulator: %w", err)
+	}
+	r.skill = sk
+	r.warnings = append(r.warnings, warnings...)
+	return nil
+}
+
+// skills returns the run's skills for the sheet: the main skill, if any.
+func (r *run) skills() []*resolve.Skill {
+	if r.skill == nil {
+		return nil
+	}
+	return []*resolve.Skill{r.skill}
+}
+
+// switchTo switches sh to the run's level, nodes, masteries, items, skills and config.
 func switchTo(r *run, sh *poe1.Sheet) error {
 	cb := r.checked.Build()
 	if err := sh.SetLevel(cb.Level); err != nil {
@@ -257,18 +288,26 @@ func switchTo(r *run, sh *poe1.Sheet) error {
 	if err := sh.SetItems(r.items); err != nil {
 		return fmt.Errorf("simulator: %w", err)
 	}
+	if err := sh.SetSkills(r.skills()); err != nil {
+		return fmt.Errorf("simulator: %w", err)
+	}
 	sh.SetConfig(r.cfg)
 	return nil
 }
 
-// statsOf reads keys from sh after switching it to the run's nodes and config.
+// statsOf reads keys from sh after switching it to the run's nodes and config. Skill outputs
+// are left out when the run has no main skill.
 func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
 	if err := switchTo(r, sh); err != nil {
 		return nil, err
 	}
+	if r.skill == nil {
+		cat := catalogue()
+		keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return cat[k].IsSkill() })
+	}
 	st := &Stats{
 		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, budget: r.budget,
-		build: r.build, checked: r.checked, items: r.items, sim: s,
+		build: r.build, checked: r.checked, items: r.items, skill: r.skill, sim: s,
 	}
 	for _, k := range keys {
 		v, err := sh.Output(k)

@@ -640,5 +640,7 @@
       }
     ],
     "repeat": false
-  }
+  },
+  "skill": null,
+  "damage": []
 }

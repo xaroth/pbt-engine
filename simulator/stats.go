@@ -24,6 +24,7 @@ type Stats struct {
 	build    *build.Build
 	checked  *build.Checked
 	items    []poe1.Item
+	skill    *resolve.Skill
 	sim      *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
@@ -75,6 +76,31 @@ func (st *Stats) Get(k output.Key) (float64, bool) {
 // Keys returns the outputs computed, in the rules' display order or as asked for.
 func (st *Stats) Keys() []output.Key { return slices.Clone(st.keys) }
 
+// MainSkill is the main skill a simulation read its skill outputs in: its gem, granted effect,
+// level and quality with what items and supports add, and its ActiveSkillType ids with those
+// its supports add.
+type MainSkill struct {
+	// Group and Gem index the gem in build.Skills, from 0.
+	Group, Gem     int
+	ID             string
+	GrantedEffect  string
+	Level, Quality int
+	Types          []string
+}
+
+// MainSkill returns the main skill, and false when the build has none; then the skill outputs
+// are not computed.
+func (st *Stats) MainSkill() (MainSkill, bool) {
+	if st.skill == nil {
+		return MainSkill{}, false
+	}
+	sk := st.skill
+	return MainSkill{
+		Group: sk.Source.Group, Gem: sk.Source.Gem, ID: sk.Source.ID, GrantedEffect: sk.GrantedEffect,
+		Level: sk.Level, Quality: sk.Quality, Types: slices.Clone(sk.Types),
+	}, true
+}
+
 // Budget returns the points the build can spend under the config the simulation resolved.
 // The points it uses are build.Checked.Points.
 func (st *Stats) Budget() Budget { return st.budget }
@@ -104,6 +130,11 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	}
 	if err := sh.SetItems(st.items); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
+	if st.skill != nil {
+		if err := sh.SetSkills([]*resolve.Skill{st.skill}); err != nil {
+			return nil, fmt.Errorf("simulator: explain: %w", err)
+		}
 	}
 	return sh, nil
 }

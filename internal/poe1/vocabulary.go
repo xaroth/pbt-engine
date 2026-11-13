@@ -73,6 +73,7 @@ const (
 	statMaximumSpellBlockChance                          = "maximum_spell_block_chance"
 	statSpellBlockChanceCapped                           = "spell_block_chance_capped"
 	statMovementSpeed                                    = "movement_speed"
+	statDamage                                           = "damage"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -106,6 +107,10 @@ const (
 //
 // movement_speed is the character's movement speed as a percentage of the base speed: 100
 // before modifiers.
+//
+// damage is a skill's damage as a percentage of its base damage: 100 before modifiers. Read in
+// a skill's context for one damage type, it holds the increases and more multipliers that
+// apply to that part of the skill's damage.
 //
 // number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
 // counters, since every allocatable mastery carries its group's count at 1.
@@ -157,6 +162,7 @@ func engineStats() []string {
 		statMaximumSpellBlockChance,
 		statSpellBlockChanceCapped,
 		statMovementSpeed,
+		statDamage,
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,
 		statEffectiveMaximumLightningResistance,
@@ -198,7 +204,8 @@ func ruleNames() []string {
 	}
 }
 
-// Vocabulary is the engine stats and rules of the character sheet, for semantics.Load.
+// Vocabulary is the engine stats, rules and contexts of the character sheet, for
+// semantics.Load.
 type Vocabulary struct{}
 
 // IsEngineStat reports whether name is an engine stat of the character sheet.
@@ -213,3 +220,7 @@ func (Vocabulary) RuleParams(name string) ([]string, bool) {
 	}
 	return nil, slices.Contains(ruleNames(), name)
 }
+
+// IsContext reports whether name, as "dimension.value", is a context value a table modifier
+// may require: a skill type (type.Spell) or a damage type (damage.fire).
+func (Vocabulary) IsContext(name string) bool { return isTableContext(name) }

@@ -3,7 +3,9 @@ package poe1
 import (
 	"errors"
 	"fmt"
+	"slices"
 
+	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/output"
 )
 
@@ -29,6 +31,9 @@ const (
 	GroupSheet = "sheet"
 	// GroupDefence is how the character avoids or mitigates hits: block.
 	GroupDefence = "defence"
+	// GroupSkill is the main skill's values, read in its context. A build without a main
+	// skill has none of them.
+	GroupSkill = "skill"
 )
 
 // Output is a named value of the sheet a consumer can ask for and render without knowing the
@@ -45,11 +50,17 @@ type Output struct {
 	// Order is the output's position in the catalogue; lower shows first.
 	Order int `json:"order"`
 	stat  string
+	// damage, for an output of the skill group, is the damage type of the part of the main
+	// skill's damage it reads.
+	damage DamageType
 }
+
+// IsSkill reports whether o is read in the main skill's context.
+func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 
 // Outputs returns the catalogue of outputs, in display order.
 func Outputs() []Output {
-	out := append(group(GroupSheet, []Output{
+	out := slices.Concat(group(GroupSheet, []Output{
 		{Key: Strength, Label: "Strength", Better: output.Higher, stat: statStrength},
 		{Key: Dexterity, Label: "Dexterity", Better: output.Higher, stat: statDexterity},
 		{Key: Intelligence, Label: "Intelligence", Better: output.Higher, stat: statIntelligence},
@@ -86,7 +97,14 @@ func Outputs() []Output {
 		{Key: MovementSpeed, Label: "Movement Speed", Better: output.Higher, Unit: UnitPercent, stat: statMovementSpeed},
 	}), group(GroupDefence, []Output{
 		{Key: SpellBlockChance, Label: "Chance to Block Spell Damage", Better: output.Higher, Unit: UnitPercent, stat: statSpellBlockChanceCapped},
-	})...)
+	}), group(GroupSkill, []Output{
+		// The increased and more multiplier of one damage type's part of the main skill's damage.
+		{Key: PhysicalDamageModifier, Label: "Physical Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Physical},
+		{Key: FireDamageModifier, Label: "Fire Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Fire},
+		{Key: ColdDamageModifier, Label: "Cold Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Cold},
+		{Key: LightningDamageModifier, Label: "Lightning Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Lightning},
+		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
+	}))
 	for i := range out {
 		out[i].Order = i
 	}
@@ -107,7 +125,28 @@ func (sh *Sheet) Output(k output.Key) (float64, error) {
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
-	return sh.Value(o.stat)
+	n, err := sh.outputNode(o)
+	if err != nil {
+		return 0, err
+	}
+	v, err := sh.session.Get(n)
+	if err != nil {
+		return 0, fmt.Errorf("sheet: %s: %w", k, err)
+	}
+	return v, nil
+}
+
+// outputNode returns the node o reads: a skill output's in the main skill's context (the
+// sheet's first skill), for its damage type; ErrSkill when the sheet has no skill.
+func (sh *Sheet) outputNode(o Output) (core.Node, error) {
+	if !o.IsSkill() {
+		return core.Node{Stat: sh.stats[o.stat]}, nil
+	}
+	var damage []DamageType
+	if o.damage != 0 {
+		damage = []DamageType{o.damage}
+	}
+	return sh.skillNode(0, o.stat, damage)
 }
 
 func outputByKey(k output.Key) (Output, bool) {

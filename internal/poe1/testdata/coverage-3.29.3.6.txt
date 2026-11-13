@@ -1,7 +1,9 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 104 authored, 111 unknown, 1 display-only, 0 gaps, 1693 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 116 authored, 111 unknown, 1 display-only, 0 gaps, 1681 outside
 unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
+unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
+unvalidated area_damage_+% global, uses 10: that all damage of a skill with the Area type is area damage is our reading; the game data does not mark which of a skill's damage is area damage. A skill that hits both in and outside an area would validate it
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
 unvalidated life_per_level global, uses 9: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
 unknown shield_armour_+% global, uses 9: items: depends on equipped items, which an entry cannot check yet
