@@ -63,7 +63,7 @@ func PointBudget(c *build.Checked, cfg config.Resolved) (Budget, []build.Warning
 	if ascendancy > bud.Ascendancy {
 		out = append(out, build.Warning{
 			Code: AscendancyPointsOverBudget, Subject: "ascendancy points",
-			Message: fmt.Sprintf("%d allocated, at most %d from the labyrinths; kept", ascendancy, bud.Ascendancy),
+			Message: fmt.Sprintf("%d allocated to the ascendancy and bloodline together, at most %d from the labyrinths; kept", ascendancy, bud.Ascendancy),
 		})
 	}
 	return bud, out, nil

@@ -98,7 +98,14 @@ type compiledItem struct {
 // shape is what a sheet over the whole tree is fixed to; nodes, masteries, level and config
 // are switched.
 type shape struct {
-	variant, class, ascendancy string
+	variant, class, ascendancy, bloodline string
+}
+
+// shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
+// depend on these.
+func shapeOf(c *build.Checked) shape {
+	cb := c.Build()
+	return shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline}
 }
 
 type idleSheet struct {
@@ -203,7 +210,7 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	}
 	r := &run{build: b.Clone(), checked: c, warnings: warnings}
 	cb := c.Build()
-	r.shape = shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy}
+	r.shape = shapeOf(c)
 	if w, ok := versionWarning(b.Version, s.store.Manifest().Version); ok {
 		r.warnings = append(r.warnings, w)
 	}
@@ -289,8 +296,7 @@ func outputKeys(keys []output.Key) ([]output.Key, error) {
 // checkout takes the most recently returned idle sheet of c's shape or opens one over the
 // whole tree.
 func (s *Sim) checkout(c *build.Checked) (*poe1.Sheet, error) {
-	cb := c.Build()
-	k := shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy}
+	k := shapeOf(c)
 	s.mu.Lock()
 	for i, e := range slices.Backward(s.idle) {
 		if e.shape == k {

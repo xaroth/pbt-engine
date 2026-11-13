@@ -71,7 +71,7 @@ func (c *Checked) takenChoices() map[uint32]bool {
 // takeable reports whether a path may step from node from, allocated or not, to its neighbour
 // to; taken holds the choice nodes with an option.
 func (c *Checked) takeable(from, to *dataset.Node, fromAllocated bool, taken map[uint32]bool) bool {
-	if to == nil || to.Kind == dataset.ClassStart || to.Kind == dataset.AscendancyStart || !c.ownAscendancy(to.Ascendancy) {
+	if to == nil || to.Kind == dataset.ClassStart || to.Kind == dataset.AscendancyStart || !c.OwnsAscendancy(to.Ascendancy) {
 		return false
 	}
 	if !Crosses(from, to, fromAllocated) {
@@ -128,6 +128,9 @@ func (c *Checked) allocatedSet() map[uint32]bool {
 	}
 	return out
 }
+
+// Starts returns the class start and the starts of the build's ascendancy and bloodline, sorted.
+func (c *Checked) Starts() []uint32 { return slices.Sorted(maps.Keys(c.starts())) }
 
 // starts returns the class start and the starts of the build's ascendancy and bloodline.
 func (c *Checked) starts() map[uint32]bool {

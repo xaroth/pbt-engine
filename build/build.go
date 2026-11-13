@@ -25,9 +25,12 @@ var (
 	ErrFormat       = errors.New("build: format")
 )
 
-// Format is the build file format written by Encode. Parse rejects other formats. A field
-// added within a format is optional and left out when empty, so a build that does not use it
-// stays readable by an engine that predates it, and the format does not move.
+// Format is the build file format written by Encode. Parse rejects other formats. Until the
+// first release the format may be bumped freely, and older files need not stay readable. A
+// field added within a format is optional and left out when empty (omitzero), so a build that
+// does not use it stays readable by an engine that predates it. A map field also needs nil for
+// empty, by clearing it before encoding or with omitempty: omitzero writes {} for an empty map
+// that is not nil.
 const Format = 1
 
 // DefaultVariant is the tree variant of a build that names none.

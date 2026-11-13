@@ -158,25 +158,22 @@ func candidates(c *build.Checked, limit int) []candidate {
 }
 
 // walk is a breadth-first walk of the tree from the allocated nodes and the starts, over the
-// nodes the class and ascendancy can take, visiting neighbours in id order, so of
+// nodes the class, ascendancy and bloodline can take, visiting neighbours in id order, so of
 // equal-length paths the one through lower ids wins. Masteries end a path but are not walked
 // through: their edges say which notables unlock them.
 type walk struct {
-	tree       *dataset.Tree
-	ascendancy string
-	parent     map[uint32]uint32
-	depth      map[uint32]int
-	queue      []uint32
+	tree    *dataset.Tree
+	checked *build.Checked
+	parent  map[uint32]uint32
+	depth   map[uint32]int
+	queue   []uint32
 }
 
 func newWalk(c *build.Checked) *walk {
 	cb := c.Build()
-	w := &walk{tree: c.Tree(), ascendancy: cb.Ascendancy, parent: map[uint32]uint32{}, depth: map[uint32]int{}}
-	w.seed(c.Class().StartNode)
-	for i := range w.tree.Nodes {
-		if n := &w.tree.Nodes[i]; n.Kind == dataset.AscendancyStart && cb.Ascendancy != "" && n.Ascendancy == cb.Ascendancy {
-			w.seed(n.ID)
-		}
+	w := &walk{tree: c.Tree(), checked: c, parent: map[uint32]uint32{}, depth: map[uint32]int{}}
+	for _, id := range c.Starts() {
+		w.seed(id)
 	}
 	for _, id := range cb.Nodes {
 		w.seed(id)
@@ -216,7 +213,7 @@ func (w *walk) cost(path []uint32) (passive, ascendancy int) {
 // takeable reports whether the walk may step from node from, a seed or not, to its neighbour n.
 func (w *walk) takeable(from, n *dataset.Node, fromSeed bool) bool {
 	return n != nil && n.Kind != dataset.ClassStart && n.Kind != dataset.AscendancyStart &&
-		(n.Ascendancy == "" || n.Ascendancy == w.ascendancy) && build.Crosses(from, n, fromSeed)
+		w.checked.OwnsAscendancy(n.Ascendancy) && build.Crosses(from, n, fromSeed)
 }
 
 // run walks to depth limit (no limit when 0 or less) and returns the nodes reached beyond the

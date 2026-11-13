@@ -17,8 +17,8 @@ const marauder = "Metadata/Characters/Str/Str"
 
 // testSim is a Marauder tree: start 1 joins 2 and 5, both join 3, mastery 7 hangs off 3
 // (effects 70, +5% life, and 71, +3% life), Juggernaut start 20 joins 21, which joins choice
-// node 22 with option 23; node 9 joins nothing. Nodes 2, 3, 5, 21 and 23 give 10, 20, 30, 40
-// and 50 life.
+// node 22 with option 23; bloodline Oshabi's start 30 joins 31; node 9 joins nothing. Nodes 2,
+// 3, 5, 21, 23 and 31 give 10, 20, 30, 40, 50 and 60 life.
 func testSim(tb testing.TB) *simulator.Sim {
 	tb.Helper()
 	stats := []string{
@@ -52,7 +52,10 @@ func testSim(tb testing.TB) *simulator.Sim {
 				{ID: 21, Ascendancy: "Juggernaut", Neighbours: []uint32{20, 22}, Stats: life(40)},
 				{ID: 22, Ascendancy: "Juggernaut", Neighbours: []uint32{21, 23}, MultipleChoice: true},
 				{ID: 23, Ascendancy: "Juggernaut", Neighbours: []uint32{22}, MultipleChoiceOption: true, Stats: life(50)},
+				{ID: 30, Kind: dataset.AscendancyStart, Ascendancy: "Oshabi", Neighbours: []uint32{31}},
+				{ID: 31, Ascendancy: "Oshabi", Neighbours: []uint32{30}, Stats: life(60)},
 			},
+			AlternateAscendancies: []dataset.Ascendancy{{ID: "Oshabi"}},
 		}},
 	}
 	for _, id := range stats {
@@ -124,6 +127,19 @@ func TestCandidatesAndPaths(t *testing.T) {
 	if !slices.ContainsFunc(got, func(s summary) bool { return s.node == 7 && s.effect == 71 && s.passive == 0 && len(s.path) == 0 }) ||
 		slices.ContainsFunc(got, func(s summary) bool { return s.node == 7 && s.effect == 70 }) {
 		t.Errorf("allocated mastery: %v", got)
+	}
+}
+
+// The walk enters the build's bloodline from its start, and a bloodline node costs an
+// ascendancy point.
+func TestBloodline(t *testing.T) {
+	t.Parallel()
+	b := juggernaut()
+	b.Bloodline = "Oshabi"
+	got := summarize(nodes(t, testSim(t), b))
+	i := slices.IndexFunc(got, func(s summary) bool { return s.node == 31 })
+	if i < 0 || !slices.Equal(got[i].path, []uint32{31}) || got[i].passive != 0 || got[i].ascendancy != 1 {
+		t.Errorf("got %v, want node 31 by path [31] for 1 ascendancy point", got)
 	}
 }
 

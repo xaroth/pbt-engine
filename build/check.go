@@ -254,6 +254,12 @@ func (c *Checked) EditWarnings(edits []Edit) []Warning {
 	return out
 }
 
+// OwnsAscendancy reports whether a node of ascendancy id, empty for the main tree, is one the
+// build can hold: the main tree's, its ascendancy's or its bloodline's.
+func (c *Checked) OwnsAscendancy(id string) bool {
+	return id == "" || id == c.build.Ascendancy || id == c.build.Bloodline
+}
+
 // allocateWarnings returns the warnings for allocating ids and marks the ones taken.
 func (c *Checked) allocateWarnings(ids []uint32, allocated map[uint32]bool) []Warning {
 	var out []Warning
@@ -309,12 +315,6 @@ func (c *Checked) checkBloodline() {
 	c.bloodStart = c.ascendancyStart(b.Bloodline)
 }
 
-// ownAscendancy reports whether a node of ascendancy id, empty for the main tree, is one the
-// build can hold: the main tree's, its ascendancy's or its bloodline's.
-func (c *Checked) ownAscendancy(id string) bool {
-	return id == "" || id == c.build.Ascendancy || id == c.build.Bloodline
-}
-
 func (c *Checked) checkLevel() {
 	if l := c.build.Level; l < 1 || l > MaxLevel {
 		c.build.Level = min(max(l, 1), MaxLevel)
@@ -349,7 +349,7 @@ func (c *Checked) nodeProblem(id uint32, n *dataset.Node) (Warning, bool) {
 	switch {
 	case n == nil:
 		return Warning{NodeUnknown, subject, fmt.Sprintf("not in the %s tree of %s; dropped", c.build.Variant, c.store.Manifest().Version)}, true
-	case !c.ownAscendancy(n.Ascendancy):
+	case !c.OwnsAscendancy(n.Ascendancy):
 		return Warning{NodeOtherAscendancy, subject, fmt.Sprintf("a node of %s; dropped", n.Ascendancy)}, true
 	case n.Kind == dataset.ClassStart && n.ID != c.class.StartNode:
 		return Warning{NodeOtherClassStart, subject, "another class's start; dropped"}, true
