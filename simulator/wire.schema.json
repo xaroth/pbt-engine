@@ -195,6 +195,7 @@
         "level": { "type": "integer" },
         "class": { "type": "string" },
         "ascendancy": { "type": "string" },
+        "bloodline": { "type": "string", "description": "An alternate ascendancy of the tree, such as \"Oshabi\"." },
         "key": { "type": "string", "description": "A config key." },
         "value": { "$ref": "#/$defs/ConfigValue" },
         "skill": { "$ref": "#/$defs/SkillAt" },
@@ -211,9 +212,9 @@
       "description": "What an edit changes.",
       "enum": [
         "allocate", "deallocate", "set-mastery", "clear-mastery", "set-level", "set-class",
-        "set-ascendancy", "set-config", "clear-config", "add-skill-group", "remove-skill-group",
-        "set-skill-slot", "set-main-skill", "add-gem", "remove-gem", "set-active-gem",
-        "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"
+        "set-ascendancy", "set-bloodline", "set-config", "clear-config", "add-skill-group",
+        "remove-skill-group", "set-skill-slot", "set-main-skill", "add-gem", "remove-gem",
+        "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"
       ]
     },
     "ConfigValue": {

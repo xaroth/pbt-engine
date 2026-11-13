@@ -78,6 +78,38 @@ func TestAllocatePath(t *testing.T) {
 	}
 }
 
+// A path enters a bloodline as it enters an ascendancy: from its start, and only the build's.
+func TestAllocatePathBloodline(t *testing.T) {
+	t.Parallel()
+	s := testStore(t)
+	testCases := []struct {
+		name, bloodline string
+		node            uint32
+		want            []uint32
+	}{
+		{"from the bloodline start", "Oshabi", 52, []uint32{52}},
+		{"the bloodline start", "Oshabi", 50, nil},
+		{"another bloodline", "Oshabi", 61, nil},
+		{"no bloodline", "", 51, nil},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := juggernaut()
+			b.Bloodline = testCase.bloodline
+			got, ok := checked(t, s, b).AllocatePath(testCase.node)
+			if want := testCase.want != nil; ok != want {
+				t.Fatalf("got %v %v, want ok %v", got, ok, want)
+			}
+			if ok {
+				if diff := gocmp.Diff(build.Allocate(testCase.want...), got); diff != "" {
+					t.Errorf("(-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestDeallocateBranch(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)

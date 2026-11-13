@@ -29,6 +29,7 @@ type Code string
 // Warning codes of Check. Each warning says what Check did about it.
 const (
 	AscendancyNotOfClass  Code = "ascendancy-not-of-class"
+	BloodlineUnknown      Code = "bloodline-unknown"
 	LevelOutOfRange       Code = "level-out-of-range"
 	NodeUnknown           Code = "node-unknown"
 	NodeRepeated          Code = "node-repeated"
@@ -91,16 +92,17 @@ func (e *CheckError) Unwrap() []error {
 // warnings say. Only Check creates it. The Store, Tree, Class, Character and Nodes it returns
 // point into the Store's shared tables, so they are read-only, as everything a Store returns.
 type Checked struct {
-	build     Build
-	store     *dataset.Store
-	tree      *dataset.Tree
-	class     *dataset.Class
-	character *dataset.Character
-	chars     []dataset.Character
-	nodes     []*dataset.Node
-	ascStart  *dataset.Node
-	masteries []MasteryChoice
-	warnings  []Warning
+	build      Build
+	store      *dataset.Store
+	tree       *dataset.Tree
+	class      *dataset.Class
+	character  *dataset.Character
+	chars      []dataset.Character
+	nodes      []*dataset.Node
+	ascStart   *dataset.Node
+	bloodStart *dataset.Node
+	masteries  []MasteryChoice
+	warnings   []Warning
 }
 
 // MasteryChoice is an allocated mastery node and its chosen effect.
@@ -110,10 +112,11 @@ type MasteryChoice struct {
 }
 
 // Check checks b against the dataset s and fixes what it can: it clears an ascendancy of
-// another class, clamps the level to 1 to 100, drops unknown, repeated and proxy nodes, other
-// classes' or ascendancies' nodes, and mastery choices that do not fit, each with a warning.
-// It warns without a fix about nodes not connected to the class or ascendancy start and about
-// allocated masteries with no choice. Against the dataset's skills group it drops unknown gems,
+// another class and a bloodline not among the tree's alternate ascendancies, clamps the level
+// to 1 to 100, drops unknown, repeated and proxy nodes, other classes' nodes, nodes of
+// ascendancies other than the build's ascendancy and bloodline, and mastery choices that do
+// not fit, each with a warning. It warns without a fix about nodes not connected to the class,
+// ascendancy or bloodline start and about allocated masteries with no choice. Against the dataset's skills group it drops unknown gems,
 // clears unknown variants and slots without sockets, corrects which gems are supports, clamps
 // gem levels and quality, and moves a main skill or active gem that does not fit to the first,
 // each with a warning; a dataset without the group gets one warning and the skills stay as
@@ -154,6 +157,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 		return nil, nil, ps.err()
 	}
 	c.checkAscendancy()
+	c.checkBloodline()
 	c.checkLevel()
 	c.checkNodes()
 	c.checkChoices()
@@ -242,7 +246,7 @@ func (c *Checked) EditWarnings(edits []Edit) []Warning {
 			if w, bad := c.effectProblem(e.Node, e.Effect, allocated[e.Node]); bad {
 				out = append(out, w)
 			}
-		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetConfig, OpClearConfig,
+		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
 			OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
 			OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip:
 		}
@@ -292,6 +296,25 @@ func (c *Checked) checkAscendancy() {
 	c.ascStart = c.ascendancyStart(b.Ascendancy)
 }
 
+func (c *Checked) checkBloodline() {
+	b := &c.build
+	if b.Bloodline == "" {
+		return
+	}
+	if !slices.ContainsFunc(c.tree.AlternateAscendancies, func(a dataset.Ascendancy) bool { return a.ID == b.Bloodline }) {
+		c.warnf(BloodlineUnknown, "bloodline "+b.Bloodline, "not an alternate ascendancy of the %s tree; cleared, its nodes dropped", b.Variant)
+		b.Bloodline = ""
+		return
+	}
+	c.bloodStart = c.ascendancyStart(b.Bloodline)
+}
+
+// ownAscendancy reports whether a node of ascendancy id, empty for the main tree, is one the
+// build can hold: the main tree's, its ascendancy's or its bloodline's.
+func (c *Checked) ownAscendancy(id string) bool {
+	return id == "" || id == c.build.Ascendancy || id == c.build.Bloodline
+}
+
 func (c *Checked) checkLevel() {
 	if l := c.build.Level; l < 1 || l > MaxLevel {
 		c.build.Level = min(max(l, 1), MaxLevel)
@@ -326,7 +349,7 @@ func (c *Checked) nodeProblem(id uint32, n *dataset.Node) (Warning, bool) {
 	switch {
 	case n == nil:
 		return Warning{NodeUnknown, subject, fmt.Sprintf("not in the %s tree of %s; dropped", c.build.Variant, c.store.Manifest().Version)}, true
-	case n.Ascendancy != "" && n.Ascendancy != c.build.Ascendancy:
+	case !c.ownAscendancy(n.Ascendancy):
 		return Warning{NodeOtherAscendancy, subject, fmt.Sprintf("a node of %s; dropped", n.Ascendancy)}, true
 	case n.Kind == dataset.ClassStart && n.ID != c.class.StartNode:
 		return Warning{NodeOtherClassStart, subject, "another class's start; dropped"}, true
@@ -357,8 +380,8 @@ func (c *Checked) node(id uint32) *dataset.Node {
 	return &c.tree.Nodes[j]
 }
 
-// checkConnected warns about allocated nodes no path of allocated nodes joins to the class
-// start or the ascendancy start. They stay allocated: jewels can make such trees legal.
+// checkConnected warns about allocated nodes no path of allocated nodes joins to the class,
+// ascendancy or bloodline start. They stay allocated: jewels can make such trees legal.
 func (c *Checked) checkConnected() {
 	reached := c.joined(c.allocatedSet())
 	var lost []string
@@ -368,7 +391,7 @@ func (c *Checked) checkConnected() {
 		}
 	}
 	if len(lost) > 0 {
-		c.warnf(NodesDisconnected, "nodes "+strings.Join(lost, ", "), "not connected to the class or ascendancy start; kept")
+		c.warnf(NodesDisconnected, "nodes "+strings.Join(lost, ", "), "not connected to the class, ascendancy or bloodline start; kept")
 	}
 }
 

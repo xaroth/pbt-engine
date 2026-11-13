@@ -28,6 +28,7 @@ const (
 	OpSetLevel      EditOp = "set-level"
 	OpSetClass      EditOp = "set-class"
 	OpSetAscendancy EditOp = "set-ascendancy"
+	OpSetBloodline  EditOp = "set-bloodline"
 	OpSetConfig     EditOp = "set-config"
 	OpClearConfig   EditOp = "clear-config"
 )
@@ -44,8 +45,9 @@ type Edit struct {
 	Effect uint32 `json:"effect,omitzero"`
 	Level  int    `json:"level,omitzero"`
 	Class  string `json:"class,omitzero"`
-	// Ascendancy for set-ascendancy; empty clears it.
+	// Ascendancy for set-ascendancy, Bloodline for set-bloodline; empty clears it.
 	Ascendancy string `json:"ascendancy,omitzero"`
+	Bloodline  string `json:"bloodline,omitzero"`
 	// Key and Value for set-config, Key for clear-config.
 	Key   string          `json:"key,omitzero"`
 	Value json.RawMessage `json:"value,omitzero"`
@@ -84,6 +86,10 @@ func SetClass(class string) Edit { return Edit{Op: OpSetClass, Class: class} }
 // fits; Checked.ChangeAscendancy also deallocates the old ascendancy's nodes.
 func SetAscendancy(ascendancy string) Edit { return Edit{Op: OpSetAscendancy, Ascendancy: ascendancy} }
 
+// SetBloodline sets the bloodline; empty clears it. Nodes stay, and Check drops what no longer
+// fits; Checked.ChangeBloodline also deallocates the old bloodline's nodes.
+func SetBloodline(bloodline string) Edit { return Edit{Op: OpSetBloodline, Bloodline: bloodline} }
+
 // SetConfig sets config key k to v; a value that fails the key's check is an error.
 func SetConfig[T any](k config.Key[T], v T) (Edit, error) {
 	var vals config.Values
@@ -115,12 +121,8 @@ func (b *Build) apply(e Edit) error {
 		b.applyMastery(e)
 	case OpSetConfig, OpClearConfig:
 		b.applyConfig(e)
-	case OpSetLevel:
-		b.Level = e.Level
-	case OpSetClass:
-		b.Class = e.Class
-	case OpSetAscendancy:
-		b.Ascendancy = e.Ascendancy
+	case OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline:
+		b.applyCharacter(e)
 	case OpEquip, OpUnequip:
 		b.applyItem(e)
 	default:
@@ -130,6 +132,20 @@ func (b *Build) apply(e Edit) error {
 		return fmt.Errorf("%w %q", ErrEditOp, e.Op)
 	}
 	return nil
+}
+
+// applyCharacter applies e, a set-level, set-class, set-ascendancy or set-bloodline edit.
+func (b *Build) applyCharacter(e Edit) {
+	switch e.Op {
+	case OpSetLevel:
+		b.Level = e.Level
+	case OpSetClass:
+		b.Class = e.Class
+	case OpSetAscendancy:
+		b.Ascendancy = e.Ascendancy
+	default:
+		b.Bloodline = e.Bloodline
+	}
 }
 
 func (b *Build) applyNodes(e Edit) {
@@ -164,7 +180,7 @@ func (b *Build) applyConfig(e Edit) {
 	b.Config[e.Key] = slices.Clone(e.Value)
 }
 
-// Diff returns the edits that turn a into b: class, ascendancy, level, nodes deallocated then
+// Diff returns the edits that turn a into b: class, ascendancy, bloodline, level, nodes deallocated then
 // allocated, mastery choices cleared then set, config keys cleared then set, each in sorted
 // order, then the skill groups, then the items. Version and format are not compared. Builds of
 // another game or tree variant cannot be turned into each other.
@@ -178,6 +194,9 @@ func Diff(a, b *Build) ([]Edit, error) {
 	}
 	if a.Ascendancy != b.Ascendancy {
 		out = append(out, SetAscendancy(b.Ascendancy))
+	}
+	if a.Bloodline != b.Bloodline {
+		out = append(out, SetBloodline(b.Bloodline))
 	}
 	if a.Level != b.Level {
 		out = append(out, SetLevel(b.Level))

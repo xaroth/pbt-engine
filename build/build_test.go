@@ -25,7 +25,8 @@ const (
 // nodes 10 and 12 (Juggernaut, from its start 20; 12 grants a point) and 11 (Berserker);
 // Ranger starts at 2. Masteries 4 and 5 hang off 3 and share effect 7; 30 is reached only
 // through mastery 4; 6 joins nothing. Juggernaut's 13 is a choice node with options 14 and 15.
-// Proxy 40 hangs off 3, and 41 off 40 only.
+// Proxy 40 hangs off 3, and 41 off 40 only. Bloodline Oshabi has 51 and 52 off its start 50;
+// bloodline Lycia has 61 off its start 60.
 func testStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	return openStore(t, testDataset())
@@ -59,7 +60,13 @@ func testDataset() *dataset.Dataset {
 				{ID: 30, Neighbours: []uint32{4}},
 				{ID: 40, Kind: dataset.Proxy, Neighbours: []uint32{3, 41}},
 				{ID: 41, Kind: dataset.Notable, Neighbours: []uint32{40}},
+				{ID: 50, Kind: dataset.AscendancyStart, Ascendancy: "Oshabi", Neighbours: []uint32{51, 52}},
+				{ID: 51, Ascendancy: "Oshabi", Neighbours: []uint32{50}},
+				{ID: 52, Kind: dataset.Notable, Ascendancy: "Oshabi", Neighbours: []uint32{50}},
+				{ID: 60, Kind: dataset.AscendancyStart, Ascendancy: "Lycia", Neighbours: []uint32{61}},
+				{ID: 61, Ascendancy: "Lycia", Neighbours: []uint32{60}},
 			},
+			AlternateAscendancies: []dataset.Ascendancy{{ID: "Oshabi"}, {ID: "Lycia"}},
 		}},
 	}
 }
@@ -85,21 +92,19 @@ func juggernaut() *build.Build {
 	}
 }
 
+// A build encodes as its file, and the file parses back to the build; an empty optional field
+// such as the bloodline is left out of the file.
 func TestEncodeParse(t *testing.T) {
 	t.Parallel()
-	b := juggernaut()
-	data, err := b.Encode()
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := `{
+	const head = `{
   "format": 1,
   "game": "poe1",
   "version": "3.29",
   "variant": "standard",
   "class": "Metadata/Characters/Str/Str",
   "ascendancy": "Juggernaut",
-  "level": 90,
+`
+	const tail = `  "level": 90,
   "nodes": [
     1,
     3,
@@ -111,16 +116,33 @@ func TestEncodeParse(t *testing.T) {
   }
 }
 `
-	if diff := cmp.Diff(want, string(data)); diff != "" {
-		t.Errorf("Encode (-want +got):\n%s", diff)
+	testCases := []struct {
+		name, bloodline, file string
+	}{
+		{"without a bloodline", "", head + tail},
+		{"with a bloodline", "Oshabi", head + `  "bloodline": "Oshabi",` + "\n" + tail},
 	}
-	got, err := build.Parse(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b.Nodes = []uint32{1, 3, 10}
-	if diff := cmp.Diff(b, got); diff != "" {
-		t.Errorf("Parse(Encode) (-want +got):\n%s", diff)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := juggernaut()
+			b.Bloodline = testCase.bloodline
+			data, err := b.Encode()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(testCase.file, string(data)); diff != "" {
+				t.Errorf("Encode (-want +got):\n%s", diff)
+			}
+			got, err := build.Parse([]byte(testCase.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			b.Nodes = []uint32{1, 3, 10}
+			if diff := cmp.Diff(b, got); diff != "" {
+				t.Errorf("Parse (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -201,6 +223,23 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+// A bloodline's start and nodes are the build's own, joined to the bloodline start.
+func TestCheckBloodline(t *testing.T) {
+	t.Parallel()
+	b := juggernaut()
+	b.Bloodline = "Oshabi"
+	b.Nodes = append(b.Nodes, 50, 51, 52)
+	c, warnings, err := build.Check(b, testStore(t))
+	if err != nil || len(warnings) != 0 {
+		t.Fatal(err, warnings)
+	}
+	want := *b.Clone()
+	want.Nodes = []uint32{1, 3, 10, 50, 51, 52}
+	if diff := cmp.Diff(want, c.Build()); diff != "" {
+		t.Errorf("Build (-want +got):\n%s", diff)
+	}
+}
+
 func TestCheckErrors(t *testing.T) {
 	t.Parallel()
 	s := testStore(t)
@@ -264,6 +303,34 @@ func TestCheckWarnings(t *testing.T) {
 				t.Helper()
 				if !slices.Equal(b.Nodes, []uint32{1, 3, 10}) {
 					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
+		{"bloodline node without the bloodline", func(b *build.Build) { b.Nodes = append(b.Nodes, 50, 51) },
+			[]build.Code{build.NodeOtherAscendancy, build.NodeOtherAscendancy},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if !slices.Equal(b.Nodes, []uint32{1, 3, 10}) {
+					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
+		{"node of another bloodline", func(b *build.Build) {
+			b.Bloodline = "Oshabi"
+			b.Nodes = append(b.Nodes, 50, 51, 61)
+		}, []build.Code{build.NodeOtherAscendancy},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if !slices.Equal(b.Nodes, []uint32{1, 3, 10, 50, 51}) {
+					t.Errorf("nodes %v", b.Nodes)
+				}
+			}},
+		{"unknown bloodline", func(b *build.Build) {
+			b.Bloodline = "Berserker"
+			b.Nodes = append(b.Nodes, 11)
+		}, []build.Code{build.BloodlineUnknown, build.NodeOtherAscendancy},
+			func(t *testing.T, b build.Build) {
+				t.Helper()
+				if b.Bloodline != "" || slices.Contains(b.Nodes, 11) {
+					t.Errorf("bloodline %q, nodes %v", b.Bloodline, b.Nodes)
 				}
 			}},
 		{"proxy", func(b *build.Build) { b.Nodes = append(b.Nodes, 40) }, []build.Code{build.NodeProxy},
