@@ -20,7 +20,18 @@ jobs:
       - run: go vet ./...
       - name: go fix makes no changes
         run: go fix ./... && git diff --exit-code
-      - run: go test -race ./...
+      - uses: ./.github/actions/datasets
+      # The real-data tests skip without PBT_DATASETS; none may skip for that reason here.
+      - name: Test with the real datasets
+        # Unlike the default shell, sets pipefail, so a failing test piped into tee fails the step.
+        shell: bash
+        run: |
+          go test -race -v ./... | tee "$RUNNER_TEMP/test.log"
+          if grep -q 'PBT_DATASETS not set' "$RUNNER_TEMP/test.log"; then
+            echo "::error::real-data tests skipped: PBT_DATASETS not set"
+            exit 1
+          fi
+          echo "Tests and subtests: $(grep -c -e '--- PASS' "$RUNNER_TEMP/test.log") passed, $(grep -c -e '--- SKIP' "$RUNNER_TEMP/test.log") skipped, none for want of PBT_DATASETS" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
@@ -35,7 +46,6 @@ jobs:
         # Unlike the default shell, sets pipefail, so a failing test piped into tee fails the step.
         shell: bash
     steps:
-      - run: echo "PBT_DATASETS=$RUNNER_TEMP/pbt-datasets" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
@@ -51,19 +61,14 @@ jobs:
         env:
           GOOS: js
           GOARCH: wasm
-      # A dataset never changes under its id, so an older cache only saves downloads.
-      - uses: actions/cache@v6
-        with:
-          path: ${{ env.PBT_DATASETS }}
-          key: pbt-datasets-${{ hashFiles('internal/realdata/realdata.go') }}
-          restore-keys: pbt-datasets-
-      - name: Fetch the pinned datasets by id
-        run: go run ./internal/realdata/fetch "$PBT_DATASETS"
+      - uses: ./.github/actions/datasets
       - name: Probe, native
         env:
           PBT_PROBE_OUT: ${{ runner.temp }}/probe-native.json
         run: go test ./simulator -run '^TestProbe$' -count=1 -v | tee "$RUNNER_TEMP/native.log"
       - name: Probe, js/wasm
+        # The wasm test binary has hung after PASS before; the probe itself takes seconds.
+        timeout-minutes: 5
         env:
           PBT_PROBE_OUT: ${{ runner.temp }}/probe-wasm.json
         run: |

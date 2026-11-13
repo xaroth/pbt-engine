@@ -1,0 +1,18 @@
+name: Pinned datasets
+description: Puts the pinned real datasets under $PBT_DATASETS, from the cache or fetched by id from pbt-data's bucket.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: echo "PBT_DATASETS=$RUNNER_TEMP/pbt-datasets" >> "$GITHUB_ENV"
+    # No restore-keys: an older cache would carry unpinned versions forward. A dataset never
+    # changes under its id, so the pins decide the key.
+    - uses: actions/cache@v6
+      with:
+        path: ${{ env.PBT_DATASETS }}
+        key: pbt-datasets-${{ hashFiles('internal/realdata/realdata.go') }}
+    - name: Fetch the pinned datasets by id
+      shell: bash
+      run: |
+        go run ./internal/realdata/fetch "$PBT_DATASETS"
+        echo "Datasets under PBT_DATASETS: $(du -sh "$PBT_DATASETS" | cut -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
