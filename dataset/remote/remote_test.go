@@ -115,7 +115,7 @@ func (b *bucket) publish(t *testing.T, league string, d *dataset.Dataset) datase
 	if idx["poe1"] == nil {
 		idx["poe1"] = map[string]remote.Entry{}
 	}
-	idx["poe1"][league] = remote.Entry{Version: m.Version, Dataset: m.ID, Art: strings.Repeat("a", 64)}
+	idx["poe1"][league] = remote.Entry{Version: m.Version, Dataset: m.ID, Art: strings.Repeat("a", 64), Format: dataset.FormatVersion}
 	c, err := json.Marshal(idx)
 	if err != nil {
 		t.Fatal(err)
@@ -351,6 +351,44 @@ func TestPullRemovesLeftovers(t *testing.T) {
 	pull(t, b, dir)
 	if left := strayEntries(t, dir); len(left) != 0 {
 		t.Errorf("left behind %v", left)
+	}
+}
+
+// Pull reads the latest of a league only in the engine's dataset format; an entry without a
+// format is format 1.
+func TestPullFormat(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name   string
+		format string
+		want   error
+	}{
+		{"format 1", `,"format":1`, nil},
+		{"format 2", `,"format":2`, dataset.ErrFormat},
+		{"no format", ``, nil},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := newBucket(t)
+			m := b.upload(t, dataset1("3.29.3.6"))
+			idx := `{"poe1":{"3.29":{"version":"3.29.3.6","dataset":"` + m.ID + `","art":"` + strings.Repeat("a", 64) + `"` + testCase.format + `}}}`
+			b.write(t, remote.IndexName, []byte(idx))
+			dir := t.TempDir()
+			rs, err := remote.Pull(t.Context(), b.src, dir, "poe1")
+			if !errors.Is(err, testCase.want) {
+				t.Fatalf("got %v, want %v", err, testCase.want)
+			}
+			if testCase.want != nil {
+				if got := b.take(); len(rs) != 0 || len(got) != 0 {
+					t.Errorf("results %+v, fetched %v, want neither", rs, got)
+				}
+				return
+			}
+			if got := versions(t, dir); !slices.Equal(got, []string{"3.29.3.6"}) {
+				t.Errorf("pulled versions %v", got)
+			}
+		})
 	}
 }
 
