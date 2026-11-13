@@ -2,6 +2,7 @@ package pob_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -14,10 +15,11 @@ import (
 )
 
 // enemyConfig sets every enemy input PoB's Enemy Stats section shares with the config, inside
-// a config set, beside a placeholder and an enemy input the config does not hold.
+// a config set, beside a placeholder and an enemy input the config does not hold. PoB lowers
+// the level to 85 and reads the fire resistance's 0 as empty; evasion's 0 is a value.
 const enemyConfig = `<ConfigSet id="1">
 	<Input name="enemyIsBoss" string="Uber"/>
-	<Input name="enemyLevel" number="80"/>
+	<Input name="enemyLevel" number="90"/>
 	<Input name="enemyLightningResist" number="-10"/>
 	<Input name="enemyColdResist" number="20"/>
 	<Input name="enemyFireResist" number="0"/>
@@ -33,8 +35,8 @@ func TestFromXMLEnemy(t *testing.T) {
 	b, w := fromXML(t, `className="Marauder"`, `treeVersion="3_29"`, enemyConfig)
 	want := values(t, poe1.BanditsKillAll, "")
 	for name, v := range map[string]string{
-		"enemy": `"uber"`, "enemy-level": "80", "enemy-lightning-resistance": "-10", "enemy-cold-resistance": "20",
-		"enemy-fire-resistance": "0", "enemy-chaos-resistance": "75", "enemy-evasion": "0", "enemy-armour": "12000",
+		"enemy": `"uber"`, "enemy-level": "85", "enemy-lightning-resistance": "-10", "enemy-cold-resistance": "20",
+		"enemy-chaos-resistance": "75", "enemy-evasion": "0", "enemy-armour": "12000",
 	} {
 		want[name] = json.RawMessage(v)
 	}
@@ -64,7 +66,6 @@ func TestFromXMLEnemyBadValues(t *testing.T) {
 	t.Parallel()
 	for _, in := range []string{
 		`<Input name="enemyIsBoss" string="Maven"/>`,
-		`<Input name="enemyLevel" number="0"/>`,
 		`<Input name="enemyArmour" number="-5"/>`,
 		`<Input name="enemyFireResist" number="12.5"/>`,
 		`<Input name="enemyChaosResist" string="high"/>`,
@@ -93,5 +94,41 @@ func TestToXMLEnemyRoundTrip(t *testing.T) {
 	}
 	if diff := cmp.Diff(b.Config, got.Config, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("config (-want +got):\n%s", diff)
+	}
+}
+
+func TestFromXMLEnemyZeroIsEmpty(t *testing.T) {
+	t.Parallel()
+	b, w := fromXML(t, `className="Marauder"`, `treeVersion="3_29"`,
+		`<Input name="enemyIsBoss" string="Pinnacle"/><Input name="enemyLevel" number="0"/><Input name="enemyFireResist" number="0"/>`+
+			`<Input name="enemyColdResist" number="0"/><Input name="enemyLightningResist" number="0"/><Input name="enemyChaosResist" number="0"/>`)
+	want := values(t, poe1.BanditsKillAll, "")
+	want["enemy"] = json.RawMessage(`"pinnacle"`)
+	if diff := cmp.Diff(want, b.Config); diff != "" || len(w) != 0 {
+		t.Errorf("config (-want +got):\n%s\nwarnings %v", diff, w)
+	}
+	cfg, _ := config.Resolve(poe1.ConfigSpecs(), config.Layer{Source: config.FromBuild, Values: b.Config})
+	e, err := poe1.EnemyOf(cfg, 90, nil)
+	if err != nil || e.Level != 84 || e.FireResistance != 50 || e.ChaosResistance != 30 {
+		t.Errorf("enemy %+v, %v; want the pinnacle's level and resistances", e, err)
+	}
+}
+
+func TestToXMLEnemyZeroResistance(t *testing.T) {
+	t.Parallel()
+	b := chieftain(t)
+	b.Config["enemy-cold-resistance"] = json.RawMessage("0")
+	b.Config["enemy-armour"] = json.RawMessage("0")
+	file, warnings, err := pob.ToXML(b, exportRegistry(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []build.Warning{{Code: pob.ConfigNotExported, Subject: "enemy-cold-resistance",
+		Message: "PoB reads 0 in this input as empty and uses its boss preset; not exported"}}
+	if diff := cmp.Diff(want, warnings); diff != "" {
+		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+	if s := string(file); strings.Contains(s, "enemyColdResist") || !strings.Contains(s, `<Input name="enemyArmour" number="0">`) {
+		t.Errorf("file writes the cold resistance or lacks the armour:\n%s", s)
 	}
 }

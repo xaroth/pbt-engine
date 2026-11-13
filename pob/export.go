@@ -190,11 +190,14 @@ func joinMasteries(m map[uint32]uint32) string {
 // PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
-	enemy, enemyKeys, err := enemyInputs(v)
+	enemy, enemyKeys, unwritable, err := enemyInputs(v)
 	if err != nil {
 		return err
 	}
 	ex.warnConfigLeftOut(v, enemyKeys)
+	for _, name := range unwritable {
+		ex.warnf(ConfigNotExported, name, "PoB reads 0 in this input as empty and uses its boss preset; not exported")
+	}
 	var inputs []outInput
 	bandit, ok, err := config.Get(v, poe1.Bandits)
 	if err != nil {

@@ -68,7 +68,8 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // dataset reg resolves for that version, or of the newest poe1 dataset when it has none
 // (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
 // the campaign stage from PoB's resistance penalty, and the enemy's kind, level, resistances,
-// armour and evasion; PoB's placeholders, the values it shows for inputs left empty, are not
+// armour and evasion, read as PoB reads them (a 0 level or resistance is empty, a level
+// above 85 is 85); PoB's placeholders, the values it shows for inputs left empty, are not
 // read. The active skill set's groups, with their gems resolved through the dataset's skills
 // group (see build.Skills). The active item
 // set's items in the equipment slots, weapon swap included, read through the dataset's items
