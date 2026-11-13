@@ -79,6 +79,76 @@ table NodeOverride {
   excluded_nodes: [uint32];
 }
 
+// A PassiveJewelRadii row: the radius of a jewel and the ring Thread of Hope uses.
+table JewelRadius {
+  // Such as Large.
+  id: string (required);
+  radius: int32;
+  ring_inner: int32;
+  ring_outer: int32;
+}
+
+enum ClusterSize: ubyte {
+  Small,
+  Medium,
+  Large,
+}
+
+// A jewel socket that takes a cluster jewel (PassiveJewelSlots).
+table ClusterSocket {
+  node: uint32;
+  size: ClusterSize;
+  // ClusterIndex: which of its parent's sockets it is.
+  index: int32;
+  // The proxy node whose group places the generated nodes.
+  proxy: uint32;
+  // The socket of the jewel it sits on; 0 for the tree's own sockets.
+  parent: uint32;
+  // StartIndices.
+  start_indices: [int32];
+}
+
+// A PassiveTreeExpansionJewels row: how a cluster jewel of one size lays out its nodes.
+table ClusterJewel {
+  size: ClusterSize;
+  // BaseItemTypes id.
+  base: string (required);
+  min_nodes: int32;
+  max_nodes: int32;
+  small_indices: [int32];
+  notable_indices: [int32];
+  socket_indices: [int32];
+  total_indices: int32;
+}
+
+// A PassiveTreeExpansionSkills row: a kind of small passive a cluster jewel of size can add.
+table ClusterSkill {
+  size: ClusterSize;
+  // A tree node.
+  passive: uint32;
+  // A tree node, or 0.
+  mastery: uint32;
+  // The Tags id the jewel's enchant names it by.
+  tag: string (required);
+}
+
+// A PassiveTreeExpansionSpecialSkills row: the notable or keystone a cluster jewel mod adds.
+table ClusterNotable {
+  // A tree node.
+  passive: uint32;
+  // Index into the tree's stat_ids: the stat on the jewel's mod.
+  stat: uint32;
+}
+
+table Clusters {
+  // Sorted by node.
+  sockets: [ClusterSocket];
+  // Table order.
+  jewels: [ClusterJewel];
+  skills: [ClusterSkill];
+  notables: [ClusterNotable];
+}
+
 table Ascendancy {
   id: string (required);
 }
@@ -107,6 +177,10 @@ table Tree {
   stat_ids: [string] (required);
   // Sorted by id; absent in trees without overrides.
   overrides: [NodeOverride];
+  // Table order; absent in trees without them.
+  jewel_radii: [JewelRadius];
+  // Absent in trees without cluster jewels.
+  clusters: Clusters;
 }
 
 root_type Tree;
