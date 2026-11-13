@@ -129,6 +129,9 @@ func validateTree(n int, chars []Character, t Tree) error {
 			return err
 		}
 	}
+	if err := validateOverrides(n, ids, t); err != nil {
+		return err
+	}
 	return validateTreeRefs(chars, ids, t)
 }
 
@@ -173,6 +176,41 @@ func validateTreeRefs(chars []Character, ids map[uint32]bool, t Tree) error {
 		}
 	}
 	return nil
+}
+
+func validateOverrides(n int, ids map[uint32]bool, t Tree) error {
+	for i, o := range t.Overrides {
+		if i > 0 && t.Overrides[i-1].ID >= o.ID {
+			return fmt.Errorf("tree %s: overrides not sorted or repeated at %q: %w", t.Variant, o.ID, ErrInvalid)
+		}
+		if err := validateOverride(n, ids, fmt.Sprintf("tree %s override %q", t.Variant, o.ID), o); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateOverride(n int, ids map[uint32]bool, what string, o NodeOverride) error {
+	switch {
+	case o.ID == "":
+		return fmt.Errorf("%s: empty id: %w", what, ErrInvalid)
+	case o.Kind > Runegraft:
+		return fmt.Errorf("%s: unknown kind %d: %w", what, o.Kind, ErrInvalid)
+	case o.Target > AscendancyNotable:
+		return fmt.Errorf("%s: unknown target %d: %w", what, o.Target, ErrInvalid)
+	case o.Icon == "":
+		return fmt.Errorf("%s: no icon: %w", what, ErrInvalid)
+	case o.MinNeighbours < 0 || o.MaxNeighbours < 0:
+		return fmt.Errorf("%s: negative neighbour bound: %w", what, ErrInvalid)
+	case !slices.IsSorted(o.ExcludedNodes):
+		return fmt.Errorf("%s: excluded nodes not sorted: %w", what, ErrInvalid)
+	}
+	for _, x := range o.ExcludedNodes {
+		if !ids[x] {
+			return fmt.Errorf("%s: excluded node %d not in tree: %w", what, x, ErrInvalid)
+		}
+	}
+	return sortedStats(what, o.Stats, n)
 }
 
 // validTag reports whether s is safe as part of a file name: a-z, 0-9 and inner dashes.
@@ -244,6 +282,11 @@ func validateNames(texts []Text, trees []Tree) error {
 				return fmt.Errorf("text %s: name for unknown ascendancy %s in tree %s: %w", t.Language, n.ID, n.Variant, ErrInvalid)
 			}
 		}
+		for _, n := range t.OverrideNames {
+			if !names.overrides[n.ID] {
+				return fmt.Errorf("text %s: name for unknown override %s: %w", t.Language, n.ID, ErrInvalid)
+			}
+		}
 	}
 	return nil
 }
@@ -252,10 +295,11 @@ func validateNames(texts []Text, trees []Tree) error {
 type treeNames struct {
 	nodes        map[uint32]bool
 	ascendancies map[string]bool // "<variant>/<id>"
+	overrides    map[string]bool
 }
 
 func collectTreeNames(trees []Tree) treeNames {
-	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}}
+	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, overrides: map[string]bool{}}
 	for _, t := range trees {
 		for _, n := range t.Nodes {
 			names.nodes[n.ID] = true
@@ -267,6 +311,9 @@ func collectTreeNames(trees []Tree) treeNames {
 		}
 		for _, a := range t.AlternateAscendancies {
 			names.ascendancies[t.Variant+"/"+a.ID] = true
+		}
+		for _, o := range t.Overrides {
+			names.overrides[o.ID] = true
 		}
 	}
 	return names

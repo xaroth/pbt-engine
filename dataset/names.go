@@ -14,9 +14,9 @@ const namesPrefix = "names-"
 // NamesFile returns the file name of the names of language, such as "en".
 func NamesFile(language string) string { return namesPrefix + language + fbSuffix }
 
-// Names are the character, ascendancy and node names of one language: the part of its Text a
-// host needs to show a class or a node's name without the stat descriptions. Write writes them
-// beside each text as names-<language>.fb.
+// Names are the character, ascendancy, node and override names of one language: the part of
+// its Text a host needs to show a class, a node or an override's name without the stat
+// descriptions. Write writes them beside each text as names-<language>.fb.
 type Names struct {
 	Language string
 	// NodeNames are sorted by ID.
@@ -25,11 +25,16 @@ type Names struct {
 	CharacterNames []Name
 	// AscendancyNames are keyed by tree variant and Ascendancy.ID.
 	AscendancyNames []AscendancyName
+	// OverrideNames are keyed by NodeOverride.ID.
+	OverrideNames []Name
 }
 
 // Names returns the names of t, sharing its slices.
 func (t *Text) Names() Names {
-	return Names{Language: t.Language, NodeNames: t.NodeNames, CharacterNames: t.CharacterNames, AscendancyNames: t.AscendancyNames}
+	return Names{
+		Language: t.Language, NodeNames: t.NodeNames, CharacterNames: t.CharacterNames,
+		AscendancyNames: t.AscendancyNames, OverrideNames: t.OverrideNames,
+	}
 }
 
 // Names returns the names of one language, such as "en", shared and read-only. It reads the
@@ -71,12 +76,14 @@ func encodeNamesGroup(n Names) []byte {
 	nodes := nodeNameVector(b, fb.NamesStartNodeNamesVector, n.NodeNames)
 	chars := nameVector(b, fb.NamesStartCharacterNamesVector, n.CharacterNames)
 	ascs := ascendancyNameVector(b, fb.NamesStartAscendancyNamesVector, n.AscendancyNames)
+	addOverrides := optionalNames(b, nameList{fb.NamesStartOverrideNamesVector, fb.NamesAddOverrideNames, n.OverrideNames})
 	lang := b.CreateString(n.Language)
 	fb.NamesStart(b)
 	fb.NamesAddLanguage(b, lang)
 	fb.NamesAddNodeNames(b, nodes)
 	fb.NamesAddCharacterNames(b, chars)
 	fb.NamesAddAscendancyNames(b, ascs)
+	addOverrides()
 	fb.FinishNamesBuffer(b, fb.NamesEnd(b))
 	return b.FinishedBytes()
 }
@@ -91,5 +98,6 @@ func decodeNamesGroup(buf []byte) (Names, error) {
 		NodeNames:       decodeNodeNames(root.NodeNamesLength(), root.NodeNames),
 		CharacterNames:  decodeNames(root.CharacterNamesLength(), root.CharacterNames),
 		AscendancyNames: decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames),
+		OverrideNames:   decodeNames(root.OverrideNamesLength(), root.OverrideNames),
 	}, nil
 }

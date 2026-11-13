@@ -99,7 +99,7 @@ func (k FlaskKind) String() string {
 	case UtilityFlask:
 		return "utility"
 	}
-	return "unknown"
+	return unknown
 }
 
 // FlaskValues are the base values of a flask.

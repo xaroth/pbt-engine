@@ -97,7 +97,7 @@ func TestCapabilitiesID(t *testing.T) {
 		return m.ID
 	}
 	// The id of sample() without capabilities; it must not change when capabilities are absent.
-	const plain = "ff486f67a0c08b35dc1089db3e38860b227d2cfff0635f42eb61e75ace84a855"
+	const plain = "5dc07b00e85e98567b8ce705f8ce8938a706de3f65d20ec34a6a7dd828afeaab"
 	if got := id(nil); got != plain {
 		t.Errorf("no capabilities: got id %s, want %s", got, plain)
 	}
