@@ -247,7 +247,7 @@ func TestRoundTrip(t *testing.T) {
 			if diff := gocmp.Diff(&want, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("round trip mismatch (-want +got):\n%s", diff)
 			}
-			if wantFiles := 4 + len(testCase.d.Trees) + len(testCase.d.Texts); m.Format != dataset.FormatVersion || len(m.Files) != wantFiles {
+			if wantFiles := 4 + len(testCase.d.Trees) + 2*len(testCase.d.Texts); m.Format != dataset.FormatVersion || len(m.Files) != wantFiles {
 				t.Errorf("manifest: got format %d and %d files, want %d and %d", m.Format, len(m.Files), dataset.FormatVersion, wantFiles)
 			}
 		})

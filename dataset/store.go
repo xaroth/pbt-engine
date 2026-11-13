@@ -33,9 +33,10 @@ type Store struct {
 	skills     func() (*Skills, error)
 	buffs      func() (*Buffs, error)
 	monsters   func() (*Monsters, error)
-	// trees, texts and layouts are keyed by variant and language, fixed by the manifest.
+	// trees, texts, names and layouts are keyed by variant and language, fixed by the manifest.
 	trees   map[string]func() (*Tree, error)
 	texts   map[string]func() (*Text, error)
+	names   map[string]func() (*Names, error)
 	layouts map[string]func() (*Layout, error)
 }
 
@@ -59,6 +60,7 @@ func Open(fsys fs.FS) (*Store, error) {
 		files:    make(map[string]File, len(m.Files)),
 		trees:    map[string]func() (*Tree, error){},
 		texts:    map[string]func() (*Text, error){},
+		names:    map[string]func() (*Names, error){},
 		layouts:  map[string]func() (*Layout, error){},
 	}
 	for _, f := range m.Files {
@@ -168,7 +170,8 @@ func (s *Store) Text(language string) (*Text, error) {
 	return load()
 }
 
-// registerFile records f and, for a tree or text file, how to load it.
+// registerFile records f and, for a file of a group with one file per variant or language, how
+// to load it.
 func registerFile(s *Store, f File) error {
 	s.files[f.Name] = f
 	switch {
@@ -182,6 +185,9 @@ func registerFile(s *Store, f File) error {
 	case isGroup(f.Name, textPrefix):
 		lang := groupTag(f.Name, textPrefix)
 		s.texts[lang] = sync.OnceValues(func() (*Text, error) { return s.loadText(lang) })
+	case isGroup(f.Name, namesPrefix):
+		lang := groupTag(f.Name, namesPrefix)
+		s.names[lang] = sync.OnceValues(func() (*Names, error) { return s.loadNames(lang) })
 	default:
 		return fmt.Errorf("%s: unknown file %s: %w", ManifestName, f.Name, ErrInvalid)
 	}

@@ -200,14 +200,21 @@ func validateText(chars []Character, t Text) error {
 	if err := checkDescriptionSizes(t); err != nil {
 		return err
 	}
-	for i, n := range t.NodeNames {
-		if i > 0 && t.NodeNames[i-1].ID >= n.ID {
-			return fmt.Errorf("text %s: node names not sorted or repeated: %w", t.Language, ErrInvalid)
-		}
+	if err := checkNodeNamesSorted("text "+t.Language, t.NodeNames); err != nil {
+		return err
 	}
 	for _, n := range t.CharacterNames {
 		if !slices.ContainsFunc(chars, func(c Character) bool { return c.ID == n.ID }) {
 			return fmt.Errorf("text %s: name for unknown character %s: %w", t.Language, n.ID, ErrInvalid)
+		}
+	}
+	return nil
+}
+
+func checkNodeNamesSorted(what string, names []NodeName) error {
+	for i, n := range names {
+		if i > 0 && names[i-1].ID >= n.ID {
+			return fmt.Errorf("%s: node names not sorted or repeated: %w", what, ErrInvalid)
 		}
 	}
 	return nil
