@@ -16,13 +16,14 @@
       "description": "A catalogue entry: an output's key and how to show its value.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "label", "unit", "places", "group", "order"],
+      "required": ["key", "label", "unit", "places", "group", "better", "order"],
       "properties": {
         "key": { "type": "string", "description": "The output key, such as \"player.life\"." },
         "label": { "type": "string" },
         "unit": { "$ref": "#/$defs/Unit" },
         "places": { "type": "integer", "minimum": 0, "description": "Decimal places to show." },
         "group": { "$ref": "#/$defs/OutputGroup" },
+        "better": { "$ref": "#/$defs/Better" },
         "order": { "type": "integer", "minimum": 0, "description": "Position in the catalogue; lower shows first." }
       }
     },
@@ -36,18 +37,24 @@
       "description": "The panel an output is shown in: the character sheet.",
       "enum": ["sheet"]
     },
+    "Better": {
+      "title": "Better",
+      "description": "Which way an output's value improves the build: higher, lower, or neither way in itself.",
+      "enum": ["higher", "lower", "neither"]
+    },
     "OutputValue": {
       "title": "OutputValue",
       "description": "An output's value with its catalogue entry. The value is not rounded to places.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "label", "unit", "places", "group", "order", "value"],
+      "required": ["key", "label", "unit", "places", "group", "better", "order", "value"],
       "properties": {
         "key": { "type": "string" },
         "label": { "type": "string" },
         "unit": { "$ref": "#/$defs/Unit" },
         "places": { "type": "integer", "minimum": 0 },
         "group": { "$ref": "#/$defs/OutputGroup" },
+        "better": { "$ref": "#/$defs/Better" },
         "order": { "type": "integer", "minimum": 0 },
         "value": { "type": "number" }
       }
@@ -81,13 +88,14 @@
       "description": "One output before and after.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "label", "unit", "places", "group", "order", "before", "after", "abs", "pct", "changed"],
+      "required": ["key", "label", "unit", "places", "group", "better", "order", "before", "after", "abs", "pct", "changed"],
       "properties": {
         "key": { "type": "string" },
         "label": { "type": "string" },
         "unit": { "$ref": "#/$defs/Unit" },
         "places": { "type": "integer", "minimum": 0 },
         "group": { "$ref": "#/$defs/OutputGroup" },
+        "better": { "$ref": "#/$defs/Better" },
         "order": { "type": "integer", "minimum": 0 },
         "before": { "type": "number" },
         "after": { "type": "number" },

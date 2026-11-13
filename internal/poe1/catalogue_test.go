@@ -64,3 +64,16 @@ func TestOutputGroupsAndOrder(t *testing.T) {
 		}
 	}
 }
+
+// Every output says which way is better: higher for life.
+func TestOutputBetter(t *testing.T) {
+	t.Parallel()
+	for _, o := range poe1.Outputs() {
+		if !o.Better.Valid() {
+			t.Errorf("%s: better %q, want higher, lower or neither", o.Key, o.Better)
+		}
+		if o.Key == poe1.Life && o.Better != output.Higher {
+			t.Errorf("%s: better %q, want %q", o.Key, o.Better, output.Higher)
+		}
+	}
+}
