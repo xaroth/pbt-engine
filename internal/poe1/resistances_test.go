@@ -1,9 +1,14 @@
 package poe1_test
 
 import (
+	"slices"
 	"testing"
 
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/output"
 )
 
 // endgame returns a level 90 Marauder after both Kitava quests (-30% to all elemental and
@@ -116,6 +121,43 @@ func TestResistances(t *testing.T) {
 				if got := value(t, sh, stat); got != want {
 					t.Errorf("%s: got %v, want %v", stat, got, want)
 				}
+			}
+		})
+	}
+}
+
+// TestNodeAuraResistances: Commander of Darkness (36017) reads "You and nearby Allies have +30%
+// to Elemental Resistances", an aura of the node's own that applies to the player with no aura
+// skill, as PoB does (ModParser.lua "you and nearby allies", CalcPerform.lua ExtraAura). Its
+// "Auras from your Skills grant" line needs an aura skill from a gem, so it stays unapplied.
+func TestNodeAuraResistances(t *testing.T) {
+	t.Parallel()
+	const (
+		witch      = "Metadata/Characters/Int/Int"
+		auraSkills = "auras_grant_attack_and_cast_speed_+%_to_you_and_your_allies"
+		commander  = 36017
+		necroStart = 60791
+		auraEffect = 5415
+	)
+	for _, version := range realdata.Versions() {
+		t.Run(version, func(t *testing.T) {
+			t.Parallel()
+			b := build.Build{
+				Format: 1, Game: "poe1", Version: version, Class: witch, Ascendancy: "Necromancer", Level: 90,
+				Nodes: []uint32{necroStart, auraEffect, commander},
+			}
+			sh := realSheet(t, version, &b)
+			// -60 after both Kitava quests, +30 from the node
+			for _, name := range []output.Key{"player.fire_resistance", "player.cold_resistance", "player.lightning_resistance"} {
+				if got, err := sh.Output(name); err != nil || got != -30 {
+					t.Errorf("%s: got %v, %v, want -30", name, got, err)
+				}
+			}
+			if got, err := sh.Output("player.chaos_resistance"); err != nil || got != -60 {
+				t.Errorf("player.chaos_resistance: got %v, %v, want -60", got, err)
+			}
+			if !slices.ContainsFunc(sh.Notes(), func(n poe1.Note) bool { return n.Kind == poe1.NotApplied && n.Stat == auraSkills }) {
+				t.Errorf("notes: want %s not applied, got %v", auraSkills, sh.Notes())
 			}
 		})
 	}
