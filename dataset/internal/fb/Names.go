@@ -141,8 +141,28 @@ func (rcv *Names) OverrideNamesLength() int {
 	return 0
 }
 
+func (rcv *Names) TimelessNames(obj *Name, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Names) TimelessNamesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func NamesStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(6)
 }
 func NamesAddLanguage(builder *flatbuffers.Builder, language flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(language), 0)
@@ -169,6 +189,12 @@ func NamesAddOverrideNames(builder *flatbuffers.Builder, overrideNames flatbuffe
 	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(overrideNames), 0)
 }
 func NamesStartOverrideNamesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func NamesAddTimelessNames(builder *flatbuffers.Builder, timelessNames flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(timelessNames), 0)
+}
+func NamesStartTimelessNamesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func NamesEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
