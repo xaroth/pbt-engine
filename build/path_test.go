@@ -129,6 +129,76 @@ func realChieftain(t *testing.T) *build.Checked {
 	return checked(t, s, b)
 }
 
+// Ascendant nodes of the pinned dataset: "Path of the Ranger" joins main-tree node 39821 and
+// "Path of the Marauder" joins main-tree node 31628, both near those classes' starts.
+const (
+	pathOfTheRanger    = 7618
+	pathOfTheMarauder  = 24755
+	besideRangerPath   = 39821
+	besideMarauderPath = 31628
+)
+
+// scionAscendant returns a checked Scion Ascendant with nodes allocated, each by AllocatePath.
+func scionAscendant(t *testing.T, s *dataset.Store, nodes ...uint32) *build.Checked {
+	t.Helper()
+	c, err := build.New(s, "Metadata/Characters/StrDexInt/StrDexInt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := c.Build()
+	b.Ascendancy = "Ascendant"
+	c = checked(t, s, &b)
+	for _, n := range nodes {
+		e, ok := c.AllocatePath(n)
+		if !ok {
+			t.Fatalf("no path to %d", n)
+		}
+		b := c.Build()
+		if err := b.Apply(e); err != nil {
+			t.Fatal(err)
+		}
+		c = checked(t, s, &b)
+	}
+	return c
+}
+
+// As in the game, a path leaves an ascendancy for the main tree only from an allocated node.
+func TestRealAscendantPaths(t *testing.T) {
+	t.Parallel()
+	s := realdata.Open(t, realdata.Current)
+
+	t.Run("not through an unallocated Path of", func(t *testing.T) {
+		t.Parallel()
+		c := scionAscendant(t, s)
+		e, ok := c.AllocatePath(besideRangerPath)
+		if !ok {
+			t.Fatal("no path")
+		}
+		for _, n := range c.Tree().Nodes {
+			if n.Ascendancy != "" && slices.Contains(e.Nodes, n.ID) {
+				t.Errorf("path %v takes node %d of %s, want main-tree nodes only", e.Nodes, n.ID, n.Ascendancy)
+			}
+		}
+	})
+
+	t.Run("from an allocated Path of", func(t *testing.T) {
+		t.Parallel()
+		c := scionAscendant(t, s, pathOfTheMarauder)
+		e, ok := c.AllocatePath(besideMarauderPath)
+		if diff := gocmp.Diff(build.Allocate(besideMarauderPath), e); !ok || diff != "" {
+			t.Fatalf("ok %v (-want +got):\n%s", ok, diff)
+		}
+		b := c.Build()
+		if err := b.Apply(e); err != nil {
+			t.Fatal(err)
+		}
+		edits, _ := checked(t, s, &b).DeallocateBranch(pathOfTheMarauder)
+		if len(edits) == 0 || !slices.Contains(edits[0].Nodes, besideMarauderPath) {
+			t.Errorf("deallocating Path of the Marauder: got %v, want %d among them", edits, besideMarauderPath)
+		}
+	})
+}
+
 // bruteTree answers the questions of AllocatePath and DeallocateBranch by exhaustive search,
 // with the tree's rules stated apart from the code under test.
 type bruteTree struct {
@@ -164,6 +234,17 @@ func (bt *bruteTree) choice(n *dataset.Node) uint32 {
 		}
 	}
 	return 0
+}
+
+// step reports whether a path may go from u to its neighbour v: not out of a mastery, and within
+// the main tree or one ascendancy, or out of the ascendancy into the main tree from an allocated
+// u or a start.
+func (bt *bruteTree) step(u, v uint32) bool {
+	if bt.nodes[u].Kind == dataset.Mastery {
+		return false
+	}
+	au, av := bt.nodes[u].Ascendancy, bt.nodes[v].Ascendancy
+	return au == av || (av == "" && (bt.allocated[u] || bt.starts[u]))
 }
 
 func (bt *bruteTree) enterable(id uint32) bool {
@@ -209,7 +290,7 @@ func (bt *bruteTree) relax(dist map[uint32]int) bool {
 		}
 		for _, u := range n.Neighbours {
 			du, ok := dist[u]
-			if !ok || bt.nodes[u].Kind == dataset.Mastery {
+			if !ok || !bt.step(u, v) {
 				continue
 			}
 			if dv, ok := dist[v]; !ok || du+1 < dv {
@@ -235,7 +316,7 @@ func (bt *bruteTree) validPath(path []uint32, id uint32) bool {
 	}
 	for _, p := range path {
 		if bt.allocated[p] || !bt.enterable(p) || !slices.ContainsFunc(bt.nodes[p].Neighbours, func(nb uint32) bool {
-			return prev[nb] && bt.nodes[nb].Kind != dataset.Mastery
+			return prev[nb] && bt.step(nb, p)
 		}) {
 			return false
 		}
@@ -255,11 +336,10 @@ func (bt *bruteTree) joinedWithout(id, gone uint32) bool {
 		if bt.starts[u] {
 			return true
 		}
-		if u != id && bt.nodes[u].Kind == dataset.Mastery {
-			continue
-		}
 		for _, nb := range bt.nodes[u].Neighbours {
-			if !seen[nb] && nb != gone && (bt.allocated[nb] || bt.starts[nb]) {
+			// The search runs towards a start, so the path steps from nb to u; step keeps masteries
+			// other than id off the stack.
+			if !seen[nb] && nb != gone && (bt.allocated[nb] || bt.starts[nb]) && bt.step(nb, u) {
 				seen[nb] = true
 				stack = append(stack, nb)
 			}
@@ -268,12 +348,34 @@ func (bt *bruteTree) joinedWithout(id, gone uint32) bool {
 	return false
 }
 
-// Paths and deallocations on 100 random nodes each equal an exhaustive search.
+// Paths and deallocations on 100 random nodes each equal an exhaustive search, on a Chieftain
+// and on an Ascendant whose main tree hangs off two "Path of" nodes.
 func TestRealPathsEqualBruteForce(t *testing.T) {
 	t.Parallel()
-	c := realChieftain(t)
-	bt := newBruteTree(c)
-	r := rand.New(rand.NewPCG(1, 2))
+	testCases := []struct {
+		name  string
+		build func(t *testing.T) *build.Checked
+	}{
+		{"Chieftain", realChieftain},
+		{"Ascendant", func(t *testing.T) *build.Checked {
+			t.Helper()
+			return scionAscendant(t, realdata.Open(t, realdata.Current), pathOfTheMarauder, besideMarauderPath, pathOfTheRanger, besideRangerPath)
+		}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			c := testCase.build(t)
+			bt := newBruteTree(c)
+			r := rand.New(rand.NewPCG(1, 2))
+			pathsEqualBruteForce(t, c, bt, r)
+			deallocationsEqualBruteForce(t, c, bt, r)
+		})
+	}
+}
+
+func pathsEqualBruteForce(t *testing.T, c *build.Checked, bt *bruteTree, r *rand.Rand) {
+	t.Helper()
 	tree := c.Tree().Nodes
 	var found int
 	for range 100 {
@@ -292,6 +394,10 @@ func TestRealPathsEqualBruteForce(t *testing.T) {
 		}
 	}
 	t.Logf("%d of 100 nodes reachable", found)
+}
+
+func deallocationsEqualBruteForce(t *testing.T, c *build.Checked, bt *bruteTree, r *rand.Rand) {
+	t.Helper()
 	allocated := c.Nodes()
 	var cascades int
 	for range 100 {
