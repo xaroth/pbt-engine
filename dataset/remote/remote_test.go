@@ -14,13 +14,14 @@ import (
 
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/dataset/remote"
+	"github.com/xaroth/pbt-engine/dataset/remote/httpfetch"
 )
 
 // bucket is a directory in the bucket's layout, served over HTTP, that records the paths
 // fetched from it.
 type bucket struct {
 	dir     string
-	src     remote.HTTP
+	src     httpfetch.Source
 	mu      sync.Mutex
 	fetched []string
 }
@@ -36,7 +37,7 @@ func newBucket(t *testing.T) *bucket {
 		files.ServeHTTP(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	b.src = remote.HTTP{Base: srv.URL + "/", Client: srv.Client()}
+	b.src = httpfetch.Source{Base: srv.URL + "/", Client: srv.Client()}
 	return b
 }
 
@@ -279,7 +280,7 @@ func TestPullKeepsOldCopyOnError(t *testing.T) {
 			if err := os.Remove(filepath.Join(b.dir, "blobs", statsSHA(m))); err != nil {
 				t.Fatal(err)
 			}
-		}, remote.ErrStatus},
+		}, httpfetch.ErrStatus},
 		{"manifest of another dataset under the id", func(t *testing.T, b *bucket, m dataset.Manifest) {
 			t.Helper()
 			other := b.upload(t, dataset1("3.29.3.5", "dexterity"))
@@ -324,7 +325,7 @@ func TestPullContinuesPastFailure(t *testing.T) {
 	}
 	dir := t.TempDir()
 	rs, err := remote.Pull(t.Context(), b.src, dir, "poe1", "3.27", "3.28", "3.29")
-	if !errors.Is(err, remote.ErrUnknownLeague) || !errors.Is(err, remote.ErrStatus) {
+	if !errors.Is(err, remote.ErrUnknownLeague) || !errors.Is(err, httpfetch.ErrStatus) {
 		t.Errorf("got %v, want the unknown league and the missing blob joined", err)
 	}
 	if len(rs) != 1 || rs[0].League != "3.29" || !rs[0].Updated {
@@ -406,7 +407,7 @@ func TestPullErrors(t *testing.T) {
 		t.Errorf("id outside manifests: got %v", err)
 	}
 	_, err := remote.PullID(t.Context(), b.src, t.TempDir(), strings.Repeat("0", 64))
-	if !errors.Is(err, remote.ErrStatus) || !strings.Contains(err.Error(), "404") {
+	if !errors.Is(err, httpfetch.ErrStatus) || !strings.Contains(err.Error(), "404") {
 		t.Errorf("unknown id: got %v", err)
 	}
 

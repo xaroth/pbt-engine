@@ -7,24 +7,23 @@
 // Pull keeps the latest dataset of each league in dataset.FormatVersion; PullID fetches one dataset by its id. Each
 // fetches only what the local copy lacks and checks every byte: a manifest against the id it
 // was fetched by, a file against its SHA-256.
+//
+// A host that reads the source without a local copy finds a league's latest dataset with Latest
+// and reads it through FS, which fetches each file when it is read and checks it the same way.
 package remote
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"maps"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/xaroth/pbt-engine/dataset"
 )
@@ -32,14 +31,13 @@ import (
 // IndexName is the index's name at the source.
 const IndexName = "index.json"
 
-// DefaultSource is pbt-data's bucket.
+// DefaultSource is pbt-data's bucket, which httpfetch.Source fetches from.
 const DefaultSource = "https://pbt-data.xaroth.nl/"
 
 // Problems Pull and PullID report.
 var (
 	ErrUnknownLeague = errors.New("league not in the index")
 	ErrMismatch      = errors.New("content does not match its hash")
-	ErrStatus        = errors.New("unexpected HTTP status")
 )
 
 // Permissions of what Pull writes: published data, readable by all.
@@ -48,67 +46,9 @@ const (
 	filePerm = 0o644
 )
 
-// Entry is a league's latest dataset in the index: its game version, its dataset id, the
-// SHA-256 of its tree-art manifest and its dataset format.
-type Entry struct {
-	Version string `json:"version"`
-	Dataset string `json:"dataset"`
-	Art     string `json:"art"`
-	Format  int    `json:"format"`
-}
-
-// UnmarshalJSON reads an entry without a format as format 1, which entries had before they named it.
-func (e *Entry) UnmarshalJSON(b []byte) error {
-	type plain Entry
-	p := plain{Format: 1}
-	if err := json.Unmarshal(b, &p); err != nil {
-		return fmt.Errorf("entry: %w", err)
-	}
-	*e = Entry(p)
-	return nil
-}
-
-// Index is index.json: per game, per league.
-type Index map[string]map[string]Entry
-
 // Fetcher reads a file from a source by its slash-separated path, such as blobs/<sha256>.
 type Fetcher interface {
 	Fetch(ctx context.Context, name string) ([]byte, error)
-}
-
-// HTTP fetches from Base, a URL ending in a slash, with Client, or without one a client that
-// gives up on a request after fetchTimeout.
-type HTTP struct {
-	Base   string
-	Client *http.Client
-}
-
-// fetchTimeout bounds one file's request: the largest is a few MB.
-const fetchTimeout = 2 * time.Minute
-
-// Fetch gets Base+name and fails on any status but 200.
-func (h HTTP) Fetch(ctx context.Context, name string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.Base+name, nil)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", name, err)
-	}
-	c := h.Client
-	if c == nil {
-		c = &http.Client{Timeout: fetchTimeout}
-	}
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", name, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch %s: %w %s", h.Base+name, ErrStatus, resp.Status)
-	}
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", name, err)
-	}
-	return b, nil
 }
 
 // Result is what Pull or PullID did for one dataset.
@@ -129,22 +69,17 @@ type Result struct {
 // others: Pull returns the results of the leagues pulled together with the joined errors of
 // those that failed.
 func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) ([]Result, error) {
-	ib, err := f.Fetch(ctx, IndexName)
+	idx, err := readIndex(ctx, f)
 	if err != nil {
-		return nil, fmt.Errorf("index: %w", err)
+		return nil, err
 	}
-	var idx Index
-	if err := json.Unmarshal(ib, &idx); err != nil {
-		return nil, fmt.Errorf("%s: %w", IndexName, err)
-	}
-	entries := idx[game]
 	if len(leagues) == 0 {
-		leagues = slices.Sorted(maps.Keys(entries))
+		leagues = slices.Sorted(maps.Keys(idx[game]))
 	}
 	out := make([]Result, 0, len(leagues))
 	var errs []error
 	for _, league := range leagues {
-		e, err := latest(entries, game, league)
+		e, err := idx.latest(game, league)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -163,18 +98,6 @@ func Pull(ctx context.Context, f Fetcher, dir, game string, leagues ...string) (
 		out = append(out, r)
 	}
 	return out, errors.Join(errs...)
-}
-
-// latest is league's entry in entries, the index of game, when Pull can follow it.
-func latest(entries map[string]Entry, game, league string) (Entry, error) {
-	e, ok := entries[league]
-	if !ok || !validName(league) {
-		return e, fmt.Errorf("%w: %s %s", ErrUnknownLeague, game, league)
-	}
-	if e.Format != dataset.FormatVersion {
-		return e, fmt.Errorf("pull %s %s: %w %d, want %d", game, league, dataset.ErrFormat, e.Format, dataset.FormatVersion)
-	}
-	return e, nil
 }
 
 // PullID makes dir a copy of the dataset with id. A dir that already holds it is left alone;
