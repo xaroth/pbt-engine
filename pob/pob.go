@@ -67,8 +67,11 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // mastery choices and node overrides; the class, ascendancy and override names map to ids through the English text of the
 // dataset reg resolves for that version, or of the newest poe1 dataset when it has none
 // (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
-// and the campaign stage from PoB's resistance penalty. The active skill set's groups, with
-// their gems resolved through the dataset's skills group (see build.Skills). The active item
+// the campaign stage from PoB's resistance penalty, and the enemy's kind, level, resistances,
+// armour and evasion, read as PoB reads them (a 0 level or resistance is empty, a level
+// above 85 is 85); PoB's placeholders, the values it shows for inputs left empty, are not
+// read. The active skill set's groups, with their gems resolved through the dataset's skills
+// group (see build.Skills). The active item
 // set's items in the equipment slots, weapon swap included, read through the dataset's items
 // group; the reader's warnings on the lines it reads are not repeated, as build.Check gives
 // them. Everything else in the file gives a warning: other specs, cluster jewel nodes
@@ -233,7 +236,7 @@ func (im *importer) masteries() map[uint32]uint32 {
 	return out
 }
 
-// config is the bandit choice and the campaign stage; other inputs give warnings.
+// config is the bandit choice, the campaign stage and the enemy; other inputs give warnings.
 func (im *importer) config() (config.Values, error) {
 	var v config.Values
 	if bandit, ok := banditOf(im.file.Build.Bandit); ok {
@@ -245,6 +248,12 @@ func (im *importer) config() (config.Values, error) {
 	}
 	for _, in := range im.file.Config {
 		if mirrorsBuild(in.Name) {
+			continue
+		}
+		if known, imported := enemyInput(&v, in.Name, in.Value); known {
+			if !imported {
+				im.warnf(ConfigIgnored, in.Name, "enemy input %q is not a value the config takes; not imported", in.Value)
+			}
 			continue
 		}
 		if in.Name != penaltyInput {
