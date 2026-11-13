@@ -12,7 +12,10 @@ import (
 
 // NodeText is a passive node's name and stat lines as the game words them: its stats with the
 // passive tree's descriptions, then each buff it grants with the passive aura descriptions.
-// A mastery's effects are in Masteries, each with its own lines. A line holds a newline where
+// A mastery's effects are in Masteries, each with its own lines. Lines follow the description
+// files' order. It leaves out the line for the passive skill points a node grants
+// (dataset.Node.SkillPoints) and buff lines from stats without a value, which the dataset does
+// not hold. A line holds a newline where
 // the game breaks one description over several rows. Its lists are empty, not nil, so its JSON
 // always holds them.
 type NodeText = poe1.NodeText

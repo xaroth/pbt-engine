@@ -12,10 +12,6 @@ import (
 	"github.com/xaroth/pbt-engine/output"
 )
 
-// The JSON of Stats, Diff and Result is the wire format a host sends to a UI; wire.schema.json
-// describes it. Every field is always present, lists are never null unless the schema says so,
-// and lists keep the engine's order, so equal results give equal bytes.
-
 // wireValue is an output's value with the catalogue entry that says how to show it.
 type wireValue struct {
 	Output

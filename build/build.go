@@ -1,5 +1,9 @@
 // Package build holds the canonical build: what a player chose, by game id. A Build is the
 // stored form; Check turns it into a Checked build whose ids exist in one dataset version.
+// A build file looks like this:
+//
+//	{"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
+//	 "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "config": {"bandits": "help-oak"}}
 package build
 
 import (
