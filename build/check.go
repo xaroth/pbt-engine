@@ -41,6 +41,10 @@ const (
 	MasteryEffectUnknown  Code = "mastery-effect-unknown"
 	MasteryEffectRepeated Code = "mastery-effect-repeated"
 	MasteryNotChosen      Code = "mastery-not-chosen"
+	MasteryOverridden     Code = "mastery-overridden"
+	OverrideUnknown       Code = "override-unknown"
+	OverrideNotAllocated  Code = "override-not-allocated"
+	OverrideNotPlaceable  Code = "override-not-placeable"
 	ChoiceRepeated        Code = "choice-repeated"
 )
 
@@ -98,10 +102,12 @@ type Checked struct {
 	class      *dataset.Class
 	character  *dataset.Character
 	chars      []dataset.Character
+	stats      []dataset.Stat
 	nodes      []*dataset.Node
 	ascStart   *dataset.Node
 	bloodStart *dataset.Node
 	masteries  []MasteryChoice
+	overrides  []OverrideChoice
 	warnings   []Warning
 }
 
@@ -114,9 +120,11 @@ type MasteryChoice struct {
 // Check checks b against the dataset s and fixes what it can: it clears an ascendancy of
 // another class and a bloodline not among the tree's alternate ascendancies, clamps the level
 // to 1 to 100, drops unknown, repeated and proxy nodes, other classes' nodes, nodes of
-// ascendancies other than the build's ascendancy and bloodline, and mastery choices that do
-// not fit, each with a warning. It warns without a fix about nodes not connected to the class,
-// ascendancy or bloodline start and about allocated masteries with no choice. Against the dataset's skills group it drops unknown gems,
+// ascendancies other than the build's ascendancy and bloodline, mastery choices that do not
+// fit or are on a mastery an override replaces, and overrides that are unknown, on a node not
+// allocated or on a node they may not replace, each with a warning. It warns without a fix
+// about nodes not connected to the class, ascendancy or bloodline start and about allocated
+// masteries with no choice and no override. Against the dataset's skills group it drops unknown gems,
 // clears unknown variants and slots without sockets, corrects which gems are supports, clamps
 // gem levels and quality, and moves a main skill or active gem that does not fit to the first,
 // each with a warning; a dataset without the group gets one warning and the skills stay as
@@ -151,7 +159,11 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("build: load characters: %w", err)
 	}
-	c.tree, c.chars = tree, chars
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, nil, fmt.Errorf("build: load stats: %w", err)
+	}
+	c.tree, c.chars, c.stats = tree, chars, stats
 	if !c.setClass(chars) {
 		ps.addf(ErrClass, 0, "%q", b.Class)
 		return nil, nil, ps.err()
@@ -162,6 +174,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	c.checkNodes()
 	c.checkChoices()
 	c.checkConnected()
+	c.checkOverrides()
 	c.checkMasteries()
 	if err := c.checkSkills(); err != nil {
 		return nil, nil, err
@@ -225,31 +238,18 @@ func (c *Checked) Character() *dataset.Character { return c.character }
 func (c *Checked) Nodes() []*dataset.Node { return slices.Clone(c.nodes) }
 
 // EditWarnings returns the warnings Check would give about edits applied to the checked build,
-// as far as they concern the edits themselves: nodes it cannot take, and mastery effects on a
-// node that is not an allocated mastery or not of that mastery. Connectivity, mastery choices
-// still to make and point budgets are about the whole build; Check gives those.
+// as far as they concern the edits themselves: nodes it cannot take, mastery effects on a
+// node that is not an allocated mastery or not of that mastery, and overrides that do not
+// fit. Connectivity, mastery choices still to make and point budgets are about the whole
+// build; Check gives those.
 func (c *Checked) EditWarnings(edits []Edit) []Warning {
 	allocated := map[uint32]bool{}
 	for _, n := range c.build.Nodes {
 		allocated[n] = true
 	}
-	var out []Warning
+	out := make([]Warning, 0, len(edits))
 	for _, e := range edits {
-		switch e.Op {
-		case OpAllocate:
-			out = append(out, c.allocateWarnings(e.Nodes, allocated)...)
-		case OpDeallocate:
-			for _, id := range e.Nodes {
-				delete(allocated, id)
-			}
-		case OpSetMastery:
-			if w, bad := c.effectProblem(e.Node, e.Effect, allocated[e.Node]); bad {
-				out = append(out, w)
-			}
-		case OpClearMastery, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
-			OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
-			OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip:
-		}
+		out = append(out, c.editWarnings(e, allocated)...)
 	}
 	return out
 }
@@ -258,6 +258,31 @@ func (c *Checked) EditWarnings(edits []Edit) []Warning {
 // build can hold: the main tree's, its ascendancy's or its bloodline's.
 func (c *Checked) OwnsAscendancy(id string) bool {
 	return id == "" || id == c.build.Ascendancy || id == c.build.Bloodline
+}
+
+// editWarnings returns EditWarnings of e and updates allocated to what follows it.
+func (c *Checked) editWarnings(e Edit, allocated map[uint32]bool) []Warning {
+	var w Warning
+	bad := false
+	switch e.Op {
+	case OpAllocate:
+		return c.allocateWarnings(e.Nodes, allocated)
+	case OpDeallocate:
+		for _, id := range e.Nodes {
+			delete(allocated, id)
+		}
+	case OpSetMastery:
+		w, bad = c.effectProblem(e.Node, e.Effect, allocated[e.Node])
+	case OpSetOverride:
+		w, bad = c.overrideProblem(e.Node, e.Override, allocated[e.Node])
+	case OpClearMastery, OpClearOverride, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
+		OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
+		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip:
+	}
+	if bad {
+		return []Warning{w}
+	}
+	return nil
 }
 
 // allocateWarnings returns the warnings for allocating ids and marks the ones taken.
@@ -466,7 +491,7 @@ func (c *Checked) checkMasteries() {
 		}
 	}
 	for _, n := range c.nodes {
-		if _, ok := c.build.Masteries[n.ID]; n.Kind == dataset.Mastery && !ok {
+		if _, ok := c.build.Masteries[n.ID]; n.Kind == dataset.Mastery && !ok && !c.overridden(n.ID) {
 			c.warnf(MasteryNotChosen, fmt.Sprintf("node %d", n.ID), "allocated mastery with no effect chosen; it counts towards its group only")
 		}
 	}
@@ -479,6 +504,10 @@ func (c *Checked) choose(id uint32, chosen map[uint32]bool) bool {
 	n := c.allocated(id)
 	if w, bad := c.effectProblem(id, effect, n != nil); bad {
 		c.warnings = append(c.warnings, w)
+		return false
+	}
+	if c.overridden(id) {
+		c.warnf(MasteryOverridden, subject, "effect %d chosen on a mastery an override replaces; dropped", effect)
 		return false
 	}
 	i := slices.IndexFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect })

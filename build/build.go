@@ -57,6 +57,9 @@ type Build struct {
 	Nodes []uint32 `json:"nodes"`
 	// Masteries maps an allocated mastery node's id to the id of its chosen effect.
 	Masteries map[uint32]uint32 `json:"masteries,omitzero"`
+	// Overrides maps an allocated node's id to the id of the tattoo or runegraft put on it, a
+	// NodeOverride.ID of the tree.
+	Overrides map[uint32]string `json:"overrides,omitempty"`
 	// Config holds config values by key name, such as {"campaign": "acts-6-10"}. Keys and
 	// values are the game rules'; Check does not read them.
 	Config config.Values `json:"config,omitzero"`
@@ -107,6 +110,7 @@ func (b *Build) Clone() *Build {
 	c := *b
 	c.Nodes = slices.Clone(b.Nodes)
 	c.Masteries = maps.Clone(b.Masteries)
+	c.Overrides = maps.Clone(b.Overrides)
 	c.Config = b.Config.Clone()
 	c.Skills = b.Skills.clone()
 	c.Items = b.Items.clone()

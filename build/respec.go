@@ -54,7 +54,7 @@ func (c *Checked) ChangeClass(class string) ([]Edit, bool) {
 }
 
 // respec returns the edits that deallocate the allocated nodes drop selects and clear their
-// mastery choices, and allocate start, if any, when drop takes an allocated start of its kind.
+// mastery choices and overrides, and allocate start, if any, when drop takes an allocated start of its kind.
 func (c *Checked) respec(drop func(*dataset.Node) bool, start *dataset.Node) []Edit {
 	var gone []uint32
 	hadStart := false
@@ -68,11 +68,7 @@ func (c *Checked) respec(drop func(*dataset.Node) bool, start *dataset.Node) []E
 	if len(gone) > 0 {
 		edits = append(edits, Deallocate(gone...))
 	}
-	for _, id := range gone {
-		if _, ok := c.build.Masteries[id]; ok {
-			edits = append(edits, ClearMastery(id))
-		}
-	}
+	edits = append(edits, c.clearChoices(gone)...)
 	if hadStart {
 		edits = append(edits, Allocate(start.ID))
 	}

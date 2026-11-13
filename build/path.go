@@ -112,13 +112,21 @@ func (c *Checked) DeallocateBranch(node uint32) ([]Edit, bool) {
 		}
 	}
 	slices.Sort(gone)
-	edits := []Edit{Deallocate(gone...)}
-	for _, id := range gone {
+	return append([]Edit{Deallocate(gone...)}, c.clearChoices(gone)...), true
+}
+
+// clearChoices returns the edits that clear the mastery choices and overrides on ids.
+func (c *Checked) clearChoices(ids []uint32) []Edit {
+	var edits []Edit
+	for _, id := range ids {
 		if _, ok := c.build.Masteries[id]; ok {
 			edits = append(edits, ClearMastery(id))
 		}
+		if _, ok := c.build.Overrides[id]; ok {
+			edits = append(edits, ClearOverride(id))
+		}
 	}
-	return edits, true
+	return edits
 }
 
 func (c *Checked) allocatedSet() map[uint32]bool {

@@ -99,13 +99,19 @@ type compiledItem struct {
 // are switched.
 type shape struct {
 	variant, class, ascendancy, bloodline string
+	// overrides lists node:override pairs by node, since they change the nodes' bundles.
+	overrides string
 }
 
 // shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
-// depend on these.
+// and what they give depend on these.
 func shapeOf(c *build.Checked) shape {
 	cb := c.Build()
-	return shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline}
+	var overrides strings.Builder
+	for _, o := range c.Overrides() {
+		fmt.Fprintf(&overrides, "%d:%s,", o.Node.ID, o.Override.ID)
+	}
+	return shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline, overrides: overrides.String()}
 }
 
 type idleSheet struct {
