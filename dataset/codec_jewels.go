@@ -34,7 +34,7 @@ func jewelStatLists(t Tree) [][]StatValue {
 	for _, n := range t.Clusters.Notables {
 		lists = append(lists, []StatValue{{Stat: n.Stat}})
 	}
-	return lists
+	return append(lists, timelessStatLists(t.TimelessVersions)...)
 }
 
 func encodeJewelRadii(b *flatbuffers.Builder, radii []JewelRadius) flatbuffers.UOffsetT {
@@ -67,12 +67,15 @@ func decodeJewelRadii(root *fb.Tree) []JewelRadius {
 // encodeJewels encodes the jewel data of t and returns what adds it to the tree being built.
 // It adds nothing for a tree without jewel data, so such a tree keeps its bytes.
 func encodeJewels(b *flatbuffers.Builder, st statTable, t *Tree) (add func()) {
-	var radii, clusters flatbuffers.UOffsetT
+	var radii, clusters, timeless flatbuffers.UOffsetT
 	if len(t.JewelRadii) > 0 {
 		radii = encodeJewelRadii(b, t.JewelRadii)
 	}
 	if !t.Clusters.empty() {
 		clusters = encodeClusters(b, st, &t.Clusters)
+	}
+	if len(t.TimelessVersions) > 0 {
+		timeless = encodeTimeless(b, st, t.TimelessVersions)
 	}
 	return func() {
 		if radii != 0 {
@@ -80,6 +83,9 @@ func encodeJewels(b *flatbuffers.Builder, st statTable, t *Tree) (add func()) {
 		}
 		if clusters != 0 {
 			fb.TreeAddClusters(b, clusters)
+		}
+		if timeless != 0 {
+			fb.TreeAddTimelessVersions(b, timeless)
 		}
 	}
 }

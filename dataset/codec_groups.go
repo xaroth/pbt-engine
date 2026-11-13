@@ -588,6 +588,9 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 	if t.Clusters, err = decodeClusters(root, h); err != nil {
 		return Tree{}, err
 	}
+	if t.TimelessVersions, err = decodeTimeless(root, h); err != nil {
+		return Tree{}, err
+	}
 	return t, nil
 }
 

@@ -174,6 +174,10 @@ type Tree struct {
 	JewelRadii []JewelRadius
 	// Clusters is what cluster jewels need.
 	Clusters Clusters
+	// TimelessVersions are the alternate tree versions timeless jewels use, in game table
+	// order, so a version's index is its game row; versions no jewel uses are left out from
+	// the end.
+	TimelessVersions []TimelessVersion
 }
 
 // Class is a character class as the tree sees it; its index in Tree.Classes is its class id.
