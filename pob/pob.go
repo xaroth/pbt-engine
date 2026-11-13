@@ -63,8 +63,8 @@ const (
 // treeVersion matches PoB's tree versions: 3_29, 3_29_ruthless, 3_29_alternate.
 var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 
-// FromXML reads a PoB build file. The active tree spec gives the version, variant, nodes and
-// mastery choices; the class and ascendancy names map to ids through the English text of the
+// FromXML reads a PoB build file. The active tree spec gives the version, variant, nodes,
+// mastery choices and node overrides; the class, ascendancy and override names map to ids through the English text of the
 // dataset reg resolves for that version, or of the newest poe1 dataset when it has none
 // (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
 // and the campaign stage from PoB's resistance penalty. The active skill set's groups, with
@@ -72,7 +72,7 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // set's items in the equipment slots, weapon swap included, read through the dataset's items
 // group; the reader's warnings on the lines it reads are not repeated, as build.Check gives
 // them. Everything else in the file gives a warning: other specs, cluster jewel nodes
-// (dropped), jewels, node overrides, config inputs, pantheon, a secondary ascendancy, items in
+// (dropped), jewels, overrides whose name names no override or several, config inputs, pantheon, a secondary ascendancy, items in
 // other slots, not equipped or not read, and of the skills: groups an item or
 // the tree grants (and the main skill when it is one of them), gems the dataset lacks, gems of
 // a name or skill id the dataset cannot choose between (imported as the first), slots without
@@ -98,6 +98,11 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	}
 	b.Nodes = im.nodes()
 	b.Masteries = im.masteries()
+	text, err := store.Text("en")
+	if err != nil {
+		return nil, nil, fmt.Errorf("pob: %w", err)
+	}
+	b.Overrides = im.overrides(text, store.Manifest().Version)
 	if b.Config, err = im.config(); err != nil {
 		return nil, nil, err
 	}
@@ -308,9 +313,30 @@ func (im *importer) treeLeftOut() {
 			im.warnf(PantheonIgnored, god, "pantheon not imported")
 		}
 	}
-	for _, o := range im.spec.Overrides {
-		im.warnf(OverrideIgnored, nodeSubject(o.Node), "node override %q not imported", o.Name)
+}
+
+// overrides maps each node override's display name to its id through the dataset's English
+// text of dataset version; a name that names no override, or several, gives a warning.
+func (im *importer) overrides(text *dataset.Text, version string) map[uint32]string {
+	ids := map[string][]string{}
+	for _, n := range text.OverrideNames {
+		ids[n.Name] = append(ids[n.Name], n.ID)
 	}
+	var out map[uint32]string
+	for _, o := range im.spec.Overrides {
+		switch named := ids[o.Name]; len(named) {
+		case 1:
+			if out == nil {
+				out = map[uint32]string{}
+			}
+			out[o.Node] = named[0]
+		case 0:
+			im.warnf(OverrideIgnored, nodeSubject(o.Node), "no override named %q in dataset %s; not imported", o.Name, version)
+		default:
+			im.warnf(OverrideIgnored, nodeSubject(o.Node), "%d overrides are named %q; not imported", len(named), o.Name)
+		}
+	}
+	return out
 }
 
 func specName(s pobxml.Spec, i int) string {

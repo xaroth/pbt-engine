@@ -36,6 +36,7 @@ func chieftain(t *testing.T) *build.Build {
 		Class: marauder, Ascendancy: "Chieftain", Level: 90,
 		Nodes:     []uint32{4139, 11505, 1731},
 		Masteries: map[uint32]uint32{11505: 36313, 4139: 47642},
+		Overrides: map[uint32]string{1731: "Valako4"},
 		Config:    values(t, poe1.BanditsHelpAlira, poe1.CampaignActs6To10),
 		Skills: build.Skills{Groups: []build.SkillGroup{
 			// The disabled gem's skill does not count towards the main active skill.
@@ -134,12 +135,14 @@ func TestToXMLWarnings(t *testing.T) {
 	b.Config["power-charges"] = json.RawMessage("3")
 	b.Skills.Groups[0].Gems[1].ID = "Metadata/Items/Gems/SkillGemFlameDash"
 	b.Items = build.Items{build.SlotRing1: {Rarity: build.Rare, Base: "Ruby Ring"}, build.SlotBelt: {Rarity: build.Normal, Base: "Heavy Belt"}}
+	b.Overrides[2] = "Unnamed1"
 	_, warnings, err := pob.ToXML(b, exportRegistry(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []build.Warning{
 		{Code: pob.VersionFallback, Subject: "3.28", Message: "no dataset of this version; names written with 3.29.3.5"},
+		{Code: pob.OverrideNotExported, Subject: "node 2", Message: `override "Unnamed1" has no English name; not exported`},
 		{Code: pob.ConfigNotExported, Subject: "power-charges", Message: "config value not exported"},
 		{Code: pob.ConfigNotExported, Subject: "bandits", Message: "PoB has no choice for the bandit quest not completed; its default, kill all, applies"},
 		{Code: pob.GemUnknown, Subject: "Metadata/Items/Gems/SkillGemFlameDash", Message: "gem not in dataset; written by id only"},

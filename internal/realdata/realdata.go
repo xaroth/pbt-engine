@@ -26,8 +26,8 @@ const (
 //
 //nolint:gochecknoglobals // a constant table
 var ids = map[string]string{
-	Previous: "ab036e6f7a2a49481a99d34d1b79a2bdf1e09329bc748f36038e0f6cec41dcb9",
-	Current:  "f9bfe4de4f58bfaa7848ff5ff26852480c8af50ebd7d40b6fbc62e8f7ebc33b9",
+	Previous: "5f14cda3263e1d93da9969242fe91c41b0fbb5145ca4864b405947ddc1b13427",
+	Current:  "ed6dc86aa6f6843f76ce59fa9bc38718b357750f22475bde28826b5ef60e0468",
 }
 
 // artIDs are the art manifest ids, each the manifest's SHA-256, published with the pinned
@@ -35,8 +35,8 @@ var ids = map[string]string{
 //
 //nolint:gochecknoglobals // a constant table
 var artIDs = map[string]string{
-	Previous: "e2f7515a17c9aca763dd858efb730da07a96b95a7df166a11a920905381a73f8",
-	Current:  "8c92af83fe2c417d7fc289c9afb5d921a0842c9d38992415251cbafaf1b89511",
+	Previous: "34692fb8eb2093c41ec79dc904017be3725ca89234c0f5d74692a9e8c8c6d689",
+	Current:  "1bfa96b1c78bd161b9b624e62540150cef061afc2433ff589c7fe8c5faef7ee6",
 }
 
 // fetchHint tells how to put the pinned datasets under $PBT_DATASETS.
