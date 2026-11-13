@@ -8,7 +8,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// supportedTypes applies the supports of group g, number i, to skill ge: it sets sk.Supports
+// supportedTypes applies the supports of group g to skill ge of gem src: it sets sk.Supports
 // and returns the skill's types with those the supports add, indexed as Skills.Types. A
 // support applies when the skill can be supported, shares a weapon class with the support if
 // the support restricts them, and has the types the support allows and none it excludes. Types
@@ -16,7 +16,7 @@ import (
 // Every support is then checked again against the final types, so one that a later support's
 // types exclude does not apply whatever the group's order; the types it added stay. The rest
 // warn.
-func (r *skillResolver) supportedTypes(i int, g build.SkillGroup, ge *dataset.GrantedEffect, sk *Skill) []bool {
+func (r *skillResolver) supportedTypes(src GemSource, g build.SkillGroup, ge *dataset.GrantedEffect, sk *Skill) []bool {
 	active := r.actives[ge.ActiveSkill]
 	types := make([]bool, len(r.data.Types))
 	minion := make([]bool, len(r.data.Types))
@@ -26,7 +26,7 @@ func (r *skillResolver) supportedTypes(i int, g build.SkillGroup, ge *dataset.Gr
 	for _, t := range active.MinionTypes {
 		minion[t] = true
 	}
-	pending := r.supportGems(i, g)
+	pending := r.supportGems(src, g)
 	applied := make([]bool, len(pending))
 	for progress := true; progress; {
 		progress = false
@@ -57,18 +57,25 @@ type supportGem struct {
 	effect *dataset.GrantedEffect
 }
 
-// supportGems returns the enabled support gems of group g, number i, other than its active gem.
-func (r *skillResolver) supportGems(i int, g build.SkillGroup) []supportGem {
+// supportGems returns the enabled support effects of group g's gems other than the skill's gem
+// src: those of support gems, and the support an active gem grants as its second effect, such
+// as the one with which a gem's skill supports warcries in its group.
+func (r *skillResolver) supportGems(src GemSource, g build.SkillGroup) []supportGem {
 	var out []supportGem
+	i := src.Group
 	for j, gem := range g.Gems {
-		if j == g.Active || gem.Disabled || !gem.Support {
+		if j == src.Gem || gem.Disabled {
 			continue
 		}
 		e := r.gemEffect(gem)
 		if e == nil {
 			continue
 		}
-		if ge := r.effects[e.GrantedEffect]; ge != nil && ge.Support {
+		id := e.GrantedEffect
+		if !gem.Support {
+			id = e.SecondaryGrantedEffect
+		}
+		if ge := r.effects[id]; ge != nil && ge.Support {
 			out = append(out, supportGem{src: GemSource{Group: i, Gem: j, ID: gem.ID}, gem: gem, effect: ge})
 		}
 	}
@@ -128,6 +135,8 @@ func (r *skillResolver) support(slot build.Slot, sp supportGem) Support {
 	out := Support{Source: sp.src, GrantedEffect: sp.effect.ID, Level: sp.gem.Level + level, Quality: sp.gem.Quality + quality}
 	if len(sp.effect.Levels) > 0 {
 		out.Level = r.clampLevel(sp.src, sp.effect, out.Level)
+		row := sp.effect.Levels[rowAt(sp.effect.Levels, out.Level, effectLevel)]
+		out.CostMultiplier, out.Reservation = row.CostMultiplier, rowReservation(row)
 	}
 	if len(sp.effect.StatSets) > 0 {
 		out.Stats = r.statSet(r.sets[sp.effect.StatSets[0]], out.Level, out.Quality, sp.effect.QualityStats).Stats

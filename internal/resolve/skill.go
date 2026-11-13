@@ -48,11 +48,33 @@ type Skill struct {
 	// CastTime is the skill's in milliseconds; AttackTime and AttackSpeedMultiplier are its
 	// level row's.
 	CastTime, AttackTime, AttackSpeedMultiplier int32
+	// Costs are the skill's level row costs, before supports' multipliers.
+	Costs []dataset.Cost
+	// Reservation is what the skill reserves before supports' multipliers: its level row's, or
+	// that of the last applied support whose level row reserves, such as one that makes a
+	// warcry reserve.
+	Reservation Reservation
 	// StatSets are the skill's stat sets at its level, the primary set first.
 	StatSets []SkillStatSet
 	// Supports are the group's supports that apply to the skill, in group order.
 	Supports []Support
 }
+
+// Reservation is the life and mana a skill reserves: flat amounts, and percentages of the
+// maximum in hundredths of a percent.
+type Reservation struct {
+	ManaFlat, ManaPercent, LifeFlat, LifePercent int32
+}
+
+func rowReservation(row dataset.EffectLevel) Reservation {
+	return Reservation{
+		ManaFlat: row.ManaReservationFlat, ManaPercent: row.ManaReservationPercent,
+		LifeFlat: row.LifeReservationFlat, LifePercent: row.LifeReservationPercent,
+	}
+}
+
+// IsZero reports whether r reserves nothing.
+func (r Reservation) IsZero() bool { return r == Reservation{} }
 
 // SkillStatSet is one stat set of a skill at the skill's level.
 type SkillStatSet struct {
@@ -72,7 +94,11 @@ type Support struct {
 	GrantedEffect string
 	// Level and Quality include what items add.
 	Level, Quality int
+	// CostMultiplier is the support's cost and reservation multiplier in percent.
+	CostMultiplier int32
 	Stats          []StatValue
+	// Reservation is what the support's level row reserves.
+	Reservation Reservation
 }
 
 // MainSkill resolves the main skill of c's build, as GroupSkill does.
@@ -97,30 +123,86 @@ func GroupSkill(c *build.Checked, i int, bonuses []GemBonus) (*Skill, []build.Wa
 	if g.Active >= len(g.Gems) || g.Gems[g.Active].Disabled {
 		return nil, nil, fmt.Errorf("%w: group %d", ErrNoActiveSkill, i+1)
 	}
-	gem := g.Gems[g.Active]
-	ge, err := r.skillEffect(gem, g.ActiveSkill)
+	sk, err := r.gemSkill(i, g.Active, g.ActiveSkill)
 	if err != nil {
-		return nil, nil, fmt.Errorf("group %d: %w", i+1, err)
+		return nil, nil, err
 	}
-	src := GemSource{Group: i, Gem: g.Active, ID: gem.ID}
+	return sk, r.warnings, nil
+}
+
+// SkillWarnings is a resolved skill and the warnings resolving it gave.
+type SkillWarnings struct {
+	Skill    *Skill
+	Warnings []build.Warning
+}
+
+// Skills resolves every skill c's build uses: each skill of each enabled active gem in the
+// groups outside the weapon swap, in group and gem order, each with its group's supports as
+// GroupSkill applies them. Gems the dataset lacks and skills without levels are left out. It
+// fails when a dataset group fails to load.
+func Skills(c *build.Checked, bonuses []GemBonus) ([]SkillWarnings, error) {
+	r, err := newSkillResolver(c, bonuses)
+	if err != nil {
+		return nil, err
+	}
+	var out []SkillWarnings
+	for i, g := range c.Build().Skills.Groups {
+		if g.Slot.Swap() {
+			continue
+		}
+		for j, gem := range g.Gems {
+			if gem.Support || gem.Disabled {
+				continue
+			}
+			for which := range 2 {
+				r.warnings = nil
+				sk, err := r.gemSkill(i, j, which)
+				if err != nil {
+					continue
+				}
+				out = append(out, SkillWarnings{Skill: sk, Warnings: r.warnings})
+			}
+		}
+	}
+	return out, nil
+}
+
+// gemSkill resolves skill which (0 the first, 1 the second) of gem j of group i, supported by
+// the group's other gems. It fails with ErrNoActiveSkill when that is not an active skill with
+// levels, and with dataset.ErrNotInDataset when the dataset lacks the gem.
+func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
+	g := r.groups[i]
+	gem := g.Gems[j]
+	ge, err := r.skillEffect(gem, which)
+	if err != nil {
+		return nil, fmt.Errorf("group %d: %w", i+1, err)
+	}
+	src := GemSource{Group: i, Gem: j, ID: gem.ID}
 	sk := &Skill{Source: src, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime}
-	types := r.supportedTypes(i, g, ge, sk)
+	types := r.supportedTypes(src, g, ge, sk)
 
 	tags := r.tags(gem)
 	level, quality := r.itemBonus(g.Slot, gem, tags)
 	for _, sp := range sk.Supports {
-		l, q := supportedBonus(bonuses, sp.Stats, gem.Support, tags)
+		l, q := supportedBonus(r.bonuses, sp.Stats, gem.Support, tags)
 		level, quality = level+l, quality+q
 	}
 	sk.Quality = gem.Quality + quality
 	sk.Level = r.clampLevel(src, ge, gem.Level+level)
 	row := ge.Levels[rowAt(ge.Levels, sk.Level, effectLevel)]
 	sk.AttackTime, sk.AttackSpeedMultiplier = row.AttackTime, row.AttackSpeedMultiplier
+	sk.Costs = slices.Clone(row.Costs)
+	sk.Reservation = rowReservation(row)
+	for _, sp := range sk.Supports {
+		if !sp.Reservation.IsZero() {
+			sk.Reservation = sp.Reservation
+		}
+	}
 	for _, id := range ge.StatSets {
 		sk.StatSets = append(sk.StatSets, r.statSet(r.sets[id], sk.Level, sk.Quality, ge.QualityStats))
 	}
 	sk.Types = r.typeNames(types)
-	return sk, r.warnings, nil
+	return sk, nil
 }
 
 // skillResolver holds what resolving one skill reads, and the warnings it gives.
@@ -131,6 +213,7 @@ type skillResolver struct {
 	sets     map[string]*dataset.StatSet
 	actives  map[string]*dataset.ActiveSkill
 	items    build.Items
+	groups   []build.SkillGroup
 	bonuses  []GemBonus
 	warnings []build.Warning
 }
@@ -145,7 +228,7 @@ func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, err
 		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
 	r := &skillResolver{
-		data: data, stats: stats, items: c.Build().Items, bonuses: bonuses,
+		data: data, stats: stats, items: c.Build().Items, groups: c.Build().Skills.Groups, bonuses: bonuses,
 		effects: make(map[string]*dataset.GrantedEffect, len(data.GrantedEffects)),
 		sets:    make(map[string]*dataset.StatSet, len(data.StatSets)),
 		actives: make(map[string]*dataset.ActiveSkill, len(data.ActiveSkills)),
