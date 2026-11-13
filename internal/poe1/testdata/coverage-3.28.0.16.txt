@@ -1,5 +1,5 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 72 authored, 97 unknown, 1 display-only, 0 gaps, 1672 outside
-unknown by reason: condition 52, items 22, event 7, charges 4, reservation 4, scale 4, context 2, rule 1, unestablished 1
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 75 authored, 94 unknown, 1 display-only, 0 gaps, 1672 outside
+unknown by reason: condition 52, items 22, event 7, charges 4, reservation 4, context 2, scale 1, rule 1, unestablished 1
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
@@ -30,9 +30,6 @@ unknown armour_+%_per_red_socket_on_main_hand_weapon global, uses 4: items: depe
 unknown evasion_rating_+%_per_frenzy_charge global, uses 4: charges: scales with Frenzy Charges, which are not modelled yet
 unknown evasion_rating_+%_per_green_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which builds do not have yet
 unknown guardian_gain_life_regeneration_per_minute_%_for_1_second_every_10_seconds global, uses 4: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
-unknown additional_dexterity_per_allocated_mastery global, uses 3: scale: scales with the number of allocated Mastery passives; resolve does not count them yet
-unknown additional_intelligence_per_allocated_mastery global, uses 3: scale: scales with the number of allocated Mastery passives; resolve does not count them yet
-unknown additional_strength_per_allocated_mastery global, uses 3: scale: scales with the number of allocated Mastery passives; resolve does not count them yet
 unknown physical_damage_reduction_rating_+%_per_endurance_charge global, uses 3: charges: scales with Endurance Charges, which are not modelled yet
 unknown shield_maximum_energy_shield_+% global, uses 3: items: depends on equipped items, which builds do not have yet
 unknown X_armour_if_you_have_blocked_recently global, uses 2: condition: blocked recently
