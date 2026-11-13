@@ -74,6 +74,35 @@ const (
 	statSpellBlockChanceCapped                           = "spell_block_chance_capped"
 	statMovementSpeed                                    = "movement_speed"
 	statDamage                                           = "damage"
+	statReservation                                      = "reservation"
+	statReservationEfficiency                            = "reservation_efficiency"
+	statManaReservationEfficiency                        = "mana_reservation_efficiency"
+	statLifeReservationEfficiency                        = "life_reservation_efficiency"
+	statSkillReservesLifeInsteadOfMana                   = "skill_reserves_life_instead_of_mana"
+	statSkillHasNoReservation                            = "skill_has_no_reservation"
+	statManaReservationBase                              = "mana_reservation_base"
+	statManaReservationPermyriadBase                     = "mana_reservation_permyriad_base"
+	statLifeReservationBase                              = "life_reservation_base"
+	statLifeReservationPermyriadBase                     = "life_reservation_permyriad_base"
+	statManaReservation                                  = "mana_reservation"
+	statManaReservationPermyriad                         = "mana_reservation_permyriad"
+	statLifeReservation                                  = "life_reservation"
+	statLifeReservationPermyriad                         = "life_reservation_permyriad"
+	statReservedMana                                     = "reserved_mana"
+	statReservedManaPermyriad                            = "reserved_mana_permyriad"
+	statReservedLife                                     = "reserved_life"
+	statReservedLifePermyriad                            = "reserved_life_permyriad"
+	statUnreservedMana                                   = "unreserved_mana"
+	statUnreservedLife                                   = "unreserved_life"
+	statCostEfficiency                                   = "cost_efficiency"
+	statManaCostEfficiency                               = "mana_cost_efficiency"
+	statLifeCostEfficiency                               = "life_cost_efficiency"
+	statSkillCostsLifeInsteadOfMana                      = "skill_costs_life_instead_of_mana"
+	statManaCostBase                                     = "mana_cost_base"
+	statLifeCostBase                                     = "life_cost_base"
+	statCost                                             = "cost"
+	statManaCost                                         = "mana_cost"
+	statLifeCost                                         = "life_cost"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -111,6 +140,18 @@ const (
 // damage is a skill's damage as a percentage of its base damage: 100 before modifiers. Read in
 // a skill's context for one damage type, it holds the increases and more multipliers that
 // apply to that part of the skill's damage.
+//
+// Costs and reservation are read in a skill's context. mana_reservation_base and
+// mana_reservation_permyriad_base are what the skill's level row reserves with its supports'
+// multipliers, flat and in hundredths of a percent of maximum mana; mana_reservation and
+// mana_reservation_permyriad are what it reserves, after the increases and more multipliers
+// of "Mana Reservation" and the mana_reservation_efficiency; reservation and
+// reservation_efficiency hold those to both pools. reserved_mana and reserved_mana_permyriad, read on the sheet, total every
+// reserving skill's, and unreserved_mana is what is left of maximum mana. The same for life.
+// mana_cost_base is the skill's level row mana cost with its supports' multipliers, mana_cost
+// the cost after its modifiers and mana_cost_efficiency; cost and cost_efficiency hold those to
+// every cost. The skill_ flags are its "Reserves Life instead of Mana", "has no Reservation"
+// and "Costs Life instead of Mana".
 //
 // number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
 // counters, since every allocatable mastery carries its group's count at 1.
@@ -163,6 +204,7 @@ func engineStats() []string {
 		statSpellBlockChanceCapped,
 		statMovementSpeed,
 		statDamage,
+	}, reservationStats(), []string{
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,
 		statEffectiveMaximumLightningResistance,
@@ -174,6 +216,41 @@ func engineStats() []string {
 		statManaRegeneration,
 		statEnergyShieldRegeneration,
 	})
+}
+
+// reservationStats are the engine stats of costs and reservation, in registration order.
+func reservationStats() []string {
+	return []string{
+		statReservation,
+		statReservationEfficiency,
+		statManaReservationEfficiency,
+		statLifeReservationEfficiency,
+		statSkillReservesLifeInsteadOfMana,
+		statSkillHasNoReservation,
+		statManaReservationBase,
+		statManaReservationPermyriadBase,
+		statLifeReservationBase,
+		statLifeReservationPermyriadBase,
+		statManaReservation,
+		statManaReservationPermyriad,
+		statLifeReservation,
+		statLifeReservationPermyriad,
+		statReservedManaPermyriad,
+		statReservedMana,
+		statReservedLifePermyriad,
+		statReservedLife,
+		statUnreservedMana,
+		statUnreservedLife,
+		statCostEfficiency,
+		statManaCostEfficiency,
+		statLifeCostEfficiency,
+		statSkillCostsLifeInsteadOfMana,
+		statManaCostBase,
+		statLifeCostBase,
+		statCost,
+		statManaCost,
+		statLifeCost,
+	}
 }
 
 // chargeStats are the engine stats of charges and Fortification, in registration order.

@@ -31,7 +31,9 @@ type skillKey struct {
 
 // SetSkills makes skills the sheet's skills: skill i takes context slot i, and the sources of
 // its own stats (its primary stat set, quality included, and each applied support) go on,
-// those of other skills off. A skill's own stats reach that skill's values only. A skill not
+// those of other skills off. A skill's own stats reach that skill's values only. Every skill
+// that reserves life or mana reserves it from the sheet's pools; outputs of the skill group
+// read skill 0. A skill not
 // seen yet in its slot gets its sources added once; adding is refused while a checkpoint is
 // open (ErrCheckpointOpen).
 func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
@@ -76,7 +78,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 	for _, sp := range sk.Supports {
 		bundles = append(bundles, skillBundle(sp.Source, sp.Stats))
 	}
-	srcs := make([]core.SourceID, 0, len(bundles))
+	srcs := make([]core.SourceID, 0, len(bundles)+1)
 	for i := range bundles {
 		src, err := sh.add(&bundles[i], sh.table, sh.gameVersion, slot)
 		if err != nil {
@@ -84,7 +86,12 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 		}
 		srcs = append(srcs, src)
 	}
-	return srcs, nil
+	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, nil))
+	src, err := sh.addSkillRules(sk, slot, ctx)
+	if err != nil {
+		return nil, err
+	}
+	return append(srcs, src), nil
 }
 
 func skillBundle(src resolve.GemSource, stats []resolve.StatValue) resolve.Bundle {

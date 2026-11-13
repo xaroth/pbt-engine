@@ -65,11 +65,11 @@ func Outputs() []Output {
 		{Key: Dexterity, Label: "Dexterity", Better: output.Higher, stat: statDexterity},
 		{Key: Intelligence, Label: "Intelligence", Better: output.Higher, stat: statIntelligence},
 		{Key: Life, Label: "Life", Better: output.Higher, stat: statMaximumLife},
-		// Unreserved is the pool minus its reservation. Nothing in the sheet reserves yet (only
-		// skills do, and they are not simulated), so it is the whole pool.
-		{Key: UnreservedLife, Label: "Unreserved Life", Better: output.Higher, stat: statMaximumLife},
+		{Key: ReservedLife, Label: "Reserved Life", Better: output.Lower, stat: statReservedLife},
+		{Key: UnreservedLife, Label: "Unreserved Life", Better: output.Higher, stat: statUnreservedLife},
 		{Key: Mana, Label: "Mana", Better: output.Higher, stat: statMaximumMana},
-		{Key: UnreservedMana, Label: "Unreserved Mana", Better: output.Higher, stat: statMaximumMana},
+		{Key: ReservedMana, Label: "Reserved Mana", Better: output.Lower, stat: statReservedMana},
+		{Key: UnreservedMana, Label: "Unreserved Mana", Better: output.Higher, stat: statUnreservedMana},
 		{Key: EnergyShield, Label: "Energy Shield", Better: output.Higher, stat: statMaximumEnergyShield},
 		{Key: Armour, Label: "Armour", Better: output.Higher, stat: statArmour},
 		{Key: EvasionRating, Label: "Evasion Rating", Better: output.Higher, stat: statEvasionRating},
@@ -104,6 +104,8 @@ func Outputs() []Output {
 		{Key: ColdDamageModifier, Label: "Cold Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Cold},
 		{Key: LightningDamageModifier, Label: "Lightning Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Lightning},
 		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
+		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost},
+		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost},
 	}))
 	for i := range out {
 		out[i].Order = i

@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 116 authored, 111 unknown, 1 display-only, 0 gaps, 1681 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 130 authored, 111 unknown, 1 display-only, 0 gaps, 1667 outside
 unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -82,7 +82,6 @@ unknown gain_movement_speed_+%_for_20_seconds_on_kill global, uses 1: condition:
 omitted global_defences_+% global, uses 1: Ward, which is not a sheet value
 unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_energy_shield global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
-omitted keystone_blood_magic global, uses 1: Skills Cost Life instead of Mana; Skills Reserve Life instead of Mana
 omitted keystone_chaos_inoculation global, uses 1: Immune to Chaos Damage
 unknown keystone_divine_shield global, uses 1: condition: physical damage prevented from hits recently
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life

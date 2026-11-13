@@ -87,8 +87,10 @@ const (
 	Dexterity                   output.Key = "player.dexterity"
 	Intelligence                output.Key = "player.intelligence"
 	Life                        output.Key = "player.life"
+	ReservedLife                output.Key = "player.reserved_life"
 	UnreservedLife              output.Key = "player.unreserved_life"
 	Mana                        output.Key = "player.mana"
+	ReservedMana                output.Key = "player.reserved_mana"
 	UnreservedMana              output.Key = "player.unreserved_mana"
 	EnergyShield                output.Key = "player.energy_shield"
 	Armour                      output.Key = "player.armour"
@@ -115,4 +117,6 @@ const (
 	ColdDamageModifier          output.Key = "skill.cold_damage_modifier"
 	LightningDamageModifier     output.Key = "skill.lightning_damage_modifier"
 	ChaosDamageModifier         output.Key = "skill.chaos_damage_modifier"
+	ManaCost                    output.Key = "skill.mana_cost"
+	LifeCost                    output.Key = "skill.life_cost"
 )
