@@ -203,3 +203,47 @@ func TestSwapItemLeftOut(t *testing.T) {
 		t.Errorf("life with the shield in the off hand %v, want %v", got, want)
 	}
 }
+
+const ringText = `Rarity: RARE
+Rune Loop
+Two-Stone Ring
+Item Level: 84
+Implicits: 1
++16% to Fire and Lightning Resistances
++30 to Strength
++20 to Dexterity and Intelligence
++1 Prefix Modifier allowed
+`
+
+// A ring's attributes and two-element resistances reach the sheet, and its crafting-only line
+// is shown without being left out.
+func TestRingStatsOnSheet(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	bare := marauderBuild(1)
+	it, ws, err := s.Data().Item(ringText)
+	if err != nil || len(ws) != 0 {
+		t.Fatalf("read the ring: %v, %v", ws, err)
+	}
+	with := bare.Clone()
+	if err := with.Apply(build.Equip(build.SlotRing1, it)); err != nil {
+		t.Fatal(err)
+	}
+	before, st := simulate(t, s, bare), simulate(t, s, with)
+	for _, w := range st.Warnings() {
+		if w.Code == simulator.UnmodelledStat && strings.Contains(w.Subject, "from item") {
+			t.Errorf("%s: %s, want no ring stat left out", w.Subject, w.Message)
+		}
+	}
+	for _, w := range []struct {
+		key  output.Key
+		item float64
+	}{
+		{poe1.Strength, 30}, {poe1.Dexterity, 20}, {poe1.Intelligence, 20},
+		{poe1.FireResistance, 16}, {poe1.LightningResistance, 16}, {poe1.ColdResistance, 0},
+	} {
+		if got, want := get(t, st, w.key), get(t, before, w.key)+w.item; got != want {
+			t.Errorf("%s with the ring %v, want %v", w.key, got, want)
+		}
+	}
+}

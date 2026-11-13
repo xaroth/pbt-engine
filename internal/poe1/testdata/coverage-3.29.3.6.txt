@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 101 authored, 95 unknown, 1 display-only, 0 gaps, 1712 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 102 authored, 95 unknown, 1 display-only, 0 gaps, 1711 outside
 unknown by reason: condition 55, items 23, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
@@ -73,6 +73,7 @@ unknown es_regeneration_per_minute_%_while_stationary global, uses 1: condition:
 unknown evasion_rating_+%_while_phasing global, uses 1: condition: Phasing
 unknown evasion_rating_+_per_1_helmet_energy_shield global, uses 1: items: depends on equipped items, which builds do not have yet
 unknown gain_%_total_phys_damage_prevented_in_the_past_10_sec_as_life_regen_per_sec global, uses 1: condition: physical damage prevented in the past 10 seconds
+omitted global_defences_+% global, uses 1: Ward, which is not a sheet value
 unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_energy_shield global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
 omitted keystone_blood_magic global, uses 1: Skills Cost Life instead of Mana; Skills Reserve Life instead of Mana
