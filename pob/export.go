@@ -185,15 +185,16 @@ func joinMasteries(m map[uint32]uint32) string {
 	return strings.Join(out, ",")
 }
 
-// config writes the bandit choice into f's <Build> and its config set, and the campaign stage
-// as the resistance penalty. Without a bandit choice PoB's default, kill all, applies.
+// config writes the bandit choice into f's <Build> and its config set, the campaign stage as
+// the resistance penalty, and the enemy keys as PoB's enemy inputs. Without a bandit choice
+// PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
-	for _, name := range v.Names() {
-		if name != string(poe1.Bandits) && name != string(poe1.Campaign) {
-			ex.warnf(ConfigNotExported, name, "config value not exported")
-		}
+	enemy, enemyKeys, err := enemyInputs(v)
+	if err != nil {
+		return err
 	}
+	ex.warnConfigLeftOut(v, enemyKeys)
 	var inputs []outInput
 	bandit, ok, err := config.Get(v, poe1.Bandits)
 	if err != nil {
@@ -214,10 +215,20 @@ func (ex *exporter) config(f *outFile) error {
 	if ok {
 		inputs = append(inputs, outInput{Name: penaltyInput, Number: pobPenalty(stage)})
 	}
+	inputs = append(inputs, enemy...)
 	if len(inputs) > 0 {
 		f.Config = &outConfig{Active: "1", Sets: []outConfigSet{{ID: "1", Inputs: inputs}}}
 	}
 	return nil
+}
+
+// warnConfigLeftOut warns of each config key of v that config does not export.
+func (ex *exporter) warnConfigLeftOut(v config.Values, enemyKeys map[string]bool) {
+	for _, name := range v.Names() {
+		if name != string(poe1.Bandits) && name != string(poe1.Campaign) && !enemyKeys[name] {
+			ex.warnf(ConfigNotExported, name, "config value not exported")
+		}
+	}
 }
 
 // pobBandit is the inverse of banditOf; PoB has no choice for the quest not completed.
