@@ -1,0 +1,32 @@
+Item Class: Gloves
+Rarity: Rare
+Phoenix Clutches
+Shagreen Gloves
+--------
+Quality: +20% (augmented)
+Evasion Rating: 253 (augmented)
+--------
+Requirements:
+Level: 70
+Str: 111
+Dex: 155
+Int: 48
+--------
+Sockets: R-G-G-G 
+--------
+Item Level: 72
+--------
+8% increased Attack Speed (implicit)
+Inflict Lightning Exposure on Hit, applying -11% to Lightning Resistance (implicit)
+(Lightning Exposure subtracts from Lightning Resistance for 4 seconds)
+--------
++88 to maximum Life
+Adds 1 to 2 Physical Damage to Attacks
+Adds 11 to 21 Fire Damage to Attacks
++7% chance to Suppress Spell Damage
+(40% of Damage from Suppressed Hits and Ailments they inflict is prevented)
++338 to Accuracy Rating
+12% increased Attack Speed (crafted)
+--------
+Searing Exarch Item
+Eater of Worlds Item

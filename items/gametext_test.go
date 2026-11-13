@@ -141,6 +141,33 @@ func TestParseGameAsPoB(t *testing.T) {
 	}
 }
 
+// TestParseGamePlain reads items copied with Ctrl+C, reminder text in their implicit and
+// explicit sections, to the same item as with Ctrl+Alt+C.
+func TestParseGamePlain(t *testing.T) {
+	t.Parallel()
+	r, _ := realReader(t)
+	for _, name := range []string{"06-empyrean-dash.txt", "08-phoenix-clutches.txt"} {
+		want, _, err := r.Parse(gameSample(t, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		plain, err := os.ReadFile(filepath.Join("testdata", "game-plain", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, warnings, err := r.Parse(string(plain))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(warnings) != 0 {
+			t.Errorf("%s: warnings %v", name, warnings)
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("%s (-Ctrl+Alt+C +Ctrl+C):\n%s", name, diff)
+		}
+	}
+}
+
 // TestParseGameUnidentified reads an unidentified rare, which shows its base only.
 func TestParseGameUnidentified(t *testing.T) {
 	t.Parallel()

@@ -1,0 +1,32 @@
+Item Class: Boots
+Rarity: Rare
+Empyrean Dash
+Martyr Boots
+--------
+Armour: 232 (augmented)
+Energy Shield: 46 (augmented)
+--------
+Requirements:
+Level: 78
+Str: 148
+Dex: 106
+Int: 85
+--------
+Sockets: R-W-W-W 
+--------
+Item Level: 86
+--------
+Drops Sapped Ground while moving, lasting 2 seconds (implicit)
+(Enemies on your Sapped Ground are Sapped. They deal 6% less Damage)
+7% increased Life Regeneration rate (implicit)
+--------
++113 to maximum Life
+35% increased Movement Speed
+19% increased Armour and Energy Shield (crafted)
++13 to maximum Life (crafted)
++29% to Cold Resistance
+Regenerate 91.8 Life per second
++54 to Intelligence
+--------
+Searing Exarch Item
+Eater of Worlds Item

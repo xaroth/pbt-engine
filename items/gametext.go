@@ -93,14 +93,23 @@ func (p *parsed) markedSection(s []string) bool {
 	return true
 }
 
-// gameSections splits text into its sections' non-empty lines; empty sections are left out.
+// gameSections splits text into its sections' non-empty lines; reminder text and empty sections
+// are left out.
 func gameSections(text string) [][]string {
 	sections := [][]string{nil}
+	reminder := false
 	for l := range strings.Lines(text) {
-		switch l = strings.TrimSpace(l); l {
+		l = strings.TrimSpace(l)
+		if l != gameSeparator && (reminder || strings.HasPrefix(l, "(")) {
+			// Reminder text, as "(Maximum Resistances cannot be raised above 90%)", may wrap.
+			reminder = !strings.HasSuffix(l, ")")
+			continue
+		}
+		switch l {
 		case "":
 		case gameSeparator:
 			sections = append(sections, nil)
+			reminder = false
 		default:
 			sections[len(sections)-1] = append(sections[len(sections)-1], l)
 		}
@@ -133,12 +142,8 @@ func (p *parsed) gameHeader(sections [][]string) ([][]string, error) {
 
 // gameMods reads the lines of a mod section, of kind unless a header or a suffix says otherwise.
 func (p *parsed) gameMods(lines []string, kind build.ModKind) {
-	reminder := false
 	for _, l := range lines {
 		switch {
-		case reminder || strings.HasPrefix(l, "("):
-			// Reminder text, as "(Maximum Resistances cannot be raised above 90%)", may wrap.
-			reminder = !strings.HasSuffix(l, ")")
 		case isModHeader(l):
 			kind = headerKind(l)
 		case slices.Contains(flagLines(), l):
