@@ -75,7 +75,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statMaximumEnduranceChargesAreMaximumFrenzyCharges, statHasMaximumFortification:
 		def.Flag = true
 	}
-	return fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids)
+	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
 // regeneration is one pool's regeneration stats; any of the flag stats off sets it to 0.

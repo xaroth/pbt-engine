@@ -93,7 +93,8 @@ func notSheet() map[string]string {
 }
 
 const quantity = `(?:Strength|Dexterity|Intelligence|Attributes|Life|Mana|Energy Shield|Evasion Rating|Armour|` +
-	`(?:all )?(?:maximum |Maximum )?(?:Elemental |Fire |Cold |Lightning |Chaos )?Resistances?)`
+	`(?:all )?(?:maximum |Maximum )?(?:Elemental |Fire |Cold |Lightning |Chaos )?Resistances?|` +
+	`[Cc]hance to Block (?:Attack and )?Spell Damage)`
 
 const maximum = `(?:maximum |Maximum )?`
 

@@ -34,8 +34,8 @@
     },
     "OutputGroup": {
       "title": "OutputGroup",
-      "description": "The panel an output is shown in: the character sheet.",
-      "enum": ["sheet"]
+      "description": "The panel an output is shown in: the character sheet, or defences.",
+      "enum": ["sheet", "defence"]
     },
     "Better": {
       "title": "Better",

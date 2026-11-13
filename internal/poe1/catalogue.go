@@ -27,6 +27,8 @@ const (
 	// GroupSheet is the character sheet: attributes, pools, armour and evasion, resistances
 	// and regeneration.
 	GroupSheet = "sheet"
+	// GroupDefence is how the character avoids or mitigates hits: block.
+	GroupDefence = "defence"
 )
 
 // Output is a named value of the sheet a consumer can ask for and render without knowing the
@@ -47,7 +49,7 @@ type Output struct {
 
 // Outputs returns the catalogue of outputs, in display order.
 func Outputs() []Output {
-	out := group(GroupSheet, []Output{
+	out := append(group(GroupSheet, []Output{
 		{Key: Strength, Label: "Strength", Better: output.Higher, stat: statStrength},
 		{Key: Dexterity, Label: "Dexterity", Better: output.Higher, stat: statDexterity},
 		{Key: Intelligence, Label: "Intelligence", Better: output.Higher, stat: statIntelligence},
@@ -81,7 +83,9 @@ func Outputs() []Output {
 			Key: EnergyShieldRegeneration, Label: "Energy Shield Regeneration", Better: output.Higher, Unit: UnitPerSecond, Places: regenerationPlaces,
 			stat: statEnergyShieldRegeneration,
 		},
-	})
+	}), group(GroupDefence, []Output{
+		{Key: SpellBlockChance, Label: "Chance to Block Spell Damage", Better: output.Higher, Unit: UnitPercent, stat: statSpellBlockChanceCapped},
+	})...)
 	for i := range out {
 		out[i].Order = i
 	}
