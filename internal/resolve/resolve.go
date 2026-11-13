@@ -218,8 +218,9 @@ func QuestBundles(s *dataset.Store) ([]Bundle, error) {
 
 // Resolve turns a checked build into bundles and constants: character, level, every quest
 // reward with stats (the rules pick the ones the build's config grants), then the allocated
-// nodes, each followed by its chosen mastery effect. It fails when a dataset group fails to
-// load or a stat id resolve uses is not in the dataset's stats.
+// nodes as the build's overrides change them (ChangeNode), each followed by its chosen mastery
+// effect. It fails when a dataset group fails to load or a stat id resolve uses is not in the
+// dataset's stats.
 func Resolve(c *build.Checked) (*Resolved, error) {
 	return resolve(c, false)
 }
@@ -274,8 +275,12 @@ func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 
 func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	choices := c.Masteries()
+	changes := nodeChanges(c)
 	var out []Bundle
 	for _, n := range c.Nodes() {
+		if ch, ok := changes[n.ID]; ok {
+			n = ChangeNode(n, ch...)
+		}
 		out = append(out, nodeBundles(stats, n)...)
 		if i := slices.IndexFunc(choices, func(m build.MasteryChoice) bool { return m.Node.ID == n.ID }); i >= 0 {
 			out = append(out, masteryBundle(stats, n, choices[i].Effect))
@@ -287,11 +292,15 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 // treeBundles returns the bundles of every node c's class, ascendancy and bloodline can
 // allocate: not other ascendancies' nodes or other classes' starts.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
+	changes := nodeChanges(c)
 	var out []Bundle
 	for i := range c.Tree().Nodes {
 		n := &c.Tree().Nodes[i]
 		if !c.OwnsAscendancy(n.Ascendancy) || (n.Kind == dataset.ClassStart && n.ID != c.Class().StartNode) {
 			continue
+		}
+		if ch, ok := changes[n.ID]; ok {
+			n = ChangeNode(n, ch...)
 		}
 		out = append(out, nodeBundles(stats, n)...)
 		for _, e := range n.MasteryEffects {

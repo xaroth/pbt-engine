@@ -389,6 +389,46 @@ func TestBloodlineSheet(t *testing.T) {
 	}
 }
 
+// A tattoo and a runegraft give their stats in place of their nodes', and a build with them
+// does not take the idle sheet of the same build without them. Node 13 (+10 strength) hangs
+// off the start; tattoo Valako4 gives +40 life in its place, runegraft_8 +20% life in place of
+// mastery 4.
+func TestOverrideSheet(t *testing.T) {
+	t.Parallel()
+	d := testDataset("3.29.3.3", 20)
+	tree := &d.Trees[0]
+	tree.Nodes[0].Neighbours = append(tree.Nodes[0].Neighbours, 13)
+	tree.Nodes = append(tree.Nodes, dataset.Node{ID: 13, Neighbours: []uint32{1}, Stats: []dataset.StatValue{{Stat: 3, Value: 10}}})
+	tree.Overrides = []dataset.NodeOverride{
+		{ID: "Valako4", Icon: "v.png", Target: dataset.SmallStrength, Stats: []dataset.StatValue{{Stat: 6, Value: 40}}},
+		{ID: "runegraft_8", Kind: dataset.Runegraft, Icon: "r.png", Target: dataset.MasteryTarget, Stats: []dataset.StatValue{{Stat: 8, Value: 20}}},
+	}
+	s, err := simulator.New(storeOf(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty := get(t, simulate(t, s, marauderBuild(1)), poe1.Life)
+	plain := marauderBuild(1, 13, 4)
+	without := get(t, simulate(t, s, plain), poe1.Life)
+	b := marauderBuild(1, 13, 4)
+	b.Overrides = map[uint32]string{13: "Valako4", 4: "runegraft_8"}
+	st := simulate(t, s, b)
+	if w := st.Warnings(); len(w) != 0 {
+		t.Errorf("warnings %v", w)
+	}
+	with := get(t, st, poe1.Life)
+	// 10 strength is 5 life; the tattoo takes its place with 40 life, the runegraft adds 20%.
+	if want := math.Floor((empty + 40) * 1.2); without != empty+5 || with != want {
+		t.Errorf("life %v with the overrides, %v without, %v with no nodes; want %v and %v", with, without, empty, want, empty+5)
+	}
+	if again := get(t, simulate(t, s, plain), poe1.Life); again != without {
+		t.Errorf("life %v without the overrides after a run with them, want %v", again, without)
+	}
+	if n := s.IdleSheets(); n != 2 {
+		t.Errorf("%d idle sheets for builds with and without overrides, want 2", n)
+	}
+}
+
 // The pool keeps at most MaxIdle sheets, however many run at once.
 func TestPoolLimit(t *testing.T) {
 	t.Parallel()

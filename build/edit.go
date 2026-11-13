@@ -25,6 +25,8 @@ const (
 	OpDeallocate    EditOp = "deallocate"
 	OpSetMastery    EditOp = "set-mastery"
 	OpClearMastery  EditOp = "clear-mastery"
+	OpSetOverride   EditOp = "set-override"
+	OpClearOverride EditOp = "clear-override"
 	OpSetLevel      EditOp = "set-level"
 	OpSetClass      EditOp = "set-class"
 	OpSetAscendancy EditOp = "set-ascendancy"
@@ -40,11 +42,13 @@ type Edit struct {
 	Op EditOp `json:"op"`
 	// Nodes for allocate and deallocate.
 	Nodes []uint32 `json:"nodes,omitzero"`
-	// Node and Effect for set-mastery, Node for clear-mastery.
-	Node   uint32 `json:"node,omitzero"`
-	Effect uint32 `json:"effect,omitzero"`
-	Level  int    `json:"level,omitzero"`
-	Class  string `json:"class,omitzero"`
+	// Node and Effect for set-mastery, Node and Override for set-override, Node for
+	// clear-mastery and clear-override.
+	Node     uint32 `json:"node,omitzero"`
+	Effect   uint32 `json:"effect,omitzero"`
+	Override string `json:"override,omitzero"`
+	Level    int    `json:"level,omitzero"`
+	Class    string `json:"class,omitzero"`
 	// Ascendancy for set-ascendancy, Bloodline for set-bloodline; empty clears it.
 	Ascendancy string `json:"ascendancy,omitzero"`
 	Bloodline  string `json:"bloodline,omitzero"`
@@ -74,6 +78,14 @@ func SetMastery(node, effect uint32) Edit { return Edit{Op: OpSetMastery, Node: 
 
 // ClearMastery removes the choice on mastery node.
 func ClearMastery(node uint32) Edit { return Edit{Op: OpClearMastery, Node: node} }
+
+// SetOverride puts the tattoo or runegraft with id on node.
+func SetOverride(node uint32, id string) Edit {
+	return Edit{Op: OpSetOverride, Node: node, Override: id}
+}
+
+// ClearOverride removes the override on node.
+func ClearOverride(node uint32) Edit { return Edit{Op: OpClearOverride, Node: node} }
 
 // SetLevel sets the character level.
 func SetLevel(level int) Edit { return Edit{Op: OpSetLevel, Level: level} }
@@ -119,6 +131,8 @@ func (b *Build) apply(e Edit) error {
 		b.applyNodes(e)
 	case OpSetMastery, OpClearMastery:
 		b.applyMastery(e)
+	case OpSetOverride, OpClearOverride:
+		b.applyOverride(e)
 	case OpSetConfig, OpClearConfig:
 		b.applyConfig(e)
 	case OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline:
@@ -169,6 +183,17 @@ func (b *Build) applyMastery(e Edit) {
 	b.Masteries[e.Node] = e.Effect
 }
 
+func (b *Build) applyOverride(e Edit) {
+	if e.Op == OpClearOverride {
+		delete(b.Overrides, e.Node)
+		return
+	}
+	if b.Overrides == nil {
+		b.Overrides = map[uint32]string{}
+	}
+	b.Overrides[e.Node] = e.Override
+}
+
 func (b *Build) applyConfig(e Edit) {
 	if e.Op == OpClearConfig {
 		b.Config.Clear(e.Key)
@@ -180,9 +205,9 @@ func (b *Build) applyConfig(e Edit) {
 	b.Config[e.Key] = slices.Clone(e.Value)
 }
 
-// Diff returns the edits that turn a into b: class, ascendancy, bloodline, level, nodes deallocated then
-// allocated, mastery choices cleared then set, config keys cleared then set, each in sorted
-// order, then the skill groups, then the items. Version and format are not compared. Builds of
+// Diff returns the edits that turn a into b: class, ascendancy, bloodline, level, nodes
+// deallocated then allocated, mastery choices cleared then set, overrides cleared then set,
+// config keys cleared then set, each in sorted order, then the skill groups, then the items. Version and format are not compared. Builds of
 // another game or tree variant cannot be turned into each other.
 func Diff(a, b *Build) ([]Edit, error) {
 	if a.Game != b.Game || a.Variant != b.Variant {
@@ -207,7 +232,8 @@ func Diff(a, b *Build) ([]Edit, error) {
 	if added := minus(b.Nodes, a.Nodes); len(added) > 0 {
 		out = append(out, Allocate(added...))
 	}
-	out = append(out, masteryDiff(a.Masteries, b.Masteries)...)
+	out = append(out, choiceDiff(a.Masteries, b.Masteries, ClearMastery, SetMastery)...)
+	out = append(out, choiceDiff(a.Overrides, b.Overrides, ClearOverride, SetOverride)...)
 	out = append(out, configDiff(a.Config, b.Config)...)
 	out = append(out, skillsDiff(a.Skills, b.Skills)...)
 	return append(out, itemsDiff(a.Items, b.Items)...), nil
@@ -225,16 +251,17 @@ func minus(x, y []uint32) []uint32 {
 	return slices.Compact(out)
 }
 
-func masteryDiff(a, b map[uint32]uint32) []Edit {
+// choiceDiff returns the edits that turn the per-node choices a into b: clear, then set.
+func choiceDiff[V comparable](a, b map[uint32]V, unset func(uint32) Edit, set func(uint32, V) Edit) []Edit {
 	var out []Edit
 	for _, n := range slices.Sorted(maps.Keys(a)) {
 		if _, ok := b[n]; !ok {
-			out = append(out, ClearMastery(n))
+			out = append(out, unset(n))
 		}
 	}
 	for _, n := range slices.Sorted(maps.Keys(b)) {
-		if e, ok := a[n]; !ok || e != b[n] {
-			out = append(out, SetMastery(n, b[n]))
+		if v, ok := a[n]; !ok || v != b[n] {
+			out = append(out, set(n, b[n]))
 		}
 	}
 	return out

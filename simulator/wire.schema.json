@@ -192,6 +192,7 @@
         "nodes": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
         "node": { "type": "integer", "minimum": 0 },
         "effect": { "type": "integer", "minimum": 0 },
+        "override": { "type": "string", "description": "A tattoo or runegraft of the tree, such as \"Tasalio3\"." },
         "level": { "type": "integer" },
         "class": { "type": "string" },
         "ascendancy": { "type": "string" },
@@ -211,7 +212,7 @@
       "title": "EditOp",
       "description": "What an edit changes.",
       "enum": [
-        "allocate", "deallocate", "set-mastery", "clear-mastery", "set-level", "set-class",
+        "allocate", "deallocate", "set-mastery", "clear-mastery", "set-override", "clear-override", "set-level", "set-class",
         "set-ascendancy", "set-bloodline", "set-config", "clear-config", "add-skill-group",
         "remove-skill-group", "set-skill-slot", "set-main-skill", "add-gem", "remove-gem",
         "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip"

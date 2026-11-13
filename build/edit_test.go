@@ -96,12 +96,7 @@ func randBuild(r *rand.Rand) *build.Build {
 	}
 	slices.Sort(b.Nodes)
 	b.Nodes = slices.Compact(b.Nodes)
-	for range r.IntN(3) {
-		if b.Masteries == nil {
-			b.Masteries = map[uint32]uint32{}
-		}
-		b.Masteries[uint32(r.IntN(4))] = uint32(r.IntN(3))
-	}
+	randChoices(r, b)
 	b.Skills = randSkills(r)
 	b.Items = randItems(r)
 	for _, k := range []string{"campaign", "bandits", "charges"} {
@@ -113,6 +108,22 @@ func randBuild(r *rand.Rand) *build.Build {
 		}
 	}
 	return b
+}
+
+// randChoices gives b random mastery choices and overrides.
+func randChoices(r *rand.Rand, b *build.Build) {
+	for range r.IntN(3) {
+		if b.Masteries == nil {
+			b.Masteries = map[uint32]uint32{}
+		}
+		b.Masteries[uint32(r.IntN(4))] = uint32(r.IntN(3))
+	}
+	for range r.IntN(3) {
+		if b.Overrides == nil {
+			b.Overrides = map[uint32]string{}
+		}
+		b.Overrides[uint32(r.IntN(4))] = []string{"Valako4", "runegraft_8"}[r.IntN(2)]
+	}
 }
 
 // Applying Diff(a, b) to a gives b, on random pairs.
@@ -144,10 +155,11 @@ func TestDiff(t *testing.T) {
 	}
 }
 
-func TestMasteriesRoundTrip(t *testing.T) {
+func TestChoicesRoundTrip(t *testing.T) {
 	t.Parallel()
 	b := juggernaut()
 	b.Masteries = map[uint32]uint32{10: 2, 3: 7}
+	b.Overrides = map[uint32]string{3: "Valako4"}
 	data, err := b.Encode()
 	if err != nil {
 		t.Fatal(err)
