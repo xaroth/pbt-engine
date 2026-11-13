@@ -42,6 +42,7 @@ const (
 	coldLarge  = 20
 	fireLarge  = 21
 	coldMedium = 22
+	coldSmall  = 23
 	alpha      = 30
 	beta       = 31
 	gamma      = 32
@@ -81,7 +82,8 @@ func desc(stat, text string) statdesc.Description {
 	return statdesc.Description{Stats: []string{stat}, Variants: []statdesc.Variant{{Limits: any32(), Text: text}}}
 }
 
-// descriptions describe the beta notable before alpha, so beta comes first on the ring.
+// descriptions describe the alpha notable before beta; the stats group holds beta first, which
+// is the order on the ring.
 func descriptions() []statdesc.Scope {
 	return []statdesc.Scope{
 		{Name: itemScope, Descriptions: []statdesc.Description{
@@ -95,8 +97,8 @@ func descriptions() []statdesc.Scope {
 			desc("local_affliction_jewel_display_small_nodes_grant_nothing", "Added Small Passive Skills grant Nothing"),
 			desc("local_affliction_jewel_small_nodes_have_effect_+%", "Added Small Passive Skills have {0}% increased Effect"),
 			desc("local_affliction_jewel_small_nodes_grant_maximum_life", "Added Small Passive Skills also grant: {0:+d} to Maximum Life"),
-			desc("local_affliction_notable_beta", "1 Added Passive Skill is Beta"),
 			desc("local_affliction_notable_alpha", "1 Added Passive Skill is Alpha"),
+			desc("local_affliction_notable_beta", "1 Added Passive Skill is Beta"),
 			desc("local_affliction_notable_gamma", "1 Added Passive Skill is Gamma"),
 			desc("base_maximum_life", "{0:+d} to maximum Life"),
 		}},
@@ -128,6 +130,7 @@ func testTree() dataset.Tree {
 			{ID: coldLarge, Stats: sv(hCold, 12)},
 			{ID: fireLarge, Stats: sv(hFire, 12)},
 			{ID: coldMedium, Stats: sv(hCold, 10)},
+			{ID: coldSmall, Stats: sv(hCold, 4)},
 			{ID: alpha, Kind: dataset.Notable, Stats: sv(hLife, 40)},
 			{ID: beta, Kind: dataset.Notable, Stats: sv(hFire, 30)},
 			{ID: gamma, Kind: dataset.Notable, Stats: sv(hCold, 30)},
@@ -160,6 +163,7 @@ func testTree() dataset.Tree {
 				{Size: dataset.LargeCluster, Passive: fireLarge, Tag: "affliction_fire_damage"},
 				{Size: dataset.LargeCluster, Passive: coldLarge, Tag: "affliction_cold_damage"},
 				{Size: dataset.MediumCluster, Passive: coldMedium, Tag: "affliction_cold_damage"},
+				{Size: dataset.SmallCluster, Passive: coldSmall, Tag: "affliction_cold_damage_small"},
 			},
 			Notables: []dataset.ClusterNotable{{Passive: alpha, Stat: hAlpha}, {Passive: beta, Stat: hBeta}, {Passive: gamma, Stat: hGamma}},
 		},
@@ -189,7 +193,7 @@ func testLayout() dataset.Layout {
 			n(largeProxy, 2, 3, 9), n(medium0, 2, 3, 15), n(medium1, 2, 3, 1), n(medium2, 2, 3, 4),
 			n(medium1Prox, 3, 2, 9), n(small, 3, 2, 1), n(smallProxy, 4, 1, 3),
 			n(medium0Prox, 5, 2, 7), n(medium2Prox, 6, 2, 12),
-			{ID: coldLarge, Icon: icon}, {ID: fireLarge, Icon: icon}, {ID: coldMedium, Icon: icon},
+			{ID: coldLarge, Icon: icon}, {ID: fireLarge, Icon: icon}, {ID: coldMedium, Icon: icon}, {ID: coldSmall, Icon: icon},
 			{ID: alpha, Icon: icon}, {ID: beta, Icon: icon}, {ID: gamma, Icon: icon},
 		},
 	}
@@ -252,6 +256,8 @@ func TestGenerate(t *testing.T) {
 	const m = 65536 | 1<<4 | 2<<6 | 1<<9
 	// Medium jewel in the large socket: the large socket's index, a medium's size.
 	const ml = 65536 | 1<<4 | 2<<6
+	// Small jewel in the small socket of medium socket Index 1 of large socket Index 2.
+	const sm = 65536 | 2<<6 | 1<<9
 	testCases := []struct {
 		name   string
 		socket uint32
@@ -260,7 +266,7 @@ func TestGenerate(t *testing.T) {
 	}{
 		{
 			// Sockets at 4 and 8, notables on the first free of 6, 4, 8, 10, small passives on the
-			// first free of 0, 4, 6, 8, 10, 2, 7, 5. Beta is described first, so it takes 6.
+			// first free of 0, 4, 6, 8, 10, 2, 7, 5. Beta's stat comes first, so it takes 6.
 			name: "large with 8 passives and 2 notables", socket: large,
 			jewel: cluster.Jewel{Base: largeBase, Lines: []string{
 				"Adds 8 Passive Skills", "2 Added Passive Skills are Jewel Sockets",
@@ -325,6 +331,40 @@ func TestGenerate(t *testing.T) {
 			},
 		},
 		{
+			// The socket a jewel adds in a larger socket is the socket of cluster index 0.
+			name: "medium with a socket in a large socket", socket: large,
+			jewel: cluster.Jewel{Base: mediumBase, Lines: []string{
+				"Adds 5 Passive Skills", "1 Added Passive Skill is a Jewel Socket",
+				"Added Small Passive Skills grant: 10% increased Cold Damage",
+				"1 Added Passive Skill is Gamma", "1 Added Passive Skill is Alpha",
+			}},
+			want: &cluster.Subgraph{
+				Socket: large, Size: dataset.MediumCluster, Skill: skill(2), Entrance: ml,
+				Nodes: []cluster.Node{
+					socketNode(medium0, 6, ml+2, ml+8),
+					node(ml, 0, dataset.Normal, coldMedium, sv(hCold, 10), large, ml+2, ml+10),
+					node(ml+2, 2, dataset.Notable, alpha, sv(hLife, 40), medium0, ml),
+					node(ml+8, 8, dataset.Normal, coldMedium, sv(hCold, 10), medium0, ml+10),
+					node(ml+10, 10, dataset.Notable, gamma, sv(hCold, 30), ml, ml+8),
+				},
+			},
+		},
+		{
+			// A small jewel's chain stays open: the notable at 4 is two passives from the entrance.
+			name: "small with 3 passives", socket: small,
+			jewel: cluster.Jewel{Base: smallBase, Lines: []string{
+				"Adds 3 Passive Skills", "Added Small Passive Skills grant: 4% increased Cold Damage", "1 Added Passive Skill is Gamma",
+			}},
+			want: &cluster.Subgraph{
+				Socket: small, Size: dataset.SmallCluster, Skill: skill(3), Entrance: sm,
+				Nodes: []cluster.Node{
+					node(sm, 0, dataset.Normal, coldSmall, sv(hCold, 4), small, sm+2),
+					node(sm+2, 2, dataset.Normal, coldSmall, sv(hCold, 4), sm, sm+4),
+					node(sm+4, 4, dataset.Notable, gamma, sv(hCold, 30), sm+2),
+				},
+			},
+		},
+		{
 			// Four passives in a medium jewel move the notables from 10 and 2 to 9 and 3.
 			name: "Megalomaniac in a large socket", socket: large,
 			jewel: cluster.Jewel{Base: mediumBase, Lines: []string{
@@ -357,25 +397,56 @@ func TestGenerate(t *testing.T) {
 }
 
 // TestPositions checks that a jewel's ring is turned to its socket: the large socket's start
-// index 7 puts orbit index 0 at 210 degrees, and the sockets it adds where the tree draws them.
+// index 7 puts orbit index 0 at 210 degrees, on the large orbit for a large jewel and the medium
+// orbit for a medium one. Sockets the jewel adds stay where the tree draws them.
 func TestPositions(t *testing.T) {
 	t.Parallel()
 	g := testGenerator(t)
-	voices := cluster.Jewel{Base: largeBase, Lines: []string{"Adds 3 Jewel Socket Passive Skills", "Adds 5 Small Passive Skills which grant nothing"}}
-	got, err := g.Generate(large, voices)
-	if err != nil {
-		t.Fatalf("Generate: %v", err)
-	}
 	l := testLayout()
-	want := map[uint32][2]float64{65696: {-167.5, 335 * math.Sqrt(3) / 2}}
-	for _, id := range []uint32{medium0, medium1, medium2} {
+	at := func(id uint32) [2]float64 {
 		x, y, _ := l.Position(id)
-		want[id] = [2]float64{x, y}
+		return [2]float64{x, y}
 	}
-	for _, n := range got.Nodes {
-		if w, ok := want[n.ID]; ok && math.Hypot(n.X-w[0], n.Y-w[1]) > 1e-6 {
-			t.Errorf("node %d at (%v, %v), want (%v, %v)", n.ID, n.X, n.Y, w[0], w[1])
-		}
+	cos30 := math.Sqrt(3) / 2
+	testCases := []struct {
+		name  string
+		jewel cluster.Jewel
+		want  map[uint32][2]float64
+	}{
+		{
+			name:  "large",
+			jewel: cluster.Jewel{Base: largeBase, Lines: []string{"Adds 3 Jewel Socket Passive Skills", "Adds 5 Small Passive Skills which grant nothing"}},
+			want:  map[uint32][2]float64{65696: {-167.5, 335 * cos30}, medium0: at(medium0), medium1: at(medium1), medium2: at(medium2)},
+		},
+		{
+			name: "medium",
+			jewel: cluster.Jewel{Base: mediumBase, Lines: []string{
+				"Adds 4 Passive Skills", "1 Added Passive Skill is a Jewel Socket",
+				"Added Small Passive Skills grant: 10% increased Cold Damage", "1 Added Passive Skill is Alpha",
+			}},
+			want: map[uint32][2]float64{65680: {-81, 162 * cos30}, medium0: at(medium0)},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := g.Generate(large, testCase.jewel)
+			if err != nil {
+				t.Fatalf("Generate: %v", err)
+			}
+			seen := 0
+			for _, n := range got.Nodes {
+				if w, ok := testCase.want[n.ID]; ok {
+					seen++
+					if math.Hypot(n.X-w[0], n.Y-w[1]) > 1e-6 {
+						t.Errorf("node %d at (%v, %v), want (%v, %v)", n.ID, n.X, n.Y, w[0], w[1])
+					}
+				}
+			}
+			if seen != len(testCase.want) {
+				t.Errorf("got %d of the nodes, want %d", seen, len(testCase.want))
+			}
+		})
 	}
 }
 

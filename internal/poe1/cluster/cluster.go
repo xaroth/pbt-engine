@@ -2,9 +2,9 @@
 // socket and the jewel in it, the nodes with their ids, kinds, stats, links and positions.
 //
 // The game data gives each jewel size its orbit indices and each socket its proxy and start
-// indices. The node ids, the moves of a medium jewel's indices, the place of a large jewel's
-// only socket and the order of notables follow Path of Building, whose ids every imported build
-// uses.
+// indices. The node ids, the moves of a medium jewel's indices, which sockets a jewel adds and
+// the order of notables (by the row of their stat) follow Path of Building, whose ids every
+// imported build uses. Jewels that add a keystone are not covered.
 package cluster
 
 import (
@@ -75,7 +75,7 @@ type Node struct {
 	// OrbitIndex is the node's place on the jewel's ring, before the ring is turned to the
 	// socket.
 	OrbitIndex int32
-	// X and Y are the node's position in layout coordinates.
+	// X and Y are the node's position in layout coordinates; a socket's is the tree's.
 	X, Y float64
 }
 
@@ -89,8 +89,6 @@ type Generator struct {
 	stats   []dataset.Stat
 	// notables are the cluster notables by the stat of the jewel line that adds them.
 	notables map[uint32]dataset.ClusterNotable
-	// order is the position of a notable stat's description, which orders notables on the ring.
-	order map[uint32]int
 	// also are the handles of the stats small passives also grant, by the rest of the jewel
 	// stat's id after alsoPrefix.
 	also map[string]uint32
@@ -129,7 +127,7 @@ func NewGenerator(s *dataset.Store, variant string) (*Generator, error) {
 		g.handles[st.ID] = uint32(i)
 	}
 	g.indexAlso()
-	g.indexNotables(text.Descriptions)
+	g.notables = notablesByStat(t.Clusters.Notables)
 	if err := g.indexSkills(); err != nil {
 		return nil, err
 	}
@@ -183,28 +181,13 @@ func (g *Generator) indexAlso() {
 	}
 }
 
-// indexNotables keys the notables by their stat and orders them by where the item description
-// file describes that stat, the order the game lists the lines in.
-func (g *Generator) indexNotables(scopes []statdesc.Scope) {
-	g.notables = make(map[uint32]dataset.ClusterNotable, len(g.tree.Clusters.Notables))
-	for _, n := range g.tree.Clusters.Notables {
-		g.notables[n.Stat] = n
+// notablesByStat keys notables by the stat of the jewel line that adds them.
+func notablesByStat(ns []dataset.ClusterNotable) map[uint32]dataset.ClusterNotable {
+	m := make(map[uint32]dataset.ClusterNotable, len(ns))
+	for _, n := range ns {
+		m[n.Stat] = n
 	}
-	g.order = map[uint32]int{}
-	for _, sc := range scopes {
-		if sc.Name != itemScope {
-			continue
-		}
-		for i, d := range sc.Descriptions {
-			for _, st := range d.Stats {
-				if h, ok := g.handles[st]; ok {
-					if _, ok := g.notables[h]; ok {
-						g.order[h] = i
-					}
-				}
-			}
-		}
-	}
+	return m
 }
 
 // indexSkills describes each small passive kind's node, which the enchant names it by.

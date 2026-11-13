@@ -41,6 +41,7 @@ func (g *Generator) build(sg *Subgraph, sock *dataset.ClusterSocket, cj *dataset
 	base := g.idBase(sock, cj.Size)
 	small := g.smallStats(r.skill, r)
 	ids := make([]uint32, len(ring))
+	orbit := g.orbitRadius(sock, cj.Size)
 	for i, p := range ring {
 		n := Node{ID: base + uint32(p.index), Kind: p.kind, Passive: p.passive, OrbitIndex: p.index} //nolint:gosec // orbit indices are below 16
 		switch p.kind {
@@ -51,13 +52,16 @@ func (g *Generator) build(sg *Subgraph, sock *dataset.ClusterSocket, cj *dataset
 		default:
 			n.Stats = slices.Clone(g.node(p.passive).Stats)
 		}
-		n.X, n.Y = g.position(sock, cj, p.index)
+		n.X, n.Y = g.position(sock, cj, orbit, p.index)
+		if p.kind == dataset.JewelSocket {
+			n.X, n.Y, _ = g.layout.Position(n.ID)
+		}
 		ids[i] = n.ID
 		sg.Nodes = append(sg.Nodes, n)
 	}
 	sg.Entrance = ids[0]
 	for i := range sg.Nodes {
-		sg.Nodes[i].Neighbours = ringNeighbours(ids, i)
+		sg.Nodes[i].Neighbours = ringNeighbours(ids, i, cj.Size != dataset.SmallCluster)
 		if i == 0 {
 			sg.Nodes[i].Neighbours = append(sg.Nodes[i].Neighbours, sock.Node)
 		}
@@ -69,13 +73,22 @@ func (g *Generator) build(sg *Subgraph, sock *dataset.ClusterSocket, cj *dataset
 	return nil
 }
 
-// ringNeighbours returns the neighbours of ids[i] on a ring of ids in orbit order: the ones
-// before and after it, the last linking back to the first.
-func ringNeighbours(ids []uint32, i int) []uint32 {
-	if len(ids) == 1 {
-		return nil
+// ringNeighbours returns the neighbours of ids[i] on a chain of ids in orbit order: the ones
+// before and after it, the last linking back to the first when closed. Small jewels leave the
+// chain open.
+func ringNeighbours(ids []uint32, i int, closed bool) []uint32 {
+	var out []uint32
+	if i > 0 {
+		out = append(out, ids[i-1])
+	} else if closed && len(ids) > 1 {
+		out = append(out, ids[len(ids)-1])
 	}
-	return []uint32{ids[(i+len(ids)-1)%len(ids)], ids[(i+1)%len(ids)]}
+	if i+1 < len(ids) {
+		out = append(out, ids[i+1])
+	} else if closed && len(ids) > 1 {
+		out = append(out, ids[0])
+	}
+	return out
 }
 
 // idBase returns the id of orbit index 0 of a jewel of size in sock: the flag, the size and the
@@ -96,8 +109,8 @@ func (g *Generator) idBase(sock *dataset.ClusterSocket, size dataset.ClusterSize
 
 // place returns the nodes of a jewel of layout cj in sock as r reads it, in orbit order: sockets
 // first, then notables, then small passives each take the first free indices of their list,
-// with the moves Path of Building makes for medium jewels. Notables go in description order on
-// their indices in ascending order.
+// with the moves Path of Building makes for medium jewels. Notables go in stat order on their
+// indices in ascending order.
 func (g *Generator) place(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel, r *reading) ([]placed, error) {
 	taken := map[int32]bool{}
 	var ring []placed
@@ -105,8 +118,8 @@ func (g *Generator) place(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel,
 	if cj.Size == dataset.LargeCluster && r.sockets == 1 {
 		sockets = []int32{largeOneSocket}
 	}
-	for _, i := range sockets {
-		id, err := g.socketAt(sock, cj, i)
+	for k, i := range sockets {
+		id, err := g.socketAt(sock, cj, k, len(sockets))
 		if err != nil {
 			return nil, err
 		}
@@ -189,10 +202,10 @@ func moved(i int32, moves [][2]int32) int32 {
 	return i
 }
 
-// position returns where orbit index i of a jewel of layout cj in sock is drawn: on the orbit
-// of the socket's proxy around the proxy's group, turned by the socket's start index for the
-// jewel's size.
-func (g *Generator) position(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel, i int32) (x, y float64) {
+// position returns where orbit index i of a jewel of layout cj in sock is drawn: on the orbit of
+// the given radius around the socket's proxy's group, turned by the socket's start index for
+// the jewel's size.
+func (g *Generator) position(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel, radius float64, i int32) (x, y float64) {
 	p := g.layoutNode(sock.Proxy)
 	gi, _ := slices.BinarySearchFunc(g.layout.Groups, p.Group, func(gr dataset.LayoutGroup, id uint32) int { return cmp.Compare(gr.ID, id) })
 	grp := g.layout.Groups[gi]
@@ -201,25 +214,37 @@ func (g *Generator) position(sock *dataset.ClusterSocket, cj *dataset.ClusterJew
 		start = sock.StartIndices[cj.Size]
 	}
 	angle := 2 * math.Pi * float64((i+start)%cj.TotalIndices) / float64(cj.TotalIndices)
-	radius := g.layout.Orbits[p.Orbit].Radius
 	sin, cos := math.Sincos(angle)
 	return grp.X + radius*sin, grp.Y - radius*cos
 }
 
-// positionTolerance is how far a tree socket may be from the place a jewel puts a socket.
-const positionTolerance = 1
-
-// socketAt returns the tree socket that orbit index i of a jewel of layout cj in sock is: the
-// socket on sock drawn there.
-func (g *Generator) socketAt(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel, i int32) (uint32, error) {
-	x, y := g.position(sock, cj, i)
+// orbitRadius returns the radius a jewel of size draws on in sock: the orbit of the proxies of
+// sockets of that size, or of sock's proxy when the tree has no such socket.
+func (g *Generator) orbitRadius(sock *dataset.ClusterSocket, size dataset.ClusterSize) float64 {
+	proxy := sock.Proxy
 	for _, s := range g.tree.Clusters.Sockets {
-		if s.Parent != sock.Node {
-			continue
+		if s.Size == size {
+			proxy = s.Proxy
+			break
 		}
-		if sx, sy, ok := g.layout.Position(s.Node); ok && math.Hypot(sx-x, sy-y) < positionTolerance {
+	}
+	return g.layout.Orbits[g.layoutNode(proxy).Orbit].Radius
+}
+
+// socketOrder is the cluster index of the k-th socket a jewel adds.
+func socketOrder() []int32 { return []int32{0, 2, 1} }
+
+// socketAt returns the tree socket on sock that is the k-th of n sockets a jewel of layout cj
+// adds: by cluster index 0, 2, 1 in turn, or 1 for a large jewel's only socket.
+func (g *Generator) socketAt(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel, k, n int) (uint32, error) {
+	index := socketOrder()[k]
+	if cj.Size == dataset.LargeCluster && n == 1 {
+		index = 1
+	}
+	for _, s := range g.tree.Clusters.Sockets {
+		if s.Parent == sock.Node && s.Index == index {
 			return s.Node, nil
 		}
 	}
-	return 0, fmt.Errorf("%s in socket %d: no socket at orbit index %d: %w", cj.Base, sock.Node, i, ErrNoClusterData)
+	return 0, fmt.Errorf("%s in socket %d: no socket of cluster index %d: %w", cj.Base, sock.Node, index, ErrNoClusterData)
 }

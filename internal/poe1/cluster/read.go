@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -119,7 +120,7 @@ func (g *Generator) read(cj *dataset.ClusterJewel, lines []string) (reading, err
 			return reading{}, fmt.Errorf("%s: small passives %q: %w", cj.Base, r.grants, ErrUnread)
 		}
 	}
-	slices.SortStableFunc(r.notables, func(a, b dataset.ClusterNotable) int { return g.order[a.Stat] - g.order[b.Stat] })
+	slices.SortStableFunc(r.notables, func(a, b dataset.ClusterNotable) int { return cmp.Compare(a.Stat, b.Stat) })
 	return r, nil
 }
 
