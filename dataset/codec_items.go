@@ -291,6 +291,7 @@ func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32,
 	added := uint32Vector(b, fb.ModStartAddedTagsVector, indexes(tagIndex, m.AddedTags))
 	spawn := tagWeightVector(b, fb.ModStartSpawnWeightsVector, tagIndex, m.SpawnWeights)
 	generationWeights := tagWeightVector(b, fb.ModStartGenerationWeightsVector, tagIndex, m.GenerationWeights)
+	granted := encodeGrantedSkills(b, m.GrantedSkills)
 	fb.ModStart(b)
 	fb.ModAddId(b, id)
 	fb.ModAddDomain(b, m.Domain)
@@ -304,7 +305,23 @@ func encodeMod(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32,
 	fb.ModAddSpawnWeights(b, spawn)
 	fb.ModAddGenerationWeights(b, generationWeights)
 	fb.ModAddGameMode(b, m.GameMode)
+	if granted != 0 {
+		fb.ModAddGrantedSkills(b, granted)
+	}
 	return fb.ModEnd(b)
+}
+
+// encodeGrantedSkills returns 0 for none, so a mod without them keeps the bytes it had before
+// granted skills.
+func encodeGrantedSkills(b *flatbuffers.Builder, gs []GrantedSkill) flatbuffers.UOffsetT {
+	if len(gs) == 0 {
+		return 0
+	}
+	offs := make([]flatbuffers.UOffsetT, len(gs))
+	for i := range gs {
+		offs[i] = encodeGrantedSkill(b, &gs[i])
+	}
+	return tableVector(b, fb.ModStartGrantedSkillsVector, offs)
 }
 
 func tagWeightVector(b *flatbuffers.Builder, start startFunc, tagIndex map[string]uint32, ws []TagWeight) flatbuffers.UOffsetT {
@@ -381,7 +398,22 @@ func decodeMod(m *fb.Mod, h []uint32, tagIDs []string, intern interner) (Mod, er
 	if out.GenerationWeights, err = tagWeights(tagIDs, m.GenerationWeightsLength(), m.GenerationWeights); err != nil {
 		return Mod{}, err
 	}
+	out.GrantedSkills = decodeGrantedSkills(m)
 	return out, nil
+}
+
+func decodeGrantedSkills(m *fb.Mod) []GrantedSkill {
+	n := m.GrantedSkillsLength()
+	if n == 0 {
+		return nil
+	}
+	out := make([]GrantedSkill, n)
+	var g fb.GrantedSkill
+	for i := range n {
+		m.GrantedSkills(&g, i)
+		out[i] = decodeGrantedSkill(&g)
+	}
+	return out
 }
 
 // localTags resolves a file's tag ids, which must be sorted, unique and among tags.

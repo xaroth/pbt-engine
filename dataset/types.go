@@ -121,6 +121,18 @@ type Character struct {
 	BaseMaxMana      int32
 	// Stats are sorted by Stat, without duplicates.
 	Stats []StatValue
+	// UnarmedDamage is the physical damage of the class's unarmed attacks; UnarmedAttackTime
+	// is in milliseconds per attack.
+	UnarmedDamage     ValueRange
+	UnarmedAttackTime int32
+}
+
+// GrantedSkill is a skill a mod or passive grants.
+type GrantedSkill struct {
+	// Effect is a GrantedEffect.ID in the skills group.
+	Effect string
+	// Level is one of the effect's levels.
+	Level int32
 }
 
 // Constant is an edition constant the game data does not hold, as Value per Per.
@@ -232,6 +244,8 @@ type Node struct {
 	Neighbours           []uint32
 	MultipleChoice       bool
 	MultipleChoiceOption bool
+	// GrantedSkill is the skill the node grants, or nil.
+	GrantedSkill *GrantedSkill
 }
 
 // MasteryEffect is one selectable effect of a mastery node.

@@ -46,7 +46,7 @@ type TreeDiff struct {
 type NodeDiff struct {
 	ID uint32
 	// Fields names what changed: kind, ascendancy, stats, buffs, skill_points,
-	// mastery_effects, neighbours.
+	// mastery_effects, neighbours, granted_skill.
 	Fields []string
 	// StatsBefore and StatsAfter are the node stats by stat id when stats changed.
 	StatsBefore, StatsAfter map[string]int32
@@ -214,10 +214,15 @@ func compareNode(a, b *tables, p, q Node) NodeDiff {
 		return s.ID == t.ID && maps.Equal(statMap(a, s.Stats), statMap(b, t.Stats))
 	}), "mastery_effects")
 	add(!slices.Equal(p.Neighbours, q.Neighbours), "neighbours")
+	add(!sameGrantedSkill(p.GrantedSkill, q.GrantedSkill), "granted_skill")
 	if !maps.Equal(before, after) {
 		nd.StatsBefore, nd.StatsAfter = before, after
 	}
 	return nd
+}
+
+func sameGrantedSkill(x, y *GrantedSkill) bool {
+	return x == y || x != nil && y != nil && *x == *y
 }
 
 func statMap(t *tables, svs []StatValue) map[string]int32 {
@@ -231,6 +236,7 @@ func statMap(t *tables, svs []StatValue) map[string]int32 {
 func sameCharacter(a, b *tables, x, y Character) bool {
 	return x.BaseStrength == y.BaseStrength && x.BaseDexterity == y.BaseDexterity &&
 		x.BaseIntelligence == y.BaseIntelligence && x.BaseMaxLife == y.BaseMaxLife && x.BaseMaxMana == y.BaseMaxMana &&
+		x.UnarmedDamage == y.UnarmedDamage && x.UnarmedAttackTime == y.UnarmedAttackTime &&
 		maps.Equal(statMap(a, x.Stats), statMap(b, y.Stats))
 }
 

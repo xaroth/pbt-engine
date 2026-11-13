@@ -156,7 +156,9 @@ func (s *Store) Constants() ([]Constant, error) { return s.constants.get(s.loadC
 // Quests returns the quest rewards group, shared and read-only.
 func (s *Store) Quests() ([]Quest, error) { return s.quests.get(s.loadQuests) }
 
-// Tree returns the tree of one variant, such as "standard", shared and read-only.
+// Tree returns the tree of one variant, such as "standard", shared and read-only. Its nodes'
+// granted skills are not checked against the skills group, which it does not read; Write
+// checks them.
 func (s *Store) Tree(variant string) (*Tree, error) {
 	l, ok := s.trees[variant]
 	if !ok {

@@ -6,7 +6,8 @@ package dataset
 func (s *Store) Items() (*Items, error) { return s.items.get(s.loadItems) }
 
 // Mods returns the items group's mods, shared and read-only. It reads the items too, to check
-// the mods' tags and the mods the items name. A dataset without the group returns a
+// the mods' tags and the mods the items name. Granted skills are not checked against the skills
+// group, which it does not read; Write checks them. A dataset without the group returns a
 // *MissingGroupError.
 func (s *Store) Mods() ([]Mod, error) { return s.mods.get(s.loadMods) }
 

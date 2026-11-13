@@ -58,6 +58,9 @@ func encodeCharacters(all []Stat, chars []Character) []byte {
 		fb.CharacterAddBaseMaxLife(b, c.BaseMaxLife)
 		fb.CharacterAddBaseMaxMana(b, c.BaseMaxMana)
 		fb.CharacterAddStats(b, stats)
+		fb.CharacterAddUnarmedMinDamage(b, c.UnarmedDamage.Min)
+		fb.CharacterAddUnarmedMaxDamage(b, c.UnarmedDamage.Max)
+		fb.CharacterAddUnarmedAttackTime(b, c.UnarmedAttackTime)
 		offs[i] = fb.CharacterEnd(b)
 	}
 	vec := tableVector(b, fb.CharactersStartCharactersVector, offs)
@@ -87,13 +90,15 @@ func decodeCharacters(buf []byte, index map[string]uint32) ([]Character, error) 
 			return nil, fmt.Errorf("character %s: %w", c.Id(), err)
 		}
 		out[i] = Character{
-			ID:               string(c.Id()),
-			BaseStrength:     c.BaseStrength(),
-			BaseDexterity:    c.BaseDexterity(),
-			BaseIntelligence: c.BaseIntelligence(),
-			BaseMaxLife:      c.BaseMaxLife(),
-			BaseMaxMana:      c.BaseMaxMana(),
-			Stats:            stats,
+			ID:                string(c.Id()),
+			BaseStrength:      c.BaseStrength(),
+			BaseDexterity:     c.BaseDexterity(),
+			BaseIntelligence:  c.BaseIntelligence(),
+			BaseMaxLife:       c.BaseMaxLife(),
+			BaseMaxMana:       c.BaseMaxMana(),
+			Stats:             stats,
+			UnarmedDamage:     ValueRange{Min: c.UnarmedMinDamage(), Max: c.UnarmedMaxDamage()},
+			UnarmedAttackTime: c.UnarmedAttackTime(),
 		}
 	}
 	return out, nil
@@ -106,6 +111,23 @@ func tableVector(b *flatbuffers.Builder, start func(*flatbuffers.Builder, int) f
 		b.PrependUOffsetT(o)
 	}
 	return b.EndVector(len(offs))
+}
+
+// encodeGrantedSkill returns 0 for nil, so a table without one keeps the bytes it had before
+// granted skills.
+func encodeGrantedSkill(b *flatbuffers.Builder, g *GrantedSkill) flatbuffers.UOffsetT {
+	if g == nil {
+		return 0
+	}
+	effect := b.CreateSharedString(g.Effect)
+	fb.GrantedSkillStart(b)
+	fb.GrantedSkillAddEffect(b, effect)
+	fb.GrantedSkillAddLevel(b, g.Level)
+	return fb.GrantedSkillEnd(b)
+}
+
+func decodeGrantedSkill(g *fb.GrantedSkill) GrantedSkill {
+	return GrantedSkill{Effect: string(g.Effect()), Level: g.Level()}
 }
 
 func stringVector(b *flatbuffers.Builder, start startFunc, ss []string) flatbuffers.UOffsetT {
