@@ -70,3 +70,21 @@ func TestLifeIfNoLifeOnBodyArmour(t *testing.T) {
 		t.Errorf("notes: got %v, want one unchecked note for the body armour condition", notes)
 	}
 }
+
+// TestStrengthPerAllocatedMastery: "+5 to Strength per Allocated Mastery Passive Skill" counts
+// the masteries of every group, its own among them, and follows allocation. masteries(5)
+// allocates 6: 32 strength plus 30.
+func TestStrengthPerAllocatedMastery(t *testing.T) {
+	t.Parallel()
+	r := masteries(5)
+	r.Bundles = append(r.Bundles,
+		bundle(resolve.NodeSource{ID: 200, Effect: 26621}, resolve.Global, resolve.StatValue{Stat: "additional_strength_per_allocated_mastery", Value: 5}))
+	sh := open(t, r)
+	if got := value(t, sh, "strength"); got != 62 {
+		t.Errorf("strength %v, want 62", got)
+	}
+	sh.SetNode(100, false)
+	if got := value(t, sh, "strength"); got != 57 {
+		t.Errorf("one mastery off: strength %v, want 57", got)
+	}
+}

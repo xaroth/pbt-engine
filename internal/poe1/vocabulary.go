@@ -51,6 +51,7 @@ const (
 	statMaximumLife                                      = "maximum_life"
 	statMaximumLightningResistance                       = "maximum_lightning_resistance"
 	statMaximumMana                                      = "maximum_mana"
+	statNumberOfAllocatedMasteries                       = "number_of_allocated_masteries"
 	statPercentOfLifeRegeneratedPerSecond                = "percent_of_life_regenerated_per_second"
 	statPercentOfManaRegeneratedPerSecond                = "percent_of_mana_regenerated_per_second"
 	statStrength                                         = "strength"
@@ -75,6 +76,9 @@ const (
 // of Life per second"), and life_regeneration_rate holds the increases and more multipliers of
 // the "Life Regeneration rate"; life_regeneration is the total the sheet shows. The same for
 // mana and energy shield.
+//
+// number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
+// counters, since every allocatable mastery carries its group's count at 1.
 func engineStats() []string {
 	return []string{
 		statChaosResistanceIsDoubled,
@@ -113,6 +117,7 @@ func engineStats() []string {
 		statMaximumLife,
 		statMaximumLightningResistance,
 		statMaximumMana,
+		statNumberOfAllocatedMasteries,
 		statPercentOfEnergyShieldRegeneratedPerSecond,
 		statPercentOfLifeRegeneratedPerSecond,
 		statPercentOfManaRegeneratedPerSecond,

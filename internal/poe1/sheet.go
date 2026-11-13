@@ -90,7 +90,8 @@ type Sheet struct {
 	session *core.Session
 	stats   map[string]core.StatID
 	// counters are the engine stats of the tree's counters (resolve.Counters): a bundle stat
-	// that is one adds its value to it, without a table entry.
+	// that is one adds its value to it and to number_of_allocated_masteries, without a table
+	// entry.
 	counters map[string]bool
 	// sources describes each core source, by core.SourceID.
 	sources []Source
@@ -259,8 +260,8 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 	src := sh.newSource(Source{Bundle: &b})
 	for _, sv := range bd.Stats {
 		if sh.counters[sv.Stat] {
-			if _, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[sv.Stat], Op: core.OpBase, Value: sv.Value, Source: src}); err != nil {
-				return 0, fmt.Errorf("sheet: counter %s: %w", sv.Stat, err)
+			if err := sh.addCount(sv, src); err != nil {
+				return 0, err
 			}
 			continue
 		}
@@ -281,6 +282,16 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		}
 	}
 	return src, nil
+}
+
+// addCount adds counter sv to its own stat and to number_of_allocated_masteries.
+func (sh *Sheet) addCount(sv resolve.StatValue, src core.SourceID) error {
+	for _, stat := range []string{sv.Stat, statNumberOfAllocatedMasteries} {
+		if _, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[stat], Op: core.OpBase, Value: sv.Value, Source: src}); err != nil {
+			return fmt.Errorf("sheet: counter %s: %w", sv.Stat, err)
+		}
+	}
+	return nil
 }
 
 // notesFor returns the notes, kind and text only, for a stat whose lookup gave e and ok, none
