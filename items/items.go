@@ -17,6 +17,10 @@ import (
 var (
 	ErrFormat      = errors.New("items: not item text")
 	ErrUnknownBase = errors.New("items: no base of that name")
+	// ErrNotEquipable is game text of an item class no slot takes, such as a map or currency.
+	ErrNotEquipable = errors.New("items: not an item to equip")
+	// ErrNotSupported is game text of an item class the reader does not read yet: flasks.
+	ErrNotSupported = errors.New("items: item class not supported yet")
 	// ErrNoCrafting is a dataset whose items group does not hold the bases' mod domains, the
 	// bench crafts and the essence mods (Items.Crafting false), as one written before them.
 	ErrNoCrafting = errors.New("items: dataset without mod domains, bench crafts and essence mods")
@@ -53,6 +57,7 @@ type Reader struct {
 	byName   map[string][]*dataset.ItemBase
 	mods     modIndex
 	crafting crafting
+	classes  classes
 	version  string
 }
 
@@ -104,21 +109,32 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 		mods: indexMods(mods, stats), crafting: newCrafting(it), version: s.Manifest().Version,
 	}
 	r.index(it.Bases, text.BaseNames)
+	r.classes = newClasses(it.Bases, text.ItemClassNames)
 	return r, nil
 }
 
-// Parse reads item text as Path of Building writes and copies it: "Rarity:", the name lines,
-// properties such as "Quality: 20" up to "Implicits: N", then the mod lines, the first N of
-// them implicit, each optionally tagged "{crafted}", "{fractured}" or "{enchant}". The base is
-// found by its English name; a magic item's base is the longest base name in its name; of bases
-// of one name, the one whose implicits read the item's implicit lines. Each mod
-// line is read through the stat descriptions; a line that reads in several ways is read as one
-// the item can have (see choose). A line nothing reads is a warning and stays without stats.
-// Properties Path of Building adds for itself, such as "LevelReq" or "Prefix", are ignored. A
-// Relic reads as a unique. It fails with ErrFormat on text without a rarity, name or implicit
-// count, and ErrUnknownBase.
+// Parse reads item text as Path of Building writes and copies it, or as the game copies it
+// with Ctrl+C or Ctrl+Alt+C.
+//
+// Path of Building's text is "Rarity:", the name lines, properties such as "Quality: 20" up to
+// "Implicits: N", then the mod lines, the first N of them implicit, each optionally tagged
+// "{crafted}", "{fractured}" or "{enchant}". Properties Path of Building adds for itself, such
+// as "LevelReq" or "Prefix", are ignored.
+//
+// The game's text is sections between "--------" lines: the item class, rarity and names, the
+// properties, then the mods, whose kind its mod headers or line suffixes such as " (implicit)"
+// give. The ranges Ctrl+Alt+C shows, reminder text in parentheses and flavour text are left
+// out. Item classes no slot takes, such as maps and currency, fail with ErrNotEquipable, and
+// flasks with ErrNotSupported.
+//
+// A Relic reads as a unique. The base is found by its English name; a magic item's base is the
+// longest base name in its name; of bases of one name, the one whose implicits read the item's
+// implicit lines. Each mod line is read through the stat descriptions; a line that reads in
+// several ways is read as one the item can have (see choose). A line nothing reads is a warning
+// and stays without stats. It fails with ErrFormat on text without a rarity, name or, in Path
+// of Building's text, implicit count, and ErrUnknownBase.
 func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
-	p, err := split(text)
+	p, err := r.split(text)
 	if err != nil {
 		return build.Item{}, nil, err
 	}
@@ -148,6 +164,19 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 		i += n
 	}
 	return it, warnings, nil
+}
+
+// split splits text in either format.
+func (r *Reader) split(text string) (parsed, error) {
+	if !isGameText(text) {
+		return split(text)
+	}
+	if class, ok := gameClass(text); ok {
+		if err := r.classes.check(class); err != nil {
+			return parsed{}, err
+		}
+	}
+	return splitGame(text)
 }
 
 // index indexes bases by id and English name.

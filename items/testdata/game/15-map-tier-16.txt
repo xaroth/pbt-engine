@@ -1,0 +1,9 @@
+Item Class: Maps
+Rarity: Normal
+Map (Tier 16)
+--------
+Item Level: 84
+--------
+Monster Level: 83
+--------
+Travel to a Map of this tier or lower by using this in a personal Map Device. Maps can only be used once.

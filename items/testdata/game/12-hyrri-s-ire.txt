@@ -1,0 +1,33 @@
+Item Class: Body Armours
+Rarity: Unique
+Hyrri's Ire
+Zodiac Leather
+--------
+Quality: +20% (augmented)
+Evasion Rating: 3497 (augmented)
+--------
+Requirements:
+Level: 70
+Str: 70
+Dex: 197
+Int: 111
+--------
+Sockets: B-B-R-G-G-G 
+--------
+Item Level: 85
+--------
+{ Unique Modifier — Defences, Evasion }
+198(140-220)% increased Evasion Rating
+{ Unique Modifier — Damage, Elemental, Cold, Attack }
+135(105-145) to 185(160-200) Added Cold Damage with Bow Attacks
+{ Unique Modifier — Elemental, Cold, Ailment }
+25% increased Chill Duration on Enemies
+{ Unique Modifier — Attribute }
++47(40-50) to Dexterity
+{ Unique Modifier }
++30% chance to Suppress Spell Damage
+(40% of Damage from Suppressed Hits and Ailments they inflict is prevented)
+--------
+Hyrri loosed a barrage of arrows,
+tipped with a poisoned hatred
+only oppression can ferment.

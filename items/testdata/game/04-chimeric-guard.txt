@@ -1,0 +1,31 @@
+Item Class: Shields
+Rarity: Rare
+Chimeric Guard
+Champion Kite Shield
+--------
+Quality: +20% (augmented)
+Chance to Block: 45% (augmented)
+Armour: 295 (augmented)
+Energy Shield: 60 (augmented)
+--------
+Requirements:
+Level: 69
+Str: 153
+Dex: 98
+Int: 85
+--------
+Sockets: W-W-W 
+--------
+Item Level: 86
+--------
+{ Prefix Modifier "Vigorous" (Tier: 1) — Life }
++159(145-159) to maximum Life
+{ Prefix Modifier "Enduring" (Tier: 2) }
+75(70-75)% increased Chance to Block
+{ Master Crafted Prefix Modifier "Upgraded" (Rank: 2) }
+6(5-6)% Chance to Block Spell Damage
+{ Suffix Modifier "of Expulsion" (Tier: 3) — Chaos, Resistance }
++25(21-25)% to Chaos Resistance
+{ Suffix Modifier "of Fortitude" (Tier: 2) — Elemental, Fire, Cold, Lightning, Ailment }
+30(26-30)% chance to Avoid Elemental Ailments
+(Elemental Ailments are Ignited, Scorched, Chilled, Frozen, Brittle, Shocked, and Sapped)

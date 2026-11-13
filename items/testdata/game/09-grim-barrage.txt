@@ -1,0 +1,38 @@
+Item Class: Bows
+Rarity: Rare
+Grim Barrage
+Assassin Bow
+--------
+Bow
+Quality: +30% (augmented)
+Physical Damage: 56-169 (augmented)
+Elemental Damage: 171-322 (augmented), 168-286 (augmented), 35-577 (augmented)
+Critical Strike Chance: 8.91% (augmented)
+Attacks per Second: 1.49 (augmented)
+--------
+Requirements:
+Level: 70
+Dex: 212
+Int: 111
+--------
+Sockets: G-G-B-G-G-G 
+--------
+Item Level: 85
+--------
+{ Implicit Modifier — Damage, Critical }
++25(15-25)% to Global Critical Strike Multiplier
+--------
+{ Fractured Prefix Modifier "Vapourising" (Tier: 1) — Damage, Elemental, Lightning, Attack }
+Adds 35(28-38) to 577(549-638) Lightning Damage
+{ Prefix Modifier "Essences" — Damage, Elemental, Cold, Attack }
+Adds 168(134-184) to 286(270-313) Cold Damage
+{ Prefix Modifier "Cremating" (Tier: 2) — Damage, Elemental, Fire, Attack }
+Adds 171(137-188) to 322(279-325) Fire Damage
+{ Suffix Modifier "of Penetrating" (Tier: 2) — Attack, Critical }
+33(30-34)% increased Critical Strike Chance
+{ Suffix Modifier "of Acclaim" (Tier: 1) — Attack, Speed }
+19(17-19)% increased Attack Speed
+{ Master Crafted Suffix Modifier "of Craft" (Rank: 3) — Damage, Critical }
++28(25-28)% to Global Critical Strike Multiplier
+--------
+Fractured Item

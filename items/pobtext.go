@@ -23,7 +23,11 @@ type modText struct {
 
 // flagLines are lines that name a property of the item rather than a mod.
 func flagLines() []string {
-	return []string{"Corrupted", "Mirrored", "Split", "Unidentified", "Synthesised Item", "Fractured Item"}
+	return []string{
+		"Corrupted", "Mirrored", "Split", "Unidentified", "Synthesised Item", "Fractured Item",
+		"Shaper Item", "Elder Item", "Crusader Item", "Hunter Item", "Redeemer Item", "Warlord Item",
+		"Searing Exarch Item", "Eater of Worlds Item",
+	}
 }
 
 func split(text string) (parsed, error) {
@@ -108,6 +112,8 @@ func (p *parsed) property(l string) int {
 		}
 		return -1
 	}
+	// The game adds notes such as " (augmented)".
+	val, _, _ = strings.Cut(val, " (")
 	n, _ := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(val, "+"), "%"))
 	if key == "Implicits" {
 		return max(n, 0)
@@ -117,7 +123,7 @@ func (p *parsed) property(l string) int {
 	}
 	fields := map[string]*int{
 		"Item Level": &p.item.ItemLevel, "Quality": &p.item.Quality, "Armour": &p.item.Armour,
-		"Evasion": &p.item.Evasion, "Energy Shield": &p.item.EnergyShield, "Ward": &p.item.Ward,
+		"Evasion": &p.item.Evasion, "Evasion Rating": &p.item.Evasion, "Energy Shield": &p.item.EnergyShield, "Ward": &p.item.Ward,
 	}
 	if f, ok := fields[key]; ok {
 		*f = n

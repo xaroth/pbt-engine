@@ -1,0 +1,39 @@
+Item Class: Boots
+Rarity: Rare
+Wrath Pace
+Wyrmscale Boots
+--------
+Quality: +20% (augmented)
+Armour: 155 (augmented)
+Evasion Rating: 155 (augmented)
+--------
+Requirements:
+Level: 70
+Str: 123
+Dex: 155
+Int: 155
+--------
+Sockets: B-R-R-G 
+--------
+Item Level: 86
+--------
+{ Searing Exarch Implicit Modifier (Grand) — Chaos, Resistance }
++10(10-11)% to Chaos Resistance
+{ Eater of Worlds Implicit Modifier (Lesser) — Damage, Physical, Elemental, Cold }
+Gain 4% of Physical Damage as Extra Cold Damage
+--------
+{ Prefix Modifier "Athlete's" (Tier: 1) — Life }
++87(115-129) to maximum Life
+{ Prefix Modifier "Mammoth's" (Tier: 1) — Defences, Armour, Evasion }
+39(39-42)% increased Armour and Evasion
+16(16-17)% increased Stun and Block Recovery
+{ Prefix Modifier "Hellion's" (Tier: 1) — Speed }
+35% increased Movement Speed
+{ Suffix Modifier "of Bameth" (Tier: 1) — Chaos, Resistance }
++34(31-35)% to Chaos Resistance
+{ Suffix Modifier "of Everlasting" (Tier: 1) — Life }
+20(20-21)% increased Life Regeneration rate
+{ Suffix Modifier "of the Wind" (Tier: 1) — Attribute }
++52(51-55) to Dexterity
+Searing Exarch Item
+Eater of Worlds Item

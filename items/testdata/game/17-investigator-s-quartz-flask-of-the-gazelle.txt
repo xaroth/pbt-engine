@@ -1,0 +1,26 @@
+Item Class: Utility Flasks
+Rarity: Magic
+Investigator's Quartz Flask of the Gazelle
+--------
+Quality: +20% (augmented)
+Lasts 8,40 (augmented) Seconds
+Consumes 30 of 60 Charges on use
+Currently has 60 Charges
++10% chance to Suppress Spell Damage
+(40% of Damage from Suppressed Hits and Ailments they inflict is prevented)
+Phasing
+(While you have Phasing, your movement is not blocked by Enemies)
+--------
+Requirements:
+Level: 27
+--------
+Item Level: 65
+--------
+Used when Charges reach full (enchant)
+--------
+{ Prefix Modifier "Investigator's" (Tier: 5) }
+16(16-20)% increased Duration
+{ Suffix Modifier "of the Gazelle" (Tier: 4) — Defences, Evasion }
+44(41-45)% increased Evasion Rating during Effect
+--------
+Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.

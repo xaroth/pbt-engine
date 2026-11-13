@@ -1,0 +1,25 @@
+Item Class: Quivers
+Rarity: Rare
+Tempest Nails
+Feathered Arrow Quiver
+--------
+Requirements:
+Level: 64
+--------
+Item Level: 84
+--------
+{ Implicit Modifier — Speed }
+25(20-30)% increased Projectile Speed
+--------
+{ Prefix Modifier "Cremating" (Tier: 1) — Damage, Elemental, Fire, Attack }
+Adds 39(37-50) to 79(74-87) Fire Damage to Attacks
+{ Prefix Modifier "Fecund" (Tier: 1) — Life }
++92(130-144) to maximum Life
+{ Prefix Modifier "Lacerating" (Tier: 2) — Damage }
+38(37-42)% increased Damage with Bow Skills
+{ Suffix Modifier "of the Lightning" (Tier: 2) — Elemental, Lightning, Resistance }
++45(42-45)% to Lightning Resistance
+{ Suffix Modifier "of Darting" (Tier: 5) — Speed }
+17(10-17)% increased Projectile Speed
+{ Master Crafted Suffix Modifier "of Craft" — Attack, Speed }
+11(7-12)% increased Attack Speed

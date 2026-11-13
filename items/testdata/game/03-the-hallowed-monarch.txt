@@ -1,0 +1,36 @@
+Item Class: Helmets
+Rarity: Unique
+The Hallowed Monarch
+Faithful Helmet
+--------
+Quality: +20% (augmented)
+Armour: 1058 (augmented)
+Energy Shield: 70 (augmented)
+--------
+Requirements:
+Level: 73
+Str: 101
+Dex: 64
+Int: 101
+--------
+Sockets: W-W-W-W 
+--------
+Item Level: 87
+--------
+{ Unique Modifier — Defences, Armour }
+205(150-230)% increased Armour
+{ Unique Modifier — Elemental, Resistance }
++34(25-35)% to all Elemental Resistances
+{ Unique Modifier }
+50% increased Light Radius
+{ Unique Modifier }
+Link Skills can target Damageable Minions — Unscalable Value
+{ Unique Modifier — Minion }
+Your Linked Minions take 72(75-65)% less Damage
+{ Unique Modifier — Minion }
+On Killing a Rare monster, a random Linked Minion gains its Modifiers for 60 seconds
+--------
+"I don't judge who you are, Saresh. I judge what you do. True leadership
+comes from fighting alongside those you command, from elevating them,
+and sharing the glory of victory. This, you will never understand."
+- Sekhema Orbala, to be crowned Garukhan

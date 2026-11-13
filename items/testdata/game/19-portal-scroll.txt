@@ -1,0 +1,10 @@
+Item Class: Stackable Currency
+Rarity: Currency
+Portal Scroll
+--------
+Stack Size: 27/40
+--------
+Creates a portal to town
+--------
+Right click on this item to use it.
+Shift click to unstack.
