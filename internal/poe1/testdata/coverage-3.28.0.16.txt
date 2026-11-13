@@ -3,11 +3,11 @@ unknown by reason: condition 67, items 30, event 7, reservation 4, context 3, sc
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
-unknown shield_armour_+% global, uses 9: items: depends on equipped items, which builds do not have yet
-unknown spell_block_with_staff_% global, uses 9: items: depends on equipped items, which builds do not have yet
+unknown shield_armour_+% global, uses 9: items: depends on equipped items, which an entry cannot check yet
+unknown spell_block_with_staff_% global, uses 9: items: depends on equipped items, which an entry cannot check yet
 unvalidated life_per_level global, uses 8: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
 unvalidated life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance global, uses 8: fire_resistance is the uncapped value; the text does not say how a negative or fractional uncapped resistance counts. Whole steps, negative below 0, as in PoB (ModStore.lua PerStat)
-unknown shield_spell_block_% global, uses 8: items: depends on equipped items, which builds do not have yet
+unknown shield_spell_block_% global, uses 8: items: depends on equipped items, which an entry cannot check yet
 unknown additional_maximum_all_elemental_resistances_%_with_reserved_life_and_mana global, uses 7: reservation: depends on reserved life or mana, which needs skills
 unvalidated base_maximum_all_resistances_% global, uses 7: no description text; 'all resistances' read from the stat id as fire, cold, lightning and chaos, which include maximum_all_resistances. A new character's maximum resistances in game would validate it
 unvalidated dexterity_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
@@ -15,36 +15,36 @@ unknown evasion_+%_if_hit_recently global, uses 7: condition: hit recently
 unvalidated intelligence_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unvalidated level global, uses 7: its description has no text; meaning read from the stat id. The level bundle carries the build's level under it
 unvalidated mana_per_level global, uses 7: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum mana in game would validate it
-unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equipped items, which builds do not have yet
+unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equipped items, which an entry cannot check yet
 unvalidated strength_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
-unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which builds do not have yet
+unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
 unvalidated X_to_armour_per_2_strength global, uses 5: the text says per 2 Strength; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
-unknown additional_maximum_all_elemental_resistances_%_if_all_equipment_grants_armour global, uses 5: items: depends on equipped items, which builds do not have yet
+unknown additional_maximum_all_elemental_resistances_%_if_all_equipment_grants_armour global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unknown armour_+%_per_retaliation_used_in_past_10_seconds global, uses 5: condition: Retaliation Skills used in the past 10 seconds
 unknown armour_+%_per_second_while_stationary_up_to_100 global, uses 5: condition: time stationary
-unknown armour_from_gloves_and_boots_+% global, uses 5: items: depends on equipped items, which builds do not have yet
-unknown body_armour_evasion_rating_+% global, uses 5: items: depends on equipped items, which builds do not have yet
+unknown armour_from_gloves_and_boots_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
+unknown body_armour_evasion_rating_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unknown evasion_rating_+%_while_tincture_active global, uses 5: condition: active Tincture
 unknown life_regeneration_%_per_minute_if_detonated_mine_recently global, uses 5: condition: detonated a mine recently
-unknown maximum_life_+%_per_red_socket_on_staff global, uses 5: items: depends on equipped items, which builds do not have yet
-unknown maximum_mana_+%_per_blue_socket_on_staff global, uses 5: items: depends on equipped items, which builds do not have yet
+unknown maximum_life_+%_per_red_socket_on_staff global, uses 5: items: depends on equipped items, which an entry cannot check yet
+unknown maximum_mana_+%_per_blue_socket_on_staff global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unknown movement_speed_+%_if_have_not_taken_damage_recently global, uses 5: condition: not taken damage recently
-unknown resist_all_elements_+%_while_holding_shield global, uses 5: items: depends on equipped items, which builds do not have yet
-unknown spell_block_chance_%_while_holding_staff_or_shield global, uses 5: items: depends on equipped items, which builds do not have yet
-unknown armour_+%_per_red_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which builds do not have yet
-unknown evasion_rating_+%_per_green_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which builds do not have yet
+unknown resist_all_elements_+%_while_holding_shield global, uses 5: items: depends on equipped items, which an entry cannot check yet
+unknown spell_block_chance_%_while_holding_staff_or_shield global, uses 5: items: depends on equipped items, which an entry cannot check yet
+unknown armour_+%_per_red_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which an entry cannot check yet
+unknown evasion_rating_+%_per_green_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which an entry cannot check yet
 unknown guardian_gain_life_regeneration_per_minute_%_for_1_second_every_10_seconds global, uses 4: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown movement_speed_+%_per_5_rage global, uses 4: condition: per Rage
 unknown spell_block_%_per_5_attack_block global, uses 4: scale: scales with the chance to block attack damage, which is not a sheet value yet
 unknown movement_speed_+%_while_dual_wielding global, uses 3: items: depends on equipped items, which an entry cannot check yet
-unknown shield_maximum_energy_shield_+% global, uses 3: items: depends on equipped items, which builds do not have yet
+unknown shield_maximum_energy_shield_+% global, uses 3: items: depends on equipped items, which an entry cannot check yet
 unknown X_armour_if_you_have_blocked_recently global, uses 2: condition: blocked recently
 unknown armour_+%_if_you_havent_been_hit_recently global, uses 2: condition: not hit recently
 unknown armour_+%_while_stationary global, uses 2: condition: stationary
-unknown armour_and_energy_shield_+%_from_body_armour_if_gloves_helmet_boots_have_armour_and_energy_shield global, uses 2: items: depends on equipped items, which builds do not have yet
+unknown armour_and_energy_shield_+%_from_body_armour_if_gloves_helmet_boots_have_armour_and_energy_shield global, uses 2: items: depends on equipped items, which an entry cannot check yet
 unknown auras_grant_attack_and_cast_speed_+%_to_you_and_your_allies global, uses 2: scale: applies to the player per active aura skill from a gem; aura skills are not modelled yet
-unknown damage_reduction_rating_from_body_armour_doubled global, uses 2: items: depends on equipped items, which builds do not have yet
-unknown energy_shield_+%_if_both_rings_have_evasion_mod global, uses 2: items: depends on equipped items, which builds do not have yet
+unknown damage_reduction_rating_from_body_armour_doubled global, uses 2: items: depends on equipped items, which an entry cannot check yet
+unknown energy_shield_+%_if_both_rings_have_evasion_mod global, uses 2: items: depends on equipped items, which an entry cannot check yet
 unknown evasion_rating_+%_if_energy_shield_recharge_started_in_past_2_seconds global, uses 2: condition: energy shield recharge started in the past 2 seconds
 unknown evasion_rating_+%_if_have_not_been_hit_recently global, uses 2: condition: not hit recently
 unvalidated evasion_rating_+%_per_10_intelligence global, uses 2: the text says per 10 Intelligence; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
@@ -62,27 +62,27 @@ unknown armour_+%_per_rage global, uses 1: condition: per Rage
 unknown armour_+_per_10_unreserved_max_mana global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown armour_and_evasion_+%_during_onslaught global, uses 1: condition: Onslaught
 unknown armour_and_evasion_+%_while_fortified global, uses 1: condition: Fortified
-unknown armour_from_shield_doubled global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown armour_from_shield_doubled global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown banner_resist_all_elements_% global, uses 1: condition: a placed Banner
-unknown block_spells_chance_%_while_holding_shield global, uses 1: items: depends on equipped items, which builds do not have yet
-unknown body_armour_defences_doubled_while_no_gems_in_body_armour global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown block_spells_chance_%_while_holding_shield global, uses 1: items: depends on equipped items, which an entry cannot check yet
+unknown body_armour_defences_doubled_while_no_gems_in_body_armour global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown chance_to_block_spells_%_if_cast_a_spell_recently global, uses 1: condition: cast a spell recently
 unknown chance_to_block_spells_%_if_used_retaliation_recently global, uses 1: condition: used a Retaliation Skill recently
 unknown chance_to_block_spells_%_while_channelling global, uses 1: condition: channelling
 unvalidated chaos_damage_resistance_is_doubled global, uses 1: the text does not say whether doubling applies before or after other modifiers or more than once; the total is doubled once, as PoB does
 unknown damage_+%_for_you_and_allies_affected_by_your_auras global, uses 1: context: increased damage, which is not simulated yet; applies to the player always, as an aura of the node's own
-unknown elemental_resistance_%_while_no_gems_in_helmet global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown elemental_resistance_%_while_no_gems_in_helmet global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unvalidated elemental_resistances_+%_for_you_and_allies_affected_by_your_auras global, uses 1: the stat id says affected by your auras; the text says you and nearby allies, so it is read as an aura of the node's own that always applies to the player, as PoB does. Not scaled by aura effect on you, which the engine does not model; PoB scales it by aura and buff effect on you
 unknown energy_shield_regeneration_%_per_minute_if_enemy_cursed_recently global, uses 1: condition: cursed an enemy recently
 unknown energy_shield_regeneration_%_per_minute_if_enemy_killed_recently global, uses 1: condition: killed an enemy recently
 unknown es_regeneration_per_minute_%_while_stationary global, uses 1: condition: stationary
 unknown evasion_rating_+%_while_moving global, uses 1: condition: moving
 unknown evasion_rating_+%_while_phasing global, uses 1: condition: Phasing
-unknown evasion_rating_+_per_1_helmet_energy_shield global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown evasion_rating_+_per_1_helmet_energy_shield global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown gain_%_total_phys_damage_prevented_in_the_past_10_sec_as_life_regen_per_sec global, uses 1: condition: physical damage prevented in the past 10 seconds
-unknown gain_maximum_life_instead_of_maximum_es_from_armour global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown gain_maximum_life_instead_of_maximum_es_from_armour global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown gain_movement_speed_+%_for_20_seconds_on_kill global, uses 1: condition: killed an enemy in the past 20 seconds
-unknown gain_no_armour_from_body_armour global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown gain_no_armour_from_body_armour global, uses 1: items: depends on equipped items, which an entry cannot check yet
 omitted global_defences_+% global, uses 1: Ward, which is not a sheet value
 unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_energy_shield global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
@@ -117,10 +117,10 @@ unknown mana_regeneration_rate_+%_if_enemy_shocked_recently global, uses 1: cond
 unvalidated mana_regeneration_rate_+%_per_1%_spell_block_chance global, uses 1: the chance is the capped one, counted in whole steps, as PoB does (PerStat on SpellBlockChance); the text does not say
 unknown mana_regeneration_rate_per_minute_%_if_inflicted_exposure_recently global, uses 1: condition: inflicted Exposure recently
 unknown mana_regeneration_rate_per_minute_%_per_active_totem global, uses 1: condition: per Summoned Totem
-unknown maximum_energy_shield_+_per_X_body_armour_evasion_rating global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown maximum_energy_shield_+_per_X_body_armour_evasion_rating global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unvalidated maximum_energy_shield_increased_by_spell_block_chance global, uses 1: read as 1% increased maximum Energy Shield per 1% capped Chance to Block Spell Damage, counted in whole steps; PoB adds the unrounded chance, once however many sources have the stat
 unvalidated maximum_life_%_to_add_as_maximum_armour global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
-unknown maximum_life_+%_while_no_gems_in_gloves global, uses 1: items: depends on equipped items, which builds do not have yet
+unknown maximum_life_+%_while_no_gems_in_gloves global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unvalidated modifiers_to_fire_resistance_also_apply_to_cold_lightning_resistance_at_%_value global, uses 1: own modifiers to fire resistance only: not all-elemental ones, base values or the Kitava penalty, as PoB does; the text does not settle it
 unvalidated modifiers_to_maximum_fire_resistance_apply_to_maximum_cold_and_lightning_resistance global, uses 1: own modifiers to fire resistance only: not all-elemental ones, base values or the Kitava penalty, as PoB does; the text does not settle it
 unknown movement_speed_+%_during_flask_effect global, uses 1: condition: during a flask effect
