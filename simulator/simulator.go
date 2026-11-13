@@ -73,6 +73,8 @@ type Sim struct {
 	items func() (*items.Reader, error)
 	// bases indexes the dataset's item bases by id, on first use.
 	bases func() (map[string]*dataset.ItemBase, error)
+	// nodeTexts renders passive nodes, per language on first use.
+	nodeTexts nodeTexts
 
 	mu  sync.Mutex
 	cfg config.Values
