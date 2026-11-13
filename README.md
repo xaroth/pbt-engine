@@ -6,7 +6,7 @@ Status: early. The engine simulates the character sheet of a Path of Exile 1 bui
 
 ## Layout
 
-Hosts and tools import the packages at the top level: `simulator` (the API), `poe1` (the Path of Exile 1 output keys, config keys and config values, such as `poe1.Life` and `poe1.Bandits`), `build`, `config`, `output`, `pob`, `power`, `dataset` (with `dataset/remote`), `statdesc` and `items`. The pipeline behind them is under `internal/`, so it can change without breaking anyone: `core` (the game-neutral evaluator), `resolve` (build to stat bundles), `semantics` (the table format) and one package per game, `poe1` (rules, output catalogue and semantics table), whose names for hosts the top-level package of the same name re-exports.
+Hosts and tools import the packages at the top level: `simulator` (the API), `poe1` (the Path of Exile 1 output keys, config keys and config values, such as `poe1.Life` and `poe1.Bandits`, and `poe1/timeless`, what a timeless jewel makes of each passive in its radius), `build`, `config`, `output`, `pob`, `power`, `dataset` (with `dataset/remote`), `statdesc` and `items`. The pipeline behind them is under `internal/`, so it can change without breaking anyone: `core` (the game-neutral evaluator), `resolve` (build to stat bundles), `semantics` (the table format) and one package per game, `poe1` (rules, output catalogue and semantics table), whose names for hosts the top-level package of the same name re-exports.
 
 ## Datasets
 
