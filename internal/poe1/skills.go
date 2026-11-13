@@ -9,8 +9,13 @@ import (
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
-// ErrSkill is a skill the sheet does not hold, or more skills than it can hold.
-var ErrSkill = errors.New("skill not on the sheet")
+// Errors of a sheet's skills.
+var (
+	// ErrSkill is a skill the sheet does not hold, or more skills than it can hold.
+	ErrSkill = errors.New("skill not on the sheet")
+	// ErrDamageType is a value that is not a DamageType.
+	ErrDamageType = errors.New("unknown damage type")
+)
 
 // skillKey is a skill's sources by slot and content.
 type skillKey struct {
@@ -81,9 +86,10 @@ func skillBundle(src resolve.GemSource, stats []resolve.StatValue) resolve.Bundl
 }
 
 // SkillValue returns engine stat name in the context of skill i of SetSkills, reading the part
-// of its damage of type d, or no part for NoDamage.
-func (sh *Sheet) SkillValue(i int, name string, d DamageType) (float64, error) {
-	n, err := sh.skillNode(i, name, d)
+// of its damage whose chain is damage: its type and the types it was converted from. With no
+// damage types it reads no part of the damage.
+func (sh *Sheet) SkillValue(i int, name string, damage ...DamageType) (float64, error) {
+	n, err := sh.skillNode(i, name, damage)
 	if err != nil {
 		return 0, err
 	}
@@ -94,18 +100,22 @@ func (sh *Sheet) SkillValue(i int, name string, d DamageType) (float64, error) {
 	return val, nil
 }
 
-// skillNode returns the node of engine stat name in skill i's context for damage type d.
-func (sh *Sheet) skillNode(i int, name string, d DamageType) (core.Node, error) {
+// skillNode returns the node of engine stat name in skill i's context for the damage chain
+// damage.
+func (sh *Sheet) skillNode(i int, name string, damage []DamageType) (core.Node, error) {
 	id, ok := sh.stats[name]
 	switch {
 	case !ok:
 		return core.Node{}, fmt.Errorf("%w %q", ErrUnknownStat, name)
 	case i < 0 || i >= len(sh.skills):
 		return core.Node{}, fmt.Errorf("%w: %d of %d", ErrSkill, i, len(sh.skills))
-	case d > Chaos:
-		return core.Node{}, fmt.Errorf("sheet: damage type %d", d)
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i], d))
+	for _, d := range damage {
+		if d < Physical || d > Chaos {
+			return core.Node{}, fmt.Errorf("%w %d", ErrDamageType, d)
+		}
+	}
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i], damage))
 	return core.Node{Stat: id, Ctx: ctx}, nil
 }
 

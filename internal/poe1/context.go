@@ -11,14 +11,16 @@ import (
 )
 
 // Context dimensions. A value is read in a context: the sheet's values in the empty one, a
-// skill's values in a context of its types, its slot and, for a part of its damage, that
-// part's damage type. A table modifier with a semantics.ContextFilter applies only in the contexts
+// skill's values in a context of its types, its slot and, for a part of its damage, the damage
+// types of that part's chain. A table modifier with a semantics.ContextFilter applies only in the contexts
 // it matches, so it never reaches a sheet value.
 const (
 	// dimType holds the skill's ActiveSkillType ids that skillTypes lists, those its supports
 	// add included. They are the skill's tags: Fireball has type.Fire whatever damage it deals.
 	dimType = "type"
-	// dimDamage holds the damage type of the part of a skill's damage being read, at most one.
+	// dimDamage holds the damage types of the part of a skill's damage being read: its type and
+	// every type it was converted from, since converted damage takes the modifiers of each type
+	// in its chain. A modifier needs one of them per term, so it applies once.
 	dimDamage = "damage"
 	// dimSkill holds the sheet's slot of the skill, one bit. Every modifier from the skill's
 	// own stats (stat set, quality, supports) requires it, so they reach that skill only.
@@ -32,11 +34,9 @@ const maxSkills = 32
 // DamageType is a type of damage, a value of the damage dimension.
 type DamageType uint8
 
-// Damage types, in the game's conversion order. NoDamage reads a skill's value outside any
-// part of its damage.
+// Damage types, in the game's conversion order.
 const (
-	NoDamage DamageType = iota
-	Physical
+	Physical DamageType = iota + 1
 	Fire
 	Cold
 	Lightning
@@ -48,10 +48,10 @@ func damageTypeNames() []string {
 }
 
 func (d DamageType) String() string {
-	if names := damageTypeNames(); d > NoDamage && int(d) < len(names) {
+	if names := damageTypeNames(); d >= Physical && int(d) < len(names) {
 		return names[d]
 	}
-	return "none"
+	return "damage?"
 }
 
 // skillTypes are the ActiveSkillType ids a table modifier can require, as the game names
@@ -109,15 +109,15 @@ func isTableContext(name string) bool {
 }
 
 // skillMask returns the context of the skill in slot with types, reading a part of its damage
-// of type d, or none for NoDamage.
-func (c contexts) skillMask(slot int, types []string, d DamageType) core.Mask {
+// whose chain is damage, or no part when damage is empty.
+func (c contexts) skillMask(slot int, types []string, damage []DamageType) core.Mask {
 	m := core.MaskOf(c.skill.Bit(slot))
 	for _, t := range types {
 		if i := slices.Index(c.types.Values, t); i >= 0 {
 			m = m.Set(c.types.Bit(i))
 		}
 	}
-	if d != NoDamage {
+	for _, d := range damage {
 		m = m.Set(c.damage.Bit(int(d) - 1))
 	}
 	return m
