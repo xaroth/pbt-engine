@@ -37,8 +37,8 @@ func (t *Text) Names() Names {
 // name; Write checks them. A dataset without a names file for the language gives the names of
 // its text.
 func (s *Store) Names(language string) (*Names, error) {
-	if load, ok := s.names[language]; ok {
-		return load()
+	if l, ok := s.names[language]; ok {
+		return l.get(func() (*Names, error) { return s.loadNames(language) })
 	}
 	t, err := s.Text(language)
 	if err != nil {

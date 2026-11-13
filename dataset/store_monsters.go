@@ -5,7 +5,7 @@ import "fmt"
 // Monsters returns the monsters group, shared and read-only. It reads the skills group too, to
 // check the granted effects varieties and edition totems name. A dataset without the group
 // returns a *MissingGroupError.
-func (s *Store) Monsters() (*Monsters, error) { return s.monsters() }
+func (s *Store) Monsters() (*Monsters, error) { return s.monsters.get(s.loadMonsters) }
 
 func (s *Store) checkMonstersFiles() error {
 	_, hasMonsters := s.files[MonstersFile]
@@ -19,11 +19,11 @@ func (s *Store) loadMonsters() (*Monsters, error) {
 	if _, ok := s.files[MonstersFile]; !ok {
 		return nil, &MissingGroupError{Version: s.manifest.Version, Group: "monsters"}
 	}
-	st, err := s.stats()
+	st, err := s.statsGroup()
 	if err != nil {
 		return nil, err
 	}
-	sk, err := s.skills()
+	sk, err := s.Skills()
 	if err != nil {
 		return nil, err
 	}

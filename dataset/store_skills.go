@@ -4,13 +4,13 @@ import "fmt"
 
 // Skills returns the skills group, shared and read-only. A dataset without the group returns a
 // *MissingGroupError.
-func (s *Store) Skills() (*Skills, error) { return s.skills() }
+func (s *Store) Skills() (*Skills, error) { return s.skills.get(s.loadSkills) }
 
 func (s *Store) loadSkills() (*Skills, error) {
 	if _, ok := s.files[SkillsFile]; !ok {
 		return nil, &MissingGroupError{Version: s.manifest.Version, Group: "skills"}
 	}
-	st, err := s.stats()
+	st, err := s.statsGroup()
 	if err != nil {
 		return nil, err
 	}
