@@ -498,18 +498,7 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 		TotalPoints:           root.TotalPoints(),
 		AscendancyPoints:      root.AscendancyPoints(),
 		AlternateAscendancies: decodeAscendancies(root.AlternateAscendancies, root.AlternateAscendanciesLength()),
-	}
-	var c fb.Class
-	for i := range root.ClassesLength() {
-		root.Classes(&c, i)
-		t.Classes = append(t.Classes, Class{
-			Character:        string(c.Character()),
-			BaseStrength:     c.BaseStrength(),
-			BaseDexterity:    c.BaseDexterity(),
-			BaseIntelligence: c.BaseIntelligence(),
-			StartNode:        c.StartNode(),
-			Ascendancies:     decodeAscendancies(c.Ascendancies, c.AscendanciesLength()),
-		})
+		Classes:               decodeClasses(root),
 	}
 	var n fb.Node
 	t.Nodes = make([]Node, root.NodesLength())
@@ -523,6 +512,37 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 		t.JewelSlots = append(t.JewelSlots, root.JewelSlots(j))
 	}
 	return t, nil
+}
+
+// decodeTreeClasses reads the variant and classes of a tree file and none of its nodes, so it
+// needs no stats index.
+func decodeTreeClasses(buf []byte) (variant string, classes []Class, err error) {
+	if !fb.TreeBufferHasIdentifier(buf) {
+		return "", nil, errIdentifier
+	}
+	root := fb.GetRootAsTree(buf, 0)
+	return string(root.Variant()), decodeClasses(root), nil
+}
+
+// decodeClasses returns nil for no classes, so a tree without them reads back as written.
+func decodeClasses(root *fb.Tree) []Class {
+	if root.ClassesLength() == 0 {
+		return nil
+	}
+	out := make([]Class, root.ClassesLength())
+	var c fb.Class
+	for i := range out {
+		root.Classes(&c, i)
+		out[i] = Class{
+			Character:        string(c.Character()),
+			BaseStrength:     c.BaseStrength(),
+			BaseDexterity:    c.BaseDexterity(),
+			BaseIntelligence: c.BaseIntelligence(),
+			StartNode:        c.StartNode(),
+			Ascendancies:     decodeAscendancies(c.Ascendancies, c.AscendanciesLength()),
+		}
+	}
+	return out
 }
 
 func decodeNode(n *fb.Node, h []uint32) (Node, error) {

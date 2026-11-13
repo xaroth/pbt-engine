@@ -33,8 +33,10 @@ type Store struct {
 	skills     func() (*Skills, error)
 	buffs      func() (*Buffs, error)
 	monsters   func() (*Monsters, error)
-	// trees, texts, names and layouts are keyed by variant and language, fixed by the manifest.
+	// trees, classes, texts, names and layouts are keyed by variant and language, fixed by the
+	// manifest.
 	trees   map[string]func() (*Tree, error)
+	classes map[string]func() ([]Class, error)
 	texts   map[string]func() (*Text, error)
 	names   map[string]func() (*Names, error)
 	layouts map[string]func() (*Layout, error)
@@ -59,6 +61,7 @@ func Open(fsys fs.FS) (*Store, error) {
 		fsys:     fsys,
 		files:    make(map[string]File, len(m.Files)),
 		trees:    map[string]func() (*Tree, error){},
+		classes:  map[string]func() ([]Class, error){},
 		texts:    map[string]func() (*Text, error){},
 		names:    map[string]func() (*Names, error){},
 		layouts:  map[string]func() (*Layout, error){},
@@ -179,6 +182,7 @@ func registerFile(s *Store, f File) error {
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = sync.OnceValues(func() (*Tree, error) { return s.loadTree(variant) })
+		s.classes[variant] = sync.OnceValues(func() ([]Class, error) { return s.loadClasses(variant) })
 	case isGroup(f.Name, layoutPrefix):
 		variant := groupTag(f.Name, layoutPrefix)
 		s.layouts[variant] = sync.OnceValues(func() (*Layout, error) { return s.loadLayout(variant) })
