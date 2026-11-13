@@ -19,7 +19,11 @@
 //	    <ConfigSet id><Input name number|boolean|string/></ConfigSet>
 //	    <Input .../>                          older files: inputs without sets
 //	  </Config>
-//	  <Items><Item id>item text</Item></Items>
+//	  <Items activeItemSet>
+//	    <Item id>item text</Item>
+//	    <ItemSet id><Slot name itemId/></ItemSet>    itemId 0 is an empty slot
+//	    <Slot .../>                           older files: slots without sets
+//	  </Items>
 //	  <Skills activeSkillSet>
 //	    <SkillSet id>
 //	      <Skill label enabled slot source    source: the item or tree node granting the group
@@ -68,6 +72,9 @@ type File struct {
 	// Config is the active config set's inputs, or the inputs of a file without sets.
 	Config []Input
 	Items  []Item
+	// Equipped are the active item set's slots that hold an item, or the slots of a file
+	// without sets, in file order.
+	Equipped []Equipped
 	// Skills are the active skill set's groups, or the groups of a file without sets.
 	Skills []SkillGroup
 }
@@ -112,8 +119,14 @@ type Input struct{ Name, Type, Value string }
 
 // Item is an item; Name is the first line of its text after the rarity.
 type Item struct {
-	ID   int
-	Name string
+	ID         int
+	Name, Text string
+}
+
+// Equipped is an item in an item slot, by PoB's slot name, such as "Ring 1" or "Flask 2".
+type Equipped struct {
+	Slot string
+	Item int
 }
 
 // SkillGroup is a socket group.
@@ -160,10 +173,16 @@ type xmlFile struct {
 		} `xml:"ConfigSet"`
 	} `xml:"Config"`
 	Items struct {
-		Items []struct {
+		Active string `xml:"activeItemSet,attr"`
+		Items  []struct {
 			ID   int    `xml:"id,attr"`
 			Text string `xml:",chardata"`
 		} `xml:"Item"`
+		Slots []xmlSlot `xml:"Slot"`
+		Sets  []struct {
+			ID    string    `xml:"id,attr"`
+			Slots []xmlSlot `xml:"Slot"`
+		} `xml:"ItemSet"`
 	} `xml:"Items"`
 	Skills struct {
 		Active string     `xml:"activeSkillSet,attr"`
@@ -191,6 +210,11 @@ type xmlSpec struct {
 		Node uint32 `xml:"nodeId,attr"`
 		Name string `xml:"dn,attr"`
 	} `xml:"Overrides>Override"`
+}
+
+type xmlSlot struct {
+	Name string `xml:"name,attr"`
+	Item int    `xml:"itemId,attr"`
 }
 
 type xmlInput struct {
@@ -256,8 +280,9 @@ func Parse(data []byte) (*File, error) {
 		f.Specs = append(f.Specs, s)
 	}
 	for _, it := range x.Items.Items {
-		f.Items = append(f.Items, Item{ID: it.ID, Name: itemName(it.Text)})
+		f.Items = append(f.Items, Item{ID: it.ID, Name: itemName(it.Text), Text: it.Text})
 	}
+	f.Equipped = equipped(x)
 	return f, nil
 }
 
@@ -399,6 +424,27 @@ func skills(x xmlFile) ([]SkillGroup, error) {
 		out = append(out, sg)
 	}
 	return out, nil
+}
+
+// equipped are the slots holding an item of the active item set, the first set's when none is
+// active, or of the flat list.
+func equipped(x xmlFile) []Equipped {
+	list := x.Items.Slots
+	if len(x.Items.Sets) > 0 {
+		list = x.Items.Sets[0].Slots
+		for _, s := range x.Items.Sets {
+			if s.ID == x.Items.Active {
+				list = s.Slots
+			}
+		}
+	}
+	var out []Equipped
+	for _, s := range list {
+		if s.Item != 0 {
+			out = append(out, Equipped{Slot: s.Name, Item: s.Item})
+		}
+	}
+	return out
 }
 
 // flag reads a boolean attribute that is true unless it says false.
