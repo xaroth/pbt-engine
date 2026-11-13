@@ -406,6 +406,7 @@ func encodeTree(all []Stat, t Tree) []byte {
 	alt := ascendancyVector(b, fb.TreeStartAlternateAscendanciesVector, t.AlternateAscendancies)
 	jewels := uint32Vector(b, fb.TreeStartJewelSlotsVector, t.JewelSlots)
 	overrides := encodeOverrides(b, st, t.Overrides)
+	addJewels := encodeJewels(b, st, &t)
 	variant := b.CreateString(t.Variant)
 	ids := stringVector(b, fb.TreeStartStatIdsVector, st.ids)
 	fb.TreeStart(b)
@@ -420,6 +421,7 @@ func encodeTree(all []Stat, t Tree) []byte {
 	if overrides != 0 {
 		fb.TreeAddOverrides(b, overrides)
 	}
+	addJewels()
 	fb.FinishTreeBuffer(b, fb.TreeEnd(b))
 	return b.FinishedBytes()
 }
@@ -436,7 +438,7 @@ func treeStatLists(t Tree) [][]StatValue {
 	for _, o := range t.Overrides {
 		lists = append(lists, o.Stats)
 	}
-	return lists
+	return append(lists, jewelStatLists(t)...)
 }
 
 // encodeOverrides returns 0 for no overrides, so a tree without them keeps the bytes it had
@@ -580,6 +582,10 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 		t.JewelSlots = append(t.JewelSlots, root.JewelSlots(j))
 	}
 	if t.Overrides, err = decodeOverrides(root, h); err != nil {
+		return Tree{}, err
+	}
+	t.JewelRadii = decodeJewelRadii(root)
+	if t.Clusters, err = decodeClusters(root, h); err != nil {
 		return Tree{}, err
 	}
 	return t, nil

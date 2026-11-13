@@ -46,7 +46,7 @@ func (d *Dataset) validate() error {
 	}
 	return errors.Join(validateNames(d.Texts, d.Trees), d.validateLayouts(),
 		d.validateItemsGroup(), d.validateSkillsGroup(), d.validateBuffsGroup(), d.validateMonstersGroup(),
-		d.validateGrantedSkills())
+		d.validateGrantedSkills(), d.validateClusterBases())
 }
 
 func errVariant(v string) error {
@@ -134,6 +134,9 @@ func validateTree(n int, chars []Character, t Tree) error {
 		}
 	}
 	if err := validateOverrides(n, ids, t); err != nil {
+		return err
+	}
+	if err := validateJewels(n, ids, t); err != nil {
 		return err
 	}
 	return validateTreeRefs(chars, ids, t)

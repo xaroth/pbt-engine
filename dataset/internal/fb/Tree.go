@@ -208,8 +208,41 @@ func (rcv *Tree) OverridesLength() int {
 	return 0
 }
 
+func (rcv *Tree) JewelRadii(obj *JewelRadius, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Tree) JewelRadiiLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *Tree) Clusters(obj *Clusters) *Clusters {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(Clusters)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func TreeStart(builder *flatbuffers.Builder) {
-	builder.StartObject(9)
+	builder.StartObject(11)
 }
 func TreeAddVariant(builder *flatbuffers.Builder, variant flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(variant), 0)
@@ -255,6 +288,15 @@ func TreeAddOverrides(builder *flatbuffers.Builder, overrides flatbuffers.UOffse
 }
 func TreeStartOverridesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func TreeAddJewelRadii(builder *flatbuffers.Builder, jewelRadii flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(jewelRadii), 0)
+}
+func TreeStartJewelRadiiVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func TreeAddClusters(builder *flatbuffers.Builder, clusters flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(clusters), 0)
 }
 func TreeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
