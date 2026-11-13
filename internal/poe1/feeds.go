@@ -103,8 +103,8 @@ func sheetLines() []rule {
 		"flat to quantity", `(?:\}|\d)%? to (?:all )?`+maximum+quantity+`\b`,
 		"increased or more quantity", `\b(?:increased|reduced|more|less) `+maximum+quantity+`\b`,
 		"value of quantity", `\}%? `+maximum+quantity+`\b`,
-		"regenerate life or mana", `Regenerat\w*\b.*\b(?:Life|Mana)\b`,
-		"life or mana regeneration", `\b(?:Life|Mana) Regeneration\b`,
+		"regenerate a pool", `Regenerat\w*\b.*\b(?:Life|Mana|Energy Shield)\b`,
+		"pool regeneration", `\b(?:Life|Mana|Energy Shield) Regeneration\b`,
 		"gain as extra", `as Extra (?:Maximum )?`+quantity+`\b`,
 		"converted to quantity", `Converted to `+quantity,
 		"quantity increased or doubled", `\b`+maximum+quantity+` is (?:increased|doubled)`,
@@ -148,7 +148,7 @@ func notSheetLines() []rule {
 		"exposure", `Exposure you inflict|\binflict Exposure\b|Exposure inflicted`,
 		"recovery on events", `\b(?:Gain|Lose|Recover) \{[^}]*\}%? (?:of )?(?:Life|Mana|Energy Shield)\b|\bRecover \d|gained when`,
 		"flask recovery", `Recovery from Flasks`,
-		"energy shield recharge and recovery", `Energy Shield Recharge Rate|Energy Shield Recovery|Regenerate \{[^}]*\}%? (?:of )?Energy Shield`,
+		"energy shield recharge and recovery", `Energy Shield Recharge Rate|Energy Shield Recovery`,
 		"corpses", `Corpses you Spawn`,
 	)
 }

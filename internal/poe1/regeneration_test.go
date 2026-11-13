@@ -85,6 +85,28 @@ func TestRegeneration(t *testing.T) {
 			},
 		},
 		{name: "no energy shield regeneration", stat: "energy_shield_regeneration", want: 0},
+		// Vile Bastion: 6000 per minute
+		{
+			name: "flat energy shield regeneration", stat: "energy_shield_regeneration", want: 100,
+			extra: []resolve.StatValue{{Stat: "base_energy_shield_regeneration_rate_per_minute", Value: 6000}},
+		},
+		// mastery 35810: 2% of 202 energy shield, 4.04
+		{
+			name: "percent energy shield regeneration", stat: "energy_shield_regeneration", want: 4,
+			extra: []resolve.StatValue{
+				{Stat: "base_energy_shield_regeneration_rate_per_minute_%", Value: 120}, {Stat: "base_maximum_energy_shield", Value: 200},
+			},
+		},
+		// its own 100 + 4.04 plus the life regeneration it takes over, 10 + 4.04
+		{
+			name: "energy shield regeneration and life regeneration to energy shield", stat: "energy_shield_regeneration", want: 118.1,
+			extra: []resolve.StatValue{
+				{Stat: "base_energy_shield_regeneration_rate_per_minute", Value: 6000},
+				{Stat: "base_energy_shield_regeneration_rate_per_minute_%", Value: 120},
+				{Stat: "base_life_regeneration_rate_per_minute", Value: 600}, {Stat: "life_regeneration_rate_per_minute_%", Value: 120},
+				{Stat: "base_maximum_energy_shield", Value: 200}, {Stat: "regenerate_energy_shield_instead_of_life", Value: 1},
+			},
+		},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
