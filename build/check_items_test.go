@@ -6,6 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
 )
 
 // TestCheckHands: an offhand item the game refuses beside the weapon is left out with a
@@ -66,6 +67,58 @@ func TestCheckHands(t *testing.T) {
 			}
 			if diff := cmp.Diff(testCase.codes, codesOf(warnings)); diff != "" {
 				t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
+			}
+			if diff := cmp.Diff(testCase.want, c.Build().Items); diff != "" {
+				t.Errorf("items (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestCheckThirdRing: the third ring slot holds a ring when an allocated node or a chosen
+// mastery effect grants the stat that opens it; otherwise the ring is left out with a warning.
+func TestCheckThirdRing(t *testing.T) {
+	t.Parallel()
+	d := itemsDataset()
+	d.Stats = append(d.Stats, dataset.Stat{ID: build.SlotStat(build.SlotRing3)})
+	opens := []dataset.StatValue{{Stat: uint32(len(d.Stats) - 1), Value: 1}}
+	tree := &d.Trees[0]
+	for i := range tree.Nodes {
+		switch n := &tree.Nodes[i]; n.ID {
+		case 52:
+			n.Stats = opens
+		case 4:
+			n.MasteryEffects[1].Stats = opens
+		}
+	}
+	s := openStore(t, d)
+	ring := build.Item{Rarity: build.Normal, Base: ringBase}
+	testCases := []struct {
+		name      string
+		nodes     []uint32
+		masteries map[uint32]uint32
+		codes     []build.Code
+		want      build.Items
+	}{
+		{"bloodline node", []uint32{50, 52}, nil, nil, build.Items{build.SlotRing3: ring}},
+		{"mastery effect", []uint32{4}, map[uint32]uint32{4: 8}, nil, build.Items{build.SlotRing3: ring}},
+		{"other bloodline node", []uint32{50, 51}, nil, []build.Code{build.ItemSlotClosed}, build.Items{}},
+		{"other mastery effect", []uint32{4}, map[uint32]uint32{4: 7}, []build.Code{build.ItemSlotClosed}, build.Items{}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := juggernaut()
+			b.Bloodline = "Oshabi"
+			b.Nodes = append(b.Nodes, testCase.nodes...)
+			b.Masteries = testCase.masteries
+			b.Items = build.Items{build.SlotRing3: ring}
+			c, warnings, err := build.Check(b, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(testCase.codes, codesOf(warnings)); diff != "" {
+				t.Errorf("codes (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(testCase.want, c.Build().Items); diff != "" {
 				t.Errorf("items (-want +got):\n%s", diff)

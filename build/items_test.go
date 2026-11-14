@@ -25,6 +25,10 @@ const (
 // sword, claw and quiver base.
 func itemsStore(t *testing.T) *dataset.Store {
 	t.Helper()
+	return openStore(t, itemsDataset())
+}
+
+func itemsDataset() *dataset.Dataset {
 	d := testDataset()
 	d.Items = &dataset.Items{
 		Classes: []dataset.ItemClass{
@@ -40,7 +44,7 @@ func itemsStore(t *testing.T) *dataset.Store {
 			{ID: quiverBase, Class: "Quiver"},
 		},
 	}
-	return openStore(t, d)
+	return d
 }
 
 // helmet is a rare helmet whose ids all fit itemsStore.

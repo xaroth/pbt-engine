@@ -131,8 +131,8 @@ type MasteryChoice struct {
 // clears unknown variants and slots without sockets, corrects which gems are supports, clamps
 // gem levels and quality, and moves a main skill or active gem that does not fit to the first,
 // each with a warning; a dataset without the group gets one warning and the skills stay as
-// they are. Against the items group it leaves out items in no item slot, of an unknown base
-// or of a class the slot does not take, and stats the dataset does not have, and warns about
+// they are. Against the items group it leaves out items in no item slot, in a slot no
+// allocated node opens, of an unknown base or of a class the slot does not take, and stats the dataset does not have, and warns about
 // mod lines not read as stats; it leaves out an offhand item the game refuses beside the
 // weapon, and warns about a quiver with no bow; a dataset without the group gets one warning.
 // It leaves out jewels in a node that is not a jewel socket and, against the items group,

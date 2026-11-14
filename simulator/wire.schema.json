@@ -286,7 +286,7 @@
       "title": "Slot",
       "enum": [
         "weapon", "offhand", "weapon-swap", "offhand-swap", "helmet", "body-armour", "gloves", "boots",
-        "amulet", "ring-1", "ring-2", "belt"
+        "amulet", "ring-1", "ring-2", "ring-3", "belt"
       ]
     },
     "SkillGroup": {
