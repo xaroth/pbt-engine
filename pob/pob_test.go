@@ -139,7 +139,7 @@ func TestFromXML(t *testing.T) {
 	want := &build.Build{
 		Format: build.Format, Game: "poe1", Version: "3.29", Variant: "standard",
 		Class: marauder, Ascendancy: "Chieftain", Level: 90,
-		Nodes: []uint32{4139, 11505}, Masteries: map[uint32]uint32{4139: 47642},
+		Nodes: []uint32{4139, 11505, 65601, 65602}, Masteries: map[uint32]uint32{4139: 47642},
 		Config: values(t, poe1.BanditsKillAll, poe1.CampaignActs6To10),
 	}
 	if diff := cmp.Diff(want, b); diff != "" {
@@ -147,7 +147,6 @@ func TestFromXML(t *testing.T) {
 	}
 	wantWarnings := []build.Warning{
 		{Code: pob.AscendancyIgnored, Subject: "Warlock", Message: "legacy secondary ascendancy 2, which PoB hides and ignores; not imported"},
-		{Code: pob.ClusterNodeDropped, Subject: "nodes 65601,65602", Message: "2 cluster jewel nodes dropped; cluster jewels are not imported"},
 		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`},
 		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input not modelled (true)"},
 		{Code: pob.SkillIgnored, Subject: "RF", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
