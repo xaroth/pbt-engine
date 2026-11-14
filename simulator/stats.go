@@ -27,7 +27,9 @@ type Stats struct {
 	skill    *resolve.Skill
 	// skills are the sheet's skills, the main skill first.
 	skills []*resolve.Skill
-	sim    *Sim
+	// enemy is what the main skill's hits are measured against.
+	enemy poe1.EnemyStats
+	sim   *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
 	explainMu    sync.Mutex
@@ -138,5 +140,6 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 			return nil, fmt.Errorf("simulator: explain: %w", err)
 		}
 	}
+	sh.SetEnemy(st.enemy)
 	return sh, nil
 }

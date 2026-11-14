@@ -140,3 +140,35 @@ func TestReservation(t *testing.T) {
 		})
 	}
 }
+
+// Fireball 20 alone on a level 90 Marauder without passives: its level row's 1883 to 2825 fire
+// damage, against the default enemy's 50% fire resistance, with the class's 5% critical strike
+// chance and 150% multiplier, cast every 0.75 seconds. An enemy without fire resistance takes it whole. The skill is
+// simulated, so it does not warn; an attack is not, so it gives no hit.
+func TestSpellHitOutputs(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	b := marauderBuild(90)
+	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20}}})
+	st := simulate(t, s, b)
+	average := (1883 + 2825) / 2 * 0.5 * (0.95 + 0.05*1.5)
+	for k, want := range map[output.Key]float64{
+		poe1.FireMinimum: 941.5, poe1.FireMaximum: 1412.5, poe1.CriticalStrikeChance: 5,
+		poe1.AverageHit: average, poe1.HitsPerSecond: 1 / 0.75, poe1.HitDPS: average / 0.75,
+	} {
+		if got := get(t, st, k); math.Abs(got-want) > 1e-9 {
+			t.Errorf("%s: got %v, want %v", k, got, want)
+		}
+	}
+	if slices.ContainsFunc(st.Warnings(), func(w simulator.Warning) bool { return w.Code == simulator.SkillsNotSimulated }) {
+		t.Errorf("warnings %v, want none for a simulated spell", st.Warnings())
+	}
+	if got := get(t, simulate(t, s, b, simulator.Set(poe1.EnemyFireResistance, 0)), poe1.FireMinimum); got != 1883 {
+		t.Errorf("fire minimum against 0%% fire resistance: got %v, want 1883", got)
+	}
+	attack := marauderBuild(90)
+	attack.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemCleave", Level: 20}}})
+	if _, ok := simulate(t, s, attack).Get(poe1.AverageHit); ok {
+		t.Error("an attack has an average hit")
+	}
+}

@@ -508,8 +508,9 @@ func readWarnings(t *testing.T, w *walk) {
 	if unmodelled == 0 {
 		t.Error("no unmodelled stat on a level 90 tree")
 	}
-	if !slices.ContainsFunc(w.stats.Warnings(), func(x build.Warning) bool { return x.Code == simulator.SkillsNotSimulated }) {
-		t.Error("no warning that the skills are not simulated")
+	// The build's only group is its main skill, a spell hit the engine simulates.
+	if slices.ContainsFunc(w.stats.Warnings(), func(x build.Warning) bool { return x.Code == simulator.SkillsNotSimulated }) {
+		t.Error("a warning that the skills are not simulated, for a simulated spell")
 	}
 }
 

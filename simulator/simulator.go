@@ -45,8 +45,8 @@ const (
 	// UncheckedCondition is a stat applied without checking a condition of its text: unlike a
 	// stat left out, it can over-apply.
 	UncheckedCondition build.Code = "unchecked-condition"
-	// SkillsNotSimulated is a build with skill groups: outputs leave them out until skills are
-	// simulated.
+	// SkillsNotSimulated is a build with skill groups beyond a main spell hit's: outputs leave
+	// them out until those skills are simulated.
 	SkillsNotSimulated build.Code = "skills-not-simulated"
 	// ItemsNotSimulated is a build with items on a dataset without the items group: outputs
 	// leave them out.
@@ -208,7 +208,9 @@ type run struct {
 	// that reserve life or mana.
 	skill     *resolve.Skill
 	reserving []*resolve.Skill
-	warnings  []Warning
+	// enemy is what the main skill's hits are measured against.
+	enemy    poe1.EnemyStats
+	warnings []Warning
 }
 
 // prepare checks b and resolves its config against the sim config snapshot sim.
@@ -224,9 +226,6 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	cb := c.Build()
 	r.shape = shapeOf(c)
 	if w, ok := versionWarning(b.Version, s.store.Manifest().Version); ok {
-		r.warnings = append(r.warnings, w)
-	}
-	if w, ok := skillsWarning(cb.Skills); ok {
 		r.warnings = append(r.warnings, w)
 	}
 	if err := s.compileItems(r, cb.Items); err != nil {
@@ -253,12 +252,38 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
 	r.warnings = append(r.warnings, over...)
+	if r.enemy, err = enemyOf(s.store, r); err != nil {
+		return nil, err
+	}
 	return r, nil
 }
 
+// enemyOf resolves the enemy of r's config when the sheet gives the main skill's hit, the
+// default enemy otherwise. An enemy kind with a normal monster's armour and evasion reads them
+// from the dataset's monsters group, and fails without it.
+func enemyOf(store *dataset.Store, r *run) (poe1.EnemyStats, error) {
+	if r.skill == nil || !poe1.SpellHit(r.skill) {
+		return poe1.DefaultEnemy(), nil
+	}
+	var levels []dataset.MonsterLevel
+	m, err := store.Monsters()
+	switch {
+	case err == nil:
+		levels = m.Levels
+	case !errors.Is(err, dataset.ErrNotInDataset):
+		return poe1.EnemyStats{}, fmt.Errorf("simulator: %w", err)
+	}
+	e, err := poe1.EnemyOf(r.cfg, r.checked.Build().Level, levels)
+	if err != nil {
+		return poe1.EnemyStats{}, fmt.Errorf("simulator: %w", err)
+	}
+	return e, nil
+}
+
 // mainSkill resolves the run's main skill, none when the build has no group with an active
-// gem to resolve or the dataset has no skills group (the build check warns about that), and
-// the other skills that reserve life or mana.
+// gem to resolve or the dataset has no skills group (the build check warns about that), warns
+// about the skills it does not simulate, and resolves the other skills that reserve life or
+// mana.
 func mainSkill(r *run) error {
 	if len(r.checked.Build().Skills.Groups) == 0 {
 		return nil
@@ -271,6 +296,9 @@ func mainSkill(r *run) error {
 	default:
 		r.skill = sk
 		r.warnings = append(r.warnings, warnings...)
+	}
+	if w, ok := skillsWarning(r.checked.Build().Skills, r.skill); ok {
+		r.warnings = append(r.warnings, w)
 	}
 	return reservingSkills(r)
 }
@@ -319,22 +347,21 @@ func switchTo(r *run, sh *poe1.Sheet) error {
 		return fmt.Errorf("simulator: %w", err)
 	}
 	sh.SetConfig(r.cfg)
+	sh.SetEnemy(r.enemy)
 	return nil
 }
 
 // statsOf reads keys from sh after switching it to the run's nodes and config. Skill outputs
-// are left out when the run has no main skill.
+// the run's main skill has none of (poe1.Gives) are left out.
 func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
 	if err := switchTo(r, sh); err != nil {
 		return nil, err
 	}
-	if r.skill == nil {
-		cat := catalogue()
-		keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return cat[k].IsSkill() })
-	}
+	cat := catalogue()
+	keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !poe1.Gives(cat[k], r.skill) })
 	st := &Stats{
 		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, budget: r.budget,
-		build: r.build, checked: r.checked, items: r.items, skill: r.skill, skills: r.skills(), sim: s,
+		build: r.build, checked: r.checked, items: r.items, skill: r.skill, skills: r.skills(), enemy: r.enemy, sim: s,
 	}
 	for _, k := range keys {
 		v, err := sh.Output(k)
@@ -414,15 +441,21 @@ func versionWarning(want, have string) (Warning, bool) {
 	return Warning{Code: VersionMismatch, Subject: "version", Message: fmt.Sprintf("build for %s, simulated on dataset %s", want, have)}, true
 }
 
-func skillsWarning(s build.Skills) (Warning, bool) {
-	gems := 0
-	for _, g := range s.Groups {
+// skillsWarning warns about the gems of s outside the main skill's group whose hit the sheet
+// gives (main, nil for none).
+func skillsWarning(s build.Skills, main *resolve.Skill) (Warning, bool) {
+	gems, groups := 0, 0
+	for i, g := range s.Groups {
+		if len(g.Gems) == 0 || main != nil && i == main.Source.Group && poe1.SpellHit(main) {
+			continue
+		}
 		gems += len(g.Gems)
+		groups++
 	}
 	if gems == 0 {
 		return Warning{}, false
 	}
-	msg := fmt.Sprintf("%d gems in %d groups not simulated yet; outputs leave them out", gems, len(s.Groups))
+	msg := fmt.Sprintf("%d gems in %d groups not simulated yet; outputs leave them out", gems, groups)
 	return Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg}, true
 }
 
