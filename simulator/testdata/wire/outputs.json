@@ -457,5 +457,14 @@
     "group": "skill",
     "better": "higher",
     "order": 50
+  },
+  {
+    "key": "skill.dot_dps",
+    "label": "Damage over Time DPS",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 51
   }
 ]
