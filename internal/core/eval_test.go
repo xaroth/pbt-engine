@@ -179,6 +179,37 @@ func TestContexts(t *testing.T) {
 	})
 }
 
+// A formula reads a stat in its own context with more bits set: a spell's total is the sum of
+// its fire and cold parts, and follows a change to one part.
+func TestStatWith(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	dmg := b.MustAddStat(core.StatDef{Name: "damage"})
+	types, err := b.AddDimension("type", "fire", "cold", "spell")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fire, cold, spell := types.Bit(0), types.Bit(1), types.Bit(2)
+	total := b.MustAddStat(core.StatDef{Name: "total", Formula: func(r core.Reader, _ core.Agg) float64 {
+		return r.StatWith(dmg, core.MaskOf(fire)) + r.StatWith(dmg, core.MaskOf(cold))
+	}})
+	s := newSession(t, b.Build(), 1)
+	add(t, s, core.Modifier{Stat: dmg, Op: core.OpBase, Value: 10, Pred: core.Predicate{Req: []core.Mask{core.MaskOf(spell)}}})
+	id := add(t, s, core.Modifier{Stat: dmg, Op: core.OpInc, Value: 100, Pred: core.Predicate{Req: []core.Mask{core.MaskOf(fire)}}})
+	n := core.Node{Stat: total, Ctx: s.InternContext(core.MaskOf(spell))}
+	read := func(want float64) {
+		t.Helper()
+		if got, err := s.Get(n); err != nil || got != want {
+			t.Errorf("total: got %v, %v, want %v", got, err, want)
+		}
+	}
+	read(30)
+	if err := s.SetModifierValue(id, 50); err != nil {
+		t.Fatal(err)
+	}
+	read(25)
+}
+
 func TestConditions(t *testing.T) {
 	t.Parallel()
 	var b core.ModelBuilder

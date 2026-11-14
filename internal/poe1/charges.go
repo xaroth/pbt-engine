@@ -24,6 +24,7 @@ const (
 	formulaMaximumEnduranceCharges     = "maximum endurance charges"
 	formulaDefaultFortification        = "maximum fortification while you have it"
 	formulaFortificationAboveThreshold = "fortification above 20"
+	formulaDefaultInspirationCharges   = "maximum inspiration charges"
 )
 
 // chargeDef completes def when it is one of a charge's stats. A charge's limits are at least
@@ -41,9 +42,22 @@ func chargeDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			def.FormulaName, def.Attribute = formulaDefaultCharges, cappedAttribute(minimum, maximum)
 		}
 	}
-	if def.Name == statMaximumEnduranceCharges {
+	switch def.Name {
+	case statMaximumEnduranceCharges:
 		def.Formula, def.Attribute = maximumEnduranceCharges(ids)
 		def.FormulaName = formulaMaximumEnduranceCharges
+	case statMaximumInspirationCharges:
+		def.HasMin = true
+	case statInspirationCharges:
+		// PoB gives the player its maximum Inspiration Charges unless the config says otherwise
+		// (CalcPerform.lua doActorCharges).
+		maximum := mustID(ids, statMaximumInspirationCharges)
+		def.Formula = func(rd core.Reader, _ core.Agg) float64 { return rd.Stat(maximum) }
+		def.FormulaName = formulaDefaultInspirationCharges
+		def.Attribute = func(a *core.Attributor) core.Attribution {
+			parts, amount := a.Of(core.SelfRef(maximum))
+			return core.Attribution{Parts: parts, Amount: amount}
+		}
 	}
 	return def
 }

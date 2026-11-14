@@ -6,6 +6,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/core"
 )
 
 // EnemyKind is what the enemy a build is measured against is: a normal monster or a boss of
@@ -168,4 +169,52 @@ func set[T any](cfg config.Resolved, k config.Key[T], preset T) T {
 		return v
 	}
 	return preset
+}
+
+// enemyMods are the modifiers that hold the enemy's values on a sheet.
+type enemyMods struct {
+	resistances map[DamageType]core.ModID
+	armour      core.ModID
+}
+
+// addEnemy adds the enemy's resistances, each in the context of its damage type, and armour
+// as a rule's source, set to the default enemy.
+func (sh *Sheet) addEnemy() error {
+	src := sh.newSource(Source{RuleID: "enemy", Rule: "the enemy"})
+	sh.enemy.resistances = map[DamageType]core.ModID{}
+	for _, d := range []DamageType{Fire, Cold, Lightning, Chaos} {
+		pred := core.Predicate{Req: []core.Mask{core.MaskOf(sh.ctx.damage.Bit(int(d) - 1))}}
+		id, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[statEnemyResistance], Op: core.OpBase, Source: src, Pred: pred})
+		if err != nil {
+			return fmt.Errorf("sheet: enemy: %w", err)
+		}
+		sh.enemy.resistances[d] = id
+	}
+	id, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[statEnemyArmour], Op: core.OpBase, Source: src})
+	if err != nil {
+		return fmt.Errorf("sheet: enemy: %w", err)
+	}
+	sh.enemy.armour = id
+	sh.SetEnemy(DefaultEnemy())
+	return nil
+}
+
+// DefaultEnemy is the enemy of the default kind.
+func DefaultEnemy() EnemyStats {
+	p := enemyPresets()[EnemyPinnacle]
+	return EnemyStats{
+		Kind: EnemyPinnacle, Level: int(p.Level),
+		FireResistance: p.ElementalResistance, ColdResistance: p.ElementalResistance, LightningResistance: p.ElementalResistance,
+		ChaosResistance: p.ChaosResistance, Armour: int(p.Armour), Evasion: int(p.Evasion),
+	}
+}
+
+// SetEnemy makes e the enemy the sheet's hits are measured against.
+func (sh *Sheet) SetEnemy(e EnemyStats) {
+	values := map[DamageType]int{Fire: e.FireResistance, Cold: e.ColdResistance, Lightning: e.LightningResistance, Chaos: e.ChaosResistance}
+	for d, id := range sh.enemy.resistances {
+		// The ids are this session's, so these cannot fail.
+		_ = sh.session.SetModifierValue(id, float64(values[d]))
+	}
+	_ = sh.session.SetModifierValue(sh.enemy.armour, float64(e.Armour))
 }

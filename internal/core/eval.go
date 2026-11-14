@@ -345,3 +345,10 @@ func (r Reader) Read(ref Ref) float64 { return r.s.read(r.deps, ref, r.fam, r.ac
 
 // Stat returns the value of stat on the same actor and context.
 func (r Reader) Stat(stat StatID) float64 { return r.Read(SelfRef(stat)) }
+
+// StatWith returns the value of stat on the same actor in the context of the node being
+// evaluated with the bits of add set, such as a skill's value for one part of its damage.
+func (r Reader) StatWith(stat StatID, add Mask) float64 {
+	ctx := r.s.InternContext(r.s.masks[r.ctx].Or(add))
+	return r.Read(Ref{Actor: Self, Stat: stat, Ctx: int64(ctx)})
+}

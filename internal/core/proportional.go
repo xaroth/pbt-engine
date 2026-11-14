@@ -128,9 +128,22 @@ func (a *Attributor) Node(ref Ref) Node {
 	return n
 }
 
+// Mask returns the context mask of the node being attributed.
+func (a *Attributor) Mask() Mask { return a.p.s.masks[a.e.Node.Ctx] }
+
+// RefWith returns a reference to stat on the node's actor in its context with the bits of add
+// set, as Reader.StatWith reads it.
+func (a *Attributor) RefWith(stat StatID, add Mask) Ref {
+	ctx := a.p.s.InternContext(a.p.s.masks[a.e.Node.Ctx].Or(add))
+	return Ref{Actor: Self, Stat: stat, Ctx: int64(ctx)}
+}
+
 // Stat returns the value of stat on the node's actor and context, as its formula reads it.
-func (a *Attributor) Stat(stat StatID) float64 {
-	v, err := a.p.s.Get(a.Node(SelfRef(stat)))
+func (a *Attributor) Stat(stat StatID) float64 { return a.Read(SelfRef(stat)) }
+
+// Read returns the value of the referenced node, as the formula reads it.
+func (a *Attributor) Read(ref Ref) float64 {
+	v, err := a.p.s.Get(a.Node(ref))
 	a.fail(err)
 	return v
 }

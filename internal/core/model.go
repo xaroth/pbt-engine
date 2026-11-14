@@ -112,6 +112,14 @@ func (m Mask) Set(b Bit) Mask {
 	return m
 }
 
+// Or returns the bits of m and o.
+func (m Mask) Or(o Mask) Mask {
+	for i := range m {
+		m[i] |= o[i]
+	}
+	return m
+}
+
 // Has reports whether bit b is set.
 func (m Mask) Has(b Bit) bool { return m[b>>6]&(1<<(b&wordMask)) != 0 }
 

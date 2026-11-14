@@ -76,7 +76,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana:
 		def.Flag = true
 	}
-	def = costDef(reservationDef(def, ids), ids)
+	def = hitDef(costDef(reservationDef(def, ids), ids), ids)
 	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
@@ -285,6 +285,11 @@ const (
 	formulaReserved          = "reservation of a pool"
 	formulaUnreserved        = "pool less its reservation"
 	formulaSkillCost         = "cost of a skill"
+	formulaHitDamage         = "hit damage of a damage type"
+	formulaHitAgainstEnemy   = "hit damage the enemy takes"
+	formulaAverageHit        = "average hit"
+	formulaHitsPerSecond     = "hits per second"
+	formulaHitDPS            = "hit damage per second"
 )
 
 // chaosResistanceAttribute is the default rule, plus the doubling as a more part credited to
