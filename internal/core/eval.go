@@ -171,6 +171,9 @@ func (s *Session) eval(id uint32, deps *[]uint32, c *collector) float64 {
 	def := &s.m.stats[n.Stat]
 	mask := s.masks[n.Ctx]
 	agg := Agg{More: 1}
+	if def.LowestBase {
+		agg.Base = math.Inf(1)
+	}
 	start := len(s.more)
 	for k := -1; k < len(def.Includes); k++ {
 		t := n.Stat
@@ -184,6 +187,9 @@ func (s *Session) eval(id uint32, deps *[]uint32, c *collector) float64 {
 		if rate := s.read(deps, sh.Rate, def.CycleFamily, n.Actor, n.Ctx) / percent; rate != 0 {
 			s.sumShare(&agg, sh.Stat, rate, n, &mask, deps, c, start)
 		}
+	}
+	if math.IsInf(agg.Base, 1) {
+		agg.Base = 0
 	}
 	if s.m.more != nil {
 		agg.More = s.m.more(s.more[start:])
@@ -222,7 +228,7 @@ func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask,
 			}
 		}
 		v = float64(v * rate)
-		s.aggregate(agg, t, mi, v, start)
+		s.aggregate(agg, n.Stat, t, mi, v, start)
 		if c != nil {
 			c.add(s, mi, t, op, v, rate, true, true)
 		}
@@ -246,7 +252,7 @@ func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32
 				continue
 			}
 		}
-		s.aggregate(agg, t, mi, v, start)
+		s.aggregate(agg, n.Stat, t, mi, v, start)
 		if c != nil {
 			c.add(s, mi, t, s.mOp[mi], v, 1, true, false)
 		}
@@ -294,10 +300,15 @@ func (s *Session) modValue(mi uint32, n Node, fam uint8, deps *[]uint32) (float6
 	return v, true
 }
 
-// aggregate adds modifier mi of stat t, of value v, to agg; under a MoreRule a more modifier
-// goes to its stat and group's product in s.more from start instead.
-func (s *Session) aggregate(agg *Agg, t StatID, mi uint32, v float64, start int) {
+// aggregate adds modifier mi of stat t, of value v, to agg, the aggregate of a node of stat
+// node; under a MoreRule a more modifier goes to its stat and group's product in s.more from
+// start instead.
+func (s *Session) aggregate(agg *Agg, node, t StatID, mi uint32, v float64, start int) {
 	op := s.mOp[mi]
+	if op == OpBase && s.m.stats[node].LowestBase {
+		agg.Base = fmin(agg.Base, v)
+		return
+	}
 	if op != OpMore || s.m.more == nil {
 		aggregate(agg, op, v)
 		return

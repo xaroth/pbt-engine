@@ -77,13 +77,15 @@ const (
 
 // enemyPreset is what an enemy kind sets. A zero level means the character's level, at most
 // maxPresetLevel. MonsterDefences means the game's armour and evasion of a monster of the
-// enemy's level (DefaultMonsterStats) in place of Armour and Evasion.
+// enemy's level (DefaultMonsterStats) in place of Armour and Evasion. DamageTaken is the more
+// multiplier of the damage the enemy takes, in percent.
 type enemyPreset struct {
 	Level               MonsterLevel
 	ElementalResistance int
 	ChaosResistance     int
 	Armour, Evasion     Rating
 	MonsterDefences     bool
+	DamageTaken         int
 }
 
 // maxPresetLevel caps the character's level as the level of a normal monster or map boss.
@@ -93,7 +95,7 @@ const maxPresetLevel = 85
 // Building f9f4f3b, Modules/ConfigOptions.lua (enemyIsBoss) and Modules/Data.lua (bossStats).
 // Pinnacle and uber armour and evasion are its monster values at their level times the mean
 // multipliers of its pinnacle bosses (150% and 124.9%) and of its uber bosses (125% and
-// 116.6%), rounded.
+// 116.6%), rounded. An uber boss takes 70% less damage.
 //
 //nolint:mnd // each value is named by its field and sourced above
 func enemyPresets() map[EnemyKind]enemyPreset {
@@ -101,7 +103,7 @@ func enemyPresets() map[EnemyKind]enemyPreset {
 		EnemyNone:     {MonsterDefences: true},
 		EnemyBoss:     {ElementalResistance: 40, ChaosResistance: 25, MonsterDefences: true},
 		EnemyPinnacle: {Level: 84, ElementalResistance: 50, ChaosResistance: 30, Armour: 61989, Evasion: 10143},
-		EnemyUber:     {Level: 85, ElementalResistance: 50, ChaosResistance: 30, Armour: 55739, Evasion: 9778},
+		EnemyUber:     {Level: 85, ElementalResistance: 50, ChaosResistance: 30, Armour: 55739, Evasion: 9778, DamageTaken: -70},
 	}
 }
 
@@ -181,30 +183,60 @@ func set[T any](cfg config.Resolved, k config.Key[T], preset T) T {
 	return preset
 }
 
-// enemyMods are the modifiers that hold the enemy's values on a sheet.
-type enemyMods struct {
-	resistances map[DamageType]core.ModID
-	armour      core.ModID
+// Enemy resistance limits. A monster's maximum resistance is 75%; the enemy's is that or its
+// configured resistance, if higher, at most 90%. Source: PoB f9f4f3b, Modules/CalcOffence.lua
+// calcResistForType and Modules/Data.lua (EnemyMaxResist from the monster constant
+// base_maximum_all_resistances_%, MaxResistCap); the dataset holds no monster constants.
+const (
+	enemyBaseMaximumResistance = 75
+	enemyMaximumResistanceCap  = maxResistanceCap
+)
+
+// enemyMaximumResistance is the maximum of an enemy resistance configured at res.
+func enemyMaximumResistance(res int) int {
+	return min(max(res, enemyBaseMaximumResistance), enemyMaximumResistanceCap)
 }
 
-// addEnemy adds the enemy's resistances, each in the context of its damage type, and armour
-// as a rule's source, set to the default enemy.
+// enemyMods are the modifiers that hold the enemy's values on a sheet.
+type enemyMods struct {
+	resistances, maxima map[DamageType]core.ModID
+	armour, damageTaken core.ModID
+}
+
+// addEnemy adds the enemy's resistances and their maximums, each in the context of its damage
+// type, its armour and the more multiplier of the damage it takes as a rule's source, set to
+// the default enemy; and the damage it takes before modifiers, 100%.
 func (sh *Sheet) addEnemy() error {
 	src := sh.newSource(Source{RuleID: "enemy", Rule: "the enemy"})
-	sh.enemy.resistances = map[DamageType]core.ModID{}
+	add := func(stat string, op core.Op, pred core.Predicate) (core.ModID, error) {
+		id, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[stat], Op: op, Source: src, Pred: pred})
+		if err != nil {
+			return core.ModID{}, fmt.Errorf("sheet: enemy: %w", err)
+		}
+		return id, nil
+	}
+	sh.enemy.resistances, sh.enemy.maxima = map[DamageType]core.ModID{}, map[DamageType]core.ModID{}
 	for _, d := range []DamageType{Fire, Cold, Lightning, Chaos} {
 		pred := core.Predicate{Req: []core.Mask{core.MaskOf(sh.ctx.damage.Bit(int(d) - 1))}}
-		id, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[statEnemyResistance], Op: core.OpBase, Source: src, Pred: pred})
-		if err != nil {
-			return fmt.Errorf("sheet: enemy: %w", err)
+		var err error
+		if sh.enemy.resistances[d], err = add(statEnemyResistance, core.OpBase, pred); err != nil {
+			return err
 		}
-		sh.enemy.resistances[d] = id
+		if sh.enemy.maxima[d], err = add(statEnemyMaximumResistance, core.OpBase, pred); err != nil {
+			return err
+		}
 	}
-	id, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[statEnemyArmour], Op: core.OpBase, Source: src})
-	if err != nil {
+	var err error
+	if sh.enemy.armour, err = add(statEnemyArmour, core.OpBase, core.Predicate{}); err != nil {
+		return err
+	}
+	if sh.enemy.damageTaken, err = add(statEnemyDamageTaken, core.OpMore, core.Predicate{}); err != nil {
+		return err
+	}
+	base := sh.newSource(Source{RuleID: "enemy-damage-taken", Rule: "damage the enemy takes (100%)"})
+	if _, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[statEnemyDamageTaken], Op: core.OpBase, Value: percentScale, Source: base}); err != nil {
 		return fmt.Errorf("sheet: enemy: %w", err)
 	}
-	sh.enemy.armour = id
 	sh.SetEnemy(DefaultEnemy())
 	return nil
 }
@@ -225,6 +257,8 @@ func (sh *Sheet) SetEnemy(e EnemyStats) {
 	for d, id := range sh.enemy.resistances {
 		// The ids are this session's, so these cannot fail.
 		_ = sh.session.SetModifierValue(id, float64(values[d]))
+		_ = sh.session.SetModifierValue(sh.enemy.maxima[d], float64(enemyMaximumResistance(values[d])))
 	}
 	_ = sh.session.SetModifierValue(sh.enemy.armour, float64(e.Armour))
+	_ = sh.session.SetModifierValue(sh.enemy.damageTaken, float64(enemyPresets()[e.Kind].DamageTaken))
 }

@@ -186,13 +186,24 @@ func (a *Attributor) Spread(ref Ref, amount float64, op Op) []Part {
 	return parts
 }
 
-// BaseTerms returns the parts of the node's base terms.
+// BaseTerms returns the parts of the node's base terms; of a LowestBase stat, the lowest one
+// only, the first on ties.
 func (a *Attributor) BaseTerms() []Part {
 	var out []Part
-	for _, t := range a.e.Terms {
-		if t.Held && t.Op == OpBase {
+	lowest := -1
+	for i, t := range a.e.Terms {
+		switch {
+		case !t.Held || t.Op != OpBase:
+		case a.def.LowestBase:
+			if lowest < 0 || t.Value < a.e.Terms[lowest].Value {
+				lowest = i
+			}
+		default:
 			out = append(out, a.credit(t, a.def, t.Value)...)
 		}
+	}
+	if lowest >= 0 {
+		out = a.credit(a.e.Terms[lowest], a.def, a.e.Terms[lowest].Value)
 	}
 	return out
 }

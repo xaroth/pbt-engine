@@ -114,3 +114,39 @@ func TestExplainTree(t *testing.T) {
 		t.Errorf("unknown view: got %v", err)
 	}
 }
+
+// A hit's explanation against an uber enemy with penetration and Exposure sums to its amount,
+// and credits the penetration's node with what it adds.
+func TestExplainHitAgainstEnemy(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global,
+		resolve.StatValue{Stat: "base_reduce_enemy_fire_resistance_%", Value: 20},
+		resolve.StatValue{Stat: "cold_exposure_on_hit_magnitude", Value: -10},
+		resolve.StatValue{Stat: "exposure_you_inflict_applies_extra_%_to_affected_resistance", Value: -5},
+		resolve.StatValue{Stat: "base_critical_strike_multiplier", Value: 150},
+	)))
+	sk := elementalSpell()
+	sk.StatSets[0].SpellCritChance = 1000
+	setSkills(t, sh, sk)
+	sh.SetEnemy(poe1.EnemyStats{Kind: poe1.EnemyUber, FireResistance: 50, ColdResistance: 50})
+	for _, o := range poe1.Outputs() {
+		ex := explainOf(t, sh, o.Key, poe1.Proportional)
+		sum := 0.0
+		for _, l := range ex.Lines {
+			sum += l.Value
+		}
+		if !near(sum, ex.Amount) {
+			t.Errorf("%s: lines sum to %v, amount %v", o.Key, sum, ex.Amount)
+		}
+	}
+	fire := explainOf(t, sh, poe1.FireMinimum, poe1.Proportional)
+	credited := 0.0
+	for _, l := range fire.Lines {
+		if l.Source.String() == "node 1" {
+			credited += l.Value
+		}
+	}
+	if !near(credited, 20) {
+		t.Errorf("fire minimum: node 1 credited %v, want 20 (20%% of the hit)", credited)
+	}
+}

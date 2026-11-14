@@ -3,6 +3,7 @@ package poe1_test
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -10,6 +11,7 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/output"
 )
 
 func TestEnemyOf(t *testing.T) {
@@ -77,3 +79,20 @@ func TestEnemyKeysRejectBadValues(t *testing.T) {
 }
 
 func raw(s string) json.RawMessage { return json.RawMessage(s) }
+
+// An uber pinnacle boss takes 70% less damage of every type, after its resistances.
+func TestUberTakesLessDamage(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved())
+	setSkills(t, sh, elementalSpell())
+	sh.SetEnemy(poe1.EnemyStats{Kind: poe1.EnemyUber, FireResistance: 50})
+	for k, want := range map[output.Key]float64{poe1.FireMinimum: 15, poe1.ChaosMinimum: 30, poe1.AverageHit: 15 + 30 + 30 + 30} {
+		if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
+			t.Errorf("%s: got %v, want %v", k, got, want)
+		}
+	}
+	sh.SetEnemy(poe1.EnemyStats{Kind: poe1.EnemyPinnacle, FireResistance: 50})
+	if got := outputOf(t, sh, poe1.FireMinimum); got != 50 {
+		t.Errorf("fire minimum against a pinnacle boss: got %v, want 50", got)
+	}
+}

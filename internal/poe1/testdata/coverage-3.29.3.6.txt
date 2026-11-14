@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 204 authored, 111 unknown, 1 display-only, 0 gaps, 1593 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 218 authored, 111 unknown, 1 display-only, 0 gaps, 1579 outside
 unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -9,6 +9,7 @@ unvalidated life_per_level global, uses 9: the text says per Level; whether it c
 unknown shield_armour_+% global, uses 9: items: depends on equipped items, which an entry cannot check yet
 unknown spell_block_with_staff_% global, uses 9: items: depends on equipped items, which an entry cannot check yet
 unknown additional_maximum_all_elemental_resistances_%_with_reserved_life_and_mana global, uses 8: reservation: depends on reserved life or mana, which needs skills
+unvalidated fire_exposure_you_inflict_applies_extra_fire_resistance_+% global, uses 8: applied to any Exposure the enemy has, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
 unvalidated life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance global, uses 8: fire_resistance is the uncapped value; the text does not say how a negative or fractional uncapped resistance counts. Whole steps, negative below 0, as in PoB (ModStore.lua PerStat)
 unknown shield_spell_block_% global, uses 8: items: depends on equipped items, which an entry cannot check yet
 unvalidated base_maximum_all_resistances_% global, uses 7: no description text; 'all resistances' read from the stat id as fire, cold, lightning and chaos, which include maximum_all_resistances. A new character's maximum resistances in game would validate it
@@ -17,6 +18,7 @@ unknown evasion_+%_if_hit_recently global, uses 7: condition: hit recently
 unvalidated intelligence_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unvalidated level global, uses 7: its description has no text; meaning read from the stat id. The level bundle carries the build's level under it
 unvalidated mana_per_level global, uses 7: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum mana in game would validate it
+unvalidated reduce_enemy_elemental_resistance_with_weapons_% global, uses 7: damage with weapons read as an attack's made with a weapon, not unarmed
 unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equipped items, which an entry cannot check yet
 unvalidated strength_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
@@ -49,9 +51,11 @@ unknown evasion_rating_+%_if_have_not_been_hit_recently global, uses 2: conditio
 unvalidated evasion_rating_+%_per_10_intelligence global, uses 2: the text says per 10 Intelligence; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
 unknown evasion_rating_+%_while_you_have_energy_shield global, uses 2: condition: current energy shield above 0
 unknown every_4_seconds_regenerate_%_of_armour_and_evasion_as_life_over_1_second global, uses 2: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
+unvalidated exposure_you_inflict_applies_extra_%_to_affected_resistance global, uses 2: applied to any Exposure the enemy has, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
 unknown gain_maximum_life_instead_of_maximum_es_from_armour global, uses 2: items: depends on equipped items, which an entry cannot check yet
 unvalidated mana_%_to_add_as_energy_shield global, uses 2: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unknown mana_regeneration_rate_+%_while_stationary global, uses 2: condition: stationary
+unvalidated mine_damage_penetrates_%_elemental_resistance global, uses 2: that the damage of a skill with the RemoteMined type is mine damage is our reading, as PoB's
 unknown regenerate_energy_shield_equal_to_%_evasion_rating_over_1_second_every_4_seconds global, uses 2: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown you_and_allies_additional_spell_block_%_if_cast_spell_recently global, uses 2: condition: cast a spell recently
 unknown additional_chaos_resistance_against_damage_over_time_% global, uses 1: context: applies against damage over time only; the sheet's resistance has no damage context
@@ -137,6 +141,9 @@ unknown movement_velocity_+%_while_no_gems_in_boots global, uses 1: items: depen
 unknown movement_velocity_+%_while_phasing global, uses 1: condition: Phasing
 unknown necromancer_energy_shield_regeneration_rate_per_minute_%_for_you_and_allies_per_nearby_corpse global, uses 1: condition: per nearby corpse
 unknown necromancer_mana_regeneration_rate_per_minute_for_you_and_allies_per_nearby_corpse global, uses 1: condition: per nearby corpse
+unvalidated reduce_enemy_cold_resistance_with_weapons_% global, uses 1: damage with weapons read as an attack's made with a weapon, not unarmed
+unvalidated reduce_enemy_fire_resistance_with_weapons_% global, uses 1: damage with weapons read as an attack's made with a weapon, not unarmed
+unvalidated reduce_enemy_lightning_resistance_with_weapons_% global, uses 1: damage with weapons read as an attack's made with a weapon, not unarmed
 unknown regenerate_%_energy_shield_over_1_second_when_stunned global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown regenerate_%_life_over_1_second_when_stunned global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown regenerate_%_maximum_energy_shield_over_2_seconds_on_consuming_corpse global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
@@ -144,6 +151,7 @@ unknown regenerate_%_maximum_mana_over_2_seconds_on_consuming_corpse global, use
 unvalidated regenerate_energy_shield_instead_of_life global, uses 1: the text does not say whether life regeneration rate modifiers carry over; flat and percent life regeneration apply to energy shield without them, as PoB does
 omitted resolute_technique global, uses 1: hits can't be evaded: the chance to hit of attacks is not given yet
 unknown spell_block_%_while_at_max_power_charges global, uses 1: condition: at maximum Power Charges
+unvalidated trap_damage_penetrates_%_elemental_resistance global, uses 1: that the damage of a skill with the Trapped type is trap damage is our reading, as PoB's
 unknown warcry_physical_damage_reduction_rating_+%_per_5_power_for_8_seconds global, uses 1: condition: Warcry used in the past 8 seconds, and its Power
 unknown you_and_allies_affected_by_your_placed_banners_regenerate_%_life_per_minute_per_resource global, uses 1: condition: near your placed Banner, per Valour
 unknown you_and_nearby_allies_armour_+_if_have_impaled_recently global, uses 1: condition: impaled recently

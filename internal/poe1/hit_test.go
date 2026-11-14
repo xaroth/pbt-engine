@@ -1,9 +1,11 @@
 package poe1_test
 
 import (
+	"maps"
 	"math"
 	"testing"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
@@ -139,5 +141,174 @@ func TestHitDamageReachesHitsOnly(t *testing.T) {
 	}
 	if got := outputOf(t, sh, poe1.ColdDamageModifier); got != 100 {
 		t.Errorf("cold damage modifier: got %v, want 100", got)
+	}
+}
+
+// elementalSpell is a made-up spell of the given extra types that hits for 100 fire, cold,
+// lightning and chaos damage, without critical strikes.
+func elementalSpell(types ...string) *resolve.Skill {
+	sk := skill(0, append([]string{"Spell", "Damage"}, types...)...)
+	sk.CastTime = 1000
+	names := []string{"fire", "cold", "lightning", "chaos"}
+	stats := make([]resolve.StatValue, 0, 2*len(names))
+	for _, d := range names {
+		stats = append(stats,
+			resolve.StatValue{Stat: "spell_minimum_base_" + d + "_damage", Value: 100},
+			resolve.StatValue{Stat: "spell_maximum_base_" + d + "_damage", Value: 100})
+	}
+	sk.StatSets = []resolve.SkillStatSet{{Stats: stats}}
+	return sk
+}
+
+// Each penetration and Exposure stat against the default enemy (50% elemental and 30% chaos
+// resistance), on a spell that hits for 100 of each type: the hit's minimum of each type is
+// 100 less the resistance it meets. Exposure is the strongest one, with the extras only while
+// there is one; mine and trap penetration reach only those skills, attack and weapon
+// penetration no spell.
+func TestPenetrationAndExposure(t *testing.T) {
+	t.Parallel()
+	keys := map[poe1.DamageType]output.Key{
+		poe1.Fire: poe1.FireMinimum, poe1.Cold: poe1.ColdMinimum, poe1.Lightning: poe1.LightningMinimum, poe1.Chaos: poe1.ChaosMinimum,
+	}
+	type taken map[poe1.DamageType]float64
+	none := taken{poe1.Fire: 50, poe1.Cold: 50, poe1.Lightning: 50, poe1.Chaos: 70}
+	with := func(changes taken) taken {
+		out := maps.Clone(none)
+		maps.Copy(out, changes)
+		return out
+	}
+	stat := func(name string, value float64) resolve.StatValue { return resolve.StatValue{Stat: name, Value: value} }
+	for _, c := range []struct {
+		name  string
+		stats []resolve.StatValue
+		types []string
+		want  taken
+	}{
+		{"fire penetration", []resolve.StatValue{stat("base_reduce_enemy_fire_resistance_%", 20)}, nil, with(taken{poe1.Fire: 70})},
+		{"negative fire penetration", []resolve.StatValue{stat("base_reduce_enemy_fire_resistance_%", -10)}, nil, with(taken{poe1.Fire: 40})},
+		{"cold penetration", []resolve.StatValue{stat("base_reduce_enemy_cold_resistance_%", 20)}, nil, with(taken{poe1.Cold: 70})},
+		{"lightning penetration", []resolve.StatValue{stat("base_reduce_enemy_lightning_resistance_%", 20)}, nil, with(taken{poe1.Lightning: 70})},
+		{"chaos penetration", []resolve.StatValue{stat("reduce_enemy_chaos_resistance_%", 20)}, nil, with(taken{poe1.Chaos: 90})},
+		{
+			"elemental penetration", []resolve.StatValue{stat("reduce_enemy_elemental_resistance_%", 10)}, nil,
+			with(taken{poe1.Fire: 60, poe1.Cold: 60, poe1.Lightning: 60}),
+		},
+		{
+			"elemental penetration of enemy resistances", []resolve.StatValue{stat("base_penetrate_elemental_resistances_%", 10)}, nil,
+			with(taken{poe1.Fire: 60, poe1.Cold: 60, poe1.Lightning: 60}),
+		},
+		{"attack penetration on a spell", []resolve.StatValue{stat("base_attack_damage_penetrates_elemental_resist_%", 10)}, nil, none},
+		{"weapon penetration on a spell", []resolve.StatValue{stat("reduce_enemy_elemental_resistance_with_weapons_%", 10)}, nil, none},
+		{"mine penetration on a spell", []resolve.StatValue{stat("mine_damage_penetrates_%_elemental_resistance", 10)}, nil, none},
+		{
+			"mine penetration on a mine", []resolve.StatValue{stat("mine_damage_penetrates_%_elemental_resistance", 10)}, []string{"RemoteMined"},
+			with(taken{poe1.Fire: 60, poe1.Cold: 60, poe1.Lightning: 60}),
+		},
+		{
+			"trap penetration on a trap", []resolve.StatValue{stat("trap_damage_penetrates_%_elemental_resistance", 10)}, []string{"Trapped"},
+			with(taken{poe1.Fire: 60, poe1.Cold: 60, poe1.Lightning: 60}),
+		},
+		{"fire exposure", []resolve.StatValue{stat("fire_exposure_on_hit_magnitude", -15)}, nil, with(taken{poe1.Fire: 65})},
+		{"cold exposure", []resolve.StatValue{stat("cold_exposure_on_hit_magnitude", -15)}, nil, with(taken{poe1.Cold: 65})},
+		{"lightning exposure", []resolve.StatValue{stat("lightning_exposure_on_hit_magnitude", -15)}, nil, with(taken{poe1.Lightning: 65})},
+		{
+			"extra exposure", []resolve.StatValue{
+				stat("fire_exposure_on_hit_magnitude", -15), stat("exposure_you_inflict_applies_extra_%_to_affected_resistance", -5),
+			}, nil, with(taken{poe1.Fire: 70}),
+		},
+		{"extra exposure without exposure", []resolve.StatValue{stat("exposure_you_inflict_applies_extra_%_to_affected_resistance", -5)}, nil, none},
+		{
+			"extra fire exposure", []resolve.StatValue{
+				stat("fire_exposure_on_hit_magnitude", -10), stat("cold_exposure_on_hit_magnitude", -10),
+				stat("fire_exposure_you_inflict_applies_extra_fire_resistance_+%", -5),
+			}, nil, with(taken{poe1.Fire: 65, poe1.Cold: 60}),
+		},
+		{
+			"extra cold exposure", []resolve.StatValue{
+				stat("cold_exposure_on_hit_magnitude", -10), stat("cold_exposure_you_inflict_applies_extra_cold_resistance_+%", -5),
+			}, nil, with(taken{poe1.Cold: 65}),
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, c.stats...)))
+			setSkills(t, sh, elementalSpell(c.types...))
+			for d, want := range c.want {
+				if got := outputOf(t, sh, keys[d]); math.Abs(got-want) > 1e-9 {
+					t.Errorf("%s: got %v, want %v", keys[d], got, want)
+				}
+			}
+		})
+	}
+}
+
+// Only the strongest Exposure of a type applies.
+func TestStrongestExposureApplies(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved(
+		bundle(resolve.NodeSource{ID: 1}, resolve.Global, resolve.StatValue{Stat: "fire_exposure_on_hit_magnitude", Value: -12}),
+		bundle(resolve.NodeSource{ID: 2}, resolve.Global, resolve.StatValue{Stat: "fire_exposure_on_hit_magnitude", Value: -15}),
+	))
+	setSkills(t, sh, elementalSpell())
+	if got := outputOf(t, sh, poe1.FireMinimum); got != 65 {
+		t.Errorf("fire minimum: got %v, want 65, against 50%% less the stronger 15%%", got)
+	}
+}
+
+// The enemy's resistance with Exposure is at least -200% and at most its maximum: 75%, or the
+// configured resistance up to 90%. Penetration counts after both limits.
+func TestHitResistanceLimits(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global,
+		resolve.StatValue{Stat: "base_reduce_enemy_fire_resistance_%", Value: 10},
+		resolve.StatValue{Stat: "cold_exposure_on_hit_magnitude", Value: -10},
+	)))
+	setSkills(t, sh, elementalSpell())
+	for _, c := range []struct {
+		name       string
+		enemy      poe1.EnemyStats
+		fire, cold float64
+	}{
+		{"floor", poe1.EnemyStats{FireResistance: -250, ColdResistance: -195}, 100 * 3.1, 100 * 3},
+		{"cap", poe1.EnemyStats{FireResistance: 95, ColdResistance: 95}, 100 * 0.2, 100 * 0.15},
+		{"maximum at a configured 80%", poe1.EnemyStats{FireResistance: 80, ColdResistance: 80}, 100 * 0.3, 100 * 0.3},
+	} {
+		sh.SetEnemy(c.enemy)
+		if got := outputOf(t, sh, poe1.FireMinimum); math.Abs(got-c.fire) > 1e-9 {
+			t.Errorf("%s: fire minimum: got %v, want %v", c.name, got, c.fire)
+		}
+		if got := outputOf(t, sh, poe1.ColdMinimum); math.Abs(got-c.cold) > 1e-9 {
+			t.Errorf("%s: cold minimum: got %v, want %v", c.name, got, c.cold)
+		}
+	}
+}
+
+// Attack and weapon penetration reach an attack made with a weapon: the axe's 16 minimum
+// lightning damage against 0% resistance meets -10%.
+func TestAttackPenetration(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{
+		"base_attack_damage_penetrates_elemental_resist_%", "reduce_enemy_elemental_resistance_with_weapons_%",
+		"reduce_enemy_lightning_resistance_with_weapons_%",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global,
+				resolve.StatValue{Stat: "attack_minimum_added_lightning_damage", Value: 10},
+				resolve.StatValue{Stat: "attack_maximum_added_lightning_damage", Value: 10},
+				resolve.StatValue{Stat: name, Value: 10},
+			)))
+			c := poe1.CompileItem(axe())
+			if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
+				t.Fatal(err)
+			}
+			sh.SetEnemy(poe1.EnemyStats{})
+			attack := skill(0, "Attack", "Damage", "Melee")
+			attack.StatSets = []resolve.SkillStatSet{{DamageEffectiveness: 5000}}
+			setSkills(t, sh, attack)
+			if got := outputOf(t, sh, poe1.LightningMinimum); math.Abs(got-16*1.1) > 1e-9 {
+				t.Errorf("lightning minimum: got %v, want %v", got, 16*1.1)
+			}
+		})
 	}
 }

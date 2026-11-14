@@ -293,3 +293,33 @@ func TestProportionalMoreRule(t *testing.T) {
 		t.Errorf("equal more terms split %v and %v", got[1], got[2])
 	}
 }
+
+// A LowestBase stat takes its lowest base modifier, 0 without one, and credits that one alone.
+func TestLowestBase(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	exposure := b.MustAddStat(core.StatDef{Name: "exposure", LowestBase: true})
+	m := b.Build()
+	runEval(t, m, 1, []evalCase{
+		{name: "none", want: map[core.StatID]float64{exposure: 0}},
+		{
+			name: "lowest of three, then increases",
+			mods: []core.Modifier{
+				{Stat: exposure, Op: core.OpBase, Value: -10, Source: 1},
+				{Stat: exposure, Op: core.OpBase, Value: -15, Source: 2},
+				{Stat: exposure, Op: core.OpBase, Value: -12, Source: 3},
+				{Stat: exposure, Op: core.OpInc, Value: 20, Source: 4},
+			},
+			want: map[core.StatID]float64{exposure: -18},
+		},
+	})
+	s := newSession(t, m, 1)
+	addAll(t, s, []core.Modifier{
+		{Stat: exposure, Op: core.OpBase, Value: -10, Source: 1},
+		{Stat: exposure, Op: core.OpBase, Value: -15, Source: 2},
+	})
+	p := proportional(t, s, core.Node{Stat: exposure})
+	if got := bySource(p.Parts); len(got) != 1 || got[2] != -15 {
+		t.Errorf("parts by source: got %v, want only source 2 at -15", got)
+	}
+}
