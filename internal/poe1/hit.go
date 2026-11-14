@@ -352,6 +352,37 @@ func (h averageHit) attribute() core.Attribute {
 	}
 }
 
+// speedDef completes def when it is attack speed, whose more multipliers round
+// (roundedMoreFormula).
+func speedDef(def core.StatDef) core.StatDef {
+	if def.Name == statAttackSpeed {
+		def.FormulaName, def.Formula, def.Attribute = formulaRoundedMore, roundedMoreFormula, roundedMoreAttribute
+	}
+	return def
+}
+
+// roundedMoreFormula is the default aggregation with the product of the more multipliers
+// rounded half up to hundredths, as PoB rounds the more multipliers of one stat name
+// (ModList.lua MoreInternal) before the increases apply.
+func roundedMoreFormula(_ core.Reader, a core.Agg) float64 {
+	return a.Base * (1 + a.Inc/percentScale) * roundHundredths(a.More)
+}
+
+// roundedMoreAttribute splits the value by the default layers, scaled so the rounding is shared
+// out in proportion.
+func roundedMoreAttribute(a *core.Attributor) core.Attribution {
+	total := a.Explanation().Total
+	parts := a.Layers(a.BaseTerms())
+	sum := 0.0
+	for _, p := range parts {
+		sum += p.Value
+	}
+	if sum != 0 {
+		parts = scaled(parts, total/sum)
+	}
+	return core.Attribution{Parts: parts, Amount: total}
+}
+
 // hitRate is a skill's hits per second: an attack's from its attack rate and speed, another
 // skill's from its cast time and speed.
 type hitRate struct {

@@ -76,7 +76,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana:
 		def.Flag = true
 	}
-	def = hitDef(costDef(reservationDef(def, ids), ids), ids)
+	def = hitDef(speedDef(costDef(reservationDef(def, ids), ids)), ids)
 	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
@@ -289,6 +289,7 @@ const (
 	formulaHitAgainstEnemy   = "hit damage the enemy takes"
 	formulaAverageHit        = "average hit"
 	formulaHitsPerSecond     = "hits per second"
+	formulaRoundedMore       = "more multipliers rounded to hundredths"
 	formulaHitDPS            = "hit damage per second"
 )
 
