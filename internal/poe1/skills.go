@@ -21,6 +21,8 @@ var (
 type skillSlot struct {
 	source resolve.GemSource
 	types  []string
+	// areaDot is set for a skill whose damage over time is area damage (areaDotSkill).
+	areaDot bool
 }
 
 // skillKey is a skill's sources by slot and content.
@@ -49,7 +51,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	}
 	sh.skills = sh.skills[:0]
 	for i, sk := range skills {
-		sh.skills = append(sh.skills, skillSlot{source: sk.Source, types: slices.Clone(sk.Types)})
+		sh.skills = append(sh.skills, skillSlot{source: sk.Source, types: slices.Clone(sk.Types), areaDot: areaDotSkill(sk)})
 		k := skillKey{i, fmt.Sprint(*sk)}
 		if _, ok := sh.skillSources[k]; ok {
 			continue
@@ -136,8 +138,44 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageF
 	if slices.Contains(sh.skills[i].types, typeAttack) {
 		weapon = sh.mainHand
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i].types, weapon, damage, form))
+	types := sh.skills[i].types
+	if form == formDot {
+		var err error
+		if types, err = sh.dotTypes(i, weapon); err != nil {
+			return core.Node{}, err
+		}
+	}
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, weapon, damage, form))
 	return core.Node{Stat: id, Ctx: ctx}, nil
+}
+
+// dotTypes returns the types skill i's damage over time is read with, made with weapon: its
+// own, without Attack, without Area unless its damage over time is area damage, and without
+// Spell or Projectile unless its spell or projectile damage modifiers apply to its damage over
+// time.
+func (sh *Sheet) dotTypes(i int, weapon weaponKinds) ([]string, error) {
+	types := sh.skills[i].types
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, weapon, nil, formNone))
+	keep := map[string]bool{typeArea: sh.skills[i].areaDot}
+	for t, flag := range map[string]string{
+		typeSpell:      statSpellDamageModifiersApplyToSkillDot,
+		typeProjectile: statProjectileDamageModifiersApplyToSkillDot,
+	} {
+		v, err := sh.session.Get(core.Node{Stat: sh.stats[flag], Ctx: ctx})
+		if err != nil {
+			return nil, fmt.Errorf("sheet: skill %d: %w", i, err)
+		}
+		keep[t] = v != 0
+	}
+	return slices.DeleteFunc(slices.Clone(types), func(t string) bool {
+		switch t {
+		case typeAttack:
+			return true
+		case typeArea, typeSpell, typeProjectile:
+			return !keep[t]
+		}
+		return false
+	}), nil
 }
 
 // baseDamage is damage before modifiers: the base damage, 100%.

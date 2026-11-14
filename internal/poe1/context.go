@@ -40,6 +40,7 @@ type damageForm uint8
 const (
 	formNone damageForm = iota
 	formHit
+	formDot
 )
 
 func damageFormNames() []string { return []string{"hit", "dot", "ailment"} }

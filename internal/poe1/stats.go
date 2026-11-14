@@ -73,10 +73,11 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statChaosResistanceIsDoubled, statElementalMaximumResistancesAreHighest,
 		statLifeRegenerationIsNotApplied, statLifeRegenerationAppliesToEnergyShield,
 		statMaximumEnduranceChargesAreMaximumFrenzyCharges, statHasMaximumFortification,
-		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana:
+		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana,
+		statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
 		def.Flag = true
 	}
-	def = hitDef(enemyDef(costDef(reservationDef(def, ids), ids), ids), ids)
+	def = dotDef(hitDef(enemyDef(costDef(reservationDef(def, ids), ids), ids), ids), ids)
 	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
@@ -291,6 +292,9 @@ const (
 	formulaAverageHit         = "average hit"
 	formulaHitsPerSecond      = "hits per second"
 	formulaHitDPS             = "hit damage per second"
+	formulaDotEnemyResistance = "enemy resistance damage over time meets"
+	formulaDamageOverTime     = "damage over time of a damage type"
+	formulaDamageOverTimeDPS  = "damage over time per second"
 )
 
 // chaosResistanceAttribute is the default rule, plus the doubling as a more part credited to
