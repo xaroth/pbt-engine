@@ -156,7 +156,7 @@ func TestFromXML(t *testing.T) {
 		{Code: pob.PantheonIgnored, Subject: "Arakaali", Message: "pantheon not imported"},
 		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "not equipped in the active item set; not imported"},
 		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "not read: items: dataset 3.29.3.5 has no items group; not imported"},
-		{Code: pob.JewelIgnored, Subject: "node 26725", Message: `jewel "Corruption Spark" not imported`},
+		{Code: pob.JewelIgnored, Subject: "node 26725", Message: `jewel "Corruption Spark" not read: items: dataset 3.29.3.5 has no items group; not imported`},
 		{Code: pob.ItemIgnored, Subject: "Seething Divine Life Flask of Staunching", Message: `slot "Flask 1" is not an equipment slot; not imported`},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {

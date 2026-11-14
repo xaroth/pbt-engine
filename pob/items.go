@@ -24,11 +24,12 @@ func itemSlots() map[string]build.Slot {
 	return out
 }
 
-// items equips the active item set's items in the equipment slots, weapon swap included, each
-// read through the dataset's items group. Every other item warns: a jewel in the tree, an item
-// in a slot the build does not have (flasks, abyssal sockets, grafts), one the set does not
-// equip, and one that does not read. The reader is built only when an item is to be read.
-func (im *importer) items(store *dataset.Store) (build.Items, error) {
+// items equips the active item set's items in the equipment slots, weapon swap included, and
+// puts the active spec's jewels in their tree sockets, each read through the dataset's items
+// group. Every other item warns: a jewel in a socket of a cluster jewel, an item in a slot the
+// build does not have (flasks, abyssal sockets, grafts), one the set does not equip, and one
+// that does not read. The reader is built only when an item is to be read.
+func (im *importer) items(store *dataset.Store) (build.Items, build.Jewels, error) {
 	jewels := map[int]uint32{}
 	for _, s := range im.spec.Sockets {
 		if s.Item != 0 {
@@ -40,10 +41,13 @@ func (im *importer) items(store *dataset.Store) (build.Items, error) {
 		in[e.Item] = append(in[e.Item], e.Slot)
 	}
 	var out build.Items
+	var socketed build.Jewels
 	read := itemReader(store)
 	for _, it := range im.file.Items {
 		if node, ok := jewels[it.ID]; ok {
-			im.warnf(JewelIgnored, nodeSubject(node), "jewel %q not imported", it.Name)
+			if err := im.socket(&socketed, it, node, read); err != nil {
+				return nil, nil, err
+			}
 			continue
 		}
 		if len(in[it.ID]) == 0 {
@@ -52,11 +56,32 @@ func (im *importer) items(store *dataset.Store) (build.Items, error) {
 		}
 		for _, name := range in[it.ID] {
 			if err := im.equip(&out, it, name, read); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
-	return out, nil
+	return out, socketed, nil
+}
+
+// socket reads it into out at the socket node, or warns.
+func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read func(pobxml.Item) (build.Item, error)) error {
+	if node > maxTreeNode {
+		im.warnf(JewelIgnored, nodeSubject(node), "jewel %q is in a cluster jewel's socket; not imported", it.Name)
+		return nil
+	}
+	item, err := read(it)
+	switch {
+	case err == nil:
+		if *out == nil {
+			*out = build.Jewels{}
+		}
+		(*out)[node] = item
+	case ignorable(err):
+		im.warnf(JewelIgnored, nodeSubject(node), "jewel %q not read: %v; not imported", it.Name, err)
+	default:
+		return fmt.Errorf("pob: %w", err)
+	}
+	return nil
 }
 
 // equip reads it into out at PoB's slot name, or warns.

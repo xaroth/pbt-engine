@@ -48,7 +48,7 @@ var gameVersion = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.|$)`)
 // bloodline, level, nodes, mastery choices and overrides; the bandit choice and the campaign
 // stage as PoB's resistance penalty; and b's skill groups with their gems and main skill. A
 // bandit choice PoB has no option for, a bloodline the tree does not list or PoB ignores, an
-// override the text does not name, other config values and items give warnings. A gem the
+// override the text does not name, other config values, items and jewels give warnings. A gem the
 // dataset lacks is written by id only, with warning GemUnknown. ErrGame, ErrClass,
 // ErrAscendancy and ErrVersion are a build the file cannot name.
 func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, error) {
@@ -78,14 +78,22 @@ func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, erro
 		return nil, nil, err
 	}
 	f.Build.MainSocketGroup = b.Skills.MainGroup + 1
-	for _, s := range slices.Sorted(maps.Keys(b.Items)) {
-		ex.warnf(ItemNotExported, string(s), "items are not exported")
-	}
+	ex.itemsLeftOut()
 	out, err := xml.MarshalIndent(f, "", "\t")
 	if err != nil {
 		return nil, nil, fmt.Errorf("pob: %w", err)
 	}
 	return append([]byte(xml.Header), append(out, '\n')...), ex.warnings, nil
+}
+
+// itemsLeftOut warns about each item and jewel, as none are exported.
+func (ex *exporter) itemsLeftOut() {
+	for _, s := range slices.Sorted(maps.Keys(ex.b.Items)) {
+		ex.warnf(ItemNotExported, string(s), "items are not exported")
+	}
+	for _, node := range slices.Sorted(maps.Keys(ex.b.Jewels)) {
+		ex.warnf(ItemNotExported, nodeSubject(node), "jewels are not exported")
+	}
 }
 
 // EncodeCode returns the share code of a build file, as PoB writes it: the file compressed

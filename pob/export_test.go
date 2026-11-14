@@ -138,6 +138,7 @@ func TestToXMLWarnings(t *testing.T) {
 	b.Config["power-charges"] = json.RawMessage("3")
 	b.Skills.Groups[0].Gems[1].ID = "Metadata/Items/Gems/SkillGemFlameDash"
 	b.Items = build.Items{build.SlotRing1: {Rarity: build.Rare, Base: "Ruby Ring"}, build.SlotBelt: {Rarity: build.Normal, Base: "Heavy Belt"}}
+	b.Jewels = build.Jewels{26725: {Rarity: build.Rare, Base: "Crimson Jewel"}}
 	b.Overrides[2] = "Unnamed1"
 	_, warnings, err := pob.ToXML(b, exportRegistry(t))
 	if err != nil {
@@ -151,6 +152,7 @@ func TestToXMLWarnings(t *testing.T) {
 		{Code: pob.GemUnknown, Subject: "Metadata/Items/Gems/SkillGemFlameDash", Message: "gem not in dataset; written by id only"},
 		{Code: pob.ItemNotExported, Subject: "belt", Message: "items are not exported"},
 		{Code: pob.ItemNotExported, Subject: "ring-1", Message: "items are not exported"},
+		{Code: pob.ItemNotExported, Subject: "node 26725", Message: "jewels are not exported"},
 	}
 	if diff := cmp.Diff(want, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
