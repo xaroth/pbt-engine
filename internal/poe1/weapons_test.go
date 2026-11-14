@@ -32,9 +32,10 @@ func axe() (*build.Item, *dataset.ItemBase) {
 	return it, base
 }
 
-// A weapon's physical damage is (base + local added) x the local increase x the quality, its
-// lightning damage the local added damage, and none of either with "No Physical Damage"; attacks per second are 1.25 x 1.1 = 1.375, rounded to
-// 1.38; critical strike chance 5% x 1.2. The local stats stay on the weapon.
+// A weapon's physical damage is (base + local added) x the local increase x the quality, none
+// with "No Physical Damage"; its lightning damage the local added damage; attacks per second are
+// 1.25 x 1.1 = 1.375, rounded to 1.38; critical strike chance 5% x 1.2. The local stats stay on
+// the weapon.
 func TestCompileWeapon(t *testing.T) {
 	t.Parallel()
 	got := poe1.CompileItem(axe())
