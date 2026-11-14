@@ -47,7 +47,7 @@ const (
 	UncheckedCondition build.Code = "unchecked-condition"
 	// SkillsNotSimulated is a build with skill groups beyond the main skill's hit: outputs leave
 	// them out until those skills are simulated.
-	SkillsNotSimulated build.Code = "skills-not-simulated"
+	SkillsNotSimulated = poe1.SkillsNotSimulated
 	// ItemsNotSimulated is a build with items on a dataset without the items group: outputs
 	// leave them out.
 	ItemsNotSimulated build.Code = "items-not-simulated"
@@ -199,10 +199,8 @@ type run struct {
 	cfg     config.Resolved
 	budget  Budget
 	items   []poe1.Item
-	// skill is the main skill, nil when the build has none; reserving are the other skills
-	// that reserve life or mana.
-	skill     *resolve.Skill
-	reserving []*resolve.Skill
+	// skills are the skills on the sheet, the main skill first.
+	skills poe1.SheetSkills
 	// enemy is what the main skill's hits are measured against.
 	enemy    poe1.EnemyStats
 	warnings []Warning
@@ -226,9 +224,10 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if err := s.compileItems(r, &cb); err != nil {
 		return nil, err
 	}
-	if err := mainSkill(r); err != nil {
-		return nil, err
+	if r.skills, err = poe1.SheetSkillsOf(c, poe1.HandsOf(r.items)); err != nil {
+		return nil, fmt.Errorf("simulator: %w", err)
 	}
+	r.warnings = append(r.warnings, r.skills.Warnings...)
 	var problems []config.Problem
 	r.cfg, problems = resolveConfig(co, sim, cb.Config)
 	for _, p := range problems {
@@ -263,7 +262,7 @@ func resolveConfig(co callOptions, sim, b config.Values) (config.Resolved, []con
 // default enemy otherwise. Only an enemy kind with a normal monster's armour and evasion reads
 // them from the dataset's monsters group, and fails without it.
 func enemyOf(store *dataset.Store, r *run) (poe1.EnemyStats, error) {
-	if !poe1.Hit(r.skill, poe1.HandsOf(r.items)) {
+	if !poe1.Hit(r.skills.Main, poe1.HandsOf(r.items)) {
 		return poe1.DefaultEnemy(), nil
 	}
 	var levels []dataset.MonsterLevel
@@ -283,61 +282,6 @@ func enemyOf(store *dataset.Store, r *run) (poe1.EnemyStats, error) {
 	return e, nil
 }
 
-// mainSkill resolves the run's main skill, none when the build has no group with an active
-// gem to resolve or the dataset has no skills group (the build check warns about that), warns
-// about the skills it does not simulate, and resolves the other skills that reserve life or
-// mana.
-func mainSkill(r *run) error {
-	if len(r.checked.Build().Skills.Groups) == 0 {
-		return nil
-	}
-	skills, err := resolve.NewSkillResolver(r.checked, poe1.GemRules())
-	switch {
-	case errors.Is(err, dataset.ErrNotInDataset):
-		skills = nil
-	case err != nil:
-		return fmt.Errorf("simulator: %w", err)
-	default:
-		sk, warnings, err := skills.Group(r.checked.Build().Skills.MainGroup)
-		switch {
-		case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
-		case err != nil:
-			return fmt.Errorf("simulator: %w", err)
-		default:
-			r.skill = sk
-			r.warnings = append(r.warnings, warnings...)
-		}
-	}
-	if w, ok := skillsWarning(r.checked.Build().Skills, r.skill, poe1.HandsOf(r.items)); ok {
-		r.warnings = append(r.warnings, w)
-	}
-	if skills != nil {
-		reservingSkills(r, skills)
-	}
-	return nil
-}
-
-// reservingSkills adds the run's skills other than its main skill that reserve life or mana.
-func reservingSkills(r *run, skills *resolve.SkillResolver) {
-	main := r.skill
-	for _, s := range skills.All() {
-		if !poe1.Reserves(s.Skill) || main != nil && s.Skill.Source == main.Source && s.Skill.GrantedEffect == main.GrantedEffect {
-			continue
-		}
-		r.reserving = append(r.reserving, s.Skill)
-		r.warnings = append(r.warnings, s.Warnings...)
-	}
-}
-
-// skills returns the run's skills for the sheet: the main skill first, if any, then the other
-// reserving skills.
-func (r *run) skills() []*resolve.Skill {
-	if r.skill == nil {
-		return r.reserving
-	}
-	return append([]*resolve.Skill{r.skill}, r.reserving...)
-}
-
 // switchTo switches sh to the run's level, nodes, masteries, items, skills and config.
 func switchTo(r *run, sh *poe1.Sheet) error {
 	cb := r.checked.Build()
@@ -348,7 +292,7 @@ func switchTo(r *run, sh *poe1.Sheet) error {
 	if err := sh.SetItems(r.items); err != nil {
 		return fmt.Errorf("simulator: %w", err)
 	}
-	if err := sh.SetSkills(r.skills()); err != nil {
+	if err := sh.SetSkills(r.skills.Skills); err != nil {
 		return fmt.Errorf("simulator: %w", err)
 	}
 	sh.SetConfig(r.cfg)
@@ -363,10 +307,10 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 		return nil, err
 	}
 	cat, hands := catalogue(), poe1.HandsOf(r.items)
-	keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !poe1.Gives(cat[k], r.skill, hands) })
+	keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !poe1.Gives(cat[k], r.skills.Main, hands) })
 	st := &Stats{
 		values: make(map[output.Key]float64, len(keys)), keys: keys, cfg: r.cfg, budget: r.budget,
-		build: r.build, checked: r.checked, items: r.items, skill: r.skill, skills: r.skills(), enemy: r.enemy, sim: s,
+		build: r.build, checked: r.checked, items: r.items, skill: r.skills.Main, skills: r.skills.Skills, enemy: r.enemy, sim: s,
 	}
 	for _, k := range keys {
 		v, err := sh.Output(k)
@@ -444,24 +388,6 @@ func versionWarning(want, have string) (Warning, bool) {
 		return Warning{}, false
 	}
 	return Warning{Code: VersionMismatch, Subject: "version", Message: fmt.Sprintf("build for %s, simulated on dataset %s", want, have)}, true
-}
-
-// skillsWarning warns about the gems of s outside the main skill's group whose hit the sheet
-// gives with hands (main, nil for none).
-func skillsWarning(s build.Skills, main *resolve.Skill, hands poe1.Hands) (Warning, bool) {
-	gems, groups := 0, 0
-	for i, g := range s.Groups {
-		if len(g.Gems) == 0 || main != nil && i == main.Source.Group && poe1.Hit(main, hands) {
-			continue
-		}
-		gems += len(g.Gems)
-		groups++
-	}
-	if gems == 0 {
-		return Warning{}, false
-	}
-	msg := fmt.Sprintf("%d gems in %d groups not simulated yet; outputs leave them out", gems, groups)
-	return Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg}, true
 }
 
 func configWarning(p config.Problem) Warning {
