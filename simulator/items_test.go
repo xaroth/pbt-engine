@@ -429,3 +429,40 @@ func TestJewelOnSheet(t *testing.T) {
 		}
 	}
 }
+
+// An abyss jewel in a belt's abyssal socket counts on a level 1 Marauder: 66 life and 29 from
+// the jewel, and 12% fire resistance over the -60% penalty, credited to the belt's slot under
+// the jewel's name.
+func TestAbyssJewelOnSheet(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	belt, _, err := s.Data().Item("Rarity: RARE\nVictory Bond\nStygian Vise\nItem Level: 85\nSockets: A\nImplicits: 1\nHas 1 Abyssal Socket\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	jewel, _, err := s.Data().Item("Rarity: RARE\nGrim Lens\nHypnotic Eye Jewel\nItem Level: 77\nImplicits: 0\n+29 to maximum Life\n+12% to Fire Resistance\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	belt.AbyssJewels = map[int]build.Item{1: jewel}
+	b := marauderBuild(1)
+	if err := b.Apply(build.Equip(build.SlotBelt, belt)); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, s, b)
+	if got := get(t, st, poe1.Life); got != 95 {
+		t.Errorf("life %v, want 95", got)
+	}
+	if got := get(t, st, poe1.FireResistance); got != -48 {
+		t.Errorf("fire resistance %v, want -48", got)
+	}
+	ex, err := st.Explain(poe1.FireResistance, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(ex.Lines, func(l simulator.Line) bool {
+		return l.Source.Bundle != nil && l.Source.Bundle.Source == (simulator.ItemSource{Slot: build.SlotBelt, Name: "Grim Lens"}) && l.Value == 12
+	}) {
+		t.Errorf("fire resistance lines %+v, want 12 from the jewel", ex.Lines)
+	}
+}

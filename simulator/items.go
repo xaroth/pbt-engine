@@ -25,9 +25,9 @@ func indexBases(s *dataset.Store) (map[string]*dataset.ItemBase, error) {
 	return out, nil
 }
 
-// compileItems sets r's items from the checked build's items and the jewels in its allocated
-// sockets, each compiled once per content. On a dataset without the items group they are left
-// out with a warning.
+// compileItems sets r's items from the checked build's items with their abyss jewels and the
+// jewels in its allocated sockets, each compiled once per content. On a dataset without the
+// items group they are left out with a warning.
 func (s *Sim) compileItems(r *run, cb *build.Build) error {
 	jewels := socketed(cb)
 	if len(cb.Items) == 0 && len(jewels) == 0 {
@@ -45,17 +45,8 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 		return fmt.Errorf("simulator: %w", err)
 	}
 	for _, slot := range slices.Sorted(maps.Keys(cb.Items)) {
-		it := cb.Items[slot]
-		c, key, err := s.compile(&it, bases)
-		if err != nil {
-			return fmt.Errorf("simulator: item %s: %w", slot, err)
-		}
-		r.items = append(r.items, poe1.Item{Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon})
-		if len(c.Assumed) > 0 {
-			r.warnings = append(r.warnings, Warning{
-				Code: ItemDefenceAssumed, Subject: "item " + string(slot), Slot: slot,
-				Message: "text gives no " + strings.Join(c.Assumed, ", ") + "; the base's highest roll taken",
-			})
+		if err := s.compileItem(r, slot, cb.Items[slot], bases); err != nil {
+			return err
 		}
 	}
 	for _, node := range jewels {
@@ -65,6 +56,36 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 			return fmt.Errorf("simulator: jewel %d: %w", node, err)
 		}
 		r.items = append(r.items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats})
+	}
+	return nil
+}
+
+// compileItem adds to r's items the item it in slot, then its abyss jewels. Each jewel counts
+// as part of its item: it shares the item's slot and weapon, so the hands read the same
+// whichever of the two they meet last, and its index keeps two equal jewels apart.
+func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[string]*dataset.ItemBase) error {
+	abyss := it.AbyssJewels
+	it.AbyssJewels = nil
+	c, key, err := s.compile(&it, bases)
+	if err != nil {
+		return fmt.Errorf("simulator: item %s: %w", slot, err)
+	}
+	r.items = append(r.items, poe1.Item{Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon})
+	if len(c.Assumed) > 0 {
+		r.warnings = append(r.warnings, Warning{
+			Code: ItemDefenceAssumed, Subject: "item " + string(slot), Slot: slot,
+			Message: "text gives no " + strings.Join(c.Assumed, ", ") + "; the base's highest roll taken",
+		})
+	}
+	for _, i := range slices.Sorted(maps.Keys(abyss)) {
+		j := abyss[i]
+		jc, jkey, err := s.compile(&j, bases)
+		if err != nil {
+			return fmt.Errorf("simulator: abyss jewel %s %d: %w", slot, i, err)
+		}
+		r.items = append(r.items, poe1.Item{
+			Slot: slot, Name: j.Name, Key: fmt.Sprintf("abyss %d %s", i, jkey), Stats: jc.Stats, Weapon: c.Weapon,
+		})
 	}
 	return nil
 }

@@ -16,8 +16,11 @@ const (
 	JewelTooLarge     Code = "jewel-too-large"
 )
 
+// abyssJewelClass is the ItemClass.ID of abyss jewels, the only class an abyssal socket takes.
+const abyssJewelClass = "AbyssJewel"
+
 // jewelClasses are the ItemClass.IDs a jewel socket takes. Cluster jewels are of class Jewel.
-func jewelClasses() []string { return []string{"Jewel", "AbyssJewel"} }
+func jewelClasses() []string { return []string{"Jewel", abyssJewelClass} }
 
 // checkJewels leaves out jewels in a node that is not a jewel socket and, with data, jewels of
 // an unknown base or of a class a socket does not take, each with a warning, and warns about

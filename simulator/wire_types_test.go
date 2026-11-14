@@ -158,6 +158,8 @@ func goKind(t reflect.Type, defs map[string]map[string]any) string {
 		return "ref:" + t.Name()
 	case reflect.Slice:
 		return "array<" + goKind(t.Elem(), defs) + ">"
+	case reflect.Map:
+		return "map<" + goKind(t.Elem(), defs) + ">"
 	case reflect.String:
 		if _, ok := defs[t.Name()]["enum"]; ok {
 			return "enum:" + t.Name()
@@ -169,7 +171,7 @@ func goKind(t reflect.Type, defs map[string]map[string]any) string {
 }
 
 // schemaKind names the JSON kind a property schema allows: a referenced object definition, an
-// enum definition, an array of a kind, or a type.
+// enum definition, an array or map of a kind, or a type.
 func schemaKind(p map[string]any, defs map[string]map[string]any) string {
 	if ref, ok := p["$ref"].(string); ok {
 		name := strings.TrimPrefix(ref, "#/$defs/")
@@ -180,6 +182,9 @@ func schemaKind(p map[string]any, defs map[string]map[string]any) string {
 	}
 	if p["type"] == "array" {
 		return "array<" + schemaKind(p["items"].(map[string]any), defs) + ">"
+	}
+	if values, ok := p["additionalProperties"].(map[string]any); ok && p["type"] == "object" {
+		return "map<" + schemaKind(values, defs) + ">"
 	}
 	if typ, ok := p["type"].(string); ok {
 		return typ

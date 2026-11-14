@@ -189,3 +189,64 @@ func TestCheckClosedSlots(t *testing.T) {
 		})
 	}
 }
+
+// TestCheckAbyssJewels: an abyss jewel in a belt's abyssal socket is kept; one past the belt's
+// abyssal sockets, or one that is not an abyss jewel, is left out with a warning.
+func TestCheckAbyssJewels(t *testing.T) {
+	t.Parallel()
+	d := itemsDataset()
+	d.Items.Classes = append(d.Items.Classes, dataset.ItemClass{ID: "Jewel"}, dataset.ItemClass{ID: "AbyssJewel"})
+	d.Items.Bases = append(d.Items.Bases,
+		dataset.ItemBase{ID: jewelBase, Class: "Jewel"}, dataset.ItemBase{ID: abyssBase, Class: "AbyssJewel"},
+	)
+	s := openStore(t, d)
+	belt := func(jewels map[int]build.Item) build.Item {
+		return build.Item{Rarity: build.Rare, Name: "Victory Bond", Base: beltBase, Sockets: "A", AbyssJewels: jewels}
+	}
+	testCases := []struct {
+		name   string
+		jewels map[int]build.Item
+		want   []build.Warning
+		kept   map[int]build.Item
+	}{
+		{
+			name:   "abyss jewel in the socket",
+			jewels: map[int]build.Item{1: jewel(abyssBase)},
+			kept:   map[int]build.Item{1: jewel(abyssBase)},
+		},
+		{
+			name:   "one more jewel than sockets",
+			jewels: map[int]build.Item{1: jewel(abyssBase), 2: jewel(abyssBase)},
+			want: []build.Warning{{
+				Code: build.AbyssJewelNoSocket, Subject: "abyss jewel belt 2", Slot: build.SlotBelt,
+				Message: "the item has 1 abyssal sockets, no socket 2; jewel left out",
+			}},
+			kept: map[int]build.Item{1: jewel(abyssBase)},
+		},
+		{
+			name:   "not an abyss jewel",
+			jewels: map[int]build.Item{1: jewel(jewelBase)},
+			want: []build.Warning{{
+				Code: build.JewelKindMismatch, Subject: "abyss jewel belt 1", Slot: build.SlotBelt,
+				Message: "a Jewel does not fit an abyssal socket; left out",
+			}},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := juggernaut()
+			b.Items = build.Items{build.SlotBelt: belt(testCase.jewels)}
+			c, warnings, err := build.Check(b, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(testCase.want, warnings); diff != "" {
+				t.Errorf("warnings (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(build.Items{build.SlotBelt: belt(testCase.kept)}, c.Build().Items); diff != "" {
+				t.Errorf("items (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

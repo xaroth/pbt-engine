@@ -140,7 +140,9 @@ type MasteryChoice struct {
 // allocated node opens or in one an allocated node closes, of an unknown base or of a class
 // the slot does not take, and stats the dataset does not have, and warns about mod lines not
 // read as stats; it leaves out an offhand item the game refuses beside the
-// weapon, and warns about a quiver with no bow; a dataset without the group gets one warning.
+// weapon, and warns about a quiver with no bow; it leaves out an item's abyss jewels past its
+// abyssal sockets, of an unknown base or not an abyss jewel; a dataset without the group gets
+// one warning.
 // It leaves out jewels in a node that is not a jewel socket and, against the items group,
 // jewels of an unknown base or not a jewel, and cluster jewels that do not fit their socket,
 // and warns about jewels in a socket not allocated, which it keeps. A cluster jewel in a
