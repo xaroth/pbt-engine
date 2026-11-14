@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
@@ -31,21 +30,20 @@ var (
 
 // Warning codes of FromXML: each names something in the file that the build does not hold.
 const (
-	VersionFallback    build.Code = "pob-version-fallback"
-	SpecIgnored        build.Code = "pob-spec-ignored"
-	ClusterNodeDropped build.Code = "pob-cluster-node-dropped"
-	JewelIgnored       build.Code = "pob-jewel-ignored"
-	OverrideIgnored    build.Code = "pob-override-ignored"
-	ConfigIgnored      build.Code = "pob-config-ignored"
-	ItemIgnored        build.Code = "pob-item-ignored"
-	SkillIgnored       build.Code = "pob-skill-ignored"
-	SlotIgnored        build.Code = "pob-slot-ignored"
-	GemUnknown         build.Code = "pob-gem-unknown"
-	GemToggleIgnored   build.Code = "pob-gem-toggle-ignored"
-	GemAmbiguous       build.Code = "pob-gem-ambiguous"
-	MainSkillIgnored   build.Code = "pob-main-skill-ignored"
-	PantheonIgnored    build.Code = "pob-pantheon-ignored"
-	AscendancyIgnored  build.Code = "pob-ascendancy-ignored"
+	VersionFallback   build.Code = "pob-version-fallback"
+	SpecIgnored       build.Code = "pob-spec-ignored"
+	JewelIgnored      build.Code = "pob-jewel-ignored"
+	OverrideIgnored   build.Code = "pob-override-ignored"
+	ConfigIgnored     build.Code = "pob-config-ignored"
+	ItemIgnored       build.Code = "pob-item-ignored"
+	SkillIgnored      build.Code = "pob-skill-ignored"
+	SlotIgnored       build.Code = "pob-slot-ignored"
+	GemUnknown        build.Code = "pob-gem-unknown"
+	GemToggleIgnored  build.Code = "pob-gem-toggle-ignored"
+	GemAmbiguous      build.Code = "pob-gem-ambiguous"
+	MainSkillIgnored  build.Code = "pob-main-skill-ignored"
+	PantheonIgnored   build.Code = "pob-pantheon-ignored"
+	AscendancyIgnored build.Code = "pob-ascendancy-ignored"
 )
 
 const (
@@ -64,7 +62,8 @@ const (
 var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 
 // FromXML reads a PoB build file. The active tree spec gives the version, variant, bloodline
-// (PoB's secondary ascendancy), nodes, mastery choices and node overrides; the class,
+// (PoB's secondary ascendancy), nodes (the ones PoB generates for cluster jewels included:
+// build.Check numbers them alike), mastery choices and node overrides; the class,
 // ascendancy and override names map to ids through the English text of the dataset reg resolves
 // for that version, or of the newest poe1 dataset when it has none (warning VersionFallback;
 // the build keeps the file's version). Config: the bandit choice, the campaign stage from PoB's
@@ -75,7 +74,7 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // set's items in the equipment slots, weapon swap included, and the jewels in tree sockets,
 // read through the dataset's items group; the reader's warnings on the lines it reads are not
 // repeated, as build.Check gives them. Everything else in the file gives a warning: other
-// specs, cluster jewel nodes (dropped) and jewels in their sockets, overrides whose name names
+// specs, jewels in a node PoB generates, overrides whose name names
 // no override or several, config inputs, pantheon, a legacy secondary ascendancy (Warden,
 // Warlock, Primalist) or one the tree does not list, items in other slots, not equipped or not
 // read, jewels not read, and of the skills: groups an item or the tree grants (and the main
@@ -103,7 +102,7 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	if b.Bloodline, err = im.bloodline(store, variant); err != nil {
 		return nil, nil, err
 	}
-	b.Nodes = im.nodes()
+	b.Nodes = slices.Clone(im.spec.Nodes)
 	b.Masteries = im.masteries()
 	text, err := store.Text("en")
 	if err != nil {
@@ -235,24 +234,6 @@ func names(s *dataset.Store, variant, class, ascendancy string) (string, string,
 		return "", "", fmt.Errorf("%w %q in the %s tree", ErrAscendancy, ascendancy, variant)
 	}
 	return text.CharacterNames[i].ID, text.AscendancyNames[j].ID, nil
-}
-
-// nodes are the spec's nodes without the cluster jewel nodes PoB generates.
-func (im *importer) nodes() []uint32 {
-	var out []uint32
-	var dropped []string
-	for _, n := range im.spec.Nodes {
-		if n > maxTreeNode {
-			dropped = append(dropped, strconv.FormatUint(uint64(n), 10))
-			continue
-		}
-		out = append(out, n)
-	}
-	if len(dropped) > 0 {
-		im.warnf(ClusterNodeDropped, "nodes "+strings.Join(dropped, ","),
-			"%d cluster jewel nodes dropped; cluster jewels are not imported", len(dropped))
-	}
-	return out
 }
 
 func (im *importer) masteries() map[uint32]uint32 {
