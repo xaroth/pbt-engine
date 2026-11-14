@@ -101,33 +101,47 @@ type Support struct {
 	Reservation Reservation
 }
 
-// MainSkill resolves the main skill of c's build, as GroupSkill does.
-func MainSkill(c *build.Checked, bonuses []GemBonus) (*Skill, []build.Warning, error) {
-	return GroupSkill(c, c.Build().Skills.MainGroup, bonuses)
+// SkillResolver resolves the skills of one checked build. It resolves each skill once: asking
+// for a skill again, through Group or All, returns the same result.
+type SkillResolver struct {
+	r    *skillResolver
+	done map[skillKey]resolved
 }
 
-// GroupSkill resolves the active skill of skill group i of c's build: the group's active gem
-// and which of its skills is chosen. bonuses are the stats that add levels or quality to gems;
-// a support that does not apply warns. It fails with ErrNoActiveSkill when the group has no
-// enabled active gem, and when a dataset group fails to load.
-func GroupSkill(c *build.Checked, i int, bonuses []GemBonus) (*Skill, []build.Warning, error) {
+// skillKey is skill which (0 the first, 1 the second) of gem j of group i.
+type skillKey struct{ i, j, which int }
+
+type resolved struct {
+	skill    *Skill
+	warnings []build.Warning
+	err      error
+}
+
+// NewSkillResolver returns a resolver of c's skills. bonuses are the stats that add levels or
+// quality to gems. It fails when a dataset group fails to load.
+func NewSkillResolver(c *build.Checked, bonuses []GemBonus) (*SkillResolver, error) {
 	r, err := newSkillResolver(c, bonuses)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	b := c.Build()
-	if i < 0 || i >= len(b.Skills.Groups) {
-		return nil, nil, fmt.Errorf("%w: group %d of %d", ErrNoActiveSkill, i+1, len(b.Skills.Groups))
+	return &SkillResolver{r: r, done: map[skillKey]resolved{}}, nil
+}
+
+// Group resolves the active skill of skill group i: the group's active gem and which of its
+// skills is chosen. A support that does not apply warns. It fails with ErrNoActiveSkill when
+// the group has no enabled active gem, and with dataset.ErrNotInDataset when the dataset lacks
+// the gem.
+func (s *SkillResolver) Group(i int) (*Skill, []build.Warning, error) {
+	groups := s.r.groups
+	if i < 0 || i >= len(groups) {
+		return nil, nil, fmt.Errorf("%w: group %d of %d", ErrNoActiveSkill, i+1, len(groups))
 	}
-	g := b.Skills.Groups[i]
+	g := groups[i]
 	if g.Active >= len(g.Gems) || g.Gems[g.Active].Disabled {
 		return nil, nil, fmt.Errorf("%w: group %d", ErrNoActiveSkill, i+1)
 	}
-	sk, err := r.gemSkill(i, g.Active, g.ActiveSkill)
-	if err != nil {
-		return nil, nil, err
-	}
-	return sk, r.warnings, nil
+	out := s.skill(skillKey{i, g.Active, g.ActiveSkill})
+	return out.skill, out.warnings, out.err
 }
 
 // SkillWarnings is a resolved skill and the warnings resolving it gave.
@@ -136,17 +150,12 @@ type SkillWarnings struct {
 	Warnings []build.Warning
 }
 
-// Skills resolves every skill c's build uses: each skill of each enabled active gem in the
-// groups outside the weapon swap, in group and gem order, each with its group's supports as
-// GroupSkill applies them. Gems the dataset lacks and skills without levels are left out. It
-// fails when a dataset group fails to load.
-func Skills(c *build.Checked, bonuses []GemBonus) ([]SkillWarnings, error) {
-	r, err := newSkillResolver(c, bonuses)
-	if err != nil {
-		return nil, err
-	}
+// All resolves every skill the build uses: each skill of each enabled active gem in the groups
+// outside the weapon swap, in group and gem order, each with its group's supports as Group
+// applies them. Gems the dataset lacks and skills without levels are left out.
+func (s *SkillResolver) All() []SkillWarnings {
 	var out []SkillWarnings
-	for i, g := range c.Build().Skills.Groups {
+	for i, g := range s.r.groups {
 		if g.Slot.Swap() {
 			continue
 		}
@@ -155,16 +164,27 @@ func Skills(c *build.Checked, bonuses []GemBonus) ([]SkillWarnings, error) {
 				continue
 			}
 			for which := range 2 {
-				r.warnings = nil
-				sk, err := r.gemSkill(i, j, which)
-				if err != nil {
-					continue
+				if sk := s.skill(skillKey{i, j, which}); sk.err == nil {
+					out = append(out, SkillWarnings{Skill: sk.skill, Warnings: sk.warnings})
 				}
-				out = append(out, SkillWarnings{Skill: sk, Warnings: r.warnings})
 			}
 		}
 	}
-	return out, nil
+	return out
+}
+
+func (s *SkillResolver) skill(k skillKey) resolved {
+	if out, ok := s.done[k]; ok {
+		return out
+	}
+	s.r.warnings = nil
+	sk, err := s.r.gemSkill(k.i, k.j, k.which)
+	out := resolved{skill: sk, warnings: s.r.warnings, err: err}
+	if err != nil {
+		out = resolved{err: err}
+	}
+	s.done[k] = out
+	return out
 }
 
 // gemSkill resolves skill which (0 the first, 1 the second) of gem j of group i, supported by

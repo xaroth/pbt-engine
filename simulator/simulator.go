@@ -288,40 +288,42 @@ func mainSkill(r *run) error {
 	if len(r.checked.Build().Skills.Groups) == 0 {
 		return nil
 	}
-	sk, warnings, err := resolve.MainSkill(r.checked, poe1.GemBonuses())
+	skills, err := resolve.NewSkillResolver(r.checked, poe1.GemBonuses())
 	switch {
-	case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
+	case errors.Is(err, dataset.ErrNotInDataset):
+		skills = nil
 	case err != nil:
 		return fmt.Errorf("simulator: %w", err)
 	default:
-		r.skill = sk
-		r.warnings = append(r.warnings, warnings...)
+		sk, warnings, err := skills.Group(r.checked.Build().Skills.MainGroup)
+		switch {
+		case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
+		case err != nil:
+			return fmt.Errorf("simulator: %w", err)
+		default:
+			r.skill = sk
+			r.warnings = append(r.warnings, warnings...)
+		}
 	}
 	if w, ok := skillsWarning(r.checked.Build().Skills, r.skill); ok {
 		r.warnings = append(r.warnings, w)
 	}
-	return reservingSkills(r)
+	if skills != nil {
+		reservingSkills(r, skills)
+	}
+	return nil
 }
 
-// reservingSkills resolves the run's skills other than its main skill that reserve life or
-// mana.
-func reservingSkills(r *run) error {
-	all, err := resolve.Skills(r.checked, poe1.GemBonuses())
-	switch {
-	case errors.Is(err, dataset.ErrNotInDataset):
-		return nil
-	case err != nil:
-		return fmt.Errorf("simulator: %w", err)
-	}
+// reservingSkills adds the run's skills other than its main skill that reserve life or mana.
+func reservingSkills(r *run, skills *resolve.SkillResolver) {
 	main := r.skill
-	for _, s := range all {
+	for _, s := range skills.All() {
 		if !poe1.Reserves(s.Skill) || main != nil && s.Skill.Source == main.Source && s.Skill.GrantedEffect == main.GrantedEffect {
 			continue
 		}
 		r.reserving = append(r.reserving, s.Skill)
 		r.warnings = append(r.warnings, s.Warnings...)
 	}
-	return nil
 }
 
 // skills returns the run's skills for the sheet: the main skill first, if any, then the other

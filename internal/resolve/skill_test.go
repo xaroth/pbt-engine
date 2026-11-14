@@ -45,7 +45,11 @@ func mainSkill(t *testing.T, g build.SkillGroup, items build.Items, bonuses []re
 	if err != nil {
 		t.Fatal(err)
 	}
-	sk, ws, err := resolve.MainSkill(c, bonuses)
+	r, err := resolve.NewSkillResolver(c, bonuses)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sk, ws, err := r.Group(c.Build().Skills.MainGroup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +194,7 @@ func TestMainSkillGemLevels(t *testing.T) {
 	}
 }
 
-func TestGroupSkillNoActiveSkill(t *testing.T) {
+func TestGroupNoActiveSkill(t *testing.T) {
 	t.Parallel()
 	b := testBuild(90)
 	b.Version = realdata.Current
@@ -201,17 +205,22 @@ func TestGroupSkillNoActiveSkill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	r, err := resolve.NewSkillResolver(c, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, i := range []int{0, 1, 2} {
-		if _, _, err := resolve.GroupSkill(c, i, nil); !errors.Is(err, resolve.ErrNoActiveSkill) {
+		if _, _, err := r.Group(i); !errors.Is(err, resolve.ErrNoActiveSkill) {
 			t.Errorf("group %d: got %v, want ErrNoActiveSkill", i+1, err)
 		}
 	}
 }
 
-// Skills resolves every enabled active gem outside the weapon swap, with each skill it has:
-// Vaal Haste's own and Haste. A group's supports apply to each of its skills, and an active
-// gem's support effect, Autoexertion's, supports the warcry beside it.
-func TestSkills(t *testing.T) {
+// All resolves every enabled active gem outside the weapon swap, with each skill it has: Vaal
+// Haste's own and Haste. A group's supports apply to each of its skills, and an active gem's
+// support effect, Autoexertion's, supports the warcry beside it. A skill Group resolved is not
+// resolved again.
+func TestAll(t *testing.T) {
 	t.Parallel()
 	b := testBuild(90)
 	b.Version = realdata.Current
@@ -227,9 +236,17 @@ func TestSkills(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	all, err := resolve.Skills(c, nil)
+	r, err := resolve.NewSkillResolver(c, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	main, _, err := r.Group(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := r.All()
+	if all[0].Skill != main {
+		t.Error("All resolved group 1's skill again; want the skill Group resolved")
 	}
 	type skill struct {
 		group, gem  int
