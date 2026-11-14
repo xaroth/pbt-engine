@@ -285,7 +285,7 @@ func mainSkill(r *run) error {
 	if len(r.checked.Build().Skills.Groups) == 0 {
 		return nil
 	}
-	skills, err := resolve.NewSkillResolver(r.checked, poe1.GemBonuses())
+	skills, err := resolve.NewSkillResolver(r.checked, poe1.GemRules())
 	switch {
 	case errors.Is(err, dataset.ErrNotInDataset):
 		skills = nil

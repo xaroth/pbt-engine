@@ -3,14 +3,32 @@ package poe1
 import (
 	"slices"
 
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
-// GemBonuses returns the stats that add levels or quality to gems. Item stats name the gems
+// matchingSocketQuality is the quality a gem gains in a socket of its own colour, from 3.29 on
+// (Path of Building's MatchingSocketQualityBonus).
+const matchingSocketQuality = 10
+
+// GemRules returns the rules for the levels and quality of gems.
+func GemRules() resolve.GemRules {
+	return resolve.GemRules{
+		Bonuses: append(gemBonuses(),
+			resolve.GemBonus{Stat: "local_socketed_gems_in_red_sockets_get_level_+", Reach: resolve.Socketed, Socket: dataset.Red},
+			resolve.GemBonus{Stat: "local_socketed_gems_in_green_sockets_get_quality_%", Quality: true, Reach: resolve.Socketed, Socket: dataset.Green},
+		),
+		MatchingSocketQuality: matchingSocketQuality,
+		// 3.29 describes it as "Gems Socketed always have the Quality bonus from Socket Colour".
+		AlwaysMatchingStat: "local_can_socket_gems_ignoring_colour",
+	}
+}
+
+// gemBonuses returns the stats that add levels or quality to gems. Item stats name the gems
 // they reach by GemTags: "skill gems" are gems that are not supports, "elemental" is fire, cold
 // or lightning. Stats with a condition (influence counts, player level, filled sockets) are
 // not listed.
-func GemBonuses() []resolve.GemBonus {
+func gemBonuses() []resolve.GemBonus {
 	var out []resolve.GemBonus
 	add := func(stat string, quality bool, reach resolve.GemReach, f resolve.GemFilter) {
 		out = append(out, resolve.GemBonus{Stat: stat, Quality: quality, Reach: reach, Gems: f})
