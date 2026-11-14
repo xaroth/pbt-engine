@@ -128,7 +128,8 @@ func attackMask() core.Mask {
 //
 // A hit's damage of one type, read in the skill's context for that type, is the skill's base
 // damage of the type times its base damage multiplier, plus added damage times its damage
-// effectiveness, times the type's damage modifier, rounded half up. Against the enemy it is
+// effectiveness, times the type's damage modifier and the modifier of the smallest or largest
+// damage alone, rounded half up. Against the enemy it is
 // reduced by the enemy's resistance to the type, or for physical damage by its armour against
 // a hit of that size. A critical strike multiplies the hit before the enemy reduces it. The
 // average hit weighs the non-critical and critical averages of every type by the critical
@@ -142,10 +143,11 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		h := hitDamage{
 			base: mustID(ids, statBaseMinimumDamage), added: mustID(ids, statAddedMinimumDamage),
 			multiplier: mustID(ids, statBaseDamageMultiplier), effectiveness: mustID(ids, statDamageEffectiveness),
-			damage: mustID(ids, statDamage),
+			damage: mustID(ids, statDamage), extreme: mustID(ids, statMinimumDamage),
 		}
 		if def.Name == statMaximumHitDamage {
 			h.base, h.added = mustID(ids, statBaseMaximumDamage), mustID(ids, statAddedMaximumDamage)
+			h.extreme = mustID(ids, statMaximumDamage)
 		}
 		def.HasMin = true
 		def.FormulaName, def.Formula, def.Attribute = formulaHitDamage, h.formula(), h.attribute()
@@ -178,20 +180,22 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	return def
 }
 
-// hitDamage is a hit's damage of one type before the enemy.
+// hitDamage is a hit's smallest or largest damage of one type before the enemy.
 type hitDamage struct {
 	base, added, multiplier, effectiveness, damage core.StatID
+	// extreme is the modifier of the smallest or the largest damage alone.
+	extreme core.StatID
 }
 
 func (h hitDamage) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
 		v := r.Stat(h.base)*r.Stat(h.multiplier)/percentScale + r.Stat(h.added)*r.Stat(h.effectiveness)/percentScale
-		return roundHalf(v * r.Stat(h.damage) / percentScale)
+		return roundHalf(v * r.Stat(h.damage) / percentScale * r.Stat(h.extreme) / percentScale)
 	}
 }
 
-// attribute credits the base and added damage, then the damage modifier's increases and more
-// multipliers over them; what the base damage multiplier, damage effectiveness and rounding
+// attribute credits the base and added damage, then the damage modifier's and the smallest or
+// largest damage's increases and more multipliers over them; what the base damage multiplier, damage effectiveness and rounding
 // change goes to the damage effectiveness's sources.
 func (h hitDamage) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
@@ -201,7 +205,7 @@ func (h hitDamage) attribute() core.Attribute {
 				parts = append(parts, a.Spread(core.SelfRef(s), v, core.OpBase)...)
 			}
 		}
-		parts = a.LayersOver(core.SelfRef(h.damage), parts)
+		parts = a.LayersOver(core.SelfRef(h.extreme), a.LayersOver(core.SelfRef(h.damage), parts))
 		total := a.Explanation().Total
 		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.effectiveness)), Amount: total}
 	}

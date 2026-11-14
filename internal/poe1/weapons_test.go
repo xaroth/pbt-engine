@@ -57,8 +57,9 @@ func TestCompileWeapon(t *testing.T) {
 	}
 }
 
-// An attack with the axe against an enemy without defences: physical 27 to 54, 50% increased (40.5 rounds to 41) by
-// two handed melee and axe modifiers but not by one handed ones; lightning 1 to 30 with 10 added
+// An attack with the axe against an enemy without defences: physical 27 to 54, 50% increased by
+// two handed melee and axe modifiers but not by one handed ones, the minimum 30% less and the
+// maximum 30% more: 28.35 and 105.3, rounded; lightning 1 to 30 with 10 added
 // lightning damage to attacks at 150% effectiveness, 16 to 45. A 6% chance of a 150% critical
 // strike. 1.38 attacks per second, 10% more from the skill, 20% increased: 1.38 x 1.1 x 1.2.
 // A spell gets none of the weapon's values.
@@ -72,6 +73,8 @@ func TestAttackHit(t *testing.T) {
 		resolve.StatValue{Stat: "attack_minimum_added_lightning_damage", Value: 10},
 		resolve.StatValue{Stat: "attack_maximum_added_lightning_damage", Value: 10},
 		resolve.StatValue{Stat: "attack_speed_+%", Value: 20},
+		resolve.StatValue{Stat: "unique_ryuslathas_clutches_minimum_physical_attack_damage_+%_final", Value: -30},
+		resolve.StatValue{Stat: "unique_ryuslathas_clutches_maximum_physical_attack_damage_+%_final", Value: 30},
 	)))
 	c := poe1.CompileItem(axe())
 	if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
@@ -82,9 +85,9 @@ func TestAttackHit(t *testing.T) {
 	attack.AttackSpeedMultiplier = 10
 	attack.StatSets = []resolve.SkillStatSet{{DamageEffectiveness: 5000}}
 	setSkills(t, sh, attack)
-	physical, lightning := (41.0+81)/2, (16.0+45)/2
+	physical, lightning := (28.0+105)/2, (16.0+45)/2
 	for k, want := range map[output.Key]float64{
-		poe1.PhysicalMinimum: 41, poe1.PhysicalMaximum: 81, poe1.LightningMinimum: 16, poe1.LightningMaximum: 45,
+		poe1.PhysicalMinimum: 28, poe1.PhysicalMaximum: 105, poe1.LightningMinimum: 16, poe1.LightningMaximum: 45,
 		poe1.CriticalStrikeChance: 6, poe1.AverageHit: (physical + lightning) * (0.94 + 0.06*1.5),
 		poe1.HitsPerSecond: 1.38 * 1.1 * 1.2,
 	} {

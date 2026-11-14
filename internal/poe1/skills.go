@@ -143,13 +143,15 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageF
 // baseDamage is damage before modifiers: the base damage, 100%.
 const baseDamage = 100
 
-// addBaseDamage adds the base damage as a rule's source, so increases and more multipliers
-// apply to it by the default rule.
+// addBaseDamage adds the base damage, and of the smallest and largest damage alone, as a rule's
+// source, so increases and more multipliers apply to them by the default rule.
 func (sh *Sheet) addBaseDamage() error {
 	src := sh.newSource(Source{RuleID: "base-damage", Rule: "base damage (100%)"})
-	mod := core.Modifier{Stat: sh.stats[statDamage], Op: core.OpBase, Value: baseDamage, Source: src}
-	if _, err := sh.session.AddModifier(mod); err != nil {
-		return fmt.Errorf("sheet: base damage: %w", err)
+	for _, stat := range []string{statDamage, statMinimumDamage, statMaximumDamage} {
+		mod := core.Modifier{Stat: sh.stats[stat], Op: core.OpBase, Value: baseDamage, Source: src}
+		if _, err := sh.session.AddModifier(mod); err != nil {
+			return fmt.Errorf("sheet: base damage: %w", err)
+		}
 	}
 	return nil
 }

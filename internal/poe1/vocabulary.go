@@ -76,6 +76,8 @@ const (
 	statSpellBlockChanceCapped                           = "spell_block_chance_capped"
 	statMovementSpeed                                    = "movement_speed"
 	statDamage                                           = "damage"
+	statMinimumDamage                                    = "minimum_damage"
+	statMaximumDamage                                    = "maximum_damage"
 	statReservation                                      = "reservation"
 	statReservationEfficiency                            = "reservation_efficiency"
 	statManaReservationEfficiency                        = "mana_reservation_efficiency"
@@ -302,6 +304,8 @@ func hitStats() []string {
 		statAddedMaximumDamage,
 		statBaseDamageMultiplier,
 		statDamageEffectiveness,
+		statMinimumDamage,
+		statMaximumDamage,
 		statMinimumHitDamage,
 		statMaximumHitDamage,
 		statEffectiveMinimumHitDamage,
