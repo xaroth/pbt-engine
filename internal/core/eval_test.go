@@ -210,6 +210,29 @@ func TestStatWith(t *testing.T) {
 	read(25)
 }
 
+// A formula reads a stat in another context than its own, without some of its bits: a fire
+// spell's value reads the spell's damage without the fire bit.
+func TestStatAt(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	dmg := b.MustAddStat(core.StatDef{Name: "damage"})
+	types, err := b.AddDimension("type", "fire", "spell")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fire, spell := types.Bit(0), types.Bit(1)
+	without := b.MustAddStat(core.StatDef{Name: "without fire", Formula: func(r core.Reader, _ core.Agg) float64 {
+		return r.StatAt(dmg, r.Mask().AndNot(core.MaskOf(fire)))
+	}})
+	s := newSession(t, b.Build(), 1)
+	add(t, s, core.Modifier{Stat: dmg, Op: core.OpBase, Value: 10, Pred: core.Predicate{Req: []core.Mask{core.MaskOf(spell)}}})
+	add(t, s, core.Modifier{Stat: dmg, Op: core.OpInc, Value: 100, Pred: core.Predicate{Req: []core.Mask{core.MaskOf(fire)}}})
+	got, err := s.Get(core.Node{Stat: without, Ctx: s.InternContext(core.MaskOf(fire, spell))})
+	if err != nil || got != 10 {
+		t.Errorf("without fire: got %v, %v, want 10", got, err)
+	}
+}
+
 func TestConditions(t *testing.T) {
 	t.Parallel()
 	var b core.ModelBuilder

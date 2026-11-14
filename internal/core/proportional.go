@@ -138,6 +138,12 @@ func (a *Attributor) RefWith(stat StatID, add Mask) Ref {
 	return Ref{Actor: Self, Stat: stat, Ctx: int64(ctx)}
 }
 
+// RefAt returns a reference to stat on the node's actor in the context of mask m, as
+// Reader.StatAt reads it.
+func (a *Attributor) RefAt(stat StatID, m Mask) Ref {
+	return Ref{Actor: Self, Stat: stat, Ctx: int64(a.p.s.InternContext(m))}
+}
+
 // Stat returns the value of stat on the node's actor and context, as its formula reads it.
 func (a *Attributor) Stat(stat StatID) float64 { return a.Read(SelfRef(stat)) }
 
