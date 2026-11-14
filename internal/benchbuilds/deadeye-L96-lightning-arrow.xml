@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="96" targetVersion="3_0" className="Ranger" ascendClassName="Deadeye" bandit="None" mainSocketGroup="1"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="2" ascendClassId="2" nodes="238,930,1461,2185,2913,3042,3469,3656,4011,4184,4397,4502,4750,5082,5237,5296,5408,5616,5823,6233,6237,7112,8566,9206,9535,10829,11420,11497,11850,12068,12412,12948,13009,13231,13714,13885,15167,15290,15405,15599,16167,16851,17608,17735,19069,19144,19501,19711,19858,20010,20546,20807,22266,23471,23912,24848,24872,26067,26866,27283,28012,28330,28995,30225,30679,31371,31508,31875,32514,32555,32710,33196,33740,33783,34506,34678,36221,36287,36687,38149,38662,39085,39665,39718,39938,40751,41047,41635,42720,43385,44529,44908,45035,45313,46578,46910,47743,48823,49254,49459,49651,50041,50862,51881,54307,54868,55485,55750,56589,56814,56855,58244,58288,58474,59252,59370,59606,59837,60398,60942,61627,63618,63795,64028,65034" masteryEffects="{3042,64381}"/>
+	</Tree>
+	<Items activeItemSet="1" useSecondWeaponSet="false">
+		<Item id="1">
+Rarity: RARE
+Storm Fletch
+Spine Bow
+Item Level: 84
+Quality: 20
+Sockets: G-G-G-B-G-R
+Implicits: 0
++2 to Level of Socketed Bow Gems
+Adds 15 to 31 Physical Damage
+Adds 6 to 132 Lightning Damage
+26% increased Attack Speed
+35% increased Critical Strike Chance
++33% to Global Critical Strike Multiplier
+		</Item>
+		<Item id="2">
+Rarity: RARE
+Gale Quill
+Spike-Point Arrow Quiver
+Item Level: 83
+Implicits: 1
+25% increased Global Critical Strike Chance
++85 to maximum Life
+Adds 4 to 70 Lightning Damage to Attacks
+10% increased Attack Speed
++38% to Cold Resistance
++30% to Global Critical Strike Multiplier
+		</Item>
+		<Item id="3">
+Rarity: RARE
+Dusk Shell
+Zodiac Leather
+Evasion Rating: 1500
+Item Level: 86
+Quality: 20
+Sockets: G-G-B-G
+Implicits: 0
++110 to maximum Life
++45 to Dexterity
+110% increased Evasion Rating
++40% to Fire Resistance
++36% to Lightning Resistance
+		</Item>
+		<Item id="4">
+Rarity: RARE
+Rapture Visor
+Lion Pelt
+Evasion Rating: 900
+Item Level: 84
+Quality: 20
+Sockets: G-G-R-G
+Implicits: 0
++90 to maximum Life
++40 to Accuracy Rating
+80% increased Evasion Rating
++42% to Cold Resistance
++30 to Dexterity
+		</Item>
+		<Item id="5">
+Rarity: RARE
+Grip Hold
+Slink Gloves
+Evasion Rating: 400
+Item Level: 84
+Quality: 20
+Sockets: B-G-R
+Implicits: 0
++80 to maximum Life
+Adds 3 to 6 Physical Damage to Attacks
++38% to Fire Resistance
+14% increased Attack Speed
++300 to Accuracy Rating
+		</Item>
+		<Item id="6">
+Rarity: RARE
+Gale Track
+Slink Boots
+Evasion Rating: 350
+Item Level: 84
+Quality: 20
+Sockets: G-R-R
+Implicits: 0
+30% increased Movement Speed
++85 to maximum Life
++40% to Lightning Resistance
++35% to Chaos Resistance
+		</Item>
+		<Item id="7">
+Rarity: RARE
+Dusk Locket
+Onyx Amulet
+Item Level: 86
+Implicits: 1
++16 to all Attributes
++1 to Level of all Dexterity Skill Gems
++70 to maximum Life
++35% to Global Critical Strike Multiplier
++30 to Dexterity
+		</Item>
+		<Item id="8">
+Rarity: RARE
+Storm Loop
+Diamond Ring
+Item Level: 84
+Implicits: 1
+26% increased Global Critical Strike Chance
++65 to maximum Life
+Adds 3 to 58 Lightning Damage to Attacks
++42% to Fire Resistance
++40% to Cold Resistance
+		</Item>
+		<Item id="9">
+Rarity: RARE
+Rune Band
+Two-Stone Ring
+Item Level: 84
+Implicits: 1
++14% to Cold and Lightning Resistances
++60 to maximum Life
++38 to Dexterity
++30% to Chaos Resistance
+		</Item>
+		<Item id="10">
+Rarity: RARE
+Corruption Lash
+Leather Belt
+Item Level: 84
+Implicits: 1
++35 to maximum Life
++110 to maximum Life
++40 to Strength
++38% to Lightning Resistance
+22% increased Elemental Damage with Attack Skills
+		</Item>
+		<ItemSet id="1" useSecondWeaponSet="false">
+			<Slot name="Weapon 1" itemId="1"/>
+			<Slot name="Weapon 2" itemId="2"/>
+			<Slot name="Body Armour" itemId="3"/>
+			<Slot name="Helmet" itemId="4"/>
+			<Slot name="Gloves" itemId="5"/>
+			<Slot name="Boots" itemId="6"/>
+			<Slot name="Amulet" itemId="7"/>
+			<Slot name="Ring 1" itemId="8"/>
+			<Slot name="Ring 2" itemId="9"/>
+			<Slot name="Belt" itemId="10"/>
+		</ItemSet>
+	</Items>
+	<Skills activeSkillSet="1" defaultGemLevel="normalMaximum" defaultGemQuality="0">
+		<SkillSet id="1">
+			<Skill enabled="true" slot="Weapon 1" label="" mainActiveSkill="1" includeInFullDPS="true">
+				<Gem nameSpec="Lightning Arrow" skillId="LightningArrow" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Elemental Damage with Attacks" skillId="SupportElementalDamageWithAttacks" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Added Lightning Damage" skillId="SupportAddedLightningDamage" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Inspiration" skillId="SupportReducedManaCost" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Increased Critical Damage" skillId="SupportIncreasedCriticalDamage" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Mirage Archer" skillId="SupportMirageArcher" level="20" quality="20" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Body Armour" label="">
+				<Gem nameSpec="Grace" skillId="Grace" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Precision" skillId="Precision" level="10" quality="0" enabled="true"/>
+				<Gem nameSpec="Herald of Ice" skillId="HeraldOfIce" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Enlighten" skillId="SupportEnlighten" level="3" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Helmet" label="">
+				<Gem nameSpec="Frenzy" skillId="Frenzy" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Faster Attacks" skillId="SupportFasterAttacks" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Culling Strike" skillId="SupportCullingStrike" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Power Charge On Critical" skillId="SupportPowerChargeOnCrit" level="20" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Gloves" label="">
+				<Gem nameSpec="Summon Ice Golem" skillId="SummonIceElemental" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Flame Dash" skillId="FlameDash" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Faster Casting" skillId="SupportFasterCast" level="20" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Boots" label="">
+				<Gem nameSpec="Steelskin" skillId="QuickGuard" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Cast when Damage Taken" skillId="SupportCastWhenDamageTaken" level="1" quality="0" enabled="true"/>
+				<Gem nameSpec="Blood Rage" skillId="BloodRage" level="11" quality="0" enabled="true"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+	<Config activeConfigSet="1">
+		<ConfigSet id="1" title="Default"/>
+	</Config>
+</PathOfBuilding>

@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="97" targetVersion="3_0" className="Witch" ascendClassName="Elementalist" bandit="None" mainSocketGroup="1"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="3" ascendClassId="2" nodes="1031,1203,1346,4367,4397,4502,5296,5935,6538,6770,6799,7153,7444,7594,7938,8135,9392,10115,11128,11420,11551,11645,11716,12125,12143,12246,13009,13753,14021,14745,16790,17735,17821,18033,18182,19501,19595,19635,21330,21958,22088,22315,22472,22577,24496,26270,26866,27038,27163,27203,27415,27611,28076,28574,28859,31875,32431,32455,32710,32932,33310,33545,33755,33783,36121,36452,36542,36678,36858,37114,37569,37671,39648,39841,39861,40366,41472,42744,42760,42795,42804,43000,44184,45608,46092,46469,46842,48362,48514,48778,49254,49588,49605,49978,51108,51786,51801,51923,53456,53493,53573,54279,55332,55571,55647,56461,56716,57197,57264,57362,57736,58763,58816,58998,60398,60440,61259,61264,61471,63194,63228,63398,63447,64210,64265,65097" masteryEffects="{12125,64381},{58816,53046}"/>
+	</Tree>
+	<Items activeItemSet="1" useSecondWeaponSet="false">
+		<Item id="1">
+Rarity: RARE
+Storm Song
+Imbued Wand
+Item Level: 84
+Quality: 20
+Sockets: B-B-R
+Implicits: 1
+36% increased Spell Damage
++1 to Level of all Lightning Spell Skill Gems
++1 to Level of all Spell Skill Gems
+78% increased Spell Damage
+Adds 9 to 160 Lightning Damage to Spells
+18% increased Cast Speed
+		</Item>
+		<Item id="2">
+Rarity: RARE
+Mind Ward
+Titanium Spirit Shield
+Energy Shield: 180
+Item Level: 85
+Quality: 20
+Sockets: B-G-B
+Implicits: 0
++1 to Level of all Lightning Spell Skill Gems
++85 to maximum Life
+60% increased Spell Damage
++40% to Fire Resistance
++12% Chance to Block Spell Damage
+		</Item>
+		<Item id="3">
+Rarity: RARE
+Sol Wrap
+Vaal Regalia
+Energy Shield: 450
+Item Level: 86
+Quality: 20
+Sockets: B-B-B-B-B-R
+Implicits: 0
++1 to Level of Socketed Gems
++110 to maximum Life
++60 to maximum Energy Shield
++42% to Cold Resistance
++35 to Intelligence
+		</Item>
+		<Item id="4">
+Rarity: RARE
+Oblivion Crown
+Hubris Circlet
+Energy Shield: 220
+Item Level: 84
+Quality: 20
+Sockets: B-B-R-G
+Implicits: 0
++90 to maximum Life
++40 to maximum Energy Shield
++38% to Lightning Resistance
++40 to Intelligence
+		</Item>
+		<Item id="5">
+Rarity: RARE
+Doom Mitts
+Sorcerer Gloves
+Energy Shield: 120
+Item Level: 84
+Quality: 20
+Sockets: B-G-R
+Implicits: 0
++80 to maximum Life
++40% to Fire Resistance
++38% to Cold Resistance
+		</Item>
+		<Item id="6">
+Rarity: RARE
+Glyph Spur
+Sorcerer Boots
+Energy Shield: 110
+Item Level: 84
+Quality: 20
+Sockets: B-R-G
+Implicits: 0
+30% increased Movement Speed
++85 to maximum Life
++40% to Lightning Resistance
++30% to Chaos Resistance
+		</Item>
+		<Item id="7">
+Rarity: RARE
+Storm Charm
+Lapis Amulet
+Item Level: 86
+Implicits: 1
++25 to Intelligence
++1 to Level of all Intelligence Skill Gems
++75 to maximum Life
+30% increased Spell Damage
++30% to Global Critical Strike Multiplier
+		</Item>
+		<Item id="8">
+Rarity: RARE
+Cycle Coil
+Sapphire Ring
+Item Level: 84
+Implicits: 1
++25% to Cold Resistance
++65 to maximum Life
++42% to Fire Resistance
+Adds 4 to 66 Lightning Damage to Spells
+		</Item>
+		<Item id="9">
+Rarity: RARE
+Viper Turn
+Prismatic Ring
+Item Level: 84
+Implicits: 1
++10% to all Elemental Resistances
++60 to maximum Life
++40 to Strength
++30% to Chaos Resistance
+		</Item>
+		<Item id="10">
+Rarity: RARE
+Woe Cord
+Leather Belt
+Item Level: 84
+Implicits: 1
++35 to maximum Life
++105 to maximum Life
++38% to Lightning Resistance
++40 to Strength
+		</Item>
+		<ItemSet id="1" useSecondWeaponSet="false">
+			<Slot name="Weapon 1" itemId="1"/>
+			<Slot name="Weapon 2" itemId="2"/>
+			<Slot name="Body Armour" itemId="3"/>
+			<Slot name="Helmet" itemId="4"/>
+			<Slot name="Gloves" itemId="5"/>
+			<Slot name="Boots" itemId="6"/>
+			<Slot name="Amulet" itemId="7"/>
+			<Slot name="Ring 1" itemId="8"/>
+			<Slot name="Ring 2" itemId="9"/>
+			<Slot name="Belt" itemId="10"/>
+		</ItemSet>
+	</Items>
+	<Skills activeSkillSet="1" defaultGemLevel="normalMaximum" defaultGemQuality="0">
+		<SkillSet id="1">
+			<Skill enabled="true" slot="Body Armour" label="" mainActiveSkill="1" includeInFullDPS="true">
+				<Gem nameSpec="Arc" skillId="Arc" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Spell Echo" skillId="SupportMulticast" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Lightning Penetration" skillId="SupportLightningPenetration" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Added Lightning Damage" skillId="SupportAddedLightningDamage" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Inspiration" skillId="SupportReducedManaCost" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Controlled Destruction" skillId="SupportControlledDestruction" level="20" quality="20" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Helmet" label="">
+				<Gem nameSpec="Zealotry" skillId="SpellDamageAura" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Herald of Thunder" skillId="HeraldOfThunder" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Clarity" skillId="Clarity" level="10" quality="0" enabled="true"/>
+				<Gem nameSpec="Enlighten" skillId="SupportEnlighten" level="3" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Weapon 1" label="">
+				<Gem nameSpec="Orb of Storms" skillId="OrbOfStorms" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Elemental Weakness" skillId="ElementalWeakness" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Faster Casting" skillId="SupportFasterCast" level="20" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Weapon 2" label="">
+				<Gem nameSpec="Arcane Surge" skillId="SupportArcaneSurge" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Frostblink" skillId="Frostblink" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Flame Dash" skillId="FlameDash" level="20" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Gloves" label="">
+				<Gem nameSpec="Summon Lightning Golem" skillId="SummonLightningGolem" level="20" quality="20" enabled="true"/>
+				<Gem nameSpec="Elemental Focus" skillId="SupportElementalFocus" level="20" quality="0" enabled="true"/>
+				<Gem nameSpec="Steelskin" skillId="QuickGuard" level="20" quality="0" enabled="true"/>
+			</Skill>
+			<Skill enabled="true" slot="Boots" label="">
+				<Gem nameSpec="Cast when Damage Taken" skillId="SupportCastWhenDamageTaken" level="1" quality="0" enabled="true"/>
+				<Gem nameSpec="Flammability" skillId="Flammability" level="10" quality="0" enabled="true"/>
+				<Gem nameSpec="Blood Rage" skillId="BloodRage" level="11" quality="0" enabled="true"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+	<Config activeConfigSet="1">
+		<ConfigSet id="1" title="Default"/>
+	</Config>
+</PathOfBuilding>

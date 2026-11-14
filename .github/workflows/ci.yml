@@ -32,6 +32,9 @@ jobs:
             exit 1
           fi
           echo "Tests and subtests: $(grep -c -e '--- PASS' "$RUNNER_TEMP/test.log") passed, $(grep -c -e '--- SKIP' "$RUNNER_TEMP/test.log") skipped, none for want of PBT_DATASETS" | tee -a "$GITHUB_STEP_SUMMARY"
+      # Once each, so a broken benchmark fails; times on a shared runner are not judged.
+      - name: Run every benchmark once
+        run: go test -run '^$' -bench . -benchtime 1x ./...
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
