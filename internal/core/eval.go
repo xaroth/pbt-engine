@@ -386,3 +386,9 @@ func (r Reader) StatWith(stat StatID, add Mask) float64 {
 	ctx := r.s.InternContext(r.s.masks[r.ctx].Or(add))
 	return r.Read(Ref{Actor: Self, Stat: stat, Ctx: int64(ctx)})
 }
+
+// StatAt returns the value of stat on the same actor in the context of mask m, such as a
+// skill's value for another part of its damage than the one being evaluated.
+func (r Reader) StatAt(stat StatID, m Mask) float64 {
+	return r.Read(Ref{Actor: Self, Stat: stat, Ctx: int64(r.s.InternContext(m))})
+}

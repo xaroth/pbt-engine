@@ -138,6 +138,14 @@ func (m Mask) Or(o Mask) Mask {
 	return m
 }
 
+// AndNot returns the bits of m that o does not have.
+func (m Mask) AndNot(o Mask) Mask {
+	for i := range m {
+		m[i] &^= o[i]
+	}
+	return m
+}
+
 // Has reports whether bit b is set.
 func (m Mask) Has(b Bit) bool { return m[b>>6]&(1<<(b&wordMask)) != 0 }
 

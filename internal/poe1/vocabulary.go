@@ -121,6 +121,8 @@ const (
 	statAddedMaximumDamage                               = "added_maximum_damage"
 	statBaseDamageMultiplier                             = "base_damage_multiplier"
 	statDamageEffectiveness                              = "damage_effectiveness"
+	statMinimumHitDamageBeforeConversion                 = "minimum_hit_damage_before_conversion"
+	statMaximumHitDamageBeforeConversion                 = "maximum_hit_damage_before_conversion"
 	statMinimumHitDamage                                 = "minimum_hit_damage"
 	statMaximumHitDamage                                 = "maximum_hit_damage"
 	statEffectiveMinimumHitDamage                        = "effective_minimum_hit_damage"
@@ -323,7 +325,7 @@ func reservationStats() []string {
 
 // hitStats are the engine stats of a skill's hit, in registration order.
 func hitStats() []string {
-	return []string{
+	return slices.Concat([]string{
 		statEnemyResistance,
 		statEnemyMaximumResistance,
 		statEnemyExposure,
@@ -340,6 +342,9 @@ func hitStats() []string {
 		statDamageEffectiveness,
 		statMinimumDamage,
 		statMaximumDamage,
+	}, conversionStats(), []string{
+		statMinimumHitDamageBeforeConversion,
+		statMaximumHitDamageBeforeConversion,
 		statMinimumHitDamage,
 		statMaximumHitDamage,
 		statEffectiveMinimumHitDamage,
@@ -354,7 +359,7 @@ func hitStats() []string {
 		statAttackSpeed,
 		statHitsPerSecond,
 		statHitDPS,
-	}
+	})
 }
 
 // dotStats are the engine stats of a skill's damage over time, in registration order.

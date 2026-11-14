@@ -251,6 +251,7 @@ func modelFor(counters []string) *sheetModel {
 		md.stats[name] = b.MustAddStat(statDef(name, md.stats))
 	}
 	addTransferStats(&b, md.stats)
+	addConversionFormulas(&b, md.stats)
 	b.SetMoreRule(pobMore)
 	md.ctx = addContexts(&b)
 	if md.ctx.damage.First != damageDimension().First {

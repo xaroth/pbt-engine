@@ -77,7 +77,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
 		def.Flag = true
 	}
-	def = dotDef(hitDef(enemyDef(costDef(reservationDef(def, ids), ids), ids), ids), ids)
+	def = dotDef(conversionDef(hitDef(enemyDef(costDef(reservationDef(def, ids), ids), ids), ids), ids), ids)
 	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
@@ -274,27 +274,28 @@ func effectiveMaximum(own core.StatID, ids map[string]core.StatID) core.Formula 
 
 // Formula names shown in explanations.
 const (
-	formulaRegeneration       = "regeneration"
-	formulaChaosResistance    = "chaos resistance"
-	formulaEffectiveMaximum   = "effective maximum resistance"
-	formulaCappedResistance   = "resistance capped by its maximum"
-	formulaTransfers          = "conversion and gain as extra"
-	formulaTransferIncreases  = "increases of a transfer"
-	formulaTransferMore       = "more multipliers of a transfer"
-	formulaTransferSource     = "amount a transfer starts from"
-	formulaSkillReservation   = "reservation of a skill"
-	formulaReserved           = "reservation of a pool"
-	formulaUnreserved         = "pool less its reservation"
-	formulaSkillCost          = "cost of a skill"
-	formulaHitDamage          = "hit damage of a damage type"
-	formulaHitAgainstEnemy    = "hit damage the enemy takes"
-	formulaHitEnemyResistance = "enemy resistance a hit meets"
-	formulaAverageHit         = "average hit"
-	formulaHitsPerSecond      = "hits per second"
-	formulaHitDPS             = "hit damage per second"
-	formulaDotEnemyResistance = "enemy resistance damage over time meets"
-	formulaDamageOverTime     = "damage over time of a damage type"
-	formulaDamageOverTimeDPS  = "damage over time per second"
+	formulaRegeneration        = "regeneration"
+	formulaChaosResistance     = "chaos resistance"
+	formulaEffectiveMaximum    = "effective maximum resistance"
+	formulaCappedResistance    = "resistance capped by its maximum"
+	formulaTransfers           = "conversion and gain as extra"
+	formulaTransferIncreases   = "increases of a transfer"
+	formulaTransferMore        = "more multipliers of a transfer"
+	formulaTransferSource      = "amount a transfer starts from"
+	formulaSkillReservation    = "reservation of a skill"
+	formulaReserved            = "reservation of a pool"
+	formulaUnreserved          = "pool less its reservation"
+	formulaSkillCost           = "cost of a skill"
+	formulaHitDamage           = "hit damage of a damage type"
+	formulaHitBeforeConversion = "hit damage of a damage type before conversion"
+	formulaHitAgainstEnemy     = "hit damage the enemy takes"
+	formulaHitEnemyResistance  = "enemy resistance a hit meets"
+	formulaAverageHit          = "average hit"
+	formulaHitsPerSecond       = "hits per second"
+	formulaHitDPS              = "hit damage per second"
+	formulaDotEnemyResistance  = "enemy resistance damage over time meets"
+	formulaDamageOverTime      = "damage over time of a damage type"
+	formulaDamageOverTimeDPS   = "damage over time per second"
 )
 
 // chaosResistanceAttribute is the default rule, plus the doubling as a more part credited to
