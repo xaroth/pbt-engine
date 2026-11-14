@@ -35,7 +35,7 @@ func (im *importer) skills(store *dataset.Store) (build.Skills, error) {
 	if len(im.file.Skills) == 0 {
 		return out, nil
 	}
-	data, err := store.Skills()
+	data, err := store.SkillIndex()
 	if _, missing := errors.AsType[*dataset.MissingGroupError](err); missing {
 		for i, g := range im.file.Skills {
 			im.warnf(SkillIgnored, groupSubject(g, i), "dataset %s has no skills group to read gems with; not imported", store.Manifest().Version)
@@ -71,7 +71,7 @@ func (im *importer) mainGroup(out *build.Skills, index map[int]int) {
 }
 
 // group imports group g, the i-th of the file.
-func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data *dataset.Skills) build.SkillGroup {
+func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data *dataset.SkillIndex) build.SkillGroup {
 	subject := groupSubject(g, i)
 	out := build.SkillGroup{Slot: slots()[g.Slot]}
 	if out.Slot == "" && g.Slot != "" {
@@ -116,7 +116,7 @@ func countedSkills(g pobxml.Gem, gem int, active []int) []gemSkill {
 type gemSkill struct{ gem, skill int }
 
 // gem imports gem g, or warns and reports false.
-func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (build.Gem, bool) {
+func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.SkillIndex) (build.Gem, bool) {
 	m, ok := resolveGem(g, store, data)
 	if !ok {
 		im.warnf(GemUnknown, cmp.Or(g.Name, g.GemID, g.SkillID), "gem not in dataset %s; dropped", store.Manifest().Version)
@@ -152,7 +152,7 @@ func activeSkill(skills []gemSkill, first gemSkill, n int) gemSkill {
 // resolveGem returns the dataset gem and effect of g, trying in turn: its gem id with its
 // variant id, then with its skill id, then its first effect; the gem whose effect grants its
 // skill id; its name. This is the order PoB loads gems in (SkillsTab.lua, LoadSkill).
-func resolveGem(g pobxml.Gem, store *dataset.Store, data *dataset.Skills) (dataset.GemMatch, bool) {
+func resolveGem(g pobxml.Gem, store *dataset.Store, data *dataset.SkillIndex) (dataset.GemMatch, bool) {
 	if dg := data.Gem(g.GemID); dg != nil && len(dg.Effects) > 0 {
 		m := dataset.GemMatch{Gem: dg, Effect: &dg.Effects[0]}
 		if e := dg.Effect(g.VariantID); e != nil {

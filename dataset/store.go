@@ -30,7 +30,7 @@ type Store struct {
 	quests     lazy[[]Quest]
 	items      lazy[*Items]
 	mods       lazy[[]Mod]
-	skills     lazy[*Skills]
+	skills     lazy[*SkillIndex]
 	buffs      lazy[*Buffs]
 	monsters   lazy[*Monsters]
 	// trees, classes, texts, names and layouts are keyed by variant and language, fixed by the

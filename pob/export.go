@@ -299,7 +299,7 @@ func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 	if len(groups) == 0 {
 		return out, nil
 	}
-	data, err := store.Skills()
+	data, err := store.SkillIndex()
 	if _, missing := errors.AsType[*dataset.MissingGroupError](err); missing {
 		data = nil
 	} else if err != nil {
@@ -315,7 +315,7 @@ func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 	return out, nil
 }
 
-func (ex *exporter) group(g build.SkillGroup, data *dataset.Skills, text *dataset.Text) outSkill {
+func (ex *exporter) group(g build.SkillGroup, data *dataset.SkillIndex, text *dataset.Text) outSkill {
 	out := outSkill{Enabled: xmlTrue, Slot: pobSlot(g.Slot)}
 	// PoB's main active skill counts the active skills of enabled gems in order, 1-based; both
 	// switches of every gem are written on. See countedSkills.
@@ -335,7 +335,7 @@ func (ex *exporter) group(g build.SkillGroup, data *dataset.Skills, text *datase
 }
 
 // activeSkillsOf is build.ActiveSkills, or an active gem's first skill without a skills group.
-func activeSkillsOf(data *dataset.Skills, gem build.Gem) []int {
+func activeSkillsOf(data *dataset.SkillIndex, gem build.Gem) []int {
 	switch {
 	case data != nil:
 		return build.ActiveSkills(data, gem)
@@ -346,7 +346,7 @@ func activeSkillsOf(data *dataset.Skills, gem build.Gem) []int {
 }
 
 // gem writes gem.
-func (ex *exporter) gem(gem build.Gem, data *dataset.Skills, text *dataset.Text) outGem {
+func (ex *exporter) gem(gem build.Gem, data *dataset.SkillIndex, text *dataset.Text) outGem {
 	out := outGem{
 		GemID: gem.ID, VariantID: gem.Effect, Level: gem.Level, Quality: gem.Quality,
 		Enabled: strconv.FormatBool(!gem.Disabled), EnableGlobal1: xmlTrue, EnableGlobal2: xmlTrue,
