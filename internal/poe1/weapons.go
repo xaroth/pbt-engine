@@ -106,13 +106,14 @@ const (
 	localAttackSpeedInc     = "local_attack_speed_+%"
 	localCriticalChance     = "local_critical_strike_chance"
 	localCriticalChanceInc  = "local_critical_strike_chance_+%"
+	localNoPhysicalDamage   = "local_weapon_no_physical_damage"
 )
 
 // localWeaponStats are the stats that change a weapon's own values.
 func localWeaponStats() map[string]bool {
 	local := map[string]bool{
 		localPhysicalDamageInc: true, localElementalDamageInc: true, localAttackSpeedInc: true,
-		localCriticalChance: true, localCriticalChanceInc: true,
+		localCriticalChance: true, localCriticalChanceInc: true, localNoPhysicalDamage: true,
 	}
 	for _, ids := range localAdded() {
 		for _, id := range ids {
@@ -152,7 +153,7 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 }
 
 // weaponDamage returns the damage per type of it on a weapon base with values b, given sums of
-// its stats, as compileWeapon says.
+// its stats, as compileWeapon says; a weapon with "No Physical Damage" has none.
 func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float64) [Chaos + 1]DamageRange {
 	var out [Chaos + 1]DamageRange
 	for d, ids := range localAdded() {
@@ -171,7 +172,7 @@ func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float
 			lo, hi = roundHalf(lo*f), roundHalf(hi*f)
 		case Chaos:
 		}
-		if lo > 0 && hi > 0 {
+		if lo > 0 && hi > 0 && (DamageType(d) != Physical || sums[localNoPhysicalDamage] == 0) {
 			out[d] = DamageRange{Min: lo, Max: hi}
 		}
 	}

@@ -33,7 +33,7 @@ func axe() (*build.Item, *dataset.ItemBase) {
 }
 
 // A weapon's physical damage is (base + local added) x the local increase x the quality, its
-// lightning damage the local added damage; attacks per second are 1.25 x 1.1 = 1.375, rounded to
+// lightning damage the local added damage, and none of either with "No Physical Damage"; attacks per second are 1.25 x 1.1 = 1.375, rounded to
 // 1.38; critical strike chance 5% x 1.2. The local stats stay on the weapon.
 func TestCompileWeapon(t *testing.T) {
 	t.Parallel()
@@ -51,6 +51,11 @@ func TestCompileWeapon(t *testing.T) {
 	}
 	if diff := cmp.Diff([]resolve.StatValue{{Stat: "additional_strength", Value: 10}}, got.Stats); diff != "" {
 		t.Errorf("stats (-want +got):\n%s", diff)
+	}
+	it, base := axe()
+	it.Mods = append(it.Mods, build.ModLine{Kind: build.Explicit, Stats: []build.StatValue{{Stat: "local_weapon_no_physical_damage", Value: -120}}})
+	if d := poe1.CompileItem(it, base).Weapon.Damage[poe1.Physical]; d != (poe1.DamageRange{}) {
+		t.Errorf("weapon with no physical damage: got %v", d)
 	}
 	if poe1.CompileItem(&build.Item{}, &dataset.ItemBase{Class: "Shield"}).Weapon != nil {
 		t.Error("a shield compiled to a weapon")
