@@ -322,5 +322,140 @@
     "group": "skill",
     "better": "lower",
     "order": 35
+  },
+  {
+    "key": "skill.average_hit",
+    "label": "Average Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 36
+  },
+  {
+    "key": "skill.hit_chance",
+    "label": "Chance to Hit",
+    "unit": "%",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 37
+  },
+  {
+    "key": "skill.critical_strike_chance",
+    "label": "Critical Strike Chance",
+    "unit": "%",
+    "places": 2,
+    "group": "skill",
+    "better": "higher",
+    "order": 38
+  },
+  {
+    "key": "skill.hits_per_second",
+    "label": "Hits per Second",
+    "unit": "/s",
+    "places": 2,
+    "group": "skill",
+    "better": "higher",
+    "order": 39
+  },
+  {
+    "key": "skill.hit_dps",
+    "label": "Hit DPS",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 40
+  },
+  {
+    "key": "skill.physical_minimum",
+    "label": "Minimum Physical Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 41
+  },
+  {
+    "key": "skill.physical_maximum",
+    "label": "Maximum Physical Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 42
+  },
+  {
+    "key": "skill.fire_minimum",
+    "label": "Minimum Fire Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 43
+  },
+  {
+    "key": "skill.fire_maximum",
+    "label": "Maximum Fire Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 44
+  },
+  {
+    "key": "skill.cold_minimum",
+    "label": "Minimum Cold Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 45
+  },
+  {
+    "key": "skill.cold_maximum",
+    "label": "Maximum Cold Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 46
+  },
+  {
+    "key": "skill.lightning_minimum",
+    "label": "Minimum Lightning Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 47
+  },
+  {
+    "key": "skill.lightning_maximum",
+    "label": "Maximum Lightning Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 48
+  },
+  {
+    "key": "skill.chaos_minimum",
+    "label": "Minimum Chaos Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 49
+  },
+  {
+    "key": "skill.chaos_maximum",
+    "label": "Maximum Chaos Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 50
   }
 ]

@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 130 authored, 111 unknown, 1 display-only, 0 gaps, 1667 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 159 authored, 111 unknown, 1 display-only, 0 gaps, 1638 outside
 unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -84,6 +84,7 @@ unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
 omitted keystone_chaos_inoculation global, uses 1: Immune to Chaos Damage
 unknown keystone_divine_shield global, uses 1: condition: physical damage prevented from hits recently
+omitted keystone_elemental_overload global, uses 1: 40% more Elemental Damage for Skills that have dealt a Critical Strike in the past 8 seconds, a condition PoB leaves off by default; Ailments never counting as from Critical Strikes
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life
 unvalidated keystone_glancing_blows global, uses 1: the text does not say whether doubling applies before or after other modifiers; the total is doubled, as PoB does (a 100% more multiplier)
 omitted keystone_glancing_blows global, uses 1: Chance to Block Attack Damage is doubled; You take 65% of Damage from Blocked Hits
