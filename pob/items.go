@@ -13,6 +13,13 @@ import (
 	"github.com/xaroth/pbt-engine/pob/internal/pobxml"
 )
 
+// ItemSlot returns the build slot of Path of Building's equipment slot name, such as "Ring 3",
+// and false for a name that is not one of them.
+func ItemSlot(name string) (build.Slot, bool) {
+	s, ok := itemSlots()[name]
+	return s, ok
+}
+
 // itemSlots maps PoB's names of the equipment slots: those with sockets, the amulet, three rings
 // and the belt.
 func itemSlots() map[string]build.Slot {
@@ -86,7 +93,7 @@ func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read 
 
 // equip reads it into out at PoB's slot name, or warns.
 func (im *importer) equip(out *build.Items, it pobxml.Item, name string, read func(pobxml.Item) (build.Item, error)) error {
-	slot, ok := itemSlots()[name]
+	slot, ok := ItemSlot(name)
 	if !ok {
 		im.warnf(ItemIgnored, itemSubject(it), "slot %q is not an equipment slot; not imported", name)
 		return nil

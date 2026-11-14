@@ -174,16 +174,11 @@ func readItemsRecorded(t *testing.T, m dataset.Manifest, b *build.Build, data []
 	if err := xml.Unmarshal(data, &file); err != nil {
 		t.Fatal(err)
 	}
-	slots := map[string]build.Slot{
-		"Weapon 1": build.SlotWeapon, "Weapon 2": build.SlotOffhand, "Helmet": build.SlotHelmet,
-		"Body Armour": build.SlotBodyArmour, "Gloves": build.SlotGloves, "Boots": build.SlotBoots,
-		"Amulet": build.SlotAmulet, "Ring 1": build.SlotRing1, "Ring 2": build.SlotRing2, "Belt": build.SlotBelt,
-	}
 	rec, _, sim := recorded(t)
 	out := b.Clone()
 	equipped := map[build.Slot]bool{}
 	for _, s := range file.Slots {
-		slot, ok := slots[s.Name]
+		slot, ok := pob.ItemSlot(s.Name)
 		i := slices.IndexFunc(file.Items, func(it pobItem) bool { return it.ID == s.ItemID })
 		// Only the first item set: later sets repeat the slots.
 		if !ok || i < 0 || equipped[slot] {

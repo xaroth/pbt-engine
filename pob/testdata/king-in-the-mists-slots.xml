@@ -14,8 +14,18 @@ Implicits: 1
 +16% to Fire and Lightning Resistances
 +30 to Strength
 		</Item>
+		<Item id="2">
+			Rarity: RARE
+Ghoul Choker
+Amber Amulet
+Item Level: 84
+Implicits: 1
++25 to Strength
++20 to Strength
+		</Item>
 		<ItemSet id="1">
 			<Slot itemId="1" name="Ring 3"/>
+			<Slot itemId="2" name="Amulet"/>
 		</ItemSet>
 	</Items>
 </PathOfBuilding>

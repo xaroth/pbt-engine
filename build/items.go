@@ -32,6 +32,15 @@ func SlotStat(s Slot) string {
 	return ""
 }
 
+// SlotDisableStat returns the ID of the stat that closes slot s to a build that has it from a
+// passive node, or "" for a slot no stat closes.
+func SlotDisableStat(s Slot) string {
+	return map[Slot]string{
+		SlotBodyArmour: "disable_chest_slot", SlotAmulet: "disable_amulet_slot", SlotRing1: "disable_ring_slot_1",
+		SlotRing2: "disable_ring_slot_2", SlotRing3: "disable_ring_slot_3", SlotBelt: "disable_belt_slot",
+	}[s]
+}
+
 // Rarity is an item's rarity.
 type Rarity string
 

@@ -325,6 +325,60 @@ func TestThirdRingOnSheet(t *testing.T) {
 	}
 }
 
+// An amulet and a belt count for a King in the Mists build without the nodes that close their
+// slots; with them both are left out with a warning and add nothing to the sheet.
+func TestClosedSlotsOnSheet(t *testing.T) {
+	t.Parallel()
+	const start, closesAmulet, closesBelt, other = 9920, 12354, 46649, 44903
+	s := realSim(t)
+	items := build.Items{}
+	for slot, text := range map[build.Slot]string{
+		build.SlotAmulet: "Rarity: RARE\nGhoul Choker\nAmber Amulet\nItem Level: 84\nImplicits: 1\n+25 to Strength\n+20 to Strength\n",
+		build.SlotBelt:   "Rarity: RARE\nCorpse Cord\nHeavy Belt\nItem Level: 84\nImplicits: 1\n+30 to Strength\n+20 to Strength\n",
+	} {
+		it, _, err := s.Data().Item(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		items[slot] = it
+	}
+	for _, testCase := range []struct {
+		name   string
+		nodes  []uint32
+		item   float64
+		closed bool
+	}{
+		{"with the closing nodes", []uint32{start, closesAmulet, closesBelt}, 0, true},
+		{"without", []uint32{start, other}, 95, false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			bare := marauderBuild(90, testCase.nodes...)
+			bare.Bloodline = "KingInTheMists"
+			with := bare.Clone()
+			for slot, it := range items {
+				if err := with.Apply(build.Equip(slot, it)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			st := simulate(t, s, with)
+			var closed []build.Slot
+			for _, w := range st.Warnings() {
+				if w.Code == build.ItemSlotClosed {
+					closed = append(closed, w.Slot)
+				}
+			}
+			slices.Sort(closed)
+			if want := []build.Slot{build.SlotAmulet, build.SlotBelt}; slices.Equal(closed, want) != testCase.closed {
+				t.Errorf("slots closed %v, want amulet and belt closed %t", closed, testCase.closed)
+			}
+			if got, want := get(t, st, poe1.Strength), get(t, simulate(t, s, bare), poe1.Strength)+testCase.item; got != want {
+				t.Errorf("strength with the amulet and belt %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 // jewelSocket is a jewel socket of the 3.29 tree.
 const jewelSocket = 26725
 

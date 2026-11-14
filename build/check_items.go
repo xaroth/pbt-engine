@@ -132,8 +132,8 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		c.warnAboutf(about, ItemSlotUnknown, "no item slot %q; item left out", s)
 		return false
 	}
-	if stat := SlotStat(s); stat != "" && !c.grants(stat) {
-		c.warnAboutf(about, ItemSlotClosed, "no allocated node grants %s, which opens the slot; item left out", stat)
+	if why := c.slotClosed(s); why != "" {
+		c.warnAboutf(about, ItemSlotClosed, "%s; item left out", why)
 		return false
 	}
 	base := c.itemBase(about, it, data)
@@ -146,6 +146,23 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 	}
 	c.checkMods(about, it, nil)
 	return true
+}
+
+// SlotOpen reports whether the build can hold an item in slot s: s is one of ItemSlots, and
+// the build's passives open it where it needs opening and do not close it.
+func (c *Checked) SlotOpen(s Slot) bool {
+	return slices.Contains(ItemSlots(), s) && c.slotClosed(s) == ""
+}
+
+// slotClosed says why the build's passives keep slot s closed, or returns "" when they do not.
+func (c *Checked) slotClosed(s Slot) string {
+	if stat := SlotStat(s); stat != "" && !c.grants(stat) {
+		return fmt.Sprintf("no allocated node grants %s, which opens the slot", stat)
+	}
+	if stat := SlotDisableStat(s); stat != "" && c.grants(stat) {
+		return fmt.Sprintf("an allocated node grants %s, which closes the slot", stat)
+	}
+	return ""
 }
 
 // grants reports whether an allocated node or a chosen mastery effect grants the stat id.
