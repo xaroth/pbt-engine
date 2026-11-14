@@ -81,6 +81,9 @@ type StatDef struct {
 	Shares []Share
 	// Flag stats are 1 when any OpFlag modifier matches, else 0, unless a formula says otherwise.
 	Flag bool
+	// LowestBase makes Agg.Base the lowest OpBase value that matched instead of their sum, 0
+	// when none did, for a stat of which only the strongest instance applies.
+	LowestBase bool
 	// CycleFamily groups stats whose conditions and scales read each other in cycles
 	// (attributes granting attributes); 0 is no family. A condition or scale of a stat that
 	// reads a stat of the same family sees the unconditional value: that node evaluated
