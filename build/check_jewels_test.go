@@ -138,3 +138,21 @@ func TestCheckJewelsNoItemsGroup(t *testing.T) {
 		t.Errorf("jewels (-want +got):\n%s", diff)
 	}
 }
+
+// TestEditWarningsJewel: putting a jewel in a node that is not a jewel socket warns; in a
+// socket, allocated or not, it does not.
+func TestEditWarningsJewel(t *testing.T) {
+	t.Parallel()
+	b := juggernaut()
+	c, _, err := build.Check(b, jewelStore(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := c.EditWarnings([]build.Edit{
+		build.SocketJewel(3, jewel(jewelBase)), build.SocketJewel(70, jewel(jewelBase)), build.SocketJewel(71, jewel(jewelBase)),
+	})
+	want := []build.Warning{{Code: build.JewelNotSocket, Subject: "jewel 3", Message: "node 3 is not a jewel socket of the standard tree; jewel left out"}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("EditWarnings (-want +got):\n%s", diff)
+	}
+}
