@@ -148,18 +148,33 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageF
 }
 
 // dotTypes returns the types skill i's damage over time is read with, made with weapon: its
-// own, without Spell unless its spell damage modifiers apply to its damage over time.
+// own, without Attack and Area, without Spell unless its spell damage modifiers apply to its
+// damage over time, and without Projectile unless its projectile damage modifiers do. The game
+// data marks no skill's damage over time as area damage, so modifiers to Area Damage reach
+// none; PoB keeps Area for a list of its own (CalcOffence.lua dotCfg, dotIsArea).
 func (sh *Sheet) dotTypes(i int, weapon weaponKinds) ([]string, error) {
 	types := sh.skills[i].types
 	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, weapon, nil, formNone))
-	v, err := sh.session.Get(core.Node{Stat: sh.stats[statSpellDamageModifiersApplyToSkillDot], Ctx: ctx})
-	if err != nil {
-		return nil, fmt.Errorf("sheet: skill %d: %w", i, err)
+	keep := map[string]bool{}
+	for t, flag := range map[string]string{
+		typeSpell:      statSpellDamageModifiersApplyToSkillDot,
+		typeProjectile: statProjectileDamageModifiersApplyToSkillDot,
+	} {
+		v, err := sh.session.Get(core.Node{Stat: sh.stats[flag], Ctx: ctx})
+		if err != nil {
+			return nil, fmt.Errorf("sheet: skill %d: %w", i, err)
+		}
+		keep[t] = v != 0
 	}
-	if v != 0 {
-		return types, nil
-	}
-	return slices.DeleteFunc(slices.Clone(types), func(t string) bool { return t == typeSpell }), nil
+	return slices.DeleteFunc(slices.Clone(types), func(t string) bool {
+		switch t {
+		case typeAttack, typeArea:
+			return true
+		case typeSpell, typeProjectile:
+			return !keep[t]
+		}
+		return false
+	}), nil
 }
 
 // baseDamage is damage before modifiers: the base damage, 100%.

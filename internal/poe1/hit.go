@@ -24,6 +24,8 @@ const (
 	typeSummonsTotem = "SummonsTotem"
 	typeTriggered    = "Triggered"
 	typeCooldown     = "Cooldown"
+	typeProjectile   = "Projectile"
+	typeArea         = "Area"
 )
 
 // Hit limits. The rate cap is the server tick: a skill used more often than once a tick still

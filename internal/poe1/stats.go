@@ -74,7 +74,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		statLifeRegenerationIsNotApplied, statLifeRegenerationAppliesToEnergyShield,
 		statMaximumEnduranceChargesAreMaximumFrenzyCharges, statHasMaximumFortification,
 		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana,
-		statSpellDamageModifiersApplyToSkillDot:
+		statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
 		def.Flag = true
 	}
 	def = dotDef(hitDef(enemyDef(costDef(reservationDef(def, ids), ids), ids), ids), ids)
