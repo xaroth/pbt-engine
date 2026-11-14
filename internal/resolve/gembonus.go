@@ -1,9 +1,11 @@
 package resolve
 
 import (
+	"maps"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
 )
 
 // GemBonus is a stat that adds levels or quality to the gems it reaches and selects. The game
@@ -13,7 +15,9 @@ type GemBonus struct {
 	// Quality makes the stat add quality; otherwise it adds levels.
 	Quality bool
 	Reach   GemReach
-	Gems    GemFilter
+	// Socket, when set, limits a Socketed stat to gems in sockets of that colour.
+	Socket dataset.GemColour
+	Gems   GemFilter
 }
 
 // GemReach says which gems a GemBonus can reach.
@@ -69,43 +73,76 @@ func bonusesByStat(bonuses []GemBonus) gemBonuses {
 	return out
 }
 
-// itemGemStat is a stat of an equipped item that adds levels or quality to gems, with its
-// bonuses.
-type itemGemStat struct {
+// gemStat is a stat of the character that adds levels or quality to gems, with its bonuses:
+// one of an equipped item, in slot, or of a jewel or passive, in no slot.
+type gemStat struct {
 	slot    build.Slot
 	value   float64
 	bonuses []GemBonus
 }
 
-// itemGemStats returns the stats of items that add levels or quality to gems. Items in the
-// weapon-swap slots are not in use.
-func itemGemStats(items build.Items, bonuses gemBonuses) []itemGemStat {
-	var out []itemGemStat
-	for s, it := range items {
-		if s.Swap() {
+// gemStats returns the stats that add levels or quality to gems in build b, which c checked:
+// those of its equipped items outside the weapon swap, its jewels in allocated sockets, its
+// allocated passives and its chosen mastery effects.
+func gemStats(c *build.Checked, b *build.Build, stats []dataset.Stat, bonuses gemBonuses) []gemStat {
+	out := itemGemStats(b, bonuses)
+	for _, bd := range allocatedBundles(stats, c) {
+		if bd.Scope != Global {
 			continue
 		}
-		for _, m := range it.Mods {
-			for _, sv := range m.Stats {
-				if bs := bonuses[sv.Stat]; len(bs) > 0 {
-					out = append(out, itemGemStat{slot: s, value: float64(sv.Value), bonuses: bs})
-				}
-			}
+		for _, sv := range bd.Stats {
+			out = bonuses.add(out, "", sv.Stat, sv.Value)
 		}
 	}
 	return out
 }
 
-// itemBonus returns the levels and quality the equipped items add to gem, with tags, socketed
-// in slot.
-func (r *skillResolver) itemBonus(slot build.Slot, gem build.Gem, tags []string) (level, quality int) {
-	for _, st := range r.itemStats {
+// itemGemStats returns the stats of b's equipped items outside the weapon swap and its jewels in
+// allocated sockets that add levels or quality to gems.
+func itemGemStats(b *build.Build, bonuses gemBonuses) []gemStat {
+	var out []gemStat
+	addItem := func(slot build.Slot, it build.Item) {
+		for _, m := range it.Mods {
+			for _, sv := range m.Stats {
+				out = bonuses.add(out, slot, sv.Stat, float64(sv.Value))
+			}
+		}
+	}
+	for _, s := range slices.Sorted(maps.Keys(b.Items)) {
+		if !s.Swap() {
+			addItem(s, b.Items[s])
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(b.Jewels)) {
+		if slices.Contains(b.Nodes, id) {
+			addItem("", b.Jewels[id])
+		}
+	}
+	return out
+}
+
+// add appends stat with value, from slot, to out when it has bonuses.
+func (b gemBonuses) add(out []gemStat, slot build.Slot, stat string, value float64) []gemStat {
+	if bs := b[stat]; len(bs) > 0 {
+		out = append(out, gemStat{slot: slot, value: value, bonuses: bs})
+	}
+	return out
+}
+
+// characterBonus returns the levels and quality the character's stats and its socket's colour add
+// to gem src, with tags.
+func (r *skillResolver) characterBonus(src GemSource, gem build.Gem, tags []string) (level, quality int) {
+	slot, colour := r.groups[src.Group].Slot, r.sockets[src.Group][src.Gem]
+	socketed := func(b GemBonus) bool {
+		return b.Reach == Socketed && (b.Socket == 0 || b.Socket == colour)
+	}
+	for _, st := range r.gemStats {
 		l, q := gemBonus(st.bonuses, st.value, func(b GemBonus) bool {
-			return (b.Reach == Equipped || b.Reach == Socketed && st.slot == slot) && b.Gems.matches(gem.Support, tags)
+			return (b.Reach == Equipped || st.slot != "" && st.slot == slot && socketed(b)) && b.Gems.matches(gem.Support, tags)
 		})
 		level, quality = level+l, quality+q
 	}
-	return level, quality
+	return level, quality + r.socketQuality(src, gem)
 }
 
 // supportedBonus returns the levels and quality a support's stats add to the active skill gem

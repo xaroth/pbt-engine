@@ -117,10 +117,10 @@ type resolved struct {
 	err      error
 }
 
-// NewSkillResolver returns a resolver of c's skills. bonuses are the stats that add levels or
-// quality to gems. It fails when a dataset group fails to load.
-func NewSkillResolver(c *build.Checked, bonuses []GemBonus) (*SkillResolver, error) {
-	r, err := newSkillResolver(c, bonuses)
+// NewSkillResolver returns a resolver of c's skills under the game's gem rules. It fails when a
+// dataset group fails to load.
+func NewSkillResolver(c *build.Checked, rules GemRules) (*SkillResolver, error) {
+	r, err := newSkillResolver(c, rules)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	types := r.supportedTypes(src, g, ge, sk)
 
 	tags := r.tags(gem)
-	level, quality := r.itemBonus(g.Slot, gem, tags)
+	level, quality := r.characterBonus(src, gem, tags)
 	for _, sp := range sk.Supports {
 		l, q := r.bonuses.supportedBonus(sp.Stats, gem.Support, tags)
 		level, quality = level+l, quality+q
@@ -227,15 +227,19 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 
 // skillResolver holds what resolving one skill reads, and the warnings it gives.
 type skillResolver struct {
-	data      *dataset.SkillIndex
-	stats     []dataset.Stat
-	groups    []build.SkillGroup
-	bonuses   gemBonuses
-	itemStats []itemGemStat
-	warnings  []build.Warning
+	data     *dataset.SkillIndex
+	stats    []dataset.Stat
+	groups   []build.SkillGroup
+	bonuses  gemBonuses
+	gemStats []gemStat
+	// sockets are the colours of the gems' sockets, by group and gem.
+	sockets         [][]dataset.GemColour
+	alwaysMatching  map[build.Slot]bool
+	matchingQuality int
+	warnings        []build.Warning
 }
 
-func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, error) {
+func newSkillResolver(c *build.Checked, rules GemRules) (*skillResolver, error) {
 	data, err := c.Store().SkillIndex()
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load skills: %w", err)
@@ -244,10 +248,13 @@ func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, err
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
-	byStat := bonusesByStat(bonuses)
+	b := c.Build()
+	byStat := bonusesByStat(rules.Bonuses)
 	return &skillResolver{
-		data: data, stats: stats, groups: c.Build().Skills.Groups,
-		bonuses: byStat, itemStats: itemGemStats(c.Build().Items, byStat),
+		data: data, stats: stats, groups: b.Skills.Groups,
+		bonuses: byStat, gemStats: gemStats(c, &b, stats, byStat),
+		sockets: socketColours(b.Skills.Groups, b.Items), alwaysMatching: alwaysMatching(b.Items, rules.AlwaysMatchingStat),
+		matchingQuality: rules.MatchingSocketQuality,
 	}, nil
 }
 

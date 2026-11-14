@@ -22,7 +22,7 @@ func BenchmarkSkills(b *testing.B) {
 		b.Run(c.Name+"/main", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				r, err := resolve.NewSkillResolver(checked, poe1.GemBonuses())
+				r, err := resolve.NewSkillResolver(checked, poe1.GemRules())
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -34,7 +34,7 @@ func BenchmarkSkills(b *testing.B) {
 		b.Run(c.Name+"/all", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				r, err := resolve.NewSkillResolver(checked, poe1.GemBonuses())
+				r, err := resolve.NewSkillResolver(checked, poe1.GemRules())
 				if err != nil {
 					b.Fatal(err)
 				}

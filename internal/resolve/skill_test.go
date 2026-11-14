@@ -9,6 +9,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
@@ -23,6 +24,7 @@ const (
 	meleePhysicalGem = "Metadata/Items/Gems/SupportGemMeleePhysicalDamage"
 	addedFireGem     = "Metadata/Items/Gems/SupportGemAddedFireDamage"
 	spellEchoGem     = "Metadata/Items/Gems/SupportGemMulticast"
+	groundSlamGem    = "Metadata/Items/Gems/SkillGemGroundSlam"
 )
 
 func active(id string, quality int) build.Gem {
@@ -45,7 +47,7 @@ func mainSkill(t *testing.T, g build.SkillGroup, items build.Items, bonuses []re
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := resolve.NewSkillResolver(c, bonuses)
+	r, err := resolve.NewSkillResolver(c, resolve.GemRules{Bonuses: bonuses})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,6 +196,123 @@ func TestMainSkillGemLevels(t *testing.T) {
 	}
 }
 
+// skillsOf returns a resolver of the skills of a level 90 marauder with groups and items, and
+// what set changes, under the game's gem rules on the current real dataset.
+func skillsOf(t *testing.T, groups []build.SkillGroup, items build.Items, set func(*build.Build)) *resolve.SkillResolver {
+	t.Helper()
+	b := testBuild(90)
+	b.Version = realdata.Current
+	b.Skills = build.Skills{Groups: groups}
+	b.Items = items
+	if set != nil {
+		set(b)
+	}
+	c, _, err := build.Check(b, realdata.Open(t, realdata.Current))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := resolve.NewSkillResolver(c, poe1.GemRules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// TestSocketColour checks the quality a gem gains in a socket of its own colour: Fireball is
+// blue and Added Fire Damage red. The gems of a slot's groups fill its sockets in order.
+func TestSocketColour(t *testing.T) {
+	t.Parallel()
+	body := func(sockets string, stats ...build.StatValue) build.Items {
+		it := build.Item{Rarity: build.Rare, Base: "Metadata/Items/Armours/BodyArmours/BodyStr1", Sockets: sockets}
+		if len(stats) > 0 {
+			it.Mods = []build.ModLine{{Kind: build.Explicit, Stats: stats}}
+		}
+		return build.Items{build.SlotBodyArmour: it}
+	}
+	linked := []build.SkillGroup{{Slot: build.SlotBodyArmour, Gems: []build.Gem{active(fireballGem, 20), support(addedFireGem, 20)}}}
+	testCases := []struct {
+		name           string
+		groups         []build.SkillGroup
+		items          build.Items
+		group          int
+		level, quality int
+		// support is the quality of the skill's support.
+		support int
+	}{
+		{"own colours", linked, body("B-R"), 0, 20, 30, 10},
+		{"other colours", linked, body("R-B"), 0, 20, 20, 0},
+		{"no socket for the support", linked, body("B"), 0, 20, 30, 0},
+		{"in no slot", []build.SkillGroup{{Gems: linked[0].Gems}}, body("B-R"), 0, 20, 20, 0},
+		{
+			"after another group in the slot",
+			[]build.SkillGroup{
+				{Slot: build.SlotBodyArmour, Gems: []build.Gem{active(fireballGem, 0)}},
+				{Slot: build.SlotBodyArmour, Gems: []build.Gem{support(addedFireGem, 20), active(fireballGem, 20)}},
+			},
+			body("B-B-R"), 1, 20, 20, 0,
+		},
+		{"always the bonus", linked, body("R-B", build.StatValue{Stat: "local_can_socket_gems_ignoring_colour", Value: 1}), 0, 20, 30, 10},
+		{"level in red sockets", linked, body("R-R", build.StatValue{Stat: "local_socketed_gems_in_red_sockets_get_level_+", Value: 2}), 0, 22, 20, 10},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			sk, _, err := skillsOf(t, testCase.groups, testCase.items, nil).Group(testCase.group)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if sk.Level != testCase.level || sk.Quality != testCase.quality {
+				t.Errorf("Fireball level %d quality %d, want %d and %d", sk.Level, sk.Quality, testCase.level, testCase.quality)
+			}
+			if len(sk.Supports) != 1 || sk.Supports[0].Quality != testCase.support {
+				t.Errorf("supports %+v, want Added Fire Damage at quality %d", sk.Supports, testCase.support)
+			}
+		})
+	}
+}
+
+// TestGemLevelsByTags checks gem levels by the gems' tags: +1 to the level of spell skill gems
+// on an item raises a spell's level and not an attack's, and +1 to cold skill gems from a
+// mastery effect raises a cold spell's and not a fire spell's.
+func TestGemLevelsByTags(t *testing.T) {
+	t.Parallel()
+	amulet := build.Items{build.SlotAmulet: {
+		Rarity: build.Rare, Base: "Metadata/Items/Amulets/Amulet1",
+		Mods: []build.ModLine{{Kind: build.Explicit, Stats: []build.StatValue{{Stat: "spell_skill_gem_level_+", Value: 1}}}},
+	}}
+	// Node 7023's effect 38814 is +1 to Level of all Cold Skill Gems.
+	mastery := func(b *build.Build) { b.Nodes, b.Masteries = []uint32{7023}, map[uint32]uint32{7023: 38814} }
+	testCases := []struct {
+		name  string
+		items build.Items
+		set   func(*build.Build)
+		want  map[string]int
+	}{
+		{"spell gems on an item", amulet, nil, map[string]int{"Fireball": 21, "FreezingPulse": 21, "GroundSlam": 20}},
+		{"cold gems from a mastery", nil, mastery, map[string]int{"Fireball": 20, "FreezingPulse": 21, "GroundSlam": 20}},
+	}
+	groups := []build.SkillGroup{
+		{Gems: []build.Gem{active(fireballGem, 0)}}, {Gems: []build.Gem{active(freezingPulseGem, 0)}}, {Gems: []build.Gem{active(groundSlamGem, 0)}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			r := skillsOf(t, groups, testCase.items, testCase.set)
+			got := map[string]int{}
+			for i := range groups {
+				sk, _, err := r.Group(i)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got[sk.GrantedEffect] = sk.Level
+			}
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("levels (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestGroupNoActiveSkill(t *testing.T) {
 	t.Parallel()
 	b := testBuild(90)
@@ -205,7 +324,7 @@ func TestGroupNoActiveSkill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := resolve.NewSkillResolver(c, nil)
+	r, err := resolve.NewSkillResolver(c, resolve.GemRules{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +355,7 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := resolve.NewSkillResolver(c, nil)
+	r, err := resolve.NewSkillResolver(c, resolve.GemRules{})
 	if err != nil {
 		t.Fatal(err)
 	}

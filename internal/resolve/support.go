@@ -45,7 +45,7 @@ func (r *skillResolver) supportedTypes(src GemSource, g build.SkillGroup, ge *da
 			r.warnf(SupportNotApplied, sp.src, "%s does not support %s: %s; left out", sp.effect.ID, ge.ID, why)
 			continue
 		}
-		sk.Supports = append(sk.Supports, r.support(g.Slot, sp))
+		sk.Supports = append(sk.Supports, r.support(sp))
 	}
 	return types
 }
@@ -128,10 +128,10 @@ func (r *skillResolver) typesMatch(expr []uint16, has func(uint16) bool) bool {
 	return slices.Contains(stack, true)
 }
 
-// support returns the support sp socketed in slot as it applies: at its level and quality with
-// what items add, with the stats of its primary stat set.
-func (r *skillResolver) support(slot build.Slot, sp supportGem) Support {
-	level, quality := r.itemBonus(slot, sp.gem, r.tags(sp.gem))
+// support returns the support sp as it applies: at its level and quality with what items and
+// its socket add, with the stats of its primary stat set.
+func (r *skillResolver) support(sp supportGem) Support {
+	level, quality := r.characterBonus(sp.src, sp.gem, r.tags(sp.gem))
 	out := Support{Source: sp.src, GrantedEffect: sp.effect.ID, Level: sp.gem.Level + level, Quality: sp.gem.Quality + quality}
 	if len(sp.effect.Levels) > 0 {
 		out.Level = r.clampLevel(sp.src, sp.effect, out.Level)
