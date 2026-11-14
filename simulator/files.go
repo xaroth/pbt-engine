@@ -6,6 +6,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1/cluster"
 )
 
 // The functions below name the dataset files a call reads, as the manifest m lists them, so a
@@ -29,9 +30,10 @@ func ItemFiles(m dataset.Manifest) []string {
 }
 
 // SimulateFiles returns the files Simulate reads for each of builds: the tree of its variant,
-// the skills group when it has gems and the items group when it has items or jewels. Compare,
-// Sweep and Stats.Explain read no more than the simulations of the builds they take or make;
-// Stats.Text reads the text of its language.
+// the skills group when it has gems, the items group when it has items or jewels, and the
+// layout of its variant and the English text when it has a cluster jewel, whose lines say
+// which passives it adds. Compare, Sweep and Stats.Explain read no more than the simulations
+// of the builds they take or make; Stats.Text reads the text of its language.
 func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile}
 	for _, b := range builds {
@@ -41,6 +43,12 @@ func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 		}
 		if len(b.Items) > 0 || len(b.Jewels) > 0 {
 			files = append(files, dataset.ItemsFile)
+		}
+		for _, it := range b.Jewels {
+			if cluster.IsJewelBase(it.Base) {
+				files = append(files, dataset.LayoutFile(cmp.Or(b.Variant, build.DefaultVariant)), dataset.TextFile("en"))
+				break
+			}
 		}
 	}
 	return m.Needs(files...)

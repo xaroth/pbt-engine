@@ -144,7 +144,7 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		c.warnAboutf(about, ItemSlotMismatch, "a %s does not fit the slot; item left out", base.Class)
 		return false
 	}
-	c.checkMods(about, it)
+	c.checkMods(about, it, nil)
 	return true
 }
 
@@ -176,12 +176,12 @@ func (c *Checked) itemBase(about Warning, it *Item, data *dataset.Items) *datase
 	return &data.Bases[i]
 }
 
-// checkMods warns about the mod lines of it not read as stats and leaves out the stats the
-// dataset does not have.
-func (c *Checked) checkMods(about Warning, it *Item) {
+// checkMods warns about the mod lines of it not read as stats, other than readElsewhere, and
+// leaves out the stats the dataset does not have.
+func (c *Checked) checkMods(about Warning, it *Item, readElsewhere []string) {
 	for j := range it.Mods {
 		m := &it.Mods[j]
-		if len(m.Stats) == 0 {
+		if len(m.Stats) == 0 && !slices.Contains(readElsewhere, m.Text) {
 			c.warnAboutf(about, ItemLineUnread, "line %q not read as stats; left out", m.Text)
 			continue
 		}
