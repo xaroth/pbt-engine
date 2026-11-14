@@ -134,7 +134,48 @@ func (im *importer) gem(g pobxml.Gem, store *dataset.Store, data *dataset.SkillI
 	if effect != &dg.Effects[0] {
 		out.Effect = effect.ID
 	}
+	im.skillPart(g, &out, data)
 	return out, true
+}
+
+// skillPart sets gem's stat set and stages from PoB's skill part and stage count. PoB's parts
+// are its own list per skill; part n is taken as the skill's nth stat set, as for Lightning
+// Strike's melee hit and projectiles, when each active skill of the gem has that many sets. Its
+// first part is the primary set. A later part with no such set has no counterpart in the game
+// data and warns, and its stages go with it.
+func (im *importer) skillPart(g pobxml.Gem, gem *build.Gem, data *dataset.SkillIndex) {
+	if g.SkillPart > 1 {
+		for _, which := range build.ActiveSkills(data, *gem) {
+			if sets := len(skillSets(data, *gem, which)); g.SkillPart > sets {
+				im.warnf(SkillPartIgnored, g.Name, "PoB's skill part %d has no stat set of %s, which has %d; its primary set and no stages used",
+					g.SkillPart, skillEffect(data, *gem, which), sets)
+				return
+			}
+		}
+		gem.StatSet = g.SkillPart - 1
+	}
+	gem.Stages = max(g.StageCount, 0)
+}
+
+// skillEffect returns the granted effect id of skill which (0 the first, 1 the second) of gem.
+func skillEffect(data *dataset.SkillIndex, gem build.Gem, which int) string {
+	dg := data.Gem(gem.ID)
+	e := &dg.Effects[0]
+	if x := dg.Effect(gem.Effect); x != nil {
+		e = x
+	}
+	if which == 1 {
+		return e.SecondaryGrantedEffect
+	}
+	return e.GrantedEffect
+}
+
+// skillSets returns the stat set ids of skill which of gem.
+func skillSets(data *dataset.SkillIndex, gem build.Gem, which int) []string {
+	if ge := data.GrantedEffect(skillEffect(data, gem, which)); ge != nil {
+		return ge.StatSets
+	}
+	return nil
 }
 
 // activeSkill returns PoB's 1-based main active skill n among skills, the first when n is below

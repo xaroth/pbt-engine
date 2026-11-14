@@ -40,6 +40,7 @@ const (
 	SlotIgnored       build.Code = "pob-slot-ignored"
 	GemUnknown        build.Code = "pob-gem-unknown"
 	GemToggleIgnored  build.Code = "pob-gem-toggle-ignored"
+	SkillPartIgnored  build.Code = "pob-skill-part-ignored"
 	GemAmbiguous      build.Code = "pob-gem-ambiguous"
 	MainSkillIgnored  build.Code = "pob-main-skill-ignored"
 	PantheonIgnored   build.Code = "pob-pantheon-ignored"
