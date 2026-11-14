@@ -98,21 +98,21 @@ func (c *Checked) checkHands(data *dataset.Items) {
 	if !ok {
 		return
 	}
-	subject := "item " + string(SlotOffhand)
+	about := itemWarning(SlotOffhand)
 	offClass := baseClass(data, off.Base)
 	weapon, armed := c.build.Items[SlotWeapon]
 	weaponClass := baseClass(data, weapon.Base)
 	switch {
 	case armed && weaponClass == "Bow" && offClass == "Quiver":
 	case armed && slices.Contains(twoHandClasses(), weaponClass):
-		c.warnf(ItemOffhandBlocked, subject, "a %s beside a two-handed %s, which the game refuses; offhand left out", offClass, weaponClass)
+		c.warnAboutf(about, ItemOffhandBlocked, "a %s beside a two-handed %s, which the game refuses; offhand left out", offClass, weaponClass)
 		delete(c.build.Items, SlotOffhand)
 	case offClass != "Quiver":
 	case armed:
-		c.warnf(ItemQuiverNoBow, subject, "a Quiver beside a %s, which the game refuses; left out", weaponClass)
+		c.warnAboutf(about, ItemQuiverNoBow, "a Quiver beside a %s, which the game refuses; left out", weaponClass)
 		delete(c.build.Items, SlotOffhand)
 	default:
-		c.warnf(ItemQuiverNoBow, subject, "a Quiver with no bow equipped; kept")
+		c.warnAboutf(about, ItemQuiverNoBow, "a Quiver with no bow equipped; kept")
 	}
 }
 
@@ -126,28 +126,33 @@ func baseClass(data *dataset.Items, id string) string {
 
 // checkItem fixes it as the dataset says, or reports false to unequip it.
 func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
-	subject := "item " + string(s)
+	about := itemWarning(s)
 	if !slices.Contains(ItemSlots(), s) {
-		c.warnf(ItemSlotUnknown, subject, "no item slot %q; item left out", s)
+		c.warnAboutf(about, ItemSlotUnknown, "no item slot %q; item left out", s)
 		return false
 	}
-	base := c.itemBase(subject, it, data)
+	base := c.itemBase(about, it, data)
 	if base == nil {
 		return false
 	}
 	if !slices.Contains(slotClasses(s), base.Class) {
-		c.warnf(ItemSlotMismatch, subject, "a %s does not fit the slot; item left out", base.Class)
+		c.warnAboutf(about, ItemSlotMismatch, "a %s does not fit the slot; item left out", base.Class)
 		return false
 	}
-	c.checkMods(subject, it)
+	c.checkMods(about, it)
 	return true
 }
 
+// itemWarning is what a warning about the item in slot s is about.
+func itemWarning(s Slot) Warning {
+	return Warning{Subject: "item " + string(s), Slot: s}
+}
+
 // itemBase returns the base of it, or warns and returns nil when data has none.
-func (c *Checked) itemBase(subject string, it *Item, data *dataset.Items) *dataset.ItemBase {
+func (c *Checked) itemBase(about Warning, it *Item, data *dataset.Items) *dataset.ItemBase {
 	i := slices.IndexFunc(data.Bases, func(b dataset.ItemBase) bool { return b.ID == it.Base })
 	if i < 0 {
-		c.warnf(ItemBaseUnknown, subject, "base %s not in %s; item left out", it.Base, c.store.Manifest().Version)
+		c.warnAboutf(about, ItemBaseUnknown, "base %s not in %s; item left out", it.Base, c.store.Manifest().Version)
 		return nil
 	}
 	return &data.Bases[i]
@@ -155,11 +160,11 @@ func (c *Checked) itemBase(subject string, it *Item, data *dataset.Items) *datas
 
 // checkMods warns about the mod lines of it not read as stats and leaves out the stats the
 // dataset does not have.
-func (c *Checked) checkMods(subject string, it *Item) {
+func (c *Checked) checkMods(about Warning, it *Item) {
 	for j := range it.Mods {
 		m := &it.Mods[j]
 		if len(m.Stats) == 0 {
-			c.warnf(ItemLineUnread, subject, "line %q not read as stats; left out", m.Text)
+			c.warnAboutf(about, ItemLineUnread, "line %q not read as stats; left out", m.Text)
 			continue
 		}
 		m.Stats = slices.DeleteFunc(m.Stats, func(sv StatValue) bool {
@@ -167,7 +172,9 @@ func (c *Checked) checkMods(subject string, it *Item) {
 			if ok, _ := c.store.HasStat(sv.Stat); ok {
 				return false
 			}
-			c.warnf(ItemStatUnknown, subject, "stat %s of line %q not in %s; left out", sv.Stat, m.Text, c.store.Manifest().Version)
+			stat := about
+			stat.Stat = sv.Stat
+			c.warnAboutf(stat, ItemStatUnknown, "stat %s of line %q not in %s; left out", sv.Stat, m.Text, c.store.Manifest().Version)
 			return true
 		})
 	}

@@ -47,14 +47,14 @@ func (c *Checked) overrideProblem(node uint32, id string, allocated bool) (Warni
 	o, ok := c.tree.Override(id)
 	if !ok {
 		msg := fmt.Sprintf("override %q is not in the %s tree of %s; dropped", id, c.build.Variant, c.store.Manifest().Version)
-		return Warning{OverrideUnknown, subject, msg}, true
+		return Warning{Code: OverrideUnknown, Subject: subject, Message: msg}, true
 	}
 	n := c.node(node)
 	if n == nil || !allocated {
-		return Warning{OverrideNotAllocated, subject, fmt.Sprintf("override %s on a node that is not allocated; dropped", id)}, true
+		return Warning{Code: OverrideNotAllocated, Subject: subject, Message: fmt.Sprintf("override %s on a node that is not allocated; dropped", id)}, true
 	}
 	if why := c.cannotReplace(o, n); why != "" {
-		return Warning{OverrideNotPlaceable, subject, fmt.Sprintf("override %s %s; dropped", id, why)}, true
+		return Warning{Code: OverrideNotPlaceable, Subject: subject, Message: fmt.Sprintf("override %s %s; dropped", id, why)}, true
 	}
 	return Warning{}, false
 }

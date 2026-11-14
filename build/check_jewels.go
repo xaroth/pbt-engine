@@ -45,7 +45,7 @@ func (c *Checked) checkJewel(id uint32, it *Item, data *dataset.Items) bool {
 		return false
 	}
 	if data != nil {
-		base := c.itemBase(subject, it, data)
+		base := c.itemBase(Warning{Subject: subject}, it, data)
 		if base == nil {
 			return false
 		}
@@ -53,7 +53,7 @@ func (c *Checked) checkJewel(id uint32, it *Item, data *dataset.Items) bool {
 			c.warnf(JewelKindMismatch, subject, "a %s does not fit a jewel socket; left out", base.Class)
 			return false
 		}
-		c.checkMods(subject, it)
+		c.checkMods(Warning{Subject: subject}, it)
 	}
 	if c.allocated(id) == nil {
 		c.warnf(JewelNotAllocated, subject, "socket not allocated; kept, it counts once allocated")

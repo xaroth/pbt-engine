@@ -141,18 +141,36 @@ func TestCheckItems(t *testing.T) {
 		build.ModLine{Kind: build.Crafted, Text: "+1 to Gone", Stats: []build.StatValue{{Stat: "gone", Value: 1}}})
 	otherBase := helmet()
 	otherBase.Base = "Metadata/Items/Nothing"
+	leftOut := func(slot build.Slot, code build.Code, msg string) []build.Warning {
+		return []build.Warning{{Code: code, Subject: "item " + string(slot), Message: msg, Slot: slot}}
+	}
 	testCases := []struct {
-		name  string
-		items build.Items
-		codes []build.Code
-		want  build.Items
+		name     string
+		items    build.Items
+		warnings []build.Warning
+		want     build.Items
 	}{
-		{"no such slot", build.Items{"flask-1": helmet()}, []build.Code{build.ItemSlotUnknown}, build.Items{}},
-		{"unknown base", build.Items{build.SlotHelmet: otherBase}, []build.Code{build.ItemBaseUnknown}, build.Items{}},
-		{"helmet as a ring", build.Items{build.SlotRing2: helmet()}, []build.Code{build.ItemSlotMismatch}, build.Items{}},
+		{
+			"no such slot", build.Items{"flask-1": helmet()},
+			leftOut("flask-1", build.ItemSlotUnknown, `no item slot "flask-1"; item left out`), build.Items{},
+		},
+		{
+			"unknown base", build.Items{build.SlotHelmet: otherBase},
+			leftOut(build.SlotHelmet, build.ItemBaseUnknown, "base Metadata/Items/Nothing not in 3.29.3.3; item left out"), build.Items{},
+		},
+		{
+			"helmet as a ring", build.Items{build.SlotRing2: helmet()},
+			leftOut(build.SlotRing2, build.ItemSlotMismatch, "a Helmet does not fit the slot; item left out"), build.Items{},
+		},
 		{
 			"unread line and unknown stat", build.Items{build.SlotHelmet: unread},
-			[]build.Code{build.ItemLineUnread, build.ItemStatUnknown},
+			[]build.Warning{
+				{Code: build.ItemLineUnread, Subject: "item helmet", Message: `line "Grants a wish" not read as stats; left out`, Slot: build.SlotHelmet},
+				{
+					Code: build.ItemStatUnknown, Subject: "item helmet", Message: `stat gone of line "+1 to Gone" not in 3.29.3.3; left out`,
+					Slot: build.SlotHelmet, Stat: "gone",
+				},
+			},
 			build.Items{build.SlotHelmet: func() build.Item {
 				it := unread.Clone()
 				it.Mods[2].Stats = []build.StatValue{}
@@ -169,8 +187,8 @@ func TestCheckItems(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if diff := cmp.Diff(testCase.codes, codesOf(warnings)); diff != "" {
-				t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
+			if diff := cmp.Diff(testCase.warnings, warnings); diff != "" {
+				t.Errorf("warnings (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(testCase.want, c.Build().Items); diff != "" {
 				t.Errorf("items (-want +got):\n%s", diff)

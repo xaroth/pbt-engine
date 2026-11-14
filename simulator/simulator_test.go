@@ -467,6 +467,7 @@ func TestUncheckedWarning(t *testing.T) {
 		Code: simulator.UncheckedCondition, Subject: "maximum_life_+%_if_no_life_tags_on_body_armour from node 12",
 		Message: "applied without checking: no Life Modifiers on Equipped Body Armour: builds hold no items yet, " +
 			"and an empty body armour slot meets the condition, verified in game",
+		Stat: "maximum_life_+%_if_no_life_tags_on_body_armour",
 	}}
 	var got []build.Warning
 	for _, w := range st.Warnings() {

@@ -437,16 +437,20 @@ func configWarning(p config.Problem) Warning {
 func noteWarnings(notes []poe1.Note) []Warning {
 	out := make([]Warning, 0, len(notes))
 	for _, n := range notes {
-		subject := n.Stat + " from " + n.Source.String()
+		w := Warning{Subject: n.Stat + " from " + n.Source.String(), Stat: n.Stat}
+		if item, ok := n.Source.(resolve.ItemSource); ok {
+			w.Slot = item.Slot
+		}
 		if n.Kind == poe1.Unchecked {
-			out = append(out, Warning{Code: UncheckedCondition, Subject: subject, Message: "applied without checking: " + n.Text})
+			w.Code, w.Message = UncheckedCondition, "applied without checking: "+n.Text
+			out = append(out, w)
 			continue
 		}
-		msg := n.Kind.String() + ", left out"
+		w.Code, w.Message = UnmodelledStat, n.Kind.String()+", left out"
 		if n.Text != "" {
-			msg = n.Kind.String() + ": " + n.Text + ", left out"
+			w.Message = n.Kind.String() + ": " + n.Text + ", left out"
 		}
-		out = append(out, Warning{Code: UnmodelledStat, Subject: subject, Message: msg})
+		out = append(out, w)
 	}
 	return out
 }
