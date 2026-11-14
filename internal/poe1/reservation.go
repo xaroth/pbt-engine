@@ -257,9 +257,9 @@ func reserves(types []string) bool {
 	return slices.Contains(types, typeHasReservation) && !slices.Contains(types, typeReservationBecomesCost)
 }
 
-// costMultiplier is the product of the supports' cost and reservation multipliers, rounded
-// down to four decimal places with PoB's allowance for float error (Common.lua floor), as PoB
-// does (CalcOffence.lua, CalcPerform.lua).
+// costMultiplier is the product of the supports' cost and reservation multipliers as roundMore
+// rounds it, then rounded down to four decimal places again with PoB's allowance for float
+// error (Common.lua floor), as PoB does (CalcOffence.lua, CalcPerform.lua).
 func costMultiplier(supports []resolve.Support) float64 {
 	m := 1.0
 	for _, sp := range supports {
@@ -269,7 +269,7 @@ func costMultiplier(supports []resolve.Support) float64 {
 		}
 	}
 	scale := math.Pow10(multiplierPlaces)
-	return math.Floor(m*scale+floorAllowance) / scale
+	return math.Floor(roundMore(moreSupportMultiplier, m)*scale+floorAllowance) / scale
 }
 
 // floorAllowance is what PoB adds before rounding down to some decimal places.

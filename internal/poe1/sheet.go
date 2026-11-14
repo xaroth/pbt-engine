@@ -251,6 +251,7 @@ func modelFor(counters []string) *sheetModel {
 		md.stats[name] = b.MustAddStat(statDef(name, md.stats))
 	}
 	addTransferStats(&b, md.stats)
+	b.SetMoreRule(pobMore)
 	md.ctx = addContexts(&b)
 	if md.ctx.damage.First != damageDimension().First {
 		panic("poe1: damage dimension bits differ from the hit formulas'")
@@ -372,7 +373,11 @@ func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 // requires the slot's context, and slot is negative outside a skill.
 func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int) error {
 	for _, m := range e.Mods {
-		mod := core.Modifier{Stat: sh.stats[m.Stat], Op: m.Op, Value: m.Factor.Apply(value), Source: src}
+		group, err := moreGroup(&m, slot >= 0)
+		if err != nil {
+			return fmt.Errorf("sheet: %s: %w", e.Stat, err)
+		}
+		mod := core.Modifier{Stat: sh.stats[m.Stat], Op: m.Op, Value: m.Factor.Apply(value), Source: src, Group: group}
 		if !m.Context.IsZero() || slot >= 0 {
 			p, err := predicate(sh.session.Model(), m.Context, sh.ctx, slot)
 			if err != nil {
