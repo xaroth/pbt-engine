@@ -229,15 +229,8 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if err := mainSkill(r); err != nil {
 		return nil, err
 	}
-	sim = sim.Clone()
-	for k := range co.cleared {
-		sim.Clear(k)
-	}
 	var problems []config.Problem
-	r.cfg, problems = config.Resolve(poe1.ConfigSpecs(),
-		config.Layer{Source: config.FromCall, Values: co.set},
-		config.Layer{Source: config.FromSim, Values: sim},
-		config.Layer{Source: config.FromBuild, Values: cb.Config})
+	r.cfg, problems = resolveConfig(co, sim, cb.Config)
 	for _, p := range problems {
 		r.warnings = append(r.warnings, configWarning(p))
 	}
@@ -251,6 +244,19 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 		return nil, err
 	}
 	return r, nil
+}
+
+// resolveConfig resolves config per key from the call's options, the sim config snapshot sim,
+// then the build's config b.
+func resolveConfig(co callOptions, sim, b config.Values) (config.Resolved, []config.Problem) {
+	sim = sim.Clone()
+	for k := range co.cleared {
+		sim.Clear(k)
+	}
+	return config.Resolve(poe1.ConfigSpecs(),
+		config.Layer{Source: config.FromCall, Values: co.set},
+		config.Layer{Source: config.FromSim, Values: sim},
+		config.Layer{Source: config.FromBuild, Values: b})
 }
 
 // enemyOf resolves the enemy of r's config when the sheet gives the main skill's hit, the
