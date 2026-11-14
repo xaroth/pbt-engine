@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/xaroth/pbt-engine/dataset"
 )
@@ -20,6 +21,7 @@ const (
 	ItemStatUnknown    Code = "item-stat-unknown"
 	ItemOffhandBlocked Code = "item-offhand-blocked"
 	ItemQuiverNoBow    Code = "item-quiver-no-bow"
+	AbyssJewelNoSocket Code = "abyss-jewel-no-socket"
 )
 
 // oneHandClasses are the ItemClass.IDs of weapons that can be held in either hand.
@@ -60,8 +62,9 @@ func slotClasses(s Slot) []string {
 	return nil
 }
 
-// checkItems checks the items and jewels against the dataset's items group. Without one, it
-// warns once and keeps them as they are, apart from jewels that are in no socket.
+// checkItems checks the items, their abyss jewels and the jewels against the dataset's items
+// group. Without one, it warns once and keeps them as they are, apart from jewels that are in
+// no socket.
 func (c *Checked) checkItems() error {
 	if len(c.build.Items) == 0 && len(c.build.Jewels) == 0 {
 		return nil
@@ -145,6 +148,44 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		return false
 	}
 	c.checkMods(about, it, nil)
+	c.checkAbyssJewels(s, it, data)
+	return true
+}
+
+// checkAbyssJewels leaves out, each with a warning, the abyss jewels of it, in slot s, at an
+// index past its abyssal sockets, of an unknown base or of a class other than abyss jewel.
+func (c *Checked) checkAbyssJewels(s Slot, it *Item, data *dataset.Items) {
+	sockets := strings.Count(it.Sockets, "A")
+	for _, i := range slices.Sorted(maps.Keys(it.AbyssJewels)) {
+		j := it.AbyssJewels[i]
+		about := Warning{Subject: fmt.Sprintf("abyss jewel %s %d", s, i), Slot: s}
+		if !c.checkAbyssJewel(about, i, sockets, &j, data) {
+			delete(it.AbyssJewels, i)
+			continue
+		}
+		it.AbyssJewels[i] = j
+	}
+	if len(it.AbyssJewels) == 0 {
+		it.AbyssJewels = nil
+	}
+}
+
+// checkAbyssJewel fixes the abyss jewel j at index i of an item with that many abyssal sockets
+// as the dataset says, or reports false to leave it out.
+func (c *Checked) checkAbyssJewel(about Warning, i, sockets int, j *Item, data *dataset.Items) bool {
+	if i < 1 || i > sockets {
+		c.warnAboutf(about, AbyssJewelNoSocket, "the item has %d abyssal sockets, no socket %d; jewel left out", sockets, i)
+		return false
+	}
+	base := c.itemBase(about, j, data)
+	if base == nil {
+		return false
+	}
+	if base.Class != abyssJewelClass {
+		c.warnAboutf(about, JewelKindMismatch, "a %s does not fit an abyssal socket; left out", base.Class)
+		return false
+	}
+	c.checkMods(about, j, nil)
 	return true
 }
 

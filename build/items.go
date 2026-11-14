@@ -88,6 +88,9 @@ type Item struct {
 	Flags []string `json:"flags,omitzero"`
 	// Mods are the mod lines in the text's order.
 	Mods []ModLine `json:"mods,omitzero"`
+	// AbyssJewels are the jewels in the item's abyssal sockets by index, 1 for the first A in
+	// Sockets.
+	AbyssJewels map[int]Item `json:"abyssJewels,omitempty"`
 }
 
 // ModLine is one mod line of an item, or the lines of one description that spans several.
@@ -115,6 +118,7 @@ func (it *Item) Clone() *Item {
 	for i := range c.Mods {
 		c.Mods[i].Stats = slices.Clone(c.Mods[i].Stats)
 	}
+	c.AbyssJewels = cloneItems(it.AbyssJewels)
 	return &c
 }
 
@@ -139,8 +143,8 @@ const (
 	OpUnequip EditOp = "unequip"
 )
 
-// Equip puts it in slot s, replacing what is there. Whether it fits the slot is not checked
-// here; Check warns.
+// Equip puts it in slot s with its abyss jewels, replacing what is there. Whether it fits the
+// slot is not checked here; Check warns.
 func Equip(s Slot, it Item) Edit { return Edit{Op: OpEquip, Slot: s, Item: it.Clone()} }
 
 // Unequip empties slot s.

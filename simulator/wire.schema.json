@@ -334,7 +334,13 @@
         "energyShield": { "type": "integer" },
         "ward": { "type": "integer" },
         "flags": { "type": "array", "items": { "type": "string" } },
-        "mods": { "type": "array", "items": { "$ref": "#/$defs/ModLine" } }
+        "mods": { "type": "array", "items": { "$ref": "#/$defs/ModLine" } },
+        "abyssJewels": {
+          "type": "object",
+          "description": "The jewels in the item's abyssal sockets by index, \"1\" for the first.",
+          "propertyNames": { "pattern": "^[1-9][0-9]*$" },
+          "additionalProperties": { "$ref": "#/$defs/Item" }
+        }
       }
     },
     "ModLine": {

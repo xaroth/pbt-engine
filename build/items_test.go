@@ -62,11 +62,19 @@ func helmet() build.Item {
 	}
 }
 
+// abyssHelmet is helmet with an abyssal socket holding a jewel.
+func abyssHelmet() build.Item {
+	it := helmet()
+	it.Sockets = "R-R-R-A"
+	it.AbyssJewels = map[int]build.Item{1: jewel(abyssBase)}
+	return it
+}
+
 func TestItemRoundTrip(t *testing.T) {
 	t.Parallel()
 	b := juggernaut()
 	b.Nodes = []uint32{1, 3, 10}
-	if err := b.Apply(build.Equip(build.SlotHelmet, helmet())); err != nil {
+	if err := b.Apply(build.Equip(build.SlotHelmet, abyssHelmet())); err != nil {
 		t.Fatal(err)
 	}
 	data, err := b.Encode()
@@ -95,19 +103,22 @@ func TestItemRoundTrip(t *testing.T) {
 	}
 }
 
-// Equip copies the item, Clone copies the items, and Unequip empties the slot.
+// Equip copies the item, Clone copies the items, abyss jewels included, and Unequip empties
+// the slot.
 func TestEquipCopies(t *testing.T) {
 	t.Parallel()
-	it := helmet()
+	it := abyssHelmet()
 	e := build.Equip(build.SlotHelmet, it)
 	it.Mods[0].Stats[0].Value = 1
+	it.AbyssJewels[1].Mods[0].Stats[0].Value = 1
 	b := juggernaut()
 	if err := b.Apply(e); err != nil {
 		t.Fatal(err)
 	}
 	c := b.Clone()
 	c.Items[build.SlotHelmet].Mods[0].Stats[0].Value = 2
-	if diff := cmp.Diff(helmet(), b.Items[build.SlotHelmet]); diff != "" {
+	c.Items[build.SlotHelmet].AbyssJewels[1].Mods[0].Stats[0].Value = 2
+	if diff := cmp.Diff(abyssHelmet(), b.Items[build.SlotHelmet]); diff != "" {
 		t.Errorf("item changed (-want +got):\n%s", diff)
 	}
 	if err := b.Apply(build.Unequip(build.SlotHelmet)); err != nil || len(b.Items) != 0 {

@@ -105,3 +105,42 @@ func TestFromXMLKingInTheMistsSlots(t *testing.T) {
 		t.Error("amulet kept")
 	}
 }
+
+// FromXML puts the jewel in PoB's first abyssal socket of the belt into the belt, for a 3.29
+// build from pbt-conformance, and Check keeps it.
+func TestFromXMLAbyssJewel(t *testing.T) {
+	t.Parallel()
+	reg := &dataset.Registry{}
+	if _, err := reg.Add(realdata.Record(t, realdata.Current)); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join("testdata", "winter-orb-abyss-jewel.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, warnings, err := pob.FromXML(data, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range warnings {
+		if w.Subject == "Grim Lens" {
+			t.Errorf("warning %v", w)
+		}
+	}
+	belt := b.Items[build.SlotBelt]
+	if got := belt.AbyssJewels[1].Name; len(belt.AbyssJewels) != 1 || got != "Grim Lens" {
+		t.Errorf("belt's abyss jewels %v, want Grim Lens in 1", belt.AbyssJewels)
+	}
+	c, checked, err := build.Check(b, reg.Stores("poe1")[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range checked {
+		if w.Slot == build.SlotBelt {
+			t.Errorf("check: %v", w)
+		}
+	}
+	if got := c.Build().Items[build.SlotBelt].AbyssJewels[1].Name; got != "Grim Lens" {
+		t.Errorf("checked belt's abyss jewel %q, want Grim Lens", got)
+	}
+}
