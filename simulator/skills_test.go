@@ -144,7 +144,8 @@ func TestReservation(t *testing.T) {
 // Fireball 20 alone on a level 90 Marauder without passives: its level row's 1883 to 2825 fire
 // damage, against the default enemy's 50% fire resistance, with the class's 5% critical strike
 // chance and 150% multiplier, cast every 0.75 seconds. An enemy without fire resistance takes it whole. The skill is
-// simulated, so it does not warn; an attack is not, so it gives no hit.
+// simulated, so it does not warn; an attack is not, so it gives no hit. Spell Totem 20 deals 50%
+// less damage: 942 to 1413 before the enemy's resistance, rounded as damage is.
 func TestSpellHitOutputs(t *testing.T) {
 	t.Parallel()
 	s := realSim(t)
@@ -165,6 +166,19 @@ func TestSpellHitOutputs(t *testing.T) {
 	}
 	if got := get(t, simulate(t, s, b, simulator.Set(poe1.EnemyFireResistance, 0)), poe1.FireMinimum); got != 1883 {
 		t.Errorf("fire minimum against 0%% fire resistance: got %v, want 1883", got)
+	}
+	totem := marauderBuild(90)
+	totem.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{
+		{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20},
+		{ID: "Metadata/Items/Gems/SupportGemSpellTotem", Level: 20, Support: true},
+	}})
+	ts := simulate(t, s, totem)
+	for k, want := range map[output.Key]float64{
+		poe1.FireMinimum: 471, poe1.FireMaximum: 706.5, poe1.AverageHit: (471 + 706.5) / 2 * (0.95 + 0.05*1.5),
+	} {
+		if got := get(t, ts, k); math.Abs(got-want) > 1e-9 {
+			t.Errorf("with Spell Totem: %s: got %v, want %v", k, got, want)
+		}
 	}
 	attack := marauderBuild(90)
 	attack.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemCleave", Level: 20}}})
