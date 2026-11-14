@@ -204,7 +204,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	tags := r.tags(gem)
 	level, quality := r.itemBonus(g.Slot, gem, tags)
 	for _, sp := range sk.Supports {
-		l, q := supportedBonus(r.bonuses, sp.Stats, gem.Support, tags)
+		l, q := r.bonuses.supportedBonus(sp.Stats, gem.Support, tags)
 		level, quality = level+l, quality+q
 	}
 	sk.Quality = gem.Quality + quality
@@ -227,12 +227,12 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 
 // skillResolver holds what resolving one skill reads, and the warnings it gives.
 type skillResolver struct {
-	data     *dataset.SkillIndex
-	stats    []dataset.Stat
-	items    build.Items
-	groups   []build.SkillGroup
-	bonuses  []GemBonus
-	warnings []build.Warning
+	data      *dataset.SkillIndex
+	stats     []dataset.Stat
+	groups    []build.SkillGroup
+	bonuses   gemBonuses
+	itemStats []itemGemStat
+	warnings  []build.Warning
 }
 
 func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, error) {
@@ -244,7 +244,11 @@ func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, err
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
-	return &skillResolver{data: data, stats: stats, items: c.Build().Items, groups: c.Build().Skills.Groups, bonuses: bonuses}, nil
+	byStat := bonusesByStat(bonuses)
+	return &skillResolver{
+		data: data, stats: stats, groups: c.Build().Skills.Groups,
+		bonuses: byStat, itemStats: itemGemStats(c.Build().Items, byStat),
+	}, nil
 }
 
 func (r *skillResolver) warnf(code build.Code, subject GemSource, format string, args ...any) {
