@@ -141,18 +141,6 @@ func attackMask() core.Mask {
 // (CalcOffence.lua); the game text gives none of them.
 func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
-	case statMinimumHitDamage, statMaximumHitDamage:
-		h := hitDamage{
-			base: mustID(ids, statBaseMinimumDamage), added: mustID(ids, statAddedMinimumDamage),
-			multiplier: mustID(ids, statBaseDamageMultiplier), effectiveness: mustID(ids, statDamageEffectiveness),
-			damage: mustID(ids, statDamage), extreme: mustID(ids, statMinimumDamage),
-		}
-		if def.Name == statMaximumHitDamage {
-			h.base, h.added = mustID(ids, statBaseMaximumDamage), mustID(ids, statAddedMaximumDamage)
-			h.extreme = mustID(ids, statMaximumDamage)
-		}
-		def.HasMin = true
-		def.FormulaName, def.Formula, def.Attribute = formulaHitDamage, h.formula(), h.attribute()
 	case statEffectiveMinimumHitDamage, statEffectiveMaximumHitDamage:
 		h := effectiveHit{
 			hit: mustID(ids, statMinimumHitDamage), minimum: mustID(ids, statMinimumHitDamage), maximum: mustID(ids, statMaximumHitDamage),
@@ -182,35 +170,30 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	return def
 }
 
-// hitDamage is a hit's smallest or largest damage of one type before the enemy.
+// hitDamage is a hit's own smallest or largest damage of one type, before the enemy and
+// without conversion: base damage times its multiplier plus added damage times its
+// effectiveness, scaled by the damage modifier and the smallest or largest damage's.
 type hitDamage struct {
 	base, added, multiplier, effectiveness, damage core.StatID
 	// extreme is the modifier of the smallest or the largest damage alone.
 	extreme core.StatID
 }
 
-func (h hitDamage) formula() core.Formula {
-	return func(r core.Reader, _ core.Agg) float64 {
-		v := r.Stat(h.base)*r.Stat(h.multiplier)/percentScale + r.Stat(h.added)*r.Stat(h.effectiveness)/percentScale
-		return roundHalf(v * r.Stat(h.damage) / percentScale * r.Stat(h.extreme) / percentScale)
+func newHitDamage(ids map[string]core.StatID, isMaximum bool) hitDamage {
+	h := hitDamage{
+		base: mustID(ids, statBaseMinimumDamage), added: mustID(ids, statAddedMinimumDamage),
+		multiplier: mustID(ids, statBaseDamageMultiplier), effectiveness: mustID(ids, statDamageEffectiveness),
+		damage: mustID(ids, statDamage), extreme: mustID(ids, statMinimumDamage),
 	}
+	if isMaximum {
+		h.base, h.added, h.extreme = mustID(ids, statBaseMaximumDamage), mustID(ids, statAddedMaximumDamage), mustID(ids, statMaximumDamage)
+	}
+	return h
 }
 
-// attribute credits the base and added damage, then the damage modifier's and the smallest or
-// largest damage's increases and more multipliers over them; what the base damage multiplier, damage effectiveness and rounding
-// change goes to the damage effectiveness's sources.
-func (h hitDamage) attribute() core.Attribute {
-	return func(a *core.Attributor) core.Attribution {
-		var parts []core.Part
-		for _, s := range []core.StatID{h.base, h.added} {
-			if v := a.Stat(s); v != 0 {
-				parts = append(parts, a.Spread(core.SelfRef(s), v, core.OpBase)...)
-			}
-		}
-		parts = a.LayersOver(core.SelfRef(h.extreme), a.LayersOver(core.SelfRef(h.damage), parts))
-		total := a.Explanation().Total
-		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.effectiveness)), Amount: total}
-	}
+// unscaled returns the damage before the damage modifiers, with read reading a stat.
+func (h hitDamage) unscaled(read func(core.StatID) float64) float64 {
+	return read(h.base)*read(h.multiplier)/percentScale + read(h.added)*read(h.effectiveness)/percentScale
 }
 
 // enemyDef completes def when it is a stat of the resistance a hit or damage over time meets.
