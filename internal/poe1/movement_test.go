@@ -3,6 +3,8 @@ package poe1_test
 import (
 	"testing"
 
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
@@ -29,6 +31,33 @@ func TestMovementSpeed(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			sh := open(t, resolved(marauder(1, testCase.stats...)...))
+			if got := value(t, sh, "movement_speed"); got != testCase.want {
+				t.Errorf("movement_speed: got %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+// A plate body armour's -5% penalty is 5% reduced movement speed, lifted by "Ignore all
+// Movement Penalties from Armour".
+func TestArmourMovementPenalty(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name  string
+		stats []resolve.StatValue
+		want  float64
+	}{
+		{name: "penalty", want: 95},
+		{name: "ignored", stats: []resolve.StatValue{{Stat: "ignore_armour_movement_penalties", Value: 1}}, want: 100},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			sh := open(t, resolved(marauder(1, testCase.stats...)...))
+			plate := poe1.Item{Slot: build.SlotBodyArmour, Name: "Plate", Key: "plate", MovementPenalty: -5}
+			if err := sh.SetItems([]poe1.Item{plate}); err != nil {
+				t.Fatal(err)
+			}
 			if got := value(t, sh, "movement_speed"); got != testCase.want {
 				t.Errorf("movement_speed: got %v, want %v", got, testCase.want)
 			}
