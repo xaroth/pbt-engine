@@ -200,7 +200,7 @@ func (r *skillResolver) support(sp supportGem) Support {
 		out.CostMultiplier, out.Reservation = row.CostMultiplier, rowReservation(row)
 	}
 	if len(sp.effect.StatSets) > 0 {
-		out.Stats = r.statSet(r.data.StatSet(sp.effect.StatSets[0]), out.Level, out.Quality, sp.effect.QualityStats).Stats
+		out.Stats = r.statSet(r.data.StatSet(sp.effect.StatSets[0]), out.Level).withQuality(r.stats, out.Quality, sp.effect.QualityStats).Stats
 	}
 	return out
 }

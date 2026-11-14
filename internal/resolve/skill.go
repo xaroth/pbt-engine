@@ -20,6 +20,8 @@ const (
 	// GemLevelBeyondData is a gem whose level with bonuses has no row in the dataset; its
 	// highest row is used.
 	GemLevelBeyondData build.Code = "gem-level-beyond-data"
+	// StatSetUnknown is a gem's stat set choice its skill does not have; the primary set is used.
+	StatSetUnknown build.Code = "stat-set-unknown"
 )
 
 // GemSource is a gem in a skill group, by index in build.Skills.Groups and in the group's gems.
@@ -56,6 +58,10 @@ type Skill struct {
 	Reservation Reservation
 	// StatSets are the skill's stat sets at its level, the primary set first.
 	StatSets []SkillStatSet
+	// StatSet is the index in StatSets of the set the gem chooses; Set gives its stats.
+	StatSet int
+	// Stages is how many stages the gem says the skill has.
+	Stages int
 	// Supports are those that apply to the skill: the item's supports for gems socketed in it,
 	// the group's support gems in group order, then those of the slots linked to the group's.
 	Supports []Support
@@ -77,6 +83,28 @@ func rowReservation(row dataset.EffectLevel) Reservation {
 // IsZero reports whether r reserves nothing.
 func (r Reservation) IsZero() bool { return r == Reservation{} }
 
+// Set returns the stat set the skill uses: its primary set, with the chosen additional set's
+// stats on top and its level values where they are not 0. In the game data an additional set's
+// level values are 0, as for Lightning Strike's projectile set, which adds only
+// base_is_projectile, so the primary set's carry over. Zero when the skill has no stat sets.
+func (s *Skill) Set() SkillStatSet {
+	if len(s.StatSets) == 0 {
+		return SkillStatSet{}
+	}
+	out := s.StatSets[0]
+	if s.StatSet == 0 {
+		return out
+	}
+	add := s.StatSets[s.StatSet]
+	out.ID = add.ID
+	out.SpellCritChance = cmp.Or(add.SpellCritChance, out.SpellCritChance)
+	out.AttackCritChance = cmp.Or(add.AttackCritChance, out.AttackCritChance)
+	out.DamageEffectiveness = cmp.Or(add.DamageEffectiveness, out.DamageEffectiveness)
+	out.BaseMultiplier = cmp.Or(add.BaseMultiplier, out.BaseMultiplier)
+	out.Stats = slices.Concat(out.Stats, add.Stats)
+	return out
+}
+
 // SkillStatSet is one stat set of a skill at the skill's level.
 type SkillStatSet struct {
 	ID string
@@ -84,8 +112,8 @@ type SkillStatSet struct {
 	SpellCritChance, AttackCritChance int32
 	// DamageEffectiveness and BaseMultiplier are in ten-thousandths, added to 1.
 	DamageEffectiveness, BaseMultiplier int32
-	// Stats are the set's implicit and constant stats, its level row's stats and the stats of
-	// the gem's quality. Quality stats are in every set, so a skill uses one set, not their sum.
+	// Stats are the set's implicit and constant stats, its level row's stats and, for the
+	// primary set, the stats of the gem's quality.
 	Stats []StatValue
 }
 
@@ -220,8 +248,17 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 			sk.Reservation = sp.Reservation
 		}
 	}
-	for _, id := range ge.StatSets {
-		sk.StatSets = append(sk.StatSets, r.statSet(r.data.StatSet(id), sk.Level, sk.Quality, ge.QualityStats))
+	for i, id := range ge.StatSets {
+		set := r.statSet(r.data.StatSet(id), sk.Level)
+		if i == 0 {
+			set = set.withQuality(r.stats, sk.Quality, ge.QualityStats)
+		}
+		sk.StatSets = append(sk.StatSets, set)
+	}
+	sk.StatSet, sk.Stages = gem.StatSet, gem.Stages
+	if gem.StatSet > 0 && gem.StatSet >= len(sk.StatSets) {
+		r.warnf(StatSetUnknown, src, "stat set %d; %s has %d; the primary set used", gem.StatSet+1, ge.ID, len(sk.StatSets))
+		sk.StatSet = 0
 	}
 	sk.Types = r.typeNames(types)
 	return sk, nil
@@ -333,8 +370,8 @@ func rowAt[T any](levels []T, level int, levelOf func(T) int32) int {
 func effectLevel(l dataset.EffectLevel) int32   { return l.Level }
 func statSetLevel(l dataset.StatSetLevel) int32 { return l.Level }
 
-// statSet returns set at level, with the stats quality gives per qualityStats.
-func (r *skillResolver) statSet(set *dataset.StatSet, level, quality int, qualityStats []dataset.StatValue) SkillStatSet {
+// statSet returns set at level.
+func (r *skillResolver) statSet(set *dataset.StatSet, level int) SkillStatSet {
 	out := SkillStatSet{ID: set.ID}
 	for _, h := range set.ImplicitStats {
 		out.Stats = append(out.Stats, StatValue{Stat: r.stats[h].ID, Value: 1})
@@ -354,7 +391,7 @@ func (r *skillResolver) statSet(set *dataset.StatSet, level, quality int, qualit
 			out.Stats = append(out.Stats, StatValue{Stat: r.stats[h].ID, Value: 1})
 		}
 	}
-	return out.withQuality(r.stats, quality, qualityStats)
+	return out
 }
 
 // qualityScale is the scale of quality stats: thousandths per 1% quality.

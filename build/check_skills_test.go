@@ -101,6 +101,10 @@ func TestCheckSkills(t *testing.T) {
 			[]build.Code{build.GemQualityOutOfRange}, func(sk *build.Skills) { sk.Groups[0].Gems[1].Quality = 0 },
 		},
 		{
+			"negative stat set and stages", func(sk *build.Skills) { sk.Groups[0].Gems[0].StatSet = -1; sk.Groups[0].Gems[0].Stages = -2 },
+			[]build.Code{build.GemChoiceOutOfRange, build.GemChoiceOutOfRange}, func(*build.Skills) {},
+		},
+		{
 			"support flag corrected", func(sk *build.Skills) { sk.Groups[0].Gems[0].Support = true; sk.Groups[0].Gems[2].Support = false },
 			[]build.Code{build.GemRoleMismatch, build.GemRoleMismatch}, func(*build.Skills) {},
 		},

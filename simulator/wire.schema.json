@@ -314,7 +314,12 @@
         "level": { "type": "integer" },
         "quality": { "type": "integer" },
         "support": { "type": "boolean" },
-        "disabled": { "type": "boolean" }
+        "disabled": { "type": "boolean" },
+        "statSet": {
+          "description": "Which stat set of the gem's skill is used: 0 its primary set, 1 its second, on top of the primary.",
+          "type": "integer", "minimum": 0
+        },
+        "stages": { "description": "How many stages the skill has built up.", "type": "integer", "minimum": 0 }
       }
     },
     "Item": {

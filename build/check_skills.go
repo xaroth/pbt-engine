@@ -20,6 +20,7 @@ const (
 	GemRoleMismatch      Code = "gem-role-mismatch"
 	GemLevelOutOfRange   Code = "gem-level-out-of-range"
 	GemQualityOutOfRange Code = "gem-quality-out-of-range"
+	GemChoiceOutOfRange  Code = "gem-choice-out-of-range"
 	ActiveGemInvalid     Code = "active-gem-invalid"
 	MainSkillOutOfRange  Code = "main-skill-out-of-range"
 )
@@ -152,7 +153,8 @@ func (c *Checked) gemEffect(subject string, gem *Gem, dg *dataset.Gem) *dataset.
 	return e
 }
 
-// clampGem clamps the gem's level to 1 to top, unless top is 0, and its quality.
+// clampGem clamps the gem's level to 1 to top, unless top is 0, its quality, and its stat set
+// and stages to at least 0.
 func (c *Checked) clampGem(subject string, gem *Gem, top int) {
 	if l := gem.Level; top > 0 && (l < 1 || l > top) {
 		gem.Level = min(max(l, 1), top)
@@ -161,6 +163,14 @@ func (c *Checked) clampGem(subject string, gem *Gem, top int) {
 	if q := gem.Quality; q < 0 || q > MaxGemQuality {
 		gem.Quality = min(max(q, 0), MaxGemQuality)
 		c.warnf(GemQualityOutOfRange, subject, "quality %d is outside 0 to %d; %d used", q, MaxGemQuality, gem.Quality)
+	}
+	if gem.StatSet < 0 {
+		c.warnf(GemChoiceOutOfRange, subject, "stat set %d is below 0; the primary set used", gem.StatSet)
+		gem.StatSet = 0
+	}
+	if gem.Stages < 0 {
+		c.warnf(GemChoiceOutOfRange, subject, "%d stages is below 0; none used", gem.Stages)
+		gem.Stages = 0
 	}
 }
 

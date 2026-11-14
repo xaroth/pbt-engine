@@ -1,6 +1,7 @@
 package poe1_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/internal/poe1"
@@ -87,5 +88,55 @@ func TestSkillStatsStayOnTheSkill(t *testing.T) {
 	setSkills(t, sh, a)
 	if got := skillValue(t, sh, 0); got != 150 {
 		t.Errorf("skill set back: got %v, want 150", got)
+	}
+}
+
+// twoSetSpell is a made-up spell that hits for 100 fire damage with its primary stat set, and
+// whose second set adds 50% increased fire damage and 10% critical strike chance.
+func twoSetSpell(set int) *resolve.Skill {
+	sk := skill(0, "Spell", "Damage", "Fire")
+	sk.CastTime = 1000
+	sk.StatSets = []resolve.SkillStatSet{
+		{ID: "primary", Stats: []resolve.StatValue{
+			{Stat: "spell_minimum_base_fire_damage", Value: 100}, {Stat: "spell_maximum_base_fire_damage", Value: 100},
+		}},
+		{ID: "second", SpellCritChance: 1000, Stats: []resolve.StatValue{{Stat: "fire_damage_+%", Value: 50}}},
+	}
+	sk.StatSet = set
+	return sk
+}
+
+// The gem's stat set choice picks the set the hit uses; the second set's stats come on top of
+// the primary set's. Against the default enemy's 50% fire resistance.
+func TestStatSetChoice(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		set        int
+		fire, crit float64
+	}{{0, 50, 0}, {1, 75, 10}} {
+		sh := open(t, resolved())
+		setSkills(t, sh, twoSetSpell(c.set))
+		if got := outputOf(t, sh, poe1.FireMinimum); got != c.fire {
+			t.Errorf("set %d: fire minimum %v, want %v", c.set, got, c.fire)
+		}
+		if got := outputOf(t, sh, poe1.CriticalStrikeChance); got != c.crit {
+			t.Errorf("set %d: critical strike chance %v, want %v", c.set, got, c.crit)
+		}
+	}
+}
+
+// A stat per stage scales with the stages the gem says: Bladefall of Volleys' 10% more damage
+// per stage is 30% more at 3 stages, and nothing without stages.
+func TestStagesScaleStatsPerStage(t *testing.T) {
+	t.Parallel()
+	for stages, want := range map[int]float64{0: 100, 3: 130} {
+		sh := open(t, resolved())
+		sk := skill(0, "Spell", "Damage", "Fire")
+		sk.StatSets = []resolve.SkillStatSet{{Stats: []resolve.StatValue{{Stat: "bladefall_damage_per_stage_+%_final", Value: 10}}}}
+		sk.Stages = stages
+		setSkills(t, sh, sk)
+		if got := skillValue(t, sh, 0, poe1.Fire); math.Abs(got-want) > 1e-9 {
+			t.Errorf("%d stages: damage %v, want %v", stages, got, want)
+		}
 	}
 }
