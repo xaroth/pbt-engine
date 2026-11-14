@@ -17,8 +17,10 @@ import (
 )
 
 // The pinned poe1 datasets: Previous is the league before Current. InGame is the version the
-// cases confirmed in the game client were recorded on.
+// cases confirmed in the game client were recorded on. Oldest is the first league published,
+// read by the tests that compare leagues.
 const (
+	Oldest   = "3.27.0.10"
 	Previous = "3.28.0.16"
 	Current  = "3.29.3.6"
 	InGame   = "3.30.0.1"
@@ -28,6 +30,7 @@ const (
 //
 //nolint:gochecknoglobals // a constant table
 var ids = map[string]string{
+	Oldest:   "2c1c44c303e8cde646b56beca81d11b9e7fd5fb6bb76815eee3a6869ae7f54af",
 	Previous: "5f14cda3263e1d93da9969242fe91c41b0fbb5145ca4864b405947ddc1b13427",
 	Current:  "a7ac693b1a4da19aecd8110379fa8c8f2b7bfdac1c48387573bb4d249ced86db",
 	InGame:   "fe5fd41f270eadc01b1a059798eec7887e22754428b122821559a63613e5be4e",
@@ -38,6 +41,7 @@ var ids = map[string]string{
 //
 //nolint:gochecknoglobals // a constant table
 var artIDs = map[string]string{
+	Oldest:   "394ed0df3b0a11428892550574dd4884ba73c8e5ee77dc7033287fdaa77b63af",
 	Previous: "34692fb8eb2093c41ec79dc904017be3725ca89234c0f5d74692a9e8c8c6d689",
 	Current:  "1bfa96b1c78bd161b9b624e62540150cef061afc2433ff589c7fe8c5faef7ee6",
 	InGame:   "fc11aebc338c297d9157fd811d44f437f3e9340a766959a2ffd006a4f29e3299",
@@ -78,9 +82,9 @@ func Versions() []string {
 	return []string{Previous, Current}
 }
 
-// Pinned are all pinned versions, oldest first.
+// Pinned are all pinned versions, one per league, oldest first.
 func Pinned() []string {
-	return []string{Previous, Current, InGame}
+	return []string{Oldest, Previous, Current, InGame}
 }
 
 // Root is $PBT_DATASETS, and skips tb without it.
