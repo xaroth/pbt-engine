@@ -219,7 +219,8 @@ func skillsOf(t *testing.T, groups []build.SkillGroup, items build.Items, set fu
 }
 
 // TestSocketColour checks the quality a gem gains in a socket of its own colour: Fireball is
-// blue and Added Fire Damage red. The gems of a slot's groups fill its sockets in order.
+// blue, Added Fire Damage red and Eclipse white, which matches no socket. The gems of a slot's
+// groups fill its sockets in order.
 func TestSocketColour(t *testing.T) {
 	t.Parallel()
 	body := func(sockets string, stats ...build.StatValue) build.Items {
@@ -251,6 +252,12 @@ func TestSocketColour(t *testing.T) {
 			},
 			body("B-B-R"), 1, 20, 20, 0,
 		},
+		{
+			// Eclipse at level 3 also adds a level and 12% quality to the gem it supports.
+			"white",
+			[]build.SkillGroup{{Slot: build.SlotBodyArmour, Gems: []build.Gem{active(fireballGem, 20), support("Metadata/Items/Gems/SupportGemEclipse", 3)}}},
+			body("B-W"), 0, 21, 42, 0,
+		},
 		{"always the bonus", linked, body("R-B", build.StatValue{Stat: "local_can_socket_gems_ignoring_colour", Value: 1}), 0, 20, 30, 10},
 		{"level in red sockets", linked, body("R-R", build.StatValue{Stat: "local_socketed_gems_in_red_sockets_get_level_+", Value: 2}), 0, 22, 20, 10},
 	}
@@ -265,7 +272,7 @@ func TestSocketColour(t *testing.T) {
 				t.Errorf("Fireball level %d quality %d, want %d and %d", sk.Level, sk.Quality, testCase.level, testCase.quality)
 			}
 			if len(sk.Supports) != 1 || sk.Supports[0].Quality != testCase.support {
-				t.Errorf("supports %+v, want Added Fire Damage at quality %d", sk.Supports, testCase.support)
+				t.Errorf("supports %+v, want one at quality %d", sk.Supports, testCase.support)
 			}
 		})
 	}

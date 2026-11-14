@@ -78,7 +78,8 @@ func alwaysMatching(items build.Items, stat string) map[build.Slot]bool {
 	return out
 }
 
-// socketQuality returns the quality gem src gains from its socket's colour.
+// socketQuality returns the quality gem src gains from its socket's colour. White is no colour a
+// socket and a gem can match by, as in Path of Building.
 func (r *skillResolver) socketQuality(src GemSource, gem build.Gem) int {
 	colour := r.sockets[src.Group][src.Gem]
 	if colour == 0 {
@@ -88,7 +89,7 @@ func (r *skillResolver) socketQuality(src GemSource, gem build.Gem) int {
 	if dg == nil {
 		return 0
 	}
-	if dg.Colour == colour || r.alwaysMatching[r.groups[src.Group].Slot] {
+	if dg.Colour == colour && colour != dataset.White || r.alwaysMatching[r.groups[src.Group].Slot] {
 		return r.matchingQuality
 	}
 	return 0
