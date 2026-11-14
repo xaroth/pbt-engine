@@ -1,6 +1,8 @@
 package poe1
 
 import (
+	"slices"
+
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
@@ -16,6 +18,28 @@ const dotDPSCap = 35791394
 // type.
 func dotSkill(sk *resolve.Skill) bool {
 	return hasTypes(sk, typeDamageOverTime)
+}
+
+// areaDotSkill reports whether sk's damage over time is area damage, which modifiers to Area
+// Damage reach: a ground or aura effect such as Righteous Fire's burn, not a debuff an area
+// skill applies.
+func areaDotSkill(sk *resolve.Skill) bool {
+	return slices.Contains(areaDotSkills(), sk.GrantedEffect)
+}
+
+// areaDotSkills are the granted effects whose damage over time is area damage. The game data
+// does not mark them; these are edition values. Source: Path of Building f9f4f3b and b32759a,
+// the same in both, Data/Skills (skill("dotIsArea", true)), without FrostBladesAltX, which
+// sets it for one skill part only.
+func areaDotSkills() []string {
+	return []string{
+		"AzmeriZombieCausticGroundWhenHit", "CausticArrow", "ColdSnap", "CreepingFrost", "CreepingFrostAltX", "DeathAura",
+		"Desecrate", "FireTrap", "FlameDash", "FlameDashAltY", "FlameWall", "GuardianSentinelFireAura", "InfernalLegion",
+		"ReplicaSiegebreakerBurningGround", "RighteousFire", "RighteousFireAltX", "SandstormChaosElementalSummoned",
+		"SandstormChaosElementalSummonedEmpowered", "SiegebreakerCausticGround", "ToxicRain", "ToxicRainAltY",
+		"VaalCausticArrow", "VaalColdSnap", "VaalFirestorm", "VaalReap", "VaalRighteousFire", "VolatileAnomaly",
+		"Vortex", "VortexAltX",
+	}
 }
 
 // dotOutputs are the main skill's damage over time outputs.

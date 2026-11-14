@@ -21,6 +21,8 @@ var (
 type skillSlot struct {
 	source resolve.GemSource
 	types  []string
+	// areaDot is set for a skill whose damage over time is area damage (areaDotSkill).
+	areaDot bool
 }
 
 // skillKey is a skill's sources by slot and content.
@@ -49,7 +51,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	}
 	sh.skills = sh.skills[:0]
 	for i, sk := range skills {
-		sh.skills = append(sh.skills, skillSlot{source: sk.Source, types: slices.Clone(sk.Types)})
+		sh.skills = append(sh.skills, skillSlot{source: sk.Source, types: slices.Clone(sk.Types), areaDot: areaDotSkill(sk)})
 		k := skillKey{i, fmt.Sprint(*sk)}
 		if _, ok := sh.skillSources[k]; ok {
 			continue
@@ -148,14 +150,13 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageF
 }
 
 // dotTypes returns the types skill i's damage over time is read with, made with weapon: its
-// own, without Attack and Area, without Spell unless its spell damage modifiers apply to its
-// damage over time, and without Projectile unless its projectile damage modifiers do. The game
-// data marks no skill's damage over time as area damage, so modifiers to Area Damage reach
-// none; PoB keeps Area for a list of its own (CalcOffence.lua dotCfg, dotIsArea).
+// own, without Attack, without Area unless its damage over time is area damage, and without
+// Spell or Projectile unless its spell or projectile damage modifiers apply to its damage over
+// time.
 func (sh *Sheet) dotTypes(i int, weapon weaponKinds) ([]string, error) {
 	types := sh.skills[i].types
 	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, weapon, nil, formNone))
-	keep := map[string]bool{}
+	keep := map[string]bool{typeArea: sh.skills[i].areaDot}
 	for t, flag := range map[string]string{
 		typeSpell:      statSpellDamageModifiersApplyToSkillDot,
 		typeProjectile: statProjectileDamageModifiersApplyToSkillDot,
@@ -168,9 +169,9 @@ func (sh *Sheet) dotTypes(i int, weapon weaponKinds) ([]string, error) {
 	}
 	return slices.DeleteFunc(slices.Clone(types), func(t string) bool {
 		switch t {
-		case typeAttack, typeArea:
+		case typeAttack:
 			return true
-		case typeSpell, typeProjectile:
+		case typeArea, typeSpell, typeProjectile:
 			return !keep[t]
 		}
 		return false

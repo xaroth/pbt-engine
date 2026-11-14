@@ -70,30 +70,32 @@ func TestDamageOverTime(t *testing.T) {
 }
 
 // Modifiers to Attack, Projectile and Area Damage do not reach a skill's damage over time;
-// Projectile Damage does when the skill says so. A chaos skill dealing 100 per second takes
-// 30% off at the default enemy's chaos resistance.
+// Projectile Damage does when the skill says so, and Area Damage for a skill whose damage over
+// time is an area effect. A chaos skill dealing 100 per second takes 30% off at the default
+// enemy's chaos resistance.
 func TestDotSkillTypes(t *testing.T) {
 	t.Parallel()
 	stat := func(name string, value float64) resolve.StatValue { return resolve.StatValue{Stat: name, Value: value} }
 	for _, c := range []struct {
-		name string
-		typ  string
-		node resolve.StatValue
-		own  []resolve.StatValue
-		want float64
+		name, typ, grantedEffect string
+		node                     resolve.StatValue
+		own                      []resolve.StatValue
+		want                     float64
 	}{
-		{"attack", "Attack", stat("attack_damage_+%", 100), nil, 70},
-		{"projectile", "Projectile", stat("projectile_damage_+%", 100), nil, 70},
+		{name: "attack", typ: "Attack", node: stat("attack_damage_+%", 100), want: 70},
+		{name: "projectile", typ: "Projectile", node: stat("projectile_damage_+%", 100), want: 70},
 		{
-			"projectile applying to damage over time", "Projectile", stat("projectile_damage_+%", 100),
-			[]resolve.StatValue{stat("projectile_damage_modifiers_apply_to_skill_dot", 1)}, 140,
+			name: "projectile applying to damage over time", typ: "Projectile", node: stat("projectile_damage_+%", 100),
+			own: []resolve.StatValue{stat("projectile_damage_modifiers_apply_to_skill_dot", 1)}, want: 140,
 		},
-		{"area", "Area", stat("area_damage_+%", 100), nil, 70},
+		{name: "area debuff", typ: "Area", grantedEffect: "Contagion", node: stat("area_damage_+%", 100), want: 70},
+		{name: "area effect", typ: "Area", grantedEffect: "DeathAura", node: stat("area_damage_+%", 100), want: 140},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, c.node)))
 			sk := skill(0, c.typ, "Chaos", "DamageOverTime")
+			sk.GrantedEffect = c.grantedEffect
 			sk.StatSets = []resolve.SkillStatSet{{Stats: append([]resolve.StatValue{
 				stat("base_chaos_damage_to_deal_per_minute", 6000),
 			}, c.own...)}}
