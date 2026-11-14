@@ -33,7 +33,7 @@ func TestFilesReal(t *testing.T) {
 		t.Fatalf("no test builds: %v", err)
 	}
 	var mu sync.Mutex
-	imported, itemsRead := map[string]bool{}, map[string]bool{}
+	imported, importDeclared, itemsRead := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	t.Run("builds", func(t *testing.T) {
 		for _, path := range paths {
 			t.Run(filepath.Base(path), func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestFilesReal(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				b, opened := importRecorded(t, m, data)
+				b, declared, opened := importRecorded(t, m, data)
 				tree := b.Clone()
 				tree.Skills = build.Skills{}
 				simulateRecorded(t, m, tree)
@@ -55,13 +55,16 @@ func TestFilesReal(t *testing.T) {
 				for _, f := range opened {
 					imported[f] = true
 				}
+				for _, f := range declared {
+					importDeclared[f] = true
+				}
 				for _, f := range read {
 					itemsRead[f] = true
 				}
 			})
 		}
 	})
-	checkAll(t, "import", simulator.ImportFiles(m), imported)
+	checkAll(t, "import", slices.Collect(maps.Keys(importDeclared)), imported)
 	checkAll(t, "reading items", simulator.ItemFiles(m), itemsRead)
 }
 
@@ -89,19 +92,24 @@ func recorded(t *testing.T) (*realdata.Recorder, *dataset.Registry, *simulator.S
 	return rec, reg, sim
 }
 
-// importRecorded imports data and returns the build and the files the import opened.
-func importRecorded(t *testing.T, m dataset.Manifest, data []byte) (*build.Build, []string) {
+// importRecorded imports data and returns the build, the files ImportFiles names for it and
+// the files the import opened.
+func importRecorded(t *testing.T, m dataset.Manifest, data []byte) (b *build.Build, declared, opened []string) {
 	t.Helper()
 	rec, reg, _ := recorded(t)
 	b, _, err := pob.FromXML(data, reg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened := rec.Opened()
-	if extra := missing(opened, simulator.ImportFiles(m)); len(extra) > 0 {
+	_, variant, err := pob.FileVersion(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared, opened = simulator.ImportFiles(m, variant), rec.Opened()
+	if extra := missing(opened, declared); len(extra) > 0 {
 		t.Errorf("import opened %v, which ImportFiles lacks", extra)
 	}
-	return b, opened
+	return b, declared, opened
 }
 
 // simulateRecorded simulates b and explains every output in every view.

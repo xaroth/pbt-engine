@@ -63,8 +63,8 @@ const (
 // treeVersion matches PoB's tree versions: 3_29, 3_29_ruthless, 3_29_alternate.
 var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 
-// FromXML reads a PoB build file. The active tree spec gives the version, variant, nodes,
-// mastery choices and node overrides; the class, ascendancy and override names map to ids through the English text of the
+// FromXML reads a PoB build file. The active tree spec gives the version, variant, bloodline
+// (PoB's secondary ascendancy), nodes, mastery choices and node overrides; the class, ascendancy and override names map to ids through the English text of the
 // dataset reg resolves for that version, or of the newest poe1 dataset when it has none
 // (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
 // the campaign stage from PoB's resistance penalty, and the enemy's kind, level, resistances,
@@ -75,7 +75,7 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // set's items in the equipment slots, weapon swap included, read through the dataset's items
 // group; the reader's warnings on the lines it reads are not repeated, as build.Check gives
 // them. Everything else in the file gives a warning: other specs, cluster jewel nodes
-// (dropped), jewels, overrides whose name names no override or several, config inputs, pantheon, a secondary ascendancy, items in
+// (dropped), jewels, overrides whose name names no override or several, config inputs, pantheon, a secondary ascendancy the tree does not list, items in
 // other slots, not equipped or not read, and of the skills: groups an item or
 // the tree grants (and the main skill when it is one of them), gems the dataset lacks, gems of
 // a name or skill id the dataset cannot choose between (imported as the first), slots without
@@ -99,6 +99,9 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	if b.Class, b.Ascendancy, err = names(store, variant, f.Build.Class, f.Build.Ascendancy); err != nil {
 		return nil, nil, err
 	}
+	if b.Bloodline, err = im.bloodline(store, variant); err != nil {
+		return nil, nil, err
+	}
 	b.Nodes = im.nodes()
 	b.Masteries = im.masteries()
 	text, err := store.Text("en")
@@ -119,16 +122,15 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 	return b, im.warnings, nil
 }
 
-// FileVersion returns the game version of a PoB build file's active tree, such as "3.29", for
-// a host to fetch that dataset before FromXML. Its errors are FromXML's for a file that is not
-// a PoE1 build or has an unknown tree version.
-func FileVersion(data []byte) (string, error) {
+// FileVersion returns the game version and tree variant of a PoB build file's active tree, such
+// as "3.29" and "ruthless", for a host to fetch that dataset's files before FromXML. Its errors
+// are FromXML's for a file that is not a PoE1 build or has an unknown tree version.
+func FileVersion(data []byte) (version, variant string, err error) {
 	f, err := parse(data)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	version, _, err := versionOf(f.Specs[f.Active].TreeVersion)
-	return version, err
+	return versionOf(f.Specs[f.Active].TreeVersion)
 }
 
 func parse(data []byte) (*pobxml.File, error) {
@@ -183,6 +185,25 @@ func storeFor(reg *dataset.Registry, version string) (*dataset.Store, bool, erro
 		return nil, false, fmt.Errorf("%w for %s %s", ErrNoDataset, game, version)
 	}
 	return stores[len(stores)-1], true, nil
+}
+
+// bloodline maps PoB's secondary ascendancy, the 1-based index of an alternate ascendancy in
+// the tree export, to its id; the dataset keeps the export's order. An index the tree does not
+// list gives a warning.
+func (im *importer) bloodline(s *dataset.Store, variant string) (string, error) {
+	i := im.spec.SecondaryAscendClassID
+	if i == 0 {
+		return "", nil
+	}
+	t, err := s.Tree(variant)
+	if err != nil {
+		return "", fmt.Errorf("pob: %w", err)
+	}
+	if i < 0 || i > len(t.AlternateAscendancies) {
+		im.warnf(AscendancyIgnored, strconv.Itoa(i), "no secondary ascendancy %d in the %s tree of dataset %s; not imported", i, variant, s.Manifest().Version)
+		return "", nil
+	}
+	return t.AlternateAscendancies[i-1].ID, nil
 }
 
 // names maps PoB's class and ascendancy names to ids through the dataset's English text.
@@ -313,9 +334,6 @@ func (im *importer) treeLeftOut() {
 		if i != f.Active {
 			im.warnf(SpecIgnored, specName(s, i), "only the active tree is imported")
 		}
-	}
-	if id := im.spec.SecondaryAscendClassID; id != 0 {
-		im.warnf(AscendancyIgnored, strconv.Itoa(id), "secondary ascendancy not imported")
 	}
 	for _, god := range []string{f.Build.PantheonMajor, f.Build.PantheonMinor} {
 		if god != "" && god != none {
