@@ -259,19 +259,21 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 }
 
 // enemyOf resolves the enemy of r's config when the sheet gives the main skill's hit, the
-// default enemy otherwise. An enemy kind with a normal monster's armour and evasion reads them
-// from the dataset's monsters group, and fails without it.
+// default enemy otherwise. Only an enemy kind with a normal monster's armour and evasion reads
+// them from the dataset's monsters group, and fails without it.
 func enemyOf(store *dataset.Store, r *run) (poe1.EnemyStats, error) {
 	if r.skill == nil || !poe1.SpellHit(r.skill) {
 		return poe1.DefaultEnemy(), nil
 	}
 	var levels []dataset.MonsterLevel
-	m, err := store.Monsters()
-	switch {
-	case err == nil:
-		levels = m.Levels
-	case !errors.Is(err, dataset.ErrNotInDataset):
-		return poe1.EnemyStats{}, fmt.Errorf("simulator: %w", err)
+	if poe1.EnemyReadsMonsters(r.cfg) {
+		m, err := store.Monsters()
+		switch {
+		case err == nil:
+			levels = m.Levels
+		case !errors.Is(err, dataset.ErrNotInDataset):
+			return poe1.EnemyStats{}, fmt.Errorf("simulator: %w", err)
+		}
 	}
 	e, err := poe1.EnemyOf(r.cfg, r.checked.Build().Level, levels)
 	if err != nil {
