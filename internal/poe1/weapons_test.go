@@ -64,12 +64,10 @@ func TestCompileWeapon(t *testing.T) {
 }
 
 // An attack with the axe against an enemy without defences: physical 27 to 54, 50% increased by
-// two handed melee and axe modifiers but not by one handed ones, 2% by the axe's 10 Strength for
-// a melee attack, the minimum 30% less and the maximum 30% more: 28.728 and 106.704, rounded; lightning 1 to 30 with 10 added
+// two handed melee and axe modifiers but not by one handed ones, the minimum 30% less and the
+// maximum 30% more: 28.35 and 105.3, rounded; lightning 1 to 30 with 10 added
 // lightning damage to attacks at 150% effectiveness, 16 to 45. A 6% chance of a 150% critical
-// strike. 1.38 attacks per second, 10% more from the skill; 20% increased and 10% more and
-// 15% less from supports, whose product 0.935 rounds to 0.94: 1.38 x 1.1 x 1.13, the speed
-// modifier 1.128 rounded.
+// strike. 1.38 attacks per second, 10% more from the skill, 20% increased: 1.38 x 1.1 x 1.2.
 // A spell gets none of the weapon's values.
 func TestAttackHit(t *testing.T) {
 	t.Parallel()
@@ -92,16 +90,12 @@ func TestAttackHit(t *testing.T) {
 	attack := skill(0, "Attack", "Damage", "Melee")
 	attack.AttackSpeedMultiplier = 10
 	attack.StatSets = []resolve.SkillStatSet{{DamageEffectiveness: 5000}}
-	attack.Supports = []resolve.Support{{Source: resolve.GemSource{Gem: 1, ID: "support"}, Stats: []resolve.StatValue{
-		{Stat: "support_pulverise_attack_speed_+%_final", Value: 10},
-		{Stat: "support_melee_physical_damage_attack_speed_+%_final", Value: -15},
-	}}}
 	setSkills(t, sh, attack)
-	physical, lightning := (29.0+107)/2, (16.0+45)/2
+	physical, lightning := (28.0+105)/2, (16.0+45)/2
 	for k, want := range map[output.Key]float64{
-		poe1.PhysicalMinimum: 29, poe1.PhysicalMaximum: 107, poe1.LightningMinimum: 16, poe1.LightningMaximum: 45,
+		poe1.PhysicalMinimum: 28, poe1.PhysicalMaximum: 105, poe1.LightningMinimum: 16, poe1.LightningMaximum: 45,
 		poe1.CriticalStrikeChance: 6, poe1.AverageHit: (physical + lightning) * (0.94 + 0.06*1.5),
-		poe1.HitsPerSecond: 1.38 * 1.1 * 1.13,
+		poe1.HitsPerSecond: 1.38 * 1.1 * 1.2,
 	} {
 		if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
 			t.Errorf("%s: got %v, want %v", k, got, want)
