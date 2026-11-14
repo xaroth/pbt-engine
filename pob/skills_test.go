@@ -1,6 +1,7 @@
 package pob_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,8 @@ type gemSpec struct {
 	others  []string
 	// grants names the active skill a support grants as its second skill, such as Signal Prey.
 	grants string
+	// sets is the number of stat sets of each effect.
+	sets int
 }
 
 // skillsRegistry is registry with a skills group of gems, each with one granted effect and
@@ -43,6 +46,11 @@ func skillsRegistry(t *testing.T, gems ...gemSpec) *dataset.Registry {
 			}
 			e := dataset.GemEffect{ID: id, GrantedEffect: id, Style: dataset.DefaultStyle}
 			ge := dataset.GrantedEffect{ID: id, Support: g.support}
+			for i := range g.sets {
+				set := dataset.StatSet{ID: fmt.Sprintf("%s%d", id, i+1)}
+				ge.StatSets = append(ge.StatSets, set.ID)
+				d.Skills.StatSets = append(d.Skills.StatSets, set)
+			}
 			if g.vaal {
 				e.SecondaryGrantedEffect = id
 			}
@@ -179,6 +187,43 @@ func TestFromXMLSkillCases(t *testing.T) {
 		{Code: pob.GemUnknown, Subject: "Blink Arrow", Message: "gem not in dataset 3.29.3.5; dropped"},
 		{Code: pob.SkillIgnored, Subject: "Envy", Message: "granted by Item:3:Doom Crown; skills an item or the tree grants are not imported"},
 	}
+	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
+		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+}
+
+// skillParts sets PoB's skill part and stages on a skill with two stat sets, the second part of
+// one with a single set, and no part.
+const skillParts = `<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain" mainSocketGroup="1"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
+	<Skills>
+		<Skill><Gem nameSpec="Fireball" level="20" skillPart="2" skillStageCount="4"/></Skill>
+		<Skill><Gem nameSpec="Frostblink" level="20" skillPart="2" skillStageCount="4"/></Skill>
+		<Skill><Gem nameSpec="Punishment" level="20" skillStageCount="3"/></Skill>
+	</Skills>
+</PathOfBuilding>`
+
+// PoB's part n is the skill's nth stat set where the skill has one, else it warns and neither
+// the part nor its stages are imported.
+func TestFromXMLSkillPart(t *testing.T) {
+	t.Parallel()
+	reg := skillsRegistry(t, gemSpec{name: "Fireball", sets: 2}, gemSpec{name: "Frostblink", sets: 1}, gemSpec{name: "Punishment", sets: 1})
+	b, warnings, err := pob.FromXML([]byte(skillParts), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fireball, punishment := gem("Fireball", 20, 0), gem("Punishment", 20, 0)
+	fireball.StatSet, fireball.Stages = 1, 4
+	punishment.Stages = 3
+	want := []build.SkillGroup{{Gems: []build.Gem{fireball}}, {Gems: []build.Gem{gem("Frostblink", 20, 0)}}, {Gems: []build.Gem{punishment}}}
+	if diff := cmp.Diff(want, b.Skills.Groups); diff != "" {
+		t.Errorf("groups (-want +got):\n%s", diff)
+	}
+	wantWarnings := []build.Warning{{
+		Code: pob.SkillPartIgnored, Subject: "Frostblink",
+		Message: "PoB's skill part 2 has no stat set of Frostblink, which has 1; its primary set and no stages used",
+	}}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
 	}

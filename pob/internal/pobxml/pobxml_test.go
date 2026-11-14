@@ -60,7 +60,7 @@ Crimson Jewel
 		<SkillSet id="1">
 			<Skill label="RF" enabled="true" slot="Body Armour" mainActiveSkill="1">
 				<Gem nameSpec="Righteous Fire" skillId="RighteousFire" gemId="Metadata/Items/Gems/SkillGemRighteousFire" variantId="RighteousFire"
-					level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="false" count="1"/>
+					level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="false" count="1" skillPart="2" skillStageCount="5"/>
 				<Gem nameSpec="Burning Damage" level="20" quality="0" enabled="false"/>
 			</Skill>
 			<Skill label="" enabled="false" source="Item:3:Corruption Spark"><Gem nameSpec="Flame Dash"/></Skill>
@@ -107,7 +107,7 @@ func TestParse(t *testing.T) {
 			{Label: "RF", Slot: "Body Armour", Enabled: true, MainActiveSkill: 1, Gems: []pobxml.Gem{
 				{
 					Name: "Righteous Fire", GemID: "Metadata/Items/Gems/SkillGemRighteousFire", SkillID: "RighteousFire", VariantID: "RighteousFire",
-					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true,
+					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true, SkillPart: 2, StageCount: 5,
 				},
 				{Name: "Burning Damage", Level: 20, EnableGlobal1: true, EnableGlobal2: true},
 			}},

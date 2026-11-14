@@ -141,11 +141,13 @@ type SkillGroup struct {
 
 // Gem is a gem in a group. GemID is the gem's metadata path, SkillID its granted effect,
 // VariantID its gem effect; older files have only the name. EnableGlobal1 and EnableGlobal2
-// toggle a Vaal gem's two skills.
+// toggle a Vaal gem's two skills. SkillPart is PoB's 1-based part of the skill it shows and
+// StageCount its stages; 0 when unset.
 type Gem struct {
 	Name, GemID, SkillID, VariantID       string
 	Level, Quality                        int
 	Enabled, EnableGlobal1, EnableGlobal2 bool
+	SkillPart, StageCount                 int
 }
 
 type xmlFile struct {
@@ -240,6 +242,8 @@ type xmlSkill struct {
 		Enabled       string `xml:"enabled,attr"`
 		EnableGlobal1 string `xml:"enableGlobal1,attr"`
 		EnableGlobal2 string `xml:"enableGlobal2,attr"`
+		SkillPart     string `xml:"skillPart,attr"`
+		StageCount    string `xml:"skillStageCount,attr"`
 	} `xml:"Gem"`
 }
 
@@ -403,15 +407,13 @@ func skills(x xmlFile) ([]SkillGroup, error) {
 	out := make([]SkillGroup, 0, len(list))
 	for _, g := range list {
 		sg := SkillGroup{Label: g.Label, Slot: g.Slot, Source: g.Source, Enabled: flag(g.Enabled)}
-		// PoB takes a value that is not a number as unset, so it is not ErrMalformed.
-		if n, err := strconv.Atoi(g.MainActive); err == nil {
-			sg.MainActiveSkill = n
-		}
+		sg.MainActiveSkill = optional(g.MainActive)
 		var err error
 		for _, xg := range g.Gems {
 			gem := Gem{
 				Name: xg.Name, GemID: xg.GemID, SkillID: xg.SkillID, VariantID: xg.VariantID,
 				Enabled: flag(xg.Enabled), EnableGlobal1: flag(xg.EnableGlobal1), EnableGlobal2: flag(xg.EnableGlobal2),
+				SkillPart: optional(xg.SkillPart), StageCount: optional(xg.StageCount),
 			}
 			if gem.Level, err = number("gem level", xg.Level); err != nil {
 				return nil, err
@@ -449,6 +451,13 @@ func equipped(x xmlFile) []Equipped {
 
 // flag reads a boolean attribute that is true unless it says false.
 func flag(s string) bool { return s != "false" }
+
+// optional returns s as a number, 0 when it is not one: PoB takes such a value as unset, so it
+// is not ErrMalformed.
+func optional(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
+}
 
 // number reads an integer attribute; empty is 0.
 func number(what, s string) (int, error) {
