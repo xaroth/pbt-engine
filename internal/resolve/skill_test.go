@@ -60,7 +60,7 @@ func mainSkill(t *testing.T, g build.SkillGroup, items build.Items, bonuses []re
 
 // TestMainSkillFireball checks Fireball at level 20 with 20% quality against its dataset rows:
 // the stat set's implicit and constant stats, the level 20 row, and 20 times the quality stat's
-// 0.15 area radius per 1%.
+// 0.15 area radius per 1% added to the row's 18: one value per stat.
 func TestMainSkillFireball(t *testing.T) {
 	t.Parallel()
 	got, ws := mainSkill(t, build.SkillGroup{Gems: []build.Gem{active(fireballGem, 20)}}, nil, nil)
@@ -82,8 +82,7 @@ func TestMainSkillFireball(t *testing.T) {
 				{Stat: "base_chance_to_ignite_%", Value: 25},
 				{Stat: "spell_minimum_base_fire_damage", Value: 1883},
 				{Stat: "spell_maximum_base_fire_damage", Value: 2825},
-				{Stat: "active_skill_base_area_of_effect_radius", Value: 18},
-				{Stat: "active_skill_base_area_of_effect_radius", Value: 3},
+				{Stat: "active_skill_base_area_of_effect_radius", Value: 21},
 			},
 		}},
 	}

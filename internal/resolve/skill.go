@@ -360,15 +360,24 @@ func (r *skillResolver) statSet(set *dataset.StatSet, level, quality int, qualit
 // qualityScale is the scale of quality stats: thousandths per 1% quality.
 const qualityScale = 1000
 
-// withQuality adds the stats of quality, given per 1% in thousandths and truncated.
+// withQuality adds the stats of quality, given per 1% in thousandths and truncated. A stat the
+// set already has takes the quality's value into its own: the gem has one value per stat, so
+// a more multiplier from both is one factor.
 func (s SkillStatSet) withQuality(stats []dataset.Stat, quality int, qualityStats []dataset.StatValue) SkillStatSet {
 	if quality <= 0 {
 		return s
 	}
 	for _, q := range qualityStats {
-		if v := int(q.Value) * quality / qualityScale; v != 0 {
-			s.Stats = append(s.Stats, StatValue{Stat: stats[q.Stat].ID, Value: float64(v)})
+		v := int(q.Value) * quality / qualityScale
+		if v == 0 {
+			continue
 		}
+		id := stats[q.Stat].ID
+		if i := slices.IndexFunc(s.Stats, func(sv StatValue) bool { return sv.Stat == id }); i >= 0 {
+			s.Stats[i].Value += float64(v)
+			continue
+		}
+		s.Stats = append(s.Stats, StatValue{Stat: id, Value: float64(v)})
 	}
 	return s
 }

@@ -171,18 +171,23 @@ func (s *Session) eval(id uint32, deps *[]uint32, c *collector) float64 {
 	def := &s.m.stats[n.Stat]
 	mask := s.masks[n.Ctx]
 	agg := Agg{More: 1}
+	start := len(s.more)
 	for k := -1; k < len(def.Includes); k++ {
 		t := n.Stat
 		if k >= 0 {
 			t = def.Includes[k]
 		}
-		s.sumStat(&agg, t, n, &mask, deps, c)
+		s.sumStat(&agg, t, n, &mask, deps, c, start)
 	}
 	for i := range def.Shares {
 		sh := &def.Shares[i]
 		if rate := s.read(deps, sh.Rate, def.CycleFamily, n.Actor, n.Ctx) / percent; rate != 0 {
-			s.sumShare(&agg, sh.Stat, rate, n, &mask, deps, c)
+			s.sumShare(&agg, sh.Stat, rate, n, &mask, deps, c, start)
 		}
+	}
+	if s.m.more != nil {
+		agg.More = s.m.more(s.more[start:])
+		s.more = s.more[:start]
 	}
 	total := s.total(def, agg, n, deps)
 	if c != nil {
@@ -199,7 +204,7 @@ func (c *collector) add(s *Session, mi uint32, t StatID, op Op, v, rate float64,
 // sumShare adds to agg the base, increased and more modifiers of stat t that apply to node n,
 // at rate times their value. It is sumStat's loop apart, so sumStat stays small enough to
 // inline its checks.
-func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask, deps *[]uint32, c *collector) {
+func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask, deps *[]uint32, c *collector, start int) {
 	fam := s.m.stats[t].CycleFamily
 	for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
 		op := s.mOp[mi]
@@ -217,7 +222,7 @@ func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask,
 			}
 		}
 		v = float64(v * rate)
-		aggregate(agg, op, v)
+		s.aggregate(agg, t, mi, v, start)
 		if c != nil {
 			c.add(s, mi, t, op, v, rate, true, true)
 		}
@@ -225,7 +230,7 @@ func (s *Session) sumShare(agg *Agg, t StatID, rate float64, n Node, mask *Mask,
 }
 
 // sumStat adds to agg the modifiers of stat t that apply to node n.
-func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32, c *collector) {
+func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32, c *collector, start int) {
 	fam := s.m.stats[t].CycleFamily
 	for _, mi := range s.buckets[int(t)*s.nActors+int(n.Actor)] {
 		if !s.modLive(mi) || !s.predHolds(mi, mask) || (n.Uncond && !s.modPlain(mi)) {
@@ -241,7 +246,7 @@ func (s *Session) sumStat(agg *Agg, t StatID, n Node, mask *Mask, deps *[]uint32
 				continue
 			}
 		}
-		aggregate(agg, s.mOp[mi], v)
+		s.aggregate(agg, t, mi, v, start)
 		if c != nil {
 			c.add(s, mi, t, s.mOp[mi], v, 1, true, false)
 		}
@@ -287,6 +292,24 @@ func (s *Session) modValue(mi uint32, n Node, fam uint8, deps *[]uint32) (float6
 		v = float64(v * q)
 	}
 	return v, true
+}
+
+// aggregate adds modifier mi of stat t, of value v, to agg; under a MoreRule a more modifier
+// goes to its stat and group's product in s.more from start instead.
+func (s *Session) aggregate(agg *Agg, t StatID, mi uint32, v float64, start int) {
+	op := s.mOp[mi]
+	if op != OpMore || s.m.more == nil {
+		aggregate(agg, op, v)
+		return
+	}
+	g := s.mGroup[mi]
+	for i := start; i < len(s.more); i++ {
+		if p := &s.more[i]; p.Stat == t && p.Group == g {
+			p.Value *= 1.0 + v/percent
+			return
+		}
+	}
+	s.more = append(s.more, MoreProduct{Stat: t, Group: g, Value: 1.0 + v/percent})
 }
 
 func aggregate(agg *Agg, op Op, v float64) {
