@@ -589,6 +589,24 @@
           }
         },
         {
+          "description": "A jewel in a tree socket.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "node", "name"],
+          "properties": {
+            "kind": { "const": "jewel" },
+            "node": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The jewel socket node."
+            },
+            "name": {
+              "type": "string",
+              "description": "As an item's."
+            }
+          }
+        },
+        {
           "description": "A skill's or support's own stats.",
           "type": "object",
           "additionalProperties": false,

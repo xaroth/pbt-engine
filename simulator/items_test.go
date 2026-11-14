@@ -324,3 +324,54 @@ func TestThirdRingOnSheet(t *testing.T) {
 		})
 	}
 }
+
+// jewelSocket is a jewel socket of the 3.29 tree.
+const jewelSocket = 26725
+
+func withJewel(tb testing.TB, s *simulator.Sim, b *build.Build, node uint32) *build.Build {
+	tb.Helper()
+	it, _, err := s.Data().Item(
+		"Rarity: Rare\nGloom Spark\nCrimson Jewel\n--------\nItem Level: 84\n--------\n6% increased maximum Life\n+10% to Fire Resistance\n",
+	)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	b = b.Clone()
+	if err := b.Apply(build.SocketJewel(node, it)); err != nil {
+		tb.Fatal(err)
+	}
+	return b
+}
+
+// A rare jewel in an allocated socket counts on a level 1 Marauder: 66 life 6% increased is
+// 69.96, 70, and 10% fire resistance over the -60% penalty, credited to the jewel. In a socket
+// not allocated it gives nothing.
+func TestJewelOnSheet(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	allocated := withJewel(t, s, marauderBuild(1, jewelSocket), jewelSocket)
+	st := simulate(t, s, allocated)
+	if got := get(t, st, poe1.Life); got != 70 {
+		t.Errorf("life %v, want 70", got)
+	}
+	if got := get(t, st, poe1.FireResistance); got != -50 {
+		t.Errorf("fire resistance %v, want -50", got)
+	}
+	ex, err := st.Explain(poe1.FireResistance, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(ex.Lines, func(l simulator.Line) bool {
+		return l.Source.Bundle != nil && l.Source.Bundle.Source == (simulator.JewelSource{Node: jewelSocket, Name: "Gloom Spark"}) && l.Value == 10
+	}) {
+		t.Errorf("fire resistance lines %+v, want 10 from the jewel", ex.Lines)
+	}
+
+	bare := simulate(t, s, marauderBuild(1))
+	unallocated := simulate(t, s, withJewel(t, s, marauderBuild(1), jewelSocket))
+	for _, k := range []output.Key{poe1.Life, poe1.FireResistance} {
+		if got, want := get(t, unallocated, k), get(t, bare, k); got != want {
+			t.Errorf("%s with the jewel in a socket not allocated %v, want %v", k, got, want)
+		}
+	}
+}

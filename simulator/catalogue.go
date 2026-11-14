@@ -80,8 +80,8 @@ type TreeNode = poe1.TreeNode
 type TreeTerm = poe1.TreeTerm
 
 // Source is what a value is credited to. Bundle.Source is one of CharacterSource,
-// LevelSource, NodeSource, QuestSource or ItemSource; a rule's own source has no Bundle and names itself
-// in Rule.
+// LevelSource, NodeSource, QuestSource, ItemSource or JewelSource; a rule's own source has no
+// Bundle and names itself in Rule.
 type Source = poe1.Source
 
 // The kinds of bundle source.
@@ -96,6 +96,8 @@ type (
 	QuestSource = resolve.QuestSource
 	// ItemSource is an equipped item by slot, with its name.
 	ItemSource = resolve.ItemSource
+	// JewelSource is a jewel by its socket node, with its name.
+	JewelSource = resolve.JewelSource
 )
 
 // Op is how a modifier applies.
