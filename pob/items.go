@@ -13,12 +13,13 @@ import (
 	"github.com/xaroth/pbt-engine/pob/internal/pobxml"
 )
 
-// itemSlots maps PoB's names of the equipment slots: those with sockets, the amulet, two rings
+// itemSlots maps PoB's names of the equipment slots: those with sockets, the amulet, three rings
 // and the belt.
 func itemSlots() map[string]build.Slot {
 	out := slots()
 	maps.Copy(out, map[string]build.Slot{
-		"Amulet": build.SlotAmulet, "Ring 1": build.SlotRing1, "Ring 2": build.SlotRing2, "Belt": build.SlotBelt,
+		"Amulet": build.SlotAmulet, "Ring 1": build.SlotRing1, "Ring 2": build.SlotRing2, "Ring 3": build.SlotRing3,
+		"Belt": build.SlotBelt,
 	})
 	return out
 }

@@ -60,3 +60,34 @@ func TestFromXMLItemsReal(t *testing.T) {
 		}
 	}
 }
+
+// FromXML keeps a ring in PoB's third ring slot, and Check keeps it for a build with The Unseen
+// Hand of the King in the Mists bloodline, which opens the slot.
+func TestFromXMLThirdRing(t *testing.T) {
+	t.Parallel()
+	reg := &dataset.Registry{}
+	if _, err := reg.Add(realdata.Record(t, realdata.Current)); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join("testdata", "king-in-the-mists-ring3.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, warnings, err := pob.FromXML(data, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) > 0 {
+		t.Errorf("warnings %v", warnings)
+	}
+	c, checked, err := build.Check(b, reg.Stores("poe1")[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(checked) > 0 {
+		t.Errorf("check: %v", checked)
+	}
+	if got := c.Build().Items[build.SlotRing3].Name; got != "Rune Loop" {
+		t.Errorf("ring-3 holds %q, want Rune Loop; items %v", got, c.Build().Items)
+	}
+}
