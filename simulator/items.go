@@ -59,7 +59,7 @@ func (s *Sim) compileItems(r *run, equipped build.Items) error {
 		r.items = append(r.items, poe1.Item{Slot: slot, Name: it.Name, Key: key, Stats: c.stats})
 		if len(c.assumed) > 0 {
 			r.warnings = append(r.warnings, Warning{
-				Code: ItemDefenceAssumed, Subject: "item " + string(slot),
+				Code: ItemDefenceAssumed, Subject: "item " + string(slot), Slot: slot,
 				Message: "text gives no " + strings.Join(c.assumed, ", ") + "; the base's highest roll taken",
 			})
 		}

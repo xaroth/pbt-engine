@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
@@ -245,5 +247,37 @@ func TestRingStatsOnSheet(t *testing.T) {
 		if got, want := get(t, st, w.key), get(t, before, w.key)+w.item; got != want {
 			t.Errorf("%s with the ring %v, want %v", w.key, got, want)
 		}
+	}
+}
+
+// A warning about an item's stat that does not count names the item's slot and the stat as
+// fields, beside its subject.
+func TestUncountedItemStatWarning(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	it, _, err := s.Data().Item(ringText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const stat = "evasion_+%_if_hit_recently"
+	it.Mods = append(it.Mods, build.ModLine{
+		Kind: build.Explicit, Text: "10% increased Evasion Rating if you've been Hit Recently",
+		Stats: []build.StatValue{{Stat: stat, Value: 10}},
+	})
+	b := marauderBuild(1)
+	if err := b.Apply(build.Equip(build.SlotRing1, it)); err != nil {
+		t.Fatal(err)
+	}
+	want := simulator.Warning{
+		Code: simulator.UnmodelledStat, Subject: stat + " from item ring-1: Rune Loop",
+		Message: "not applied: condition: hit recently, left out", Slot: build.SlotRing1, Stat: stat,
+	}
+	ws := simulate(t, s, b).Warnings()
+	i := slices.IndexFunc(ws, func(w simulator.Warning) bool { return w.Code == want.Code && w.Stat == stat })
+	if i < 0 {
+		t.Fatalf("warnings %v, want %v", ws, want)
+	}
+	if diff := cmp.Diff(want, ws[i]); diff != "" {
+		t.Errorf("warning (-want +got):\n%s", diff)
 	}
 }

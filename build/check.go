@@ -49,11 +49,14 @@ const (
 )
 
 // Warning is something a run can go on without; Message says what was done about it. Subject
-// names what it is about, such as "node 12345".
+// names what it is about, such as "node 12345", for reading. Slot and Stat say the same for
+// matching: Slot is set on a warning about an equipped item, Stat on one about a single stat.
 type Warning struct {
 	Code    Code   `json:"code"`
 	Subject string `json:"subject"`
 	Message string `json:"message"`
+	Slot    Slot   `json:"slot,omitempty"`
+	Stat    string `json:"stat,omitempty"`
 }
 
 func (w Warning) String() string { return string(w.Code) + " " + w.Subject + ": " + w.Message }
@@ -302,7 +305,13 @@ func (c *Checked) allocateWarnings(ids []uint32, allocated map[uint32]bool) []Wa
 }
 
 func (c *Checked) warnf(code Code, subject, format string, args ...any) {
-	c.warnings = append(c.warnings, Warning{Code: code, Subject: subject, Message: fmt.Sprintf(format, args...)})
+	c.warnAboutf(Warning{Subject: subject}, code, format, args...)
+}
+
+// warnAboutf warns with about's Subject, Slot and Stat.
+func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...any) {
+	about.Code, about.Message = code, fmt.Sprintf(format, args...)
+	c.warnings = append(c.warnings, about)
 }
 
 // setClass sets c's class and character, and reports whether both exist.
@@ -376,13 +385,14 @@ func (c *Checked) nodeProblem(id uint32, n *dataset.Node) (Warning, bool) {
 	subject := fmt.Sprintf("node %d", id)
 	switch {
 	case n == nil:
-		return Warning{NodeUnknown, subject, fmt.Sprintf("not in the %s tree of %s; dropped", c.build.Variant, c.store.Manifest().Version)}, true
+		msg := fmt.Sprintf("not in the %s tree of %s; dropped", c.build.Variant, c.store.Manifest().Version)
+		return Warning{Code: NodeUnknown, Subject: subject, Message: msg}, true
 	case !c.OwnsAscendancy(n.Ascendancy):
-		return Warning{NodeOtherAscendancy, subject, fmt.Sprintf("a node of %s; dropped", n.Ascendancy)}, true
+		return Warning{Code: NodeOtherAscendancy, Subject: subject, Message: fmt.Sprintf("a node of %s; dropped", n.Ascendancy)}, true
 	case n.Kind == dataset.ClassStart && n.ID != c.class.StartNode:
-		return Warning{NodeOtherClassStart, subject, "another class's start; dropped"}, true
+		return Warning{Code: NodeOtherClassStart, Subject: subject, Message: "another class's start; dropped"}, true
 	case n.Kind == dataset.Proxy:
-		return Warning{NodeProxy, subject, "a proxy node, which only a jewel allocates; dropped"}, true
+		return Warning{Code: NodeProxy, Subject: subject, Message: "a proxy node, which only a jewel allocates; dropped"}, true
 	}
 	return Warning{}, false
 }
@@ -392,10 +402,11 @@ func (c *Checked) effectProblem(node, effect uint32, allocated bool) (Warning, b
 	subject := fmt.Sprintf("node %d", node)
 	n := c.node(node)
 	if n == nil || n.Kind != dataset.Mastery || !allocated {
-		return Warning{MasteryNotAllocated, subject, fmt.Sprintf("effect %d chosen on a node that is not an allocated mastery; dropped", effect)}, true
+		msg := fmt.Sprintf("effect %d chosen on a node that is not an allocated mastery; dropped", effect)
+		return Warning{Code: MasteryNotAllocated, Subject: subject, Message: msg}, true
 	}
 	if !slices.ContainsFunc(n.MasteryEffects, func(e dataset.MasteryEffect) bool { return e.ID == effect }) {
-		return Warning{MasteryEffectUnknown, subject, fmt.Sprintf("effect %d is not one of this mastery's; dropped", effect)}, true
+		return Warning{Code: MasteryEffectUnknown, Subject: subject, Message: fmt.Sprintf("effect %d is not one of this mastery's; dropped", effect)}, true
 	}
 	return Warning{}, false
 }
