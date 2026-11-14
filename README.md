@@ -53,13 +53,7 @@ go test ./simulator -run Sketch -update   # the API sketch parts that cannot run
 
 `internal/poe1/testdata` holds, per dataset, the stats whose text names a sheet value but that the table's predicate rejects, for review, and `coverage-<version>.txt`: the stats that feed the sheet with no table entry, the unknown ones with their reason, and the authored ones not yet validated or with effects left out, most used first.
 
-Each package benchmarks its own pieces with plain Go benchmarks; CI runs tests only. Each benchmark's doc comment names its target time.
-
-```sh
-go test -run '^$' -bench . -benchmem ./...          # every benchmark
-go test -run '^$' -bench . -count 10 ./internal/core > new.txt # then benchstat old.txt new.txt
-PBT_DATASETS=/tmp/pbt-datasets go test -run '^$' -bench Nodes ./power   # node power on the real tree
-```
+Each package benchmarks its own pieces with plain Go benchmarks; [CONTRIBUTING](CONTRIBUTING.md#benchmarks) says how to run them and gives reference numbers.
 
 The engine also builds for `GOOS=js GOARCH=wasm`. `TestProbe` in `simulator` imports a Path of Building file and simulates it on the pinned 3.29 dataset, writing the result to `$PBT_PROBE_OUT`; CI runs it natively and as WebAssembly under Node and fails when the two results differ. To run it as WebAssembly locally (Node on `PATH`):
 
