@@ -11,6 +11,7 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
+	"github.com/xaroth/pbt-engine/output"
 )
 
 // Game is the edition these rules are for.
@@ -115,6 +116,8 @@ type Sheet struct {
 	skillSources map[skillKey][]core.SourceID
 	// enemy holds the enemy's values.
 	enemy enemyMods
+	// outputs is the catalogue by key.
+	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
 	marked bool
 }
@@ -163,7 +166,10 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	if err != nil {
 		return nil, fmt.Errorf("sheet: %w", err)
 	}
-	sh := &Sheet{session: s, stats: md.stats, ctx: md.ctx, counters: md.counters, version: r.Version, table: t, gameVersion: v}
+	sh := &Sheet{
+		session: s, stats: md.stats, ctx: md.ctx, counters: md.counters, version: r.Version, table: t, gameVersion: v,
+		outputs: outputsByKey(),
+	}
 	for i := range r.Bundles {
 		if _, err := sh.add(&r.Bundles[i], t, v, -1); err != nil {
 			return nil, err

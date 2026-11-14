@@ -219,7 +219,7 @@ func group(g string, outputs []Output) []Output {
 
 // Output returns the value of catalogue output k.
 func (sh *Sheet) Output(k output.Key) (float64, error) {
-	o, ok := outputByKey(k)
+	o, ok := sh.outputs[k]
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
@@ -257,11 +257,12 @@ func (sh *Sheet) outputNode(o Output) (core.Node, error) {
 	return sh.skillNode(0, o.stat, damage, form)
 }
 
-func outputByKey(k output.Key) (Output, bool) {
-	for _, o := range Outputs() {
-		if o.Key == k {
-			return o, true
-		}
+// outputsByKey returns the catalogue by key.
+func outputsByKey() map[output.Key]Output {
+	all := Outputs()
+	out := make(map[output.Key]Output, len(all))
+	for _, o := range all {
+		out[o.Key] = o
 	}
-	return Output{}, false
+	return out
 }
