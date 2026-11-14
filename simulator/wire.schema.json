@@ -227,7 +227,7 @@
         "skillChanges": {
           "type": "array",
           "items": { "$ref": "#/$defs/SkillChanges" },
-          "description": "Each skill both sides computed the outputs of, in the before side's order, with the change of each output computed on both."
+          "description": "Each skill both sides computed the outputs of at the same ref, in the before side's order, with the change of each output computed on both."
         }
       }
     },
@@ -248,7 +248,7 @@
         "skillChanges": {
           "type": "array",
           "items": { "$ref": "#/$defs/SkillChanges" },
-          "description": "Each skill asked for that the base build and the variant both have, by group, gem and skill; empty when error is set."
+          "description": "Each skill asked for that the base build and the variant both have at the same ref, by group, gem and skill; empty when error is set."
         },
         "warnings": {
           "type": "array",

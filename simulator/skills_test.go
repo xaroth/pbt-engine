@@ -343,3 +343,51 @@ func TestSkillUnresolved(t *testing.T) {
 		t.Errorf("warns %s without EverySkill", simulator.SkillUnresolved)
 	}
 }
+
+// A ref is a position: after removing a group before it, another skill is there, so Compare and
+// Sweep give no change for it, while the skill before the removed group keeps its change.
+func TestSkillMovedByEdit(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	b := marauderBuild(90)
+	for _, id := range []string{"SkillGemFireball", "SkillGemFreezingPulse", "SkillGemArc"} {
+		b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: gems + id, Level: 20}}})
+	}
+	edit := []build.Edit{build.RemoveSkillGroup(1)}
+	removed := b.Clone()
+	if err := removed.Apply(edit...); err != nil {
+		t.Fatal(err)
+	}
+	fireball, moved := simulator.SkillRef{}, simulator.SkillRef{Group: 1}
+	d, err := s.Compare(b, removed, simulator.EverySkill())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := d.GetSkill(moved, poe1.AverageHit); c.Has {
+		t.Errorf("group 2, Freezing Pulse before and Arc after: %+v, want no change", c)
+	}
+	if c := d.GetSkill(fireball, poe1.AverageHit); !c.Has {
+		t.Error("Fireball has no change")
+	}
+	data, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var w struct {
+		SkillChanges []simulator.SkillRef `json:"skillChanges"`
+	}
+	if err := json.Unmarshal(data, &w); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(w.SkillChanges, []simulator.SkillRef{fireball}) {
+		t.Errorf("wire skill changes %v, want Fireball's alone", w.SkillChanges)
+	}
+	results, err := s.Sweep(b, [][]build.Edit{edit}, simulator.EverySkill())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := results[0].SkillChanges[moved]; ok || results[0].SkillChanges[fireball] == nil {
+		t.Errorf("sweep skill changes %v, want Fireball's alone", results[0].SkillChanges)
+	}
+}

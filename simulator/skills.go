@@ -58,17 +58,21 @@ func (st *Stats) Skill(ref SkillRef) SkillStats {
 	return st.perSkill[i]
 }
 
-// has reports whether the call computed the outputs of the skill at ref.
-func (st *Stats) has(ref SkillRef) bool {
-	return slices.ContainsFunc(st.perSkill, func(s SkillStats) bool { return s.Ref == ref })
+// paired reports whether a and b both computed the outputs of the skill at ref and it is the
+// same skill on both: a ref is a position, so an edit that removes or adds a group or gem before
+// it puts another skill there.
+func paired(a, b *Stats, ref SkillRef) bool {
+	i := slices.IndexFunc(a.perSkill, func(s SkillStats) bool { return s.Ref == ref })
+	j := slices.IndexFunc(b.perSkill, func(s SkillStats) bool { return s.Ref == ref })
+	return i >= 0 && j >= 0 && a.perSkill[i].GrantedEffect == b.perSkill[j].GrantedEffect
 }
 
 // GetSkill returns the change of output k of the skill at ref; Has is false unless both sides
-// computed it.
+// computed it for the same skill.
 func (d *Diff) GetSkill(ref SkillRef, k output.Key) Change {
 	before, okA := d.Before.Skill(ref).Get(k)
 	after, okB := d.After.Skill(ref).Get(k)
 	c := change(before, after)
-	c.Has = okA && okB
+	c.Has = okA && okB && paired(d.Before, d.After, ref)
 	return c
 }

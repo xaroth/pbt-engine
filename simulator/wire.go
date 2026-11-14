@@ -106,7 +106,7 @@ func (d *Diff) MarshalJSON() ([]byte, error) {
 		SkillChanges: []wireSkillChanges{},
 	}
 	for _, ss := range d.Before.perSkill {
-		if !d.After.has(ss.Ref) {
+		if !paired(d.Before, d.After, ss.Ref) {
 			continue
 		}
 		sc := wireSkillChanges{SkillRef: ss.Ref, Changes: []wireChange{}}

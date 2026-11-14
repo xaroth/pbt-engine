@@ -28,7 +28,7 @@ type Result struct {
 	Edits   []build.Edit
 	Changes map[output.Key]Change
 	// SkillChanges are the changes of the outputs of each skill asked for (EverySkill,
-	// RankBySkill) that the base and the variant both have, by skill.
+	// RankBySkill) that the base and the variant both have at the same ref, by skill.
 	SkillChanges map[SkillRef]map[output.Key]Change
 	Warnings     []Warning
 	Err          error
@@ -426,8 +426,9 @@ func (sw *sweep) full(edits []build.Edit) Result {
 	}
 	r := Result{Changes: changesOf(sw.keys, sw.before, st.values), Warnings: sw.base.checked.EditWarnings(edits)}
 	for _, bs := range sw.skills {
-		if st.has(bs.Ref) {
-			r.SkillChanges = withSkill(r.SkillChanges, bs.Ref, changesOf(bs.keys, bs.values, st.Skill(bs.Ref).values))
+		// Another skill at the ref, after an edit before it, is not this skill's change.
+		if after := st.Skill(bs.Ref); after.GrantedEffect == bs.GrantedEffect {
+			r.SkillChanges = withSkill(r.SkillChanges, bs.Ref, changesOf(bs.keys, bs.values, after.values))
 		}
 	}
 	return r
