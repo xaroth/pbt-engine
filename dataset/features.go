@@ -17,8 +17,9 @@ type Features struct {
 	OverrideTargets []OverrideTarget
 	// ItemClasses are the ItemClass.IDs that have at least one base, sorted.
 	ItemClasses []string
-	// SlotStats are the IDs of the stats a node of the tree grants that open an equipment
-	// slot, which the game names enable_..._slot..., such as "enable_ring_slot_3", sorted.
+	// SlotStats are the IDs of the stats a node of the tree grants that open or close an
+	// equipment slot, which the game names enable_..._slot... and disable_..._slot..., such as
+	// "enable_ring_slot_3" and "disable_amulet_slot", sorted.
 	// None without an items group.
 	SlotStats []string
 	// ProxyKinds are the kinds of the tree's proxy nodes, sorted.
@@ -115,7 +116,7 @@ func jewelFeatures(t *Tree) JewelFeatures {
 	return j
 }
 
-// slotStats returns the IDs of the slot-opening stats a node of t grants.
+// slotStats returns the IDs of the stats a node of t grants that open or close a slot.
 func slotStats(t *Tree, stats []Stat) []string {
 	var out []string
 	for _, n := range t.Nodes {
@@ -132,7 +133,7 @@ func slotStats(t *Tree, stats []Stat) []string {
 }
 
 func appendSlotStat(out []string, id string) []string {
-	if strings.HasPrefix(id, "enable_") && strings.Contains(id, "_slot") {
+	if (strings.HasPrefix(id, "enable_") || strings.HasPrefix(id, "disable_")) && strings.Contains(id, "_slot") {
 		return append(out, id)
 	}
 	return out

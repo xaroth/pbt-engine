@@ -91,7 +91,7 @@ func TestFeaturesOfLeagues(t *testing.T) {
 			if len(f.ItemClasses) != 32 || !slices.Contains(f.ItemClasses, "AbyssJewel") {
 				t.Errorf("item classes: got %d %v, want the 32 with AbyssJewel", len(f.ItemClasses), f.ItemClasses)
 			}
-			if diff := cmp.Diff([]string{"enable_ring_slot_3"}, f.SlotStats); diff != "" {
+			if diff := cmp.Diff([]string{"disable_amulet_slot", "disable_belt_slot", "enable_ring_slot_3"}, f.SlotStats); diff != "" {
 				t.Errorf("slot stats (-want +got):\n%s", diff)
 			}
 		})
@@ -122,7 +122,7 @@ func TestFeaturesOfEmptyContent(t *testing.T) {
 	}
 }
 
-// TestFeaturesSlotStats checks that a slot-opening stat is listed only when a node grants it.
+// TestFeaturesSlotStats checks that a slot stat is listed only when a node grants it.
 func TestFeaturesSlotStats(t *testing.T) {
 	t.Parallel()
 	const ring3 = "enable_ring_slot_3"

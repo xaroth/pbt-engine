@@ -123,6 +123,69 @@ func TestCheckThirdRing(t *testing.T) {
 			if diff := cmp.Diff(testCase.want, c.Build().Items); diff != "" {
 				t.Errorf("items (-want +got):\n%s", diff)
 			}
+			if _, kept := testCase.want[build.SlotRing3]; c.SlotOpen(build.SlotRing3) != kept {
+				t.Errorf("SlotOpen(ring-3) = %t, want %t", !kept, kept)
+			}
+		})
+	}
+}
+
+// TestCheckClosedSlots: an allocated node that grants the stats closing the amulet and belt
+// slots leaves the items in them out with a warning and marks the slots closed; without it they
+// stay.
+func TestCheckClosedSlots(t *testing.T) {
+	t.Parallel()
+	d := itemsDataset()
+	closes := make([]dataset.StatValue, 0, 2)
+	for _, s := range []build.Slot{build.SlotAmulet, build.SlotBelt} {
+		d.Stats = append(d.Stats, dataset.Stat{ID: build.SlotDisableStat(s)})
+		closes = append(closes, dataset.StatValue{Stat: uint32(len(d.Stats) - 1), Value: 1})
+	}
+	tree := &d.Trees[0]
+	for i := range tree.Nodes {
+		if n := &tree.Nodes[i]; n.ID == 51 {
+			n.Stats = closes
+		}
+	}
+	s := openStore(t, d)
+	items := build.Items{
+		build.SlotAmulet: {Rarity: build.Normal, Base: amuletBase},
+		build.SlotBelt:   {Rarity: build.Normal, Base: beltBase},
+	}
+	for _, testCase := range []struct {
+		name  string
+		nodes []uint32
+		codes []build.Code
+		want  build.Items
+	}{
+		{"closing node", []uint32{50, 51}, []build.Code{build.ItemSlotClosed, build.ItemSlotClosed}, build.Items{}},
+		{"other node", []uint32{50, 52}, nil, items},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := juggernaut()
+			b.Bloodline = "Oshabi"
+			b.Nodes = append(b.Nodes, testCase.nodes...)
+			b.Items = items
+			c, warnings, err := build.Check(b, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(testCase.codes, codesOf(warnings)); diff != "" {
+				t.Errorf("codes (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(testCase.want, c.Build().Items); diff != "" {
+				t.Errorf("items (-want +got):\n%s", diff)
+			}
+			open := len(testCase.want) > 0
+			for _, slot := range []build.Slot{build.SlotAmulet, build.SlotBelt} {
+				if c.SlotOpen(slot) != open {
+					t.Errorf("SlotOpen(%s) = %t, want %t", slot, !open, open)
+				}
+			}
+			if !c.SlotOpen(build.SlotHelmet) {
+				t.Error("SlotOpen(helmet) = false")
+			}
 		})
 	}
 }

@@ -19,10 +19,12 @@ const (
 	swordBase  = "Metadata/Items/Weapons/TwoHandWeapons/TwoHandSwords/TwoHandSword1"
 	clawBase   = "Metadata/Items/Weapons/OneHandWeapons/Claws/Claw1"
 	quiverBase = "Metadata/Items/Quivers/Quiver1"
+	amuletBase = "Metadata/Items/Amulets/Amulet1"
+	beltBase   = "Metadata/Items/Belts/Belt1"
 )
 
 // itemsStore is testStore with an items group of one helmet, ring, shield, bow, two-handed
-// sword, claw and quiver base.
+// sword, claw, quiver, amulet and belt base.
 func itemsStore(t *testing.T) *dataset.Store {
 	t.Helper()
 	return openStore(t, itemsDataset())
@@ -33,6 +35,7 @@ func itemsDataset() *dataset.Dataset {
 	d.Items = &dataset.Items{
 		Classes: []dataset.ItemClass{
 			{ID: "Helmet"}, {ID: "Ring"}, {ID: "Shield"}, {ID: "Bow"}, {ID: "Two Hand Sword"}, {ID: "Claw"}, {ID: "Quiver"},
+			{ID: "Amulet"}, {ID: "Belt"},
 		},
 		Bases: []dataset.ItemBase{
 			{ID: helmetBase, Class: "Helmet", Armour: &dataset.ArmourValues{Armour: dataset.ValueRange{Min: 300, Max: 400}}},
@@ -42,6 +45,8 @@ func itemsDataset() *dataset.Dataset {
 			{ID: swordBase, Class: "Two Hand Sword"},
 			{ID: clawBase, Class: "Claw"},
 			{ID: quiverBase, Class: "Quiver"},
+			{ID: amuletBase, Class: "Amulet"},
+			{ID: beltBase, Class: "Belt"},
 		},
 	}
 	return d
