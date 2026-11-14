@@ -58,39 +58,71 @@ func (f GemFilter) matches(support bool, tags []string) bool {
 		!slices.ContainsFunc(f.NotTags, has)
 }
 
-// itemBonus returns the levels and quality the equipped items add to gem, with tags, socketed
-// in slot. Items in the weapon-swap slots are not in use.
-func (r *skillResolver) itemBonus(slot build.Slot, gem build.Gem, tags []string) (level, quality int) {
-	for s, it := range r.items {
+// gemBonuses are GemBonus by stat.
+type gemBonuses map[string][]GemBonus
+
+func bonusesByStat(bonuses []GemBonus) gemBonuses {
+	out := gemBonuses{}
+	for _, b := range bonuses {
+		out[b.Stat] = append(out[b.Stat], b)
+	}
+	return out
+}
+
+// itemGemStat is a stat of an equipped item that adds levels or quality to gems, with its
+// bonuses.
+type itemGemStat struct {
+	slot    build.Slot
+	value   float64
+	bonuses []GemBonus
+}
+
+// itemGemStats returns the stats of items that add levels or quality to gems. Items in the
+// weapon-swap slots are not in use.
+func itemGemStats(items build.Items, bonuses gemBonuses) []itemGemStat {
+	var out []itemGemStat
+	for s, it := range items {
 		if s.Swap() {
 			continue
 		}
 		for _, m := range it.Mods {
 			for _, sv := range m.Stats {
-				l, q := gemBonus(r.bonuses, sv.Stat, float64(sv.Value), func(b GemBonus) bool {
-					return (b.Reach == Equipped || b.Reach == Socketed && s == slot) && b.Gems.matches(gem.Support, tags)
-				})
-				level, quality = level+l, quality+q
+				if bs := bonuses[sv.Stat]; len(bs) > 0 {
+					out = append(out, itemGemStat{slot: s, value: float64(sv.Value), bonuses: bs})
+				}
 			}
 		}
+	}
+	return out
+}
+
+// itemBonus returns the levels and quality the equipped items add to gem, with tags, socketed
+// in slot.
+func (r *skillResolver) itemBonus(slot build.Slot, gem build.Gem, tags []string) (level, quality int) {
+	for _, st := range r.itemStats {
+		l, q := gemBonus(st.bonuses, st.value, func(b GemBonus) bool {
+			return (b.Reach == Equipped || b.Reach == Socketed && st.slot == slot) && b.Gems.matches(gem.Support, tags)
+		})
+		level, quality = level+l, quality+q
 	}
 	return level, quality
 }
 
 // supportedBonus returns the levels and quality a support's stats add to the active skill gem
 // it supports, which is a support or not and has tags.
-func supportedBonus(bonuses []GemBonus, stats []StatValue, support bool, tags []string) (level, quality int) {
+func (b gemBonuses) supportedBonus(stats []StatValue, support bool, tags []string) (level, quality int) {
 	for _, sv := range stats {
-		l, q := gemBonus(bonuses, sv.Stat, sv.Value, func(b GemBonus) bool { return b.Reach == Supported && b.Gems.matches(support, tags) })
+		l, q := gemBonus(b[sv.Stat], sv.Value, func(b GemBonus) bool { return b.Reach == Supported && b.Gems.matches(support, tags) })
 		level, quality = level+l, quality+q
 	}
 	return level, quality
 }
 
-// gemBonus returns the levels and quality stat with value adds through the bonuses that reach.
-func gemBonus(bonuses []GemBonus, stat string, value float64, reach func(GemBonus) bool) (level, quality int) {
+// gemBonus returns the levels and quality a stat with value adds through those of its bonuses
+// that reach.
+func gemBonus(bonuses []GemBonus, value float64, reach func(GemBonus) bool) (level, quality int) {
 	for _, b := range bonuses {
-		if b.Stat != stat || !reach(b) {
+		if !reach(b) {
 			continue
 		}
 		if b.Quality {
