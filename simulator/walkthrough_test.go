@@ -94,10 +94,7 @@ func editSteps() []step {
 func readSteps() []step {
 	return []step{
 		{name: "read an output", run: readOutput},
-		{name: "read a skill's average hit", pending: &pending{
-			needs: "skills on a build", waitsOn: []string{"simulator.Stats.Skill", "poe1.AverageHit"},
-			code: `stats.Skill(fireball).Get(poe1.AverageHit)`,
-		}},
+		{name: "read a skill's average hit", run: readSkillHit},
 		{name: "read the warnings", run: readWarnings},
 		{name: "warn about a gem the dataset lacks", run: unknownGem},
 		{name: "warn about a condition whose source the build lacks", pending: &pending{
@@ -482,6 +479,17 @@ func readOutput(t *testing.T, w *walk) {
 	before, after := get(t, simulate(t, w.sim, w.base), poe1.Life), get(t, w.stats, poe1.Life)
 	if after >= before {
 		t.Errorf("life %v after removing three life nodes, %v before", after, before)
+	}
+}
+
+// readSkillHit: with EverySkill a result gives each skill's outputs by group, gem and skill;
+// Fireball is the main skill, so its average hit is the outputs' own.
+func readSkillHit(t *testing.T, w *walk) {
+	stats := simulate(t, w.sim, w.next, simulator.EverySkill())
+	fireball := simulator.SkillRef{Group: 0, Gem: 0, Skill: 0}
+	hit, ok := stats.Skill(fireball).Get(poe1.AverageHit)
+	if main := get(t, stats, poe1.AverageHit); !ok || hit != main {
+		t.Errorf("Fireball's average hit %v, %v; want the main skill's %v", hit, ok, main)
 	}
 }
 

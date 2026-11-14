@@ -24,6 +24,20 @@ type wireStats struct {
 	Outputs  []wireValue    `json:"outputs"`
 	Warnings []Warning      `json:"warnings"`
 	Skill    *wireMainSkill `json:"skill"`
+	Skills   []wireSkill    `json:"skills"`
+}
+
+type wireSkill struct {
+	SkillRef
+
+	GrantedEffect string      `json:"grantedEffect"`
+	Outputs       []wireValue `json:"outputs"`
+}
+
+type wireSkillChanges struct {
+	SkillRef
+
+	Changes []wireChange `json:"changes"`
 }
 
 type wireMainSkill struct {
@@ -56,35 +70,52 @@ type wireNodeChange struct {
 }
 
 type wireDiff struct {
-	Before      wireStats        `json:"before"`
-	After       wireStats        `json:"after"`
-	Changes     []wireChange     `json:"changes"`
-	Edits       []build.Edit     `json:"edits"`
-	DataChanges []wireNodeChange `json:"dataChanges"`
+	Before       wireStats          `json:"before"`
+	After        wireStats          `json:"after"`
+	Changes      []wireChange       `json:"changes"`
+	Edits        []build.Edit       `json:"edits"`
+	DataChanges  []wireNodeChange   `json:"dataChanges"`
+	SkillChanges []wireSkillChanges `json:"skillChanges"`
 }
 
 type wireResult struct {
-	Index    int          `json:"index"`
-	Edits    []build.Edit `json:"edits"`
-	Changes  []wireChange `json:"changes"`
-	Warnings []Warning    `json:"warnings"`
-	Error    *string      `json:"error"`
+	Index        int                `json:"index"`
+	Edits        []build.Edit       `json:"edits"`
+	Changes      []wireChange       `json:"changes"`
+	SkillChanges []wireSkillChanges `json:"skillChanges"`
+	Warnings     []Warning          `json:"warnings"`
+	Error        *string            `json:"error"`
 }
 
 // MarshalJSON encodes the values, each with its catalogue entry, the warnings, the main skill
-// (null without one) and the dataset version. It leaves out the build and config the Stats keeps for Explain.
+// (null without one), each skill's values asked for and the dataset version. It leaves out the
+// build and config the Stats keeps for Explain.
 func (st *Stats) MarshalJSON() ([]byte, error) { return marshal(st.wire(catalogue())) }
 
 // MarshalJSON encodes both sides, the change of each output computed on both, the edits
-// (null when the builds cannot be turned into each other) and the data changes.
+// (null when the builds cannot be turned into each other), the data changes and the change of
+// each skill's outputs computed on both.
 func (d *Diff) MarshalJSON() ([]byte, error) {
 	cat := catalogue()
 	w := wireDiff{
-		Before:      d.Before.wire(cat),
-		After:       d.After.wire(cat),
-		Changes:     []wireChange{},
-		Edits:       d.Edits,
-		DataChanges: make([]wireNodeChange, 0, len(d.DataChanges)),
+		Before:       d.Before.wire(cat),
+		After:        d.After.wire(cat),
+		Changes:      []wireChange{},
+		Edits:        d.Edits,
+		DataChanges:  make([]wireNodeChange, 0, len(d.DataChanges)),
+		SkillChanges: []wireSkillChanges{},
+	}
+	for _, ss := range d.Before.perSkill {
+		if !d.After.has(ss.Ref) {
+			continue
+		}
+		sc := wireSkillChanges{SkillRef: ss.Ref, Changes: []wireChange{}}
+		for _, k := range ss.keys {
+			if c := d.GetSkill(ss.Ref, k); c.Has {
+				sc.Changes = append(sc.Changes, changeOf(cat[k], c))
+			}
+		}
+		w.SkillChanges = append(w.SkillChanges, sc)
 	}
 	for _, k := range d.Before.keys {
 		if c := d.Get(k); c.Has {
@@ -99,18 +130,19 @@ func (d *Diff) MarshalJSON() ([]byte, error) {
 	return marshal(w)
 }
 
-// MarshalJSON encodes the result with its changes in catalogue order and Err as its message.
+// MarshalJSON encodes the result with its changes in catalogue order, its skills' changes by
+// skill, and Err as its message.
 func (r Result) MarshalJSON() ([]byte, error) {
+	outputs := poe1.Outputs()
 	w := wireResult{
-		Index:    r.Index,
-		Edits:    orEmpty(r.Edits),
-		Changes:  make([]wireChange, 0, len(r.Changes)),
-		Warnings: orEmpty(r.Warnings),
+		Index:        r.Index,
+		Edits:        orEmpty(r.Edits),
+		Changes:      changeList(outputs, r.Changes),
+		SkillChanges: make([]wireSkillChanges, 0, len(r.SkillChanges)),
+		Warnings:     orEmpty(r.Warnings),
 	}
-	for _, o := range poe1.Outputs() {
-		if c, ok := r.Changes[o.Key]; ok {
-			w.Changes = append(w.Changes, changeOf(o, c))
-		}
+	for _, ref := range slices.SortedFunc(maps.Keys(r.SkillChanges), compareRefs) {
+		w.SkillChanges = append(w.SkillChanges, wireSkillChanges{SkillRef: ref, Changes: changeList(outputs, r.SkillChanges[ref])})
 	}
 	if r.Err != nil {
 		msg := r.Err.Error()
@@ -119,10 +151,24 @@ func (r Result) MarshalJSON() ([]byte, error) {
 	return marshal(w)
 }
 
+// changeList returns changes in the order of outputs.
+func changeList(outputs []Output, changes map[output.Key]Change) []wireChange {
+	out := make([]wireChange, 0, len(changes))
+	for _, o := range outputs {
+		if c, ok := changes[o.Key]; ok {
+			out = append(out, changeOf(o, c))
+		}
+	}
+	return out
+}
+
 func (st *Stats) wire(cat map[output.Key]Output) wireStats {
-	w := wireStats{Version: st.Version(), Outputs: make([]wireValue, 0, len(st.keys)), Warnings: orEmpty(st.warnings)}
-	for _, k := range st.keys {
-		w.Outputs = append(w.Outputs, wireValue{Output: cat[k], Value: st.values[k]})
+	w := wireStats{
+		Version: st.Version(), Outputs: valueList(cat, st.keys, st.values), Warnings: orEmpty(st.warnings),
+		Skills: make([]wireSkill, 0, len(st.perSkill)),
+	}
+	for _, ss := range st.perSkill {
+		w.Skills = append(w.Skills, wireSkill{SkillRef: ss.Ref, GrantedEffect: ss.GrantedEffect, Outputs: valueList(cat, ss.keys, ss.values)})
 	}
 	if sk, ok := st.MainSkill(); ok {
 		w.Skill = &wireMainSkill{
@@ -131,6 +177,14 @@ func (st *Stats) wire(cat map[output.Key]Output) wireStats {
 		}
 	}
 	return w
+}
+
+func valueList(cat map[output.Key]Output, keys []output.Key, values map[output.Key]float64) []wireValue {
+	out := make([]wireValue, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, wireValue{Output: cat[k], Value: values[k]})
+	}
+	return out
 }
 
 func changeOf(o Output, c Change) wireChange {

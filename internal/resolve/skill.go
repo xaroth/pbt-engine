@@ -20,7 +20,7 @@ const (
 	// GemLevelBeyondData is a gem whose level with bonuses has no row in the dataset; its
 	// highest row is used.
 	GemLevelBeyondData build.Code = "gem-level-beyond-data"
-	// StatSetUnknown is a gem's stat set choice its skill does not have; the primary set is used.
+	// StatSetUnknown is a gem's stat set choice none of its skills has; the primary set is used.
 	StatSetUnknown build.Code = "stat-set-unknown"
 )
 
@@ -41,6 +41,9 @@ func (GemSource) source() {}
 // and supports add, its stat sets at that level, and the supports in its group that apply.
 type Skill struct {
 	Source GemSource
+	// Which is which of the gem's skills it is: 0 its first, 1 its second, such as a Vaal gem's
+	// regular skill.
+	Which int
 	// GrantedEffect and ActiveSkill are the skill's GrantedEffect and ActiveSkill IDs.
 	GrantedEffect, ActiveSkill string
 	Level, Quality             int
@@ -174,15 +177,21 @@ func (s *SkillResolver) Group(i int) (*Skill, []build.Warning, error) {
 	return out.skill, out.warnings, out.err
 }
 
-// SkillWarnings is a resolved skill and the warnings resolving it gave.
+// SkillWarnings is a resolved skill and the warnings resolving it gave, or the error that kept
+// it from resolving.
 type SkillWarnings struct {
 	Skill    *Skill
 	Warnings []build.Warning
+	// Source and Which name the skill when Err is set and Skill is nil.
+	Source GemSource
+	Which  int
+	Err    error
 }
 
-// All resolves every skill the build uses: each skill of each enabled active gem in the groups
-// outside the weapon swap, in group and gem order, each with its group's supports as Group
-// applies them. Gems the dataset lacks and skills without levels are left out.
+// All resolves every skill the build uses: each active skill (build.ActiveSkills) of each
+// enabled gem in the groups outside the weapon swap, in group and gem order, each with its
+// group's supports as Group applies them. A skill that does not resolve, such as one without
+// levels, is listed with its error.
 func (s *SkillResolver) All() []SkillWarnings {
 	var out []SkillWarnings
 	for i, g := range s.r.groups {
@@ -190,13 +199,14 @@ func (s *SkillResolver) All() []SkillWarnings {
 			continue
 		}
 		for j, gem := range g.Gems {
-			if gem.Support || gem.Disabled {
+			if gem.Disabled {
 				continue
 			}
-			for which := range 2 {
-				if sk := s.skill(skillKey{i, j, which}); sk.err == nil {
-					out = append(out, SkillWarnings{Skill: sk.skill, Warnings: sk.warnings})
-				}
+			for _, which := range build.ActiveSkills(s.r.data, gem) {
+				sk := s.skill(skillKey{i, j, which})
+				out = append(out, SkillWarnings{
+					Skill: sk.skill, Warnings: sk.warnings, Source: GemSource{Group: i, Gem: j, ID: gem.ID}, Which: which, Err: sk.err,
+				})
 			}
 		}
 	}
@@ -228,7 +238,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 		return nil, fmt.Errorf("group %d: %w", i+1, err)
 	}
 	src := GemSource{Group: i, Gem: j, ID: gem.ID}
-	sk := &Skill{Source: src, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime}
+	sk := &Skill{Source: src, Which: which, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime}
 	types := r.supportedTypes(src, ge, sk)
 
 	tags := r.tags(gem)
@@ -257,11 +267,20 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	}
 	sk.StatSet, sk.Stages = gem.StatSet, gem.Stages
 	if gem.StatSet > 0 && gem.StatSet >= len(sk.StatSets) {
-		r.warnf(StatSetUnknown, src, "stat set %d; %s has %d; the primary set used", gem.StatSet+1, ge.ID, len(sk.StatSets))
 		sk.StatSet = 0
+		if !r.otherHasSet(gem, which) {
+			r.warnf(StatSetUnknown, src, "stat set %d; %s has %d; the primary set used", gem.StatSet+1, ge.ID, len(sk.StatSets))
+		}
 	}
 	sk.Types = r.typeNames(types)
 	return sk, nil
+}
+
+// otherHasSet reports whether the gem's other skill than which has the stat set the gem
+// chooses: the choice is the gem's, so it may be for that skill, such as a Vaal gem's.
+func (r *skillResolver) otherHasSet(gem build.Gem, which int) bool {
+	other, err := r.skillEffect(gem, 1-which)
+	return err == nil && gem.StatSet < len(other.StatSets)
 }
 
 // skillResolver holds what resolving one skill reads, and the warnings it gives.

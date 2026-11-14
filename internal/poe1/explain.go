@@ -128,7 +128,7 @@ func (sh *Sheet) Explain(k output.Key, v View) (*Explanation, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
-	n, err := sh.outputNode(o)
+	n, err := sh.outputNode(o, 0)
 	if err != nil {
 		return nil, fmt.Errorf("sheet: explain %s: %w", k, err)
 	}

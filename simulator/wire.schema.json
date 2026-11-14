@@ -78,7 +78,7 @@
       "description": "The result of one simulation: output values in display order or as asked for, and warnings.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "outputs", "warnings", "skill"],
+      "required": ["version", "outputs", "warnings", "skill", "skills"],
       "properties": {
         "version": { "type": "string", "description": "The dataset version simulated on." },
         "outputs": { "type": "array", "items": { "$ref": "#/$defs/OutputValue" } },
@@ -89,7 +89,39 @@
             { "type": "null" }
           ],
           "description": "The main skill the skill outputs are read in; null when the build has none, and then it has no skill outputs."
+        },
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SkillValues" },
+          "description": "The skill outputs of each skill the call asked for, the main skill first, then by group, gem and skill; empty unless asked for."
         }
+      }
+    },
+    "SkillValues": {
+      "title": "SkillValues",
+      "description": "One skill's outputs of the skill group, read in its own context as the main skill's are.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "gem", "skill", "grantedEffect", "outputs"],
+      "properties": {
+        "group": { "type": "integer", "minimum": 0, "description": "The skill group, from 0." },
+        "gem": { "type": "integer", "minimum": 0, "description": "The gem in the group, from 0." },
+        "skill": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Which of the gem's skills: 0 its first, 1 its second, such as a Vaal gem's regular skill." },
+        "grantedEffect": { "type": "string" },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/OutputValue" } }
+      }
+    },
+    "SkillChanges": {
+      "title": "SkillChanges",
+      "description": "One skill's outputs of the skill group before and after.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "gem", "skill", "changes"],
+      "properties": {
+        "group": { "type": "integer", "minimum": 0, "description": "The skill group, from 0." },
+        "gem": { "type": "integer", "minimum": 0, "description": "The gem in the group, from 0." },
+        "skill": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Which of the gem's skills: 0 its first, 1 its second." },
+        "changes": { "type": "array", "items": { "$ref": "#/$defs/Change" }, "description": "In catalogue order." }
       }
     },
     "MainSkill": {
@@ -173,7 +205,7 @@
       "description": "Two simulations compared.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["before", "after", "changes", "edits", "dataChanges"],
+      "required": ["before", "after", "changes", "edits", "dataChanges", "skillChanges"],
       "properties": {
         "before": { "$ref": "#/$defs/Stats" },
         "after": { "$ref": "#/$defs/Stats" },
@@ -191,6 +223,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/NodeChange" },
           "description": "Nodes either build allocates whose data differs between the two datasets, by node id."
+        },
+        "skillChanges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SkillChanges" },
+          "description": "Each skill both sides computed the outputs of, in the before side's order, with the change of each output computed on both."
         }
       }
     },
@@ -199,7 +236,7 @@
       "description": "One variant of a sweep.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["index", "edits", "changes", "warnings", "error"],
+      "required": ["index", "edits", "changes", "skillChanges", "warnings", "error"],
       "properties": {
         "index": { "type": "integer", "minimum": 0, "description": "The variant's index in the sweep's variants." },
         "edits": { "type": "array", "items": { "$ref": "#/$defs/Edit" } },
@@ -207,6 +244,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/Change" },
           "description": "Each output against the base build, in catalogue order; empty when error is set."
+        },
+        "skillChanges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SkillChanges" },
+          "description": "Each skill asked for that the base build and the variant both have, by group, gem and skill; empty when error is set."
         },
         "warnings": {
           "type": "array",
@@ -216,7 +258,7 @@
         "error": { "type": ["string", "null"], "description": "Why the variant could not be simulated." }
       },
       "if": { "properties": { "error": { "type": "string" } } },
-      "then": { "properties": { "changes": { "maxItems": 0 } } }
+      "then": { "properties": { "changes": { "maxItems": 0 }, "skillChanges": { "maxItems": 0 } } }
     },
     "Edit": {
       "title": "Edit",
