@@ -1,4 +1,4 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 195 authored, 114 unknown, 1 display-only, 0 gaps, 1532 outside
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 196 authored, 114 unknown, 1 display-only, 0 gaps, 1531 outside
 unknown by reason: condition 67, items 30, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
