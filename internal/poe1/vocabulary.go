@@ -108,6 +108,12 @@ const (
 	statManaCost                                         = "mana_cost"
 	statLifeCost                                         = "life_cost"
 	statEnemyResistance                                  = "enemy_resistance"
+	statEnemyMaximumResistance                           = "enemy_maximum_resistance"
+	statEnemyExposure                                    = "enemy_exposure"
+	statExtraExposure                                    = "extra_exposure"
+	statPenetration                                      = "penetration"
+	statHitEnemyResistance                               = "hit_enemy_resistance"
+	statEnemyDamageTaken                                 = "enemy_damage_taken"
 	statEnemyArmour                                      = "enemy_armour"
 	statBaseMinimumDamage                                = "base_minimum_damage"
 	statBaseMaximumDamage                                = "base_maximum_damage"
@@ -181,7 +187,12 @@ const (
 // and "Costs Life instead of Mana".
 //
 // A skill's hit is read in its context. enemy_resistance, read for one damage type, is the
-// enemy's resistance to it; enemy_armour its armour. base_minimum_damage and
+// enemy's resistance to it, its reductions included, and enemy_maximum_resistance its cap.
+// enemy_exposure is the Exposure the enemy has to the type, its strongest instance;
+// extra_exposure what is added to Exposure the character inflicts. penetration is how much of
+// the resistance the character's hits of the type penetrate. hit_enemy_resistance is the
+// resistance a hit of the type meets after all of these. enemy_damage_taken is the damage the
+// enemy takes of the type in percent, 100 before modifiers; enemy_armour is its armour. base_minimum_damage and
 // base_maximum_damage, read for one damage type, are the skill's own base damage of that type,
 // and added_minimum_damage and added_maximum_damage the damage added to it; the skill's
 // base_damage_multiplier scales the first and its damage_effectiveness the second, both in
@@ -297,6 +308,12 @@ func reservationStats() []string {
 func hitStats() []string {
 	return []string{
 		statEnemyResistance,
+		statEnemyMaximumResistance,
+		statEnemyExposure,
+		statExtraExposure,
+		statPenetration,
+		statHitEnemyResistance,
+		statEnemyDamageTaken,
 		statEnemyArmour,
 		statBaseMinimumDamage,
 		statBaseMaximumDamage,

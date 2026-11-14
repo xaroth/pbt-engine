@@ -129,14 +129,14 @@ func attackMask() core.Mask {
 // A hit's damage of one type, read in the skill's context for that type, is the skill's base
 // damage of the type times its base damage multiplier, plus added damage times its damage
 // effectiveness, times the type's damage modifier and the modifier of the smallest or largest
-// damage alone, rounded half up. Against the enemy it is
-// reduced by the enemy's resistance to the type, or for physical damage by its armour against
-// a hit of that size. A critical strike multiplies the hit before the enemy reduces it. The
-// average hit weighs the non-critical and critical averages of every type by the critical
-// strike chance. Hits per second are the cast time divided by the cast speed, rounded to
-// hundredths, at most one per server tick; hit DPS is the average hit times the chance to hit
-// times hits per second. The order, roundings and cap follow PoB (CalcOffence.lua); the game
-// text gives none of them.
+// damage alone, rounded half up. Against the enemy it is reduced by the resistance it meets
+// (hitResistance), or for physical damage by the enemy's armour against a hit of that size,
+// then scaled by the enemy's damage taken. A critical strike multiplies the hit before the
+// enemy reduces it. The average hit weighs the non-critical and critical averages of every
+// type by the critical strike chance. Hits per second are the cast time divided by the cast
+// speed, rounded to hundredths, at most one per server tick; hit DPS is the average hit times
+// the chance to hit times hits per second. The order, roundings and cap follow PoB
+// (CalcOffence.lua); the game text gives none of them.
 func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
 	case statMinimumHitDamage, statMaximumHitDamage:
@@ -211,9 +211,74 @@ func (h hitDamage) attribute() core.Attribute {
 	}
 }
 
+// enemyDef completes def when it is a stat of the resistance a hit meets.
+func enemyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
+	switch def.Name {
+	case statEnemyExposure:
+		def.LowestBase = true
+	case statHitEnemyResistance:
+		h := newHitResistance(ids)
+		def.FormulaName, def.Formula, def.Attribute = formulaHitEnemyResistance, h.formula(), h.attribute()
+	}
+	return def
+}
+
+// hitResistance is the resistance a hit of one damage type meets, read in the type's context:
+// the enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum,
+// less the hit's penetration. Exposure is its strongest instance, and what the character adds
+// to Exposure it inflicts applies only while there is some. Penetration counts after the
+// limits, so it can take the resistance below the floor. All follow PoB (CalcOffence.lua
+// calcResistForType and the hit's resistance, CalcPerform.lua's exposures); the game text
+// gives none of the order.
+type hitResistance struct {
+	resistance, maximum, exposure, extra, penetration core.StatID
+}
+
+func newHitResistance(ids map[string]core.StatID) hitResistance {
+	return hitResistance{
+		resistance: mustID(ids, statEnemyResistance), maximum: mustID(ids, statEnemyMaximumResistance),
+		exposure: mustID(ids, statEnemyExposure), extra: mustID(ids, statExtraExposure), penetration: mustID(ids, statPenetration),
+	}
+}
+
+// exposed returns the Exposure the enemy has, with stat reading a stat.
+func (h hitResistance) exposed(stat func(core.StatID) float64) float64 {
+	e := stat(h.exposure)
+	if e != 0 {
+		e += stat(h.extra)
+	}
+	return e
+}
+
+func (h hitResistance) formula() core.Formula {
+	return func(r core.Reader, _ core.Agg) float64 {
+		v := min(max(r.Stat(h.resistance)+h.exposed(r.Stat), resistanceFloor), r.Stat(h.maximum))
+		return v - r.Stat(h.penetration)
+	}
+}
+
+// attribute credits the enemy's resistance, its Exposure and the penetration, which counts
+// against it; what the limits change goes to the maximum's sources.
+func (h hitResistance) attribute() core.Attribute {
+	return func(a *core.Attributor) core.Attribution {
+		parts, _ := a.Of(core.SelfRef(h.resistance))
+		if h.exposed(a.Stat) != 0 {
+			for _, s := range []core.StatID{h.exposure, h.extra} {
+				p, _ := a.Of(core.SelfRef(s))
+				parts = append(parts, p...)
+			}
+		}
+		pen, _ := a.Of(core.SelfRef(h.penetration))
+		parts = append(parts, scaled(pen, -1)...)
+		total := a.Explanation().Total
+		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.maximum)), Amount: total}
+	}
+}
+
 // effectiveHit is what the enemy takes of a hit of one type that is not critical, read in the
 // type's context: physical damage is reduced by armour against the average of the minimum and
-// maximum hit, other damage by the resistance.
+// maximum hit, other damage by the resistance the hit meets; then the enemy's damage taken
+// applies.
 type effectiveHit struct {
 	hit, minimum, maximum core.StatID
 	enemy                 enemyReduction
@@ -221,38 +286,57 @@ type effectiveHit struct {
 
 func (h effectiveHit) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
-		if r.Mask().Intersects(h.enemy.physical) {
-			return r.Stat(h.hit) * armourMultiplier(r.Stat(h.enemy.armour), (r.Stat(h.minimum)+r.Stat(h.maximum))*half)
-		}
-		return r.Stat(h.hit) * resistanceMultiplier(r.Stat(h.enemy.resistance))
+		raw := (r.Stat(h.minimum) + r.Stat(h.maximum)) * half
+		physical := r.Mask().Intersects(h.enemy.physical)
+		return r.Stat(h.hit) * h.enemy.multiplier(physical, raw, r.Stat) * r.Stat(h.enemy.taken) / percentScale
 	}
 }
 
-// attribute credits the hit, and what the enemy takes off to the enemy's armour or resistance.
+// attribute credits the hit, what the enemy's armour or resistance takes off to its sources,
+// and what damage taken changes to its sources.
 func (h effectiveHit) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
-		parts, _ := a.Of(core.SelfRef(h.hit))
-		reducer := h.enemy.resistance
-		if a.Mask().Intersects(h.enemy.physical) {
-			reducer = h.enemy.armour
+		parts, hit := a.Of(core.SelfRef(h.hit))
+		physical := a.Mask().Intersects(h.enemy.physical)
+		raw := (a.Stat(h.minimum) + a.Stat(h.maximum)) * half
+		if d := hit*h.enemy.multiplier(physical, raw, a.Stat) - hit; d != 0 {
+			parts = append(parts, a.Spread(core.SelfRef(h.enemy.reducer(physical)), d, core.OpMore)...)
 		}
 		total := a.Explanation().Total
-		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(reducer)), Amount: total}
+		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.enemy.taken)), Amount: total}
 	}
 }
 
 // enemyReduction is the enemy's stats that reduce hits.
 type enemyReduction struct {
-	resistance, armour core.StatID
+	resistance, armour, taken core.StatID
 	// physical is the physical damage bit, which armour reduces instead of a resistance.
 	physical core.Mask
 }
 
 func newEnemyReduction(ids map[string]core.StatID) enemyReduction {
 	return enemyReduction{
-		resistance: mustID(ids, statEnemyResistance), armour: mustID(ids, statEnemyArmour),
-		physical: damageBit(damageDimension(), Physical),
+		resistance: mustID(ids, statHitEnemyResistance), armour: mustID(ids, statEnemyArmour),
+		taken: mustID(ids, statEnemyDamageTaken), physical: damageBit(damageDimension(), Physical),
 	}
+}
+
+// multiplier is what the enemy's armour, for physical damage against a hit of size raw, or
+// else the resistance the hit meets, leaves of a hit, with stat reading a stat in the hit
+// type's context.
+func (e enemyReduction) multiplier(physical bool, raw float64, stat func(core.StatID) float64) float64 {
+	if physical {
+		return armourMultiplier(stat(e.armour), raw)
+	}
+	return resistanceMultiplier(stat(e.resistance))
+}
+
+// reducer is the stat that reduces a hit: armour for physical damage, else the resistance.
+func (e enemyReduction) reducer(physical bool) core.StatID {
+	if physical {
+		return e.armour
+	}
+	return e.resistance
 }
 
 // armourMultiplier is what armour leaves of a physical hit of size raw.
@@ -265,7 +349,7 @@ func armourMultiplier(armour, raw float64) float64 {
 }
 
 func resistanceMultiplier(res float64) float64 {
-	return 1 - max(res, resistanceFloor)/percentScale
+	return 1 - res/percentScale
 }
 
 // averageHit is the average hit of a skill, read in its context: per damage type, the average of
@@ -286,10 +370,10 @@ func newAverageHit(ids map[string]core.StatID) averageHit {
 }
 
 // typeHit is one damage type's part of the average hit: the average of its minimum and
-// maximum, what the enemy takes of it without a critical strike, and its part of the average
-// hit.
+// maximum, what is left of it after the enemy's armour or resistance and what the enemy takes
+// of it without a critical strike, and its part of the average hit.
 type typeHit struct {
-	raw, normal, total float64
+	raw, resisted, normal, total float64
 }
 
 // of returns damage type d's part, with read reading a stat in d's context.
@@ -298,14 +382,11 @@ func (h averageHit) of(d DamageType, crit, critMultiplier float64, read func(cor
 	if raw == 0 {
 		return typeHit{}
 	}
-	reduce := func(v float64) float64 {
-		if d == Physical {
-			return v * armourMultiplier(read(h.enemy.armour), v)
-		}
-		return v * resistanceMultiplier(read(h.enemy.resistance))
-	}
-	normal := reduce(raw)
-	return typeHit{raw: raw, normal: normal, total: normal*(1-crit) + reduce(raw*critMultiplier)*crit}
+	taken := read(h.enemy.taken) / percentScale
+	resist := func(v float64) float64 { return v * h.enemy.multiplier(d == Physical, v, read) }
+	resisted := resist(raw)
+	normal := resisted * taken
+	return typeHit{raw: raw, resisted: resisted, normal: normal, total: normal*(1-crit) + resist(raw*critMultiplier)*taken*crit}
 }
 
 func (h averageHit) formula() core.Formula {
@@ -336,12 +417,15 @@ func (h averageHit) attribute() core.Attribute {
 			minParts, _ := a.Of(a.RefWith(h.minimum, bit))
 			maxParts, _ := a.Of(a.RefWith(h.maximum, bit))
 			parts = append(parts, scaled(append(minParts, maxParts...), half)...)
-			if t.normal != t.raw {
+			if t.resisted != t.raw {
 				reducer := core.SelfRef(h.enemy.armour)
 				if d != Physical {
 					reducer = a.RefWith(h.enemy.resistance, bit)
 				}
-				parts = append(parts, a.Spread(reducer, t.normal-t.raw, core.OpMore)...)
+				parts = append(parts, a.Spread(reducer, t.resisted-t.raw, core.OpMore)...)
+			}
+			if t.normal != t.resisted {
+				parts = append(parts, a.Spread(a.RefWith(h.enemy.taken, bit), t.normal-t.resisted, core.OpMore)...)
 			}
 			if c := t.total - t.normal; c != 0 {
 				parts = append(parts, a.Spread(core.SelfRef(h.chance), c*half, core.OpMore)...)
