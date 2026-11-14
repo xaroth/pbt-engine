@@ -133,6 +133,7 @@ const (
 	statAverageHit                                       = "average_hit"
 	statHitChance                                        = "hit_chance"
 	statCastTime                                         = "cast_time"
+	statSkillStages                                      = "skill_stages"
 	statCastSpeed                                        = "cast_speed"
 	statAttackRate                                       = "attack_rate"
 	statAttackSpeed                                      = "attack_speed"
@@ -180,6 +181,9 @@ const (
 // movement_speed is the character's movement speed as a percentage of the base speed: 100
 // before modifiers. armour_movement_penalties_are_ignored is a flag that lifts the movement
 // speed penalties of armour bases.
+//
+// skill_stages, read in a skill's context, is the stages the skill has built up, as its gem
+// says; the skill's stats per stage scale with it.
 //
 // damage is a skill's damage as a percentage of its base damage: 100 before modifiers. Read in
 // a skill's context for one damage type, it holds the increases and more multipliers that
@@ -275,7 +279,7 @@ func engineStats() []string {
 		statMaximumSpellBlockChance,
 		statSpellBlockChanceCapped,
 		statArmourMovementPenaltiesAreIgnored, statMovementSpeed,
-		statDamage,
+		statSkillStages, statDamage,
 	}, reservationStats(), hitStats(), dotStats(), []string{
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,

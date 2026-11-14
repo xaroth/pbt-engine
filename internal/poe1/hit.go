@@ -541,7 +541,7 @@ func roundHundredths(v float64) float64 {
 	return math.Floor(v*scale+half) / scale
 }
 
-// hitBase is a value of a skill's hit stats from its granted effect and primary stat set.
+// hitBase is a value of a skill's hit stats from its granted effect and stat set.
 type hitBase struct {
 	stat  string
 	op    core.Op
@@ -549,14 +549,14 @@ type hitBase struct {
 }
 
 // hitBases are sk's cast time in seconds, the damage effectiveness, base damage multiplier and
-// critical strike chance of its primary stat set in percent, for a spell its chance to hit
+// critical strike chance of the stat set it uses in percent, for a spell its chance to hit
 // (spells always hit), and for an attack its level row's attack speed multiplier, a more
 // multiplier to the weapon's attacks per second as PoB applies it (CalcOffence.lua
 // attackSpeedMultiplier).
 func hitBases(sk *resolve.Skill) []hitBase {
 	out := []hitBase{{statCastTime, core.OpBase, float64(sk.CastTime) / millisecondsPerSecond}}
 	if len(sk.StatSets) > 0 {
-		set := sk.StatSets[0]
+		set := sk.Set()
 		out = append(out,
 			hitBase{statDamageEffectiveness, core.OpBase, percentScale + float64(set.DamageEffectiveness)/effectivenessPermyriadPct},
 			hitBase{statBaseDamageMultiplier, core.OpBase, percentScale + float64(set.BaseMultiplier)/effectivenessPermyriadPct},

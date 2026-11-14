@@ -2,6 +2,7 @@ package resolve_test
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -468,5 +469,30 @@ func TestSupportsBeyondTheGroup(t *testing.T) {
 				t.Errorf("warnings %v, want a gem left out %t", ws, testCase.warned)
 			}
 		})
+	}
+}
+
+// Lightning Strike's second stat set, its projectiles, adds base_is_projectile to the primary
+// set and keeps the primary set's damage effectiveness; a set it does not have warns and the
+// primary set is used.
+func TestStatSetChoice(t *testing.T) {
+	t.Parallel()
+	const lightningStrikeGem = "Metadata/Items/Gems/SkillGemLightningStrike"
+	primary, _ := mainSkill(t, build.SkillGroup{Gems: []build.Gem{active(lightningStrikeGem, 0)}}, nil, nil)
+	gem := active(lightningStrikeGem, 0)
+	gem.StatSet = 1
+	second, ws := mainSkill(t, build.SkillGroup{Gems: []build.Gem{gem}}, nil, nil)
+	got, base := second.Set(), primary.Set()
+	if len(ws) > 0 || got.ID != "LightningStrike_Projectile" || got.DamageEffectiveness != base.DamageEffectiveness {
+		t.Errorf("set 2: %s, effectiveness %d, warnings %v; want LightningStrike_Projectile, %d, none", got.ID, got.DamageEffectiveness, ws, base.DamageEffectiveness)
+	}
+	want := append(slices.Clone(base.Stats), resolve.StatValue{Stat: "base_is_projectile", Value: 1})
+	if diff := cmp.Diff(want, got.Stats); diff != "" {
+		t.Errorf("set 2 stats (-want +got):\n%s", diff)
+	}
+	gem.StatSet = 2
+	third, ws := mainSkill(t, build.SkillGroup{Gems: []build.Gem{gem}}, nil, nil)
+	if third.Set().ID != "LightningStrike" || len(ws) != 1 || ws[0].Code != resolve.StatSetUnknown {
+		t.Errorf("set 3: %s, warnings %v; want the primary set and %s", third.Set().ID, ws, resolve.StatSetUnknown)
 	}
 }

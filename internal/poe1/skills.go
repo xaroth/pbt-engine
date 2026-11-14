@@ -7,6 +7,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
 // Errors of a sheet's skills.
@@ -32,7 +33,7 @@ type skillKey struct {
 }
 
 // SetSkills makes skills the sheet's skills: skill i takes context slot i, and the sources of
-// its own stats (its primary stat set, quality included, and each applied support) go on,
+// its own stats (the stat set it uses, quality included, and each applied support) go on,
 // those of other skills off. A skill's own stats reach that skill's values only. Every skill
 // that reserves life or mana reserves it from the sheet's pools; outputs of the skill group
 // read skill 0. A skill not
@@ -75,7 +76,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) {
 	bundles := make([]resolve.Bundle, 0, 1+len(sk.Supports))
 	if len(sk.StatSets) > 0 {
-		bundles = append(bundles, skillBundle(sk.Source, sk.StatSets[0].Stats))
+		bundles = append(bundles, skillBundle(sk.Source, sk.Set().Stats))
 	}
 	for _, sp := range sk.Supports {
 		bundles = append(bundles, skillBundle(sp.Source, sp.Stats))
@@ -97,7 +98,29 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 	if err != nil {
 		return nil, err
 	}
-	return append(srcs, src, hit), nil
+	srcs = append(srcs, src, hit)
+	if sk.Stages > 0 {
+		stages, err := sh.addStages(sk, slot)
+		if err != nil {
+			return nil, err
+		}
+		srcs = append(srcs, stages)
+	}
+	return srcs, nil
+}
+
+// addStages gives skill_stages the stages sk's gem says, in slot.
+func (sh *Sheet) addStages(sk *resolve.Skill, slot int) (core.SourceID, error) {
+	src := sh.newSource(Source{RuleID: "skill-stages", Rule: fmt.Sprintf("%d stages of %s", sk.Stages, sk.Source)})
+	pred, err := predicate(sh.session.Model(), semantics.ContextFilter{}, sh.ctx, slot)
+	if err != nil {
+		return 0, err
+	}
+	mod := core.Modifier{Stat: sh.stats[statSkillStages], Op: core.OpBase, Value: float64(sk.Stages), Source: src, Pred: pred}
+	if _, err := sh.session.AddModifier(mod); err != nil {
+		return 0, fmt.Errorf("sheet: skill stages: %w", err)
+	}
+	return src, nil
 }
 
 func skillBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {

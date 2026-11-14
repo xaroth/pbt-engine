@@ -46,6 +46,11 @@ type Gem struct {
 	Support bool `json:"support,omitzero"`
 	// Disabled gems stay in the group and do nothing.
 	Disabled bool `json:"disabled,omitzero"`
+	// StatSet is which stat set of the gem's skill is used: 0 its primary set, 1 its second.
+	// A skill uses its primary set's stats with those of an additional set on top.
+	StatSet int `json:"statSet,omitzero"`
+	// Stages is how many stages the skill has built up, for the stats it has per stage.
+	Stages int `json:"stages,omitzero"`
 }
 
 // Slot is an item slot gems can be socketed in.
