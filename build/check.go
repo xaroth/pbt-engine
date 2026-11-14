@@ -109,9 +109,14 @@ type Checked struct {
 	nodes      []*dataset.Node
 	ascStart   *dataset.Node
 	bloodStart *dataset.Node
-	masteries  []MasteryChoice
-	overrides  []OverrideChoice
-	warnings   []Warning
+	// generated are the nodes the build's cluster jewels add, and the sockets they add or are
+	// in with their links to those nodes, by id. They take the place of the tree's nodes.
+	generated map[uint32]*dataset.Node
+	// clusterRead are the lines of each socket's cluster jewel that say what it adds.
+	clusterRead map[uint32][]string
+	masteries   []MasteryChoice
+	overrides   []OverrideChoice
+	warnings    []Warning
 }
 
 // MasteryChoice is an allocated mastery node and its chosen effect.
@@ -136,8 +141,12 @@ type MasteryChoice struct {
 // mod lines not read as stats; it leaves out an offhand item the game refuses beside the
 // weapon, and warns about a quiver with no bow; a dataset without the group gets one warning.
 // It leaves out jewels in a node that is not a jewel socket and, against the items group,
-// jewels of an unknown base or not a jewel, and warns about jewels in a socket not allocated,
-// which it keeps. The weapon-swap
+// jewels of an unknown base or not a jewel, and cluster jewels that do not fit their socket,
+// and warns about jewels in a socket not allocated, which it keeps. A cluster jewel in a
+// cluster socket adds its passives, numbered as Path of Building numbers them: they can be
+// allocated, paths run through them and their stats count. It drops a passive or socket that
+// only a cluster jewel adds when no jewel in the build adds it, and warns about a cluster jewel
+// whose lines do not say what it adds. The weapon-swap
 // slots are not in use: their items are left out and the gems socketed in them disabled,
 // without a warning, so the skills they grant or hold are disabled too. It returns a
 // *CheckError when the game, tree variant or class does not fit, or the error of a dataset
@@ -177,7 +186,9 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	c.checkAscendancy()
 	c.checkBloodline()
 	c.checkLevel()
-	c.checkNodes()
+	if err := c.checkNodes(); err != nil {
+		return nil, nil, err
+	}
 	c.checkChoices()
 	c.checkConnected()
 	c.checkOverrides()
@@ -247,8 +258,8 @@ func (c *Checked) Nodes() []*dataset.Node { return slices.Clone(c.nodes) }
 // as far as they concern the edits themselves: nodes it cannot take, mastery effects on a
 // node that is not an allocated mastery or not of that mastery, overrides that do not fit, and
 // jewels put in a node that is not a jewel socket. Connectivity, mastery choices still to make,
-// point budgets and whether a jewel fits its socket are about the whole build; Check gives
-// those.
+// point budgets, whether a jewel fits its socket and which passives cluster jewels add are
+// about the whole build; Check gives those.
 func (c *Checked) EditWarnings(edits []Edit) []Warning {
 	allocated := map[uint32]bool{}
 	for _, n := range c.build.Nodes {
@@ -298,7 +309,7 @@ func (c *Checked) editWarnings(e Edit, allocated map[uint32]bool) []Warning {
 func (c *Checked) allocateWarnings(ids []uint32, allocated map[uint32]bool) []Warning {
 	var out []Warning
 	for _, id := range ids {
-		if w, bad := c.nodeProblem(id, c.node(id)); bad {
+		if w, bad := c.nodeProblem(id, c.node(id)); bad && w.Code != NodeNoClusterJewel {
 			out = append(out, w)
 		} else {
 			allocated[id] = true
@@ -362,8 +373,12 @@ func (c *Checked) checkLevel() {
 	}
 }
 
-// checkNodes keeps the allocated nodes that exist and fit the class and ascendancy.
-func (c *Checked) checkNodes() {
+// checkNodes adds the passives the build's cluster jewels add to the tree, then keeps the
+// allocated nodes that exist and fit the class and ascendancy.
+func (c *Checked) checkNodes() error {
+	if err := c.generateClusters(); err != nil {
+		return err
+	}
 	var kept []uint32
 	for i, id := range c.build.Nodes {
 		subject := fmt.Sprintf("node %d", id)
@@ -380,11 +395,15 @@ func (c *Checked) checkNodes() {
 		kept = append(kept, id)
 	}
 	c.build.Nodes = kept
+	return nil
 }
 
 // nodeProblem returns the warning for allocating node id (n, nil when not in the tree) when the
 // build cannot take it.
 func (c *Checked) nodeProblem(id uint32, n *dataset.Node) (Warning, bool) {
+	if w, bad := c.clusterNodeProblem(id); bad {
+		return w, true
+	}
 	subject := fmt.Sprintf("node %d", id)
 	switch {
 	case n == nil:
@@ -415,6 +434,9 @@ func (c *Checked) effectProblem(node, effect uint32, allocated bool) (Warning, b
 }
 
 func (c *Checked) node(id uint32) *dataset.Node {
+	if n, ok := c.generated[id]; ok {
+		return n
+	}
 	j, ok := slices.BinarySearchFunc(c.tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
 	if !ok {
 		return nil

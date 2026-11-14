@@ -79,6 +79,16 @@ type Node struct {
 	X, Y float64
 }
 
+// IsJewelBase reports whether the dataset ItemBase.ID base is a cluster jewel's, as the game's
+// item ids name them, without reading a tree.
+func IsJewelBase(base string) bool { return strings.HasPrefix(base, jewelBasePrefix) }
+
+const jewelBasePrefix = "Metadata/Items/Jewels/JewelPassiveTreeExpansion"
+
+// IsGenerated reports whether id is the id of a passive a cluster jewel adds, which no tree
+// node has.
+func IsGenerated(id uint32) bool { return id&idFlag != 0 }
+
 // Generator generates subgraphs on one tree variant. It is safe for concurrent use.
 type Generator struct {
 	tree   *dataset.Tree

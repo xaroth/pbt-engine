@@ -13,6 +13,7 @@ const (
 	JewelNotSocket    Code = "jewel-not-socket"
 	JewelNotAllocated Code = "jewel-not-allocated"
 	JewelKindMismatch Code = "jewel-kind-mismatch"
+	JewelTooLarge     Code = "jewel-too-large"
 )
 
 // jewelClasses are the ItemClass.IDs a jewel socket takes. Cluster jewels are of class Jewel.
@@ -20,8 +21,9 @@ func jewelClasses() []string { return []string{"Jewel", "AbyssJewel"} }
 
 // checkJewels leaves out jewels in a node that is not a jewel socket and, with data, jewels of
 // an unknown base or of a class a socket does not take, each with a warning, and warns about
-// jewels kept in a socket that is not allocated. Without data, bases go unchecked. Whether a
-// cluster jewel fits its socket's size is not checked: the tree does not hold socket sizes.
+// jewels kept in a socket that is not allocated. Without data, bases go unchecked. A cluster
+// jewel larger than its socket, or in a socket that takes none on a tree that names its
+// cluster sockets, is left out with a warning.
 func (c *Checked) checkJewels(data *dataset.Items) {
 	for _, id := range slices.Sorted(maps.Keys(c.build.Jewels)) {
 		it := c.build.Jewels[id]
@@ -53,7 +55,10 @@ func (c *Checked) checkJewel(id uint32, it *Item, data *dataset.Items) bool {
 			c.warnf(JewelKindMismatch, subject, "a %s does not fit a jewel socket; left out", base.Class)
 			return false
 		}
-		c.checkMods(Warning{Subject: subject}, it)
+		c.checkMods(Warning{Subject: subject}, it, c.clusterRead[id])
+	}
+	if !c.clusterFits(id, it) {
+		return false
 	}
 	if c.allocated(id) == nil {
 		c.warnf(JewelNotAllocated, subject, "socket not allocated; kept, it counts once allocated")
@@ -72,4 +77,22 @@ func (c *Checked) socketProblem(id uint32) (Warning, bool) {
 		Code: JewelNotSocket, Subject: jewelSubject(id),
 		Message: fmt.Sprintf("node %d is not a jewel socket of the %s tree; jewel left out", id, c.build.Variant),
 	}, true
+}
+
+// clusterFits reports whether the jewel it, if a cluster jewel, fits socket id, or warns.
+func (c *Checked) clusterFits(id uint32, it *Item) bool {
+	cj := c.clusterJewel(it.Base)
+	if cj == nil {
+		return true
+	}
+	sock, ok := c.tree.ClusterSocket(id)
+	switch {
+	case !ok && len(c.tree.Clusters.Sockets) > 0:
+		c.warnf(JewelKindMismatch, jewelSubject(id), "a cluster jewel does not fit a socket that takes none; left out")
+		return false
+	case ok && cj.Size > sock.Size:
+		c.warnf(JewelTooLarge, jewelSubject(id), "a %s cluster jewel does not fit a %s socket; left out", cj.Size, sock.Size)
+		return false
+	}
+	return true
 }
