@@ -17,7 +17,7 @@ import (
 // types exclude does not apply whatever the group's order; the types it added stay. The rest
 // warn.
 func (r *skillResolver) supportedTypes(src GemSource, g build.SkillGroup, ge *dataset.GrantedEffect, sk *Skill) []bool {
-	active := r.actives[ge.ActiveSkill]
+	active := r.data.ActiveSkill(ge.ActiveSkill)
 	types := make([]bool, len(r.data.Types))
 	minion := make([]bool, len(r.data.Types))
 	for _, t := range active.Types {
@@ -75,7 +75,7 @@ func (r *skillResolver) supportGems(src GemSource, g build.SkillGroup) []support
 		if !gem.Support {
 			id = e.SecondaryGrantedEffect
 		}
-		if ge := r.effects[id]; ge != nil && ge.Support {
+		if ge := r.data.GrantedEffect(id); ge != nil && ge.Support {
 			out = append(out, supportGem{src: GemSource{Group: i, Gem: j, ID: gem.ID}, gem: gem, effect: ge})
 		}
 	}
@@ -139,7 +139,7 @@ func (r *skillResolver) support(slot build.Slot, sp supportGem) Support {
 		out.CostMultiplier, out.Reservation = row.CostMultiplier, rowReservation(row)
 	}
 	if len(sp.effect.StatSets) > 0 {
-		out.Stats = r.statSet(r.sets[sp.effect.StatSets[0]], out.Level, out.Quality, sp.effect.QualityStats).Stats
+		out.Stats = r.statSet(r.data.StatSet(sp.effect.StatSets[0]), out.Level, out.Quality, sp.effect.QualityStats).Stats
 	}
 	return out
 }

@@ -199,7 +199,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 		}
 	}
 	for _, id := range ge.StatSets {
-		sk.StatSets = append(sk.StatSets, r.statSet(r.sets[id], sk.Level, sk.Quality, ge.QualityStats))
+		sk.StatSets = append(sk.StatSets, r.statSet(r.data.StatSet(id), sk.Level, sk.Quality, ge.QualityStats))
 	}
 	sk.Types = r.typeNames(types)
 	return sk, nil
@@ -207,11 +207,8 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 
 // skillResolver holds what resolving one skill reads, and the warnings it gives.
 type skillResolver struct {
-	data     *dataset.Skills
+	data     *dataset.SkillIndex
 	stats    []dataset.Stat
-	effects  map[string]*dataset.GrantedEffect
-	sets     map[string]*dataset.StatSet
-	actives  map[string]*dataset.ActiveSkill
 	items    build.Items
 	groups   []build.SkillGroup
 	bonuses  []GemBonus
@@ -219,7 +216,7 @@ type skillResolver struct {
 }
 
 func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, error) {
-	data, err := c.Store().Skills()
+	data, err := c.Store().SkillIndex()
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load skills: %w", err)
 	}
@@ -227,22 +224,7 @@ func newSkillResolver(c *build.Checked, bonuses []GemBonus) (*skillResolver, err
 	if err != nil {
 		return nil, fmt.Errorf("resolve: load stats: %w", err)
 	}
-	r := &skillResolver{
-		data: data, stats: stats, items: c.Build().Items, groups: c.Build().Skills.Groups, bonuses: bonuses,
-		effects: make(map[string]*dataset.GrantedEffect, len(data.GrantedEffects)),
-		sets:    make(map[string]*dataset.StatSet, len(data.StatSets)),
-		actives: make(map[string]*dataset.ActiveSkill, len(data.ActiveSkills)),
-	}
-	for i := range data.GrantedEffects {
-		r.effects[data.GrantedEffects[i].ID] = &data.GrantedEffects[i]
-	}
-	for i := range data.StatSets {
-		r.sets[data.StatSets[i].ID] = &data.StatSets[i]
-	}
-	for i := range data.ActiveSkills {
-		r.actives[data.ActiveSkills[i].ID] = &data.ActiveSkills[i]
-	}
-	return r, nil
+	return &skillResolver{data: data, stats: stats, items: c.Build().Items, groups: c.Build().Skills.Groups, bonuses: bonuses}, nil
 }
 
 func (r *skillResolver) warnf(code build.Code, subject GemSource, format string, args ...any) {
@@ -279,8 +261,8 @@ func (r *skillResolver) skillEffect(gem build.Gem, which int) (*dataset.GrantedE
 	if which == 1 {
 		id = e.SecondaryGrantedEffect
 	}
-	ge := r.effects[id]
-	if ge == nil || ge.Support || r.actives[ge.ActiveSkill] == nil || len(ge.Levels) == 0 {
+	ge := r.data.GrantedEffect(id)
+	if ge == nil || ge.Support || r.data.ActiveSkill(ge.ActiveSkill) == nil || len(ge.Levels) == 0 {
 		return nil, fmt.Errorf("%w: skill %d of gem %s", ErrNoActiveSkill, which+1, gem.ID)
 	}
 	return ge, nil
