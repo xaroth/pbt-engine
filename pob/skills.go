@@ -19,6 +19,7 @@ func slots() map[string]build.Slot {
 		"Weapon 1": build.SlotWeapon, "Weapon 2": build.SlotOffhand,
 		"Weapon 1 Swap": build.SlotWeaponSwap, "Weapon 2 Swap": build.SlotOffhandSwap,
 		"Helmet": build.SlotHelmet, "Body Armour": build.SlotBodyArmour, "Gloves": build.SlotGloves, "Boots": build.SlotBoots,
+		"Amulet": build.SlotAmulet,
 	}
 }
 

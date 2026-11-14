@@ -31,8 +31,10 @@ type Store struct {
 	items      lazy[*Items]
 	mods       lazy[[]Mod]
 	skills     lazy[*SkillIndex]
-	buffs      lazy[*Buffs]
-	monsters   lazy[*Monsters]
+	// itemSupports is built from mods and skills.
+	itemSupports lazy[*ItemSupports]
+	buffs        lazy[*Buffs]
+	monsters     lazy[*Monsters]
 	// trees, classes, texts, names and layouts are keyed by variant and language, fixed by the
 	// manifest.
 	trees   map[string]*lazy[*Tree]

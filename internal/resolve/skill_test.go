@@ -123,6 +123,7 @@ func TestMainSkillSupports(t *testing.T) {
 			[]string{"SupportSpellTotem"}, []int{2}, "excludes",
 		},
 		{"without the support that adds types", []build.Gem{active(freezingPulseGem, 0), support(multiTotemGem, 20)}, nil, []int{1}, "lacks the types"},
+		{"totem support on an attack", []build.Gem{active(groundSlamGem, 0), support(spellTotemGem, 20)}, nil, []int{1}, "lacks the types"},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -398,5 +399,75 @@ func TestAll(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got, cmp.AllowUnexported(skill{})); diff != "" {
 		t.Errorf("skills (-want +got):\n%s", diff)
+	}
+}
+
+// TestSupportsBeyondTheGroup checks supports from outside the skill's group: the support an item
+// grants to the gems socketed in it, at the item's level and no quality; of one support twice,
+// the one at the higher level; and the support gems of an off-hand or amulet whose supports also
+// support the main hand's or body armour's skills.
+func TestSupportsBeyondTheGroup(t *testing.T) {
+	t.Parallel()
+	const body, shield = "Metadata/Items/Armours/BodyArmours/BodyStr1", "Metadata/Items/Armours/Shields/ShieldStr1"
+	item := func(base string, stats ...build.StatValue) build.Item {
+		return build.Item{Rarity: build.Unique, Name: "Test", Base: base, Mods: []build.ModLine{{Kind: build.Explicit, Stats: stats}}}
+	}
+	totemArmour := build.Items{build.SlotBodyArmour: item(body, build.StatValue{Stat: "local_display_socketed_gems_get_spell_totem_level", Value: 20})}
+	linking := build.Items{build.SlotOffhand: item(shield, build.StatValue{Stat: "support_gems_socketed_in_off_hand_also_support_main_hand_skills", Value: 1})}
+	fireball := []build.Gem{active(fireballGem, 0)}
+	testCases := []struct {
+		name   string
+		groups []build.SkillGroup
+		items  build.Items
+		want   []resolve.Support
+		// warned is a gem of the group left out.
+		warned bool
+	}{
+		{
+			"item support", []build.SkillGroup{{Slot: build.SlotBodyArmour, Gems: fireball}}, totemArmour,
+			[]resolve.Support{{Source: resolve.ItemSource{Slot: build.SlotBodyArmour, Name: "Test"}, GrantedEffect: "SupportSpellTotem", Level: 20}}, false,
+		},
+		{"item support, gems in another slot", []build.SkillGroup{{Slot: build.SlotHelmet, Gems: fireball}}, totemArmour, nil, false},
+		{
+			"item support and a lower gem",
+			[]build.SkillGroup{{Slot: build.SlotBodyArmour, Gems: []build.Gem{active(fireballGem, 0), support(spellTotemGem, 18)}}}, totemArmour,
+			[]resolve.Support{{Source: resolve.ItemSource{Slot: build.SlotBodyArmour, Name: "Test"}, GrantedEffect: "SupportSpellTotem", Level: 20}}, true,
+		},
+		{
+			"off-hand linked to the main hand",
+			[]build.SkillGroup{{Slot: build.SlotWeapon, Gems: fireball}, {Slot: build.SlotOffhand, Gems: []build.Gem{support(addedFireGem, 20)}}}, linking,
+			[]resolve.Support{{Source: resolve.GemSource{Group: 1, Gem: 0, ID: addedFireGem}, GrantedEffect: "SupportAddedFireDamage", Level: 20}}, false,
+		},
+		{
+			"amulet linked to the body armour",
+			[]build.SkillGroup{{Slot: build.SlotBodyArmour, Gems: fireball}, {Slot: build.SlotAmulet, Gems: []build.Gem{support(addedFireGem, 20)}}},
+			build.Items{build.SlotAmulet: item("Metadata/Items/Amulets/Amulet1",
+				build.StatValue{Stat: "support_gems_socketed_in_amulet_also_support_body_skills", Value: 1})},
+			[]resolve.Support{{Source: resolve.GemSource{Group: 1, Gem: 0, ID: addedFireGem}, GrantedEffect: "SupportAddedFireDamage", Level: 20}}, false,
+		},
+		{
+			"main hand not linked to the off-hand",
+			[]build.SkillGroup{{Slot: build.SlotOffhand, Gems: fireball}, {Slot: build.SlotWeapon, Gems: []build.Gem{support(addedFireGem, 20)}}}, linking, nil, false,
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			sk, ws, err := skillsOf(t, testCase.groups, testCase.items, nil).Group(0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []resolve.Support
+			for _, sp := range sk.Supports {
+				got = append(got, resolve.Support{Source: sp.Source, GrantedEffect: sp.GrantedEffect, Level: sp.Level, Quality: sp.Quality})
+			}
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("supports (-want +got):\n%s", diff)
+			}
+			warned := len(ws) == 1 && ws[0].Code == resolve.SupportNotApplied
+			if warned != testCase.warned || len(ws) > 1 {
+				t.Errorf("warnings %v, want a gem left out %t", ws, testCase.warned)
+			}
+		})
 	}
 }

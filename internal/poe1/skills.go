@@ -98,7 +98,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 	return append(srcs, src, hit), nil
 }
 
-func skillBundle(src resolve.GemSource, stats []resolve.StatValue) resolve.Bundle {
+func skillBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {
 	return resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: src, Stats: stats}
 }
 

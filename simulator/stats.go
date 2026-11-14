@@ -90,6 +90,16 @@ type MainSkill struct {
 	GrantedEffect  string
 	Level, Quality int
 	Types          []string
+	// Supports are those applied to it, from its group, the item it is socketed in and linked
+	// slots.
+	Supports []MainSupport
+}
+
+// MainSupport is a support applied to the main skill, at its level and quality with what items
+// add to a gem.
+type MainSupport struct {
+	GrantedEffect  string
+	Level, Quality int
 }
 
 // MainSkill returns the main skill, and false when the build has none; then the skill outputs
@@ -99,9 +109,13 @@ func (st *Stats) MainSkill() (MainSkill, bool) {
 		return MainSkill{}, false
 	}
 	sk := st.skill
+	supports := make([]MainSupport, 0, len(sk.Supports))
+	for _, sp := range sk.Supports {
+		supports = append(supports, MainSupport{GrantedEffect: sp.GrantedEffect, Level: sp.Level, Quality: sp.Quality})
+	}
 	return MainSkill{
 		Group: sk.Source.Group, Gem: sk.Source.Gem, ID: sk.Source.ID, GrantedEffect: sk.GrantedEffect,
-		Level: sk.Level, Quality: sk.Quality, Types: slices.Clone(sk.Types),
+		Level: sk.Level, Quality: sk.Quality, Types: slices.Clone(sk.Types), Supports: supports,
 	}, true
 }
 

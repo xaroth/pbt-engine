@@ -56,7 +56,8 @@ type Skill struct {
 	Reservation Reservation
 	// StatSets are the skill's stat sets at its level, the primary set first.
 	StatSets []SkillStatSet
-	// Supports are the group's supports that apply to the skill, in group order.
+	// Supports are those that apply to the skill: the item's supports for gems socketed in it,
+	// the group's support gems in group order, then those of the slots linked to the group's.
 	Supports []Support
 }
 
@@ -88,11 +89,12 @@ type SkillStatSet struct {
 	Stats []StatValue
 }
 
-// Support is a support gem applied to a skill, with the stats it gives the skill.
+// Support is a support applied to a skill, with the stats it gives the skill.
 type Support struct {
-	Source        GemSource
+	// Source is the support's gem, or the item that grants it.
+	Source        Source
 	GrantedEffect string
-	// Level and Quality include what items add.
+	// Level and Quality include what items add to a gem.
 	Level, Quality int
 	// CostMultiplier is the support's cost and reservation multiplier in percent.
 	CostMultiplier int32
@@ -199,7 +201,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	}
 	src := GemSource{Group: i, Gem: j, ID: gem.ID}
 	sk := &Skill{Source: src, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime}
-	types := r.supportedTypes(src, g, ge, sk)
+	types := r.supportedTypes(src, ge, sk)
 
 	tags := r.tags(gem)
 	level, quality := r.characterBonus(src, gem, tags)
@@ -236,7 +238,11 @@ type skillResolver struct {
 	sockets         [][]dataset.GemColour
 	alwaysMatching  map[build.Slot]bool
 	matchingQuality int
-	warnings        []build.Warning
+	// itemSupports are the supports items grant to the gems socketed in them, by slot.
+	itemSupports map[build.Slot][]supportGem
+	// linked are the slots whose supports also support the skills of a slot, by that slot.
+	linked   map[build.Slot][]build.Slot
+	warnings []build.Warning
 }
 
 func newSkillResolver(c *build.Checked, rules GemRules) (*skillResolver, error) {
@@ -250,15 +256,20 @@ func newSkillResolver(c *build.Checked, rules GemRules) (*skillResolver, error) 
 	}
 	b := c.Build()
 	byStat := bonusesByStat(rules.Bonuses)
-	return &skillResolver{
+	r := &skillResolver{
 		data: data, stats: stats, groups: b.Skills.Groups,
 		bonuses: byStat, gemStats: gemStats(c, &b, stats, byStat),
 		sockets: socketColours(b.Skills.Groups, b.Items), alwaysMatching: alwaysMatching(b.Items, rules.AlwaysMatchingStat),
 		matchingQuality: rules.MatchingSocketQuality,
-	}, nil
+		linked:          linkedSlots(b.Items, rules.LinkedSupports),
+	}
+	if r.itemSupports, err = r.socketedSupports(c.Store(), b.Items); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
-func (r *skillResolver) warnf(code build.Code, subject GemSource, format string, args ...any) {
+func (r *skillResolver) warnf(code build.Code, subject Source, format string, args ...any) {
 	r.warnings = append(r.warnings, build.Warning{Code: code, Subject: subject.String(), Message: fmt.Sprintf(format, args...)})
 }
 
@@ -300,7 +311,7 @@ func (r *skillResolver) skillEffect(gem build.Gem, which int) (*dataset.GrantedE
 }
 
 // clampLevel returns level within the levels of ge, warning when it is beyond them.
-func (r *skillResolver) clampLevel(src GemSource, ge *dataset.GrantedEffect, level int) int {
+func (r *skillResolver) clampLevel(src Source, ge *dataset.GrantedEffect, level int) int {
 	top := int(ge.Levels[len(ge.Levels)-1].Level)
 	if level > top {
 		r.warnf(GemLevelBeyondData, src, "level %d with bonuses; %s has levels to %d; %d used", level, ge.ID, top, top)

@@ -166,7 +166,7 @@ func TestCheckSkills(t *testing.T) {
 			nil, func(sk *build.Skills) { sk.Groups[1].Gems = sk.Groups[1].Gems[1:] },
 		},
 		{
-			"slot without sockets", func(sk *build.Skills) { sk.Groups[1].Slot = "amulet" },
+			"slot without sockets", func(sk *build.Skills) { sk.Groups[1].Slot = "ring-1" },
 			[]build.Code{build.SlotUnknown}, func(*build.Skills) {},
 		},
 		{

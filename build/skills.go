@@ -66,9 +66,10 @@ const (
 // Swap reports whether s is a weapon-swap slot, whose items and gems are not in use.
 func (s Slot) Swap() bool { return s == SlotWeaponSwap || s == SlotOffhandSwap }
 
-// Slots returns the slots with sockets.
+// Slots returns the slots with sockets. An amulet has one when its base does, such as an Unset
+// Amulet.
 func Slots() []Slot {
-	return []Slot{SlotWeapon, SlotOffhand, SlotWeaponSwap, SlotOffhandSwap, SlotHelmet, SlotBodyArmour, SlotGloves, SlotBoots}
+	return []Slot{SlotWeapon, SlotOffhand, SlotWeaponSwap, SlotOffhandSwap, SlotHelmet, SlotBodyArmour, SlotGloves, SlotBoots, SlotAmulet}
 }
 
 // Group returns a handle on group i, whose methods apply edits to s.

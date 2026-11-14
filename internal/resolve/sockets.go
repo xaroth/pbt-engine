@@ -1,6 +1,8 @@
 package resolve
 
 import (
+	"fmt"
+
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 )
@@ -14,6 +16,16 @@ type GemRules struct {
 	// AlwaysMatchingStat is an item stat with which every gem socketed in the item gains
 	// MatchingSocketQuality, whatever the socket's colour.
 	AlwaysMatchingStat string
+	// LinkedSupports are item stats with which the supports socketed in the item also support
+	// the skills socketed in another slot.
+	LinkedSupports []LinkedSupport
+}
+
+// LinkedSupport is an item stat with which the supports socketed in the item, the gems' and
+// those the item grants, also support the skills socketed in slot To.
+type LinkedSupport struct {
+	Stat string
+	To   build.Slot
 }
 
 // socketColours returns the colour of the socket each gem of groups is in, by group and gem;
@@ -93,4 +105,62 @@ func (r *skillResolver) socketQuality(src GemSource, gem build.Gem) int {
 		return r.matchingQuality
 	}
 	return 0
+}
+
+// socketedSupports returns the supports the items in socketed slots grant to the gems socketed
+// in them, by slot, in the order of their mod lines.
+func (r *skillResolver) socketedSupports(store *dataset.Store, items build.Items) (map[build.Slot][]supportGem, error) {
+	out := map[build.Slot][]supportGem{}
+	var index *dataset.ItemSupports
+	for _, slot := range build.Slots() {
+		it, ok := items[slot]
+		if !ok {
+			continue
+		}
+		for _, m := range it.Mods {
+			for _, sv := range m.Stats {
+				if index == nil {
+					var err error
+					if index, err = store.ItemSupports(); err != nil {
+						return nil, fmt.Errorf("resolve: item supports: %w", err)
+					}
+				}
+				for _, g := range index.Supports(sv.Stat, sv.Value) {
+					if ge := r.data.GrantedEffect(g.Effect); ge != nil {
+						out[slot] = append(out[slot], supportGem{src: ItemSource{Slot: slot, Name: it.Name}, effect: ge, level: int(g.Level)})
+					}
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// linkedSlots returns, by slot, the slots of the items whose stats in links make their
+// supports also support the skills socketed in it. Items in the weapon swap link none.
+func linkedSlots(items build.Items, links []LinkedSupport) map[build.Slot][]build.Slot {
+	out := map[build.Slot][]build.Slot{}
+	for _, slot := range build.Slots() {
+		it, ok := items[slot]
+		if !ok || slot.Swap() {
+			continue
+		}
+		for _, l := range links {
+			if hasStat(it, l.Stat) {
+				out[l.To] = append(out[l.To], slot)
+			}
+		}
+	}
+	return out
+}
+
+func hasStat(it build.Item, stat string) bool {
+	for _, m := range it.Mods {
+		for _, sv := range m.Stats {
+			if sv.Stat == stat && sv.Value != 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
