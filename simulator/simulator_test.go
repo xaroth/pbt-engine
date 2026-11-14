@@ -55,6 +55,7 @@ func testDataset(version string, life2 int32) *dataset.Dataset {
 		Constants: []dataset.Constant{
 			{ID: "life_per_strength", Value: 1, Per: 2}, {ID: "mana_per_intelligence", Value: 1, Per: 2},
 			{ID: "evasion_rating_+%_per_dexterity", Value: 1, Per: 5}, {ID: "energy_shield_+%_per_intelligence", Value: 1, Per: 10},
+			{ID: "melee_physical_damage_+%_per_strength", Value: 1, Per: 5},
 		},
 		Quests: []dataset.Quest{
 			{Quest: "a5q6", Flag: "a5q6-CompletedBoss", Act: 5, Stats: []dataset.StatValue{{Stat: 9, Value: -30}, {Stat: 10, Value: -30}}},

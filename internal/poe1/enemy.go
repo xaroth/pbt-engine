@@ -127,6 +127,16 @@ type EnemyStats struct {
 	Armour, Evasion                                                      int
 }
 
+// EnemyReadsMonsters reports whether EnemyOf reads the monster values per level for cfg: its
+// enemy kind takes a normal monster's armour and evasion.
+func EnemyReadsMonsters(cfg config.Resolved) bool {
+	kind, src := config.Lookup(cfg, Enemy)
+	if src == config.Default {
+		kind = EnemyPinnacle
+	}
+	return enemyPresets()[kind].MonsterDefences
+}
+
 // EnemyOf resolves the enemy of cfg for a character of characterLevel: each value cfg sets,
 // else the enemy kind's. levels are the game's monster values per level (DefaultMonsterStats);
 // a kind without its own armour and evasion reads them there, and a level they lack is an

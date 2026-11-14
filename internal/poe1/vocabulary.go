@@ -76,6 +76,8 @@ const (
 	statSpellBlockChanceCapped                           = "spell_block_chance_capped"
 	statMovementSpeed                                    = "movement_speed"
 	statDamage                                           = "damage"
+	statMinimumDamage                                    = "minimum_damage"
+	statMaximumDamage                                    = "maximum_damage"
 	statReservation                                      = "reservation"
 	statReservationEfficiency                            = "reservation_efficiency"
 	statManaReservationEfficiency                        = "mana_reservation_efficiency"
@@ -123,6 +125,8 @@ const (
 	statHitChance                                        = "hit_chance"
 	statCastTime                                         = "cast_time"
 	statCastSpeed                                        = "cast_speed"
+	statAttackRate                                       = "attack_rate"
+	statAttackSpeed                                      = "attack_speed"
 	statHitsPerSecond                                    = "hits_per_second"
 	statHitDPS                                           = "hit_dps"
 )
@@ -300,6 +304,8 @@ func hitStats() []string {
 		statAddedMaximumDamage,
 		statBaseDamageMultiplier,
 		statDamageEffectiveness,
+		statMinimumDamage,
+		statMaximumDamage,
 		statMinimumHitDamage,
 		statMaximumHitDamage,
 		statEffectiveMinimumHitDamage,
@@ -310,6 +316,8 @@ func hitStats() []string {
 		statHitChance,
 		statCastTime,
 		statCastSpeed,
+		statAttackRate,
+		statAttackSpeed,
 		statHitsPerSecond,
 		statHitDPS,
 	}

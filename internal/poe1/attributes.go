@@ -5,16 +5,19 @@ import (
 
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
 // attributeBonus is an inherent bonus of an attribute: the constant's Value per Per points of
-// the attribute, in whole steps, unless flag stat off is set.
+// the attribute, in whole steps, unless flag stat off is set (none when empty).
 type attributeBonus struct {
 	// id is the rule source's RuleID.
 	id                               string
 	constant, attribute, target, off string
 	op                               core.Op
 	label                            string
+	// in are the contexts the bonus requires, as a table modifier's: one of each term.
+	in [][]string
 }
 
 // attributeBonuses are the inherent bonuses on the sheet. The constants' notes say each is
@@ -42,6 +45,14 @@ func attributeBonuses() []attributeBonus {
 			attribute: statIntelligence, target: statMaximumEnergyShield, op: core.OpInc,
 			off: statNoIntelligenceBonusToMaximumEnergyShield,
 		},
+		{
+			// PoB applies it to melee skills (CalcPerform.lua, ModFlag.Melee); the constant names
+			// melee physical damage.
+			id:       "strength-bonus-melee-physical-damage",
+			constant: "melee_physical_damage_+%_per_strength", label: "Strength bonus to melee physical damage",
+			attribute: statStrength, target: statDamage, op: core.OpInc,
+			in: [][]string{{dimType + "." + "Melee"}, {dimDamage + "." + Physical.String()}},
+		},
 	}
 }
 
@@ -53,11 +64,17 @@ func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
 		if err != nil {
 			return err
 		}
+		pred, err := predicate(sh.session.Model(), semantics.ContextFilter{In: b.in}, sh.ctx, -1)
+		if err != nil {
+			return err
+		}
 		src := sh.newSource(Source{RuleID: b.id, Rule: fmt.Sprintf("%s (%d per %d, constant %s)", b.label, c.Value, c.Per, b.constant)})
 		mod := core.Modifier{
-			Stat: sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src,
+			Stat: sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src, Pred: pred,
 			Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[b.attribute]), Step: float64(c.Per)}},
-			Conds:  []core.Cond{{Ref: core.SelfRef(sh.stats[b.off]), Cmp: core.CmpEQ}},
+		}
+		if b.off != "" {
+			mod.Conds = []core.Cond{{Ref: core.SelfRef(sh.stats[b.off]), Cmp: core.CmpEQ}}
 		}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return fmt.Errorf("sheet: %s: %w", b.constant, err)

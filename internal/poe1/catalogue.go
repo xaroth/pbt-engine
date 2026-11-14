@@ -65,19 +65,24 @@ type skillNeed uint8
 const (
 	// needsSkill is any main skill.
 	needsSkill skillNeed = iota
-	// needsHit is a spell hit (SpellHit).
+	// needsHit is a hit (Hit).
 	needsHit
-	// needsRate is a spell hit the character casts itself.
+	// needsRate is a hit the character uses itself.
 	needsRate
+	// needsSpellHit is a spell hit (SpellHit): an attack's chance to hit is not given yet.
+	needsSpellHit
+	// needsSpellRate is a spell hit the character casts itself.
+	needsSpellRate
 )
 
 // IsSkill reports whether o is read in the main skill's context.
 func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 
-// Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none: an
-// output of the sheet always, one of the skill group for a main skill; its hit only for a spell
-// hit, and its rate of hits only for a spell hit the character casts itself.
-func Gives(o Output, sk *resolve.Skill) bool {
+// Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, with
+// hands: an output of the sheet always, one of the skill group for a main skill; its hit only
+// for a hit, its rate of hits only for a hit the character uses itself, and its chance to hit
+// and hit damage per second only for a spell.
+func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
 		return true
@@ -86,9 +91,13 @@ func Gives(o Output, sk *resolve.Skill) bool {
 	}
 	switch o.needs {
 	case needsHit:
-		return SpellHit(sk)
+		return Hit(sk, hands)
 	case needsRate:
-		return selfCastHit(sk)
+		return selfUsedHit(sk, hands)
+	case needsSpellHit:
+		return SpellHit(sk)
+	case needsSpellRate:
+		return SpellHit(sk) && selfUsedHit(sk, hands)
 	case needsSkill:
 	}
 	return true
@@ -182,7 +191,7 @@ func hitOutputs() []Output {
 	}
 	return append([]Output{
 		{Key: AverageHit, Label: "Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsHit},
-		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsHit},
+		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsSpellHit},
 		{
 			Key: CriticalStrikeChance, Label: "Critical Strike Chance", Better: output.Higher, Unit: UnitPercent, Places: ratePlaces,
 			stat: statCriticalStrikeChance, needs: needsHit,
@@ -191,7 +200,7 @@ func hitOutputs() []Output {
 			Key: HitsPerSecond, Label: "Hits per Second", Better: output.Higher, Unit: UnitPerSecond, Places: ratePlaces,
 			stat: statHitsPerSecond, needs: needsRate,
 		},
-		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsRate},
+		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsSpellRate},
 	}, perType...)
 }
 

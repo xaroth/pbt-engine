@@ -50,11 +50,11 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 		if err != nil {
 			return fmt.Errorf("simulator: item %s: %w", slot, err)
 		}
-		r.items = append(r.items, poe1.Item{Slot: slot, Name: it.Name, Key: key, Stats: c.stats})
-		if len(c.assumed) > 0 {
+		r.items = append(r.items, poe1.Item{Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon})
+		if len(c.Assumed) > 0 {
 			r.warnings = append(r.warnings, Warning{
 				Code: ItemDefenceAssumed, Subject: "item " + string(slot), Slot: slot,
-				Message: "text gives no " + strings.Join(c.assumed, ", ") + "; the base's highest roll taken",
+				Message: "text gives no " + strings.Join(c.Assumed, ", ") + "; the base's highest roll taken",
 			})
 		}
 	}
@@ -64,7 +64,7 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 		if err != nil {
 			return fmt.Errorf("simulator: jewel %d: %w", node, err)
 		}
-		r.items = append(r.items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.stats})
+		r.items = append(r.items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats})
 	}
 	return nil
 }
@@ -83,33 +83,32 @@ func socketed(b *build.Build) []uint32 {
 
 // compile returns it compiled and its content key. The check left only items whose base the
 // dataset has.
-func (s *Sim) compile(it *build.Item, bases map[string]*dataset.ItemBase) (compiledItem, string, error) {
+func (s *Sim) compile(it *build.Item, bases map[string]*dataset.ItemBase) (poe1.CompiledItem, string, error) {
 	data, err := json.Marshal(it)
 	if err != nil {
-		return compiledItem{}, "", err //nolint:wrapcheck // wrapped by the caller
+		return poe1.CompiledItem{}, "", err //nolint:wrapcheck // wrapped by the caller
 	}
 	key := string(data)
 	c, ok := s.compiledItem(key)
 	if !ok {
-		stats, assumed := poe1.CompileItem(it, bases[it.Base])
-		c = compiledItem{stats: stats, assumed: assumed}
+		c = poe1.CompileItem(it, bases[it.Base])
 		s.keepCompiled(key, c)
 	}
 	return c, key, nil
 }
 
-func (s *Sim) compiledItem(key string) (compiledItem, bool) {
+func (s *Sim) compiledItem(key string) (poe1.CompiledItem, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	c, ok := s.compiled[key]
 	return c, ok
 }
 
-func (s *Sim) keepCompiled(key string, c compiledItem) {
+func (s *Sim) keepCompiled(key string, c poe1.CompiledItem) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.compiled == nil || len(s.compiled) >= maxCompiled {
-		s.compiled = map[string]compiledItem{}
+		s.compiled = map[string]poe1.CompiledItem{}
 	}
 	s.compiled[key] = c
 }
