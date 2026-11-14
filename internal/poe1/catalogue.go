@@ -73,6 +73,8 @@ const (
 	needsSpellHit
 	// needsSpellRate is a spell hit the character casts itself.
 	needsSpellRate
+	// needsDot is a skill that deals damage over time (dotSkill).
+	needsDot
 )
 
 // IsSkill reports whether o is read in the main skill's context.
@@ -80,8 +82,9 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 
 // Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, with
 // hands: an output of the sheet always, one of the skill group for a main skill; its hit only
-// for a hit, its rate of hits only for a hit the character uses itself, and its chance to hit
-// and hit damage per second only for a spell.
+// for a hit, its rate of hits only for a hit the character uses itself, its chance to hit
+// and hit damage per second only for a spell, and its damage over time only for a skill that
+// deals it.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -98,6 +101,8 @@ func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 		return SpellHit(sk)
 	case needsSpellRate:
 		return SpellHit(sk) && selfUsedHit(sk, hands)
+	case needsDot:
+		return dotSkill(sk)
 	case needsSkill:
 	}
 	return true
@@ -151,7 +156,7 @@ func Outputs() []Output {
 		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
 		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost},
 		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost},
-	}), group(GroupSkill, hitOutputs()))
+	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()))
 	for i := range out {
 		out[i].Order = i
 	}
@@ -230,8 +235,8 @@ func (sh *Sheet) Output(k output.Key) (float64, error) {
 }
 
 // outputNode returns the node o reads: a skill output's in the main skill's context (the
-// sheet's first skill), for its damage type, and a hit output's for hits; ErrSkill when the
-// sheet has no skill.
+// sheet's first skill), for its damage type, a hit output's for hits and a damage over time
+// output's for damage over time; ErrSkill when the sheet has no skill.
 func (sh *Sheet) outputNode(o Output) (core.Node, error) {
 	if !o.IsSkill() {
 		return core.Node{Stat: sh.stats[o.stat]}, nil
@@ -240,8 +245,13 @@ func (sh *Sheet) outputNode(o Output) (core.Node, error) {
 	if o.damage != 0 {
 		damage = []DamageType{o.damage}
 	}
-	form := formNone
-	if o.needs != needsSkill {
+	var form damageForm
+	switch o.needs {
+	case needsSkill:
+		form = formNone
+	case needsDot:
+		form = formDot
+	case needsHit, needsRate, needsSpellHit, needsSpellRate:
 		form = formHit
 	}
 	return sh.skillNode(0, o.stat, damage, form)

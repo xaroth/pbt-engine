@@ -47,7 +47,7 @@ func TestOutputKeys(t *testing.T) {
 		poe1.ChaosDamageModifier, poe1.ManaCost, poe1.LifeCost,
 		poe1.AverageHit, poe1.HitChance, poe1.CriticalStrikeChance, poe1.HitsPerSecond, poe1.HitDPS,
 		poe1.PhysicalMinimum, poe1.PhysicalMaximum, poe1.FireMinimum, poe1.FireMaximum, poe1.ColdMinimum, poe1.ColdMaximum,
-		poe1.LightningMinimum, poe1.LightningMaximum, poe1.ChaosMinimum, poe1.ChaosMaximum,
+		poe1.LightningMinimum, poe1.LightningMaximum, poe1.ChaosMinimum, poe1.ChaosMaximum, poe1.DotDPS,
 	}
 	outputs := poe1.Outputs()
 	if len(outputs) != len(keys) {
