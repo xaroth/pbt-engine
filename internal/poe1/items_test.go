@@ -27,6 +27,7 @@ func TestCompileItem(t *testing.T) {
 	hybrid := build.Item{Mods: []build.ModLine{
 		line("local_evasion_and_energy_shield_+%", 50), line("local_energy_shield", 10), line("local_armour_and_evasion_+%", 7),
 	}}
+	tabula := build.Item{Rarity: build.Unique, Name: "Tabula Rasa", EnergyShield: 9}
 	ring := build.Item{Mods: []build.ModLine{line("local_energy_shield", 10), line("base_maximum_life", 5)}}
 	strBase := &dataset.ItemBase{Armour: &dataset.ArmourValues{Armour: dataset.ValueRange{Min: 501, Max: 576}}}
 	esEvBase := &dataset.ItemBase{Armour: &dataset.ArmourValues{
@@ -38,6 +39,7 @@ func TestCompileItem(t *testing.T) {
 		base        *dataset.ItemBase
 		want        []resolve.StatValue
 		wantAssumed []string
+		wantPenalty float64
 	}{
 		// (576 + 68) * 1.82 * 1.2 = 1406.496
 		{
@@ -60,6 +62,20 @@ func TestCompileItem(t *testing.T) {
 			want: []resolve.StatValue{{Stat: "base_evasion_rating", Value: 157}, {Stat: "base_maximum_energy_shield", Value: 60}},
 		},
 		{
+			name: "movement speed penalty", item: given, wantPenalty: -5,
+			base: &dataset.ItemBase{Armour: &dataset.ArmourValues{Armour: dataset.ValueRange{Min: 501, Max: 576}, MovementSpeed: -5}},
+			want: []resolve.StatValue{
+				{Stat: "base_physical_damage_reduction_rating", Value: 767}, {Stat: "base_maximum_life", Value: 101},
+				{Stat: "base_fire_damage_resistance_%", Value: 33},
+			},
+		},
+		// Tabula Rasa has no defences, whatever its text gives; its base Simple Robe has energy
+		// shield and a -3% penalty, which it keeps.
+		{
+			name: "defenceless unique", item: tabula, wantPenalty: -3,
+			base: &dataset.ItemBase{Armour: &dataset.ArmourValues{EnergyShield: dataset.ValueRange{Min: 14, Max: 20}, MovementSpeed: -3}},
+		},
+		{
 			name: "no defences", item: ring, base: &dataset.ItemBase{},
 			want: []resolve.StatValue{{Stat: "base_maximum_life", Value: 5}},
 		},
@@ -73,6 +89,9 @@ func TestCompileItem(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantAssumed, got.Assumed); diff != "" {
 				t.Errorf("assumed (-want +got):\n%s", diff)
+			}
+			if got.MovementPenalty != tc.wantPenalty {
+				t.Errorf("movement penalty %v, want %v", got.MovementPenalty, tc.wantPenalty)
 			}
 		})
 	}

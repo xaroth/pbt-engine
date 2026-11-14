@@ -466,3 +466,36 @@ func TestAbyssJewelOnSheet(t *testing.T) {
 		t.Errorf("fire resistance lines %+v, want 12 from the jewel", ex.Lines)
 	}
 }
+
+// A plate body armour slows its wearer: Astral Plate's -5% movement speed penalty is 5% reduced
+// movement speed, 95%.
+func TestBodyArmourMovementPenalty(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	plate, warnings, err := s.Data().Item("Rarity: RARE\nRune Shell\nAstral Plate\nArmour: 800\nItem Level: 85\nImplicits: 0\n")
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the plate: %v, %v", warnings, err)
+	}
+	st := simulate(t, s, withItem(t, marauderBuild(1), build.SlotBodyArmour, plate))
+	if got := get(t, st, poe1.MovementSpeed); got != 95 {
+		t.Errorf("movement speed %v, want 95", got)
+	}
+}
+
+// Tabula Rasa has no energy shield, though its base, Simple Robe, has 14 to 20 and its text
+// gives no value: it gives none.
+func TestNoEnergyShieldLine(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	robe, warnings, err := s.Data().Item("Rarity: UNIQUE\nTabula Rasa\nSimple Robe\nItem Level: 34\nSockets: W-W-W-W-W-W\nImplicits: 0\n")
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the robe: %v, %v", warnings, err)
+	}
+	st := simulate(t, s, withItem(t, marauderBuild(1), build.SlotBodyArmour, robe))
+	if got := get(t, st, poe1.EnergyShield); got != 0 {
+		t.Errorf("energy shield %v, want 0", got)
+	}
+	if slices.Contains(codes(st), simulator.ItemDefenceAssumed) {
+		t.Errorf("warnings %v, want no roll assumed", st.Warnings())
+	}
+}

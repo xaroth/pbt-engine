@@ -8,6 +8,7 @@ const (
 	statMaximumFireResistanceModifiersToColdAndLightning = "maximum_fire_resistance_modifiers_to_cold_and_lightning_%"
 	statArmourAndEvasionRating                           = "armour_and_evasion_rating"
 	statChaosResistanceIsDoubled                         = "chaos_resistance_is_doubled"
+	statArmourMovementPenaltiesAreIgnored                = "armour_movement_penalties_are_ignored"
 	statElementalMaximumResistancesAreHighest            = "elemental_maximum_resistances_are_highest"
 	statLifeRegenerationIsNotApplied                     = "life_regeneration_is_not_applied"
 	statLifeRegenerationAppliesToEnergyShield            = "life_regeneration_applies_to_energy_shield"
@@ -177,7 +178,8 @@ const (
 // its cap and spell_block_chance_capped the value the sheet shows.
 //
 // movement_speed is the character's movement speed as a percentage of the base speed: 100
-// before modifiers.
+// before modifiers. armour_movement_penalties_are_ignored is a flag that lifts the movement
+// speed penalties of armour bases.
 //
 // damage is a skill's damage as a percentage of its base damage: 100 before modifiers. Read in
 // a skill's context for one damage type, it holds the increases and more multipliers that
@@ -272,7 +274,7 @@ func engineStats() []string {
 		statSpellBlockChance,
 		statMaximumSpellBlockChance,
 		statSpellBlockChanceCapped,
-		statMovementSpeed,
+		statArmourMovementPenaltiesAreIgnored, statMovementSpeed,
 		statDamage,
 	}, reservationStats(), hitStats(), dotStats(), []string{
 		statEffectiveMaximumFireResistance,

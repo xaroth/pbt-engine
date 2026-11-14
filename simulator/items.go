@@ -70,7 +70,9 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 	if err != nil {
 		return fmt.Errorf("simulator: item %s: %w", slot, err)
 	}
-	r.items = append(r.items, poe1.Item{Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon})
+	r.items = append(r.items, poe1.Item{
+		Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, MovementPenalty: c.MovementPenalty,
+	})
 	if len(c.Assumed) > 0 {
 		r.warnings = append(r.warnings, Warning{
 			Code: ItemDefenceAssumed, Subject: "item " + string(slot), Slot: slot,

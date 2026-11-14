@@ -70,7 +70,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		def.Includes = []core.StatID{mustID(ids, statArmourAndEvasionRating)}
 	case statNoStrengthBonusToMaximumLife, statNoIntelligenceBonusToMaximumMana,
 		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield,
-		statChaosResistanceIsDoubled, statElementalMaximumResistancesAreHighest,
+		statChaosResistanceIsDoubled, statElementalMaximumResistancesAreHighest, statArmourMovementPenaltiesAreIgnored,
 		statLifeRegenerationIsNotApplied, statLifeRegenerationAppliesToEnergyShield,
 		statMaximumEnduranceChargesAreMaximumFrenzyCharges, statHasMaximumFortification,
 		statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation, statSkillCostsLifeInsteadOfMana,

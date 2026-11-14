@@ -24,6 +24,9 @@ type Item struct {
 	Stats []resolve.StatValue
 	// Weapon is the item's own weapon values; nil for an item that is not a weapon.
 	Weapon *Weapon
+	// MovementPenalty is its armour base's movement speed penalty as an increase, such as -5;
+	// armour_movement_penalties_are_ignored lifts it.
+	MovementPenalty float64
 }
 
 // defence is one of an armour base's defences and the local stats that change it.
@@ -83,6 +86,15 @@ type CompiledItem struct {
 	Weapon *Weapon
 	// Assumed lists the defences taken at the highest roll of a base whose roll varies.
 	Assumed []string
+	// MovementPenalty is as Item's.
+	MovementPenalty float64
+}
+
+// defencelessUniques are the uniques on armour bases that have no defences, by name. The
+// dataset does not say which items these are: their hidden mod (RemoveStatsFromTabulaRasa and
+// the like) is not in their text. The list is PoB's (Item.lua, BuildModList).
+func defencelessUniques() []string {
+	return []string{"Tabula Rasa", "Skin of the Loyal", "Skin of the Lords", "The Apostate"}
 }
 
 // CompileItem returns what it gives the character on base: each defence of an armour base as one
@@ -90,7 +102,9 @@ type CompiledItem struct {
 // stats as they are. A defence the item's text gives is taken as it is; otherwise it is the
 // base's highest roll plus the local flat stats, times the local increases and, separately, the
 // quality, rounded half away from zero. Quality multiplying apart from the increases and the
-// rounding follow PoB (Item.lua, BuildModListForSlotNum); unvalidated.
+// rounding follow PoB (Item.lua, BuildModListForSlotNum); unvalidated. A defenceless unique
+// (defencelessUniques) has none, whatever its text gives. An armour base's movement speed
+// penalty is kept apart, as MovementPenalty.
 func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 	var c CompiledItem
 	sums := statSums(it)
@@ -99,14 +113,9 @@ func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 		maps.Copy(local, localWeaponStats())
 	}
 	if base.Armour != nil {
-		for _, d := range defences() {
-			v, rolled := d.value(it, base.Armour, sums)
-			if rolled {
-				c.Assumed = append(c.Assumed, d.name)
-			}
-			if v != 0 {
-				c.Stats = append(c.Stats, resolve.StatValue{Stat: d.stat, Value: v})
-			}
+		c.MovementPenalty = float64(base.Armour.MovementSpeed)
+		if !defenceless(it) {
+			c.Stats, c.Assumed = compileDefences(it, base.Armour, sums)
 		}
 	}
 	for _, m := range it.Mods {
@@ -117,6 +126,25 @@ func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 		}
 	}
 	return c
+}
+
+// compileDefences returns each defence of it on a base with values a, given sums of its stats,
+// as one flat stat, and the defences taken at the highest roll.
+func compileDefences(it *build.Item, a *dataset.ArmourValues, sums map[string]float64) (stats []resolve.StatValue, assumed []string) {
+	for _, d := range defences() {
+		v, rolled := d.value(it, a, sums)
+		if rolled {
+			assumed = append(assumed, d.name)
+		}
+		if v != 0 {
+			stats = append(stats, resolve.StatValue{Stat: d.stat, Value: v})
+		}
+	}
+	return stats, assumed
+}
+
+func defenceless(it *build.Item) bool {
+	return it.Rarity == build.Unique && slices.Contains(defencelessUniques(), it.Name)
 }
 
 func statSums(it *build.Item) map[string]float64 {
@@ -195,12 +223,31 @@ func (sh *Sheet) SetItems(items []Item) error {
 		if err != nil {
 			return err
 		}
+		if err := sh.addMovementPenalty(it.MovementPenalty, src); err != nil {
+			return err
+		}
 		if sh.items == nil {
 			sh.items = map[itemKey]core.SourceID{}
 		}
 		sh.items[k] = src
 	}
 	return sh.setMainHand(mainHandOf(items))
+}
+
+// addMovementPenalty adds an armour base's movement speed penalty to src, unless armour
+// movement penalties are ignored.
+func (sh *Sheet) addMovementPenalty(penalty float64, src core.SourceID) error {
+	if penalty == 0 {
+		return nil
+	}
+	mod := core.Modifier{
+		Stat: sh.stats[statMovementSpeed], Op: core.OpInc, Value: penalty, Source: src,
+		Conds: []core.Cond{{Ref: core.SelfRef(sh.stats[statArmourMovementPenaltiesAreIgnored]), Cmp: core.CmpEQ}},
+	}
+	if _, err := sh.session.AddModifier(mod); err != nil {
+		return fmt.Errorf("sheet: movement penalty: %w", err)
+	}
+	return nil
 }
 
 // mainHandOf returns the weapon in the weapon slot among items and its name; nil for none.
