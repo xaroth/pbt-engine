@@ -64,23 +64,24 @@ const (
 var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 
 // FromXML reads a PoB build file. The active tree spec gives the version, variant, bloodline
-// (PoB's secondary ascendancy), nodes, mastery choices and node overrides; the class, ascendancy and override names map to ids through the English text of the
-// dataset reg resolves for that version, or of the newest poe1 dataset when it has none
-// (warning VersionFallback; the build keeps the file's version). Config: the bandit choice,
-// the campaign stage from PoB's resistance penalty, and the enemy's kind, level, resistances,
-// armour and evasion, read as PoB reads them (a 0 level or resistance is empty, a level
-// above 85 is 85); PoB's placeholders, the values it shows for inputs left empty, are not
-// read. The active skill set's groups, with their gems resolved through the dataset's skills
-// group (see build.Skills). The active item
-// set's items in the equipment slots, weapon swap included, read through the dataset's items
-// group; the reader's warnings on the lines it reads are not repeated, as build.Check gives
-// them. Everything else in the file gives a warning: other specs, cluster jewel nodes
-// (dropped), jewels, overrides whose name names no override or several, config inputs, pantheon, a secondary ascendancy the tree does not list, items in
-// other slots, not equipped or not read, and of the skills: groups an item or
-// the tree grants (and the main skill when it is one of them), gems the dataset lacks, gems of
-// a name or skill id the dataset cannot choose between (imported as the first), slots without
-// sockets, the switches of a Vaal gem's two skills, and every group when the dataset has no
-// skills group.
+// (PoB's secondary ascendancy), nodes, mastery choices and node overrides; the class,
+// ascendancy and override names map to ids through the English text of the dataset reg
+// resolves for that version, or of the newest poe1 dataset when it has none (warning
+// VersionFallback; the build keeps the file's version). Config: the bandit choice, the
+// campaign stage from PoB's resistance penalty, and the enemy's kind, level, resistances,
+// armour and evasion, read as PoB reads them (a 0 level or resistance is empty, a level above
+// 85 is 85); PoB's placeholders, the values it shows for inputs left empty, are not read. The
+// active skill set's groups, with their gems resolved through the dataset's skills group (see
+// build.Skills). The active item set's items in the equipment slots, weapon swap included,
+// read through the dataset's items group; the reader's warnings on the lines it reads are not
+// repeated, as build.Check gives them. Everything else in the file gives a warning: other
+// specs, cluster jewel nodes (dropped), jewels, overrides whose name names no override or
+// several, config inputs, pantheon, a legacy secondary ascendancy (Warden, Warlock, Primalist)
+// or one the tree does not list, items in other slots, not equipped or not read, and of the
+// skills: groups an item or the tree grants (and the main skill when it is one of them), gems
+// the dataset lacks, gems of a name or skill id the dataset cannot choose between (imported as
+// the first), slots without sockets, the switches of a Vaal gem's two skills, and every group
+// when the dataset has no skills group.
 func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning, error) {
 	f, err := parse(data)
 	if err != nil {
@@ -187,12 +188,20 @@ func storeFor(reg *dataset.Registry, version string) (*dataset.Store, bool, erro
 	return stores[len(stores)-1], true, nil
 }
 
+// legacyBloodlines are the alternate ascendancies PoB numbers 1 to 3 in its secondary
+// ascendancy and hides and ignores.
+var legacyBloodlines = []string{"Warden", "Warlock", "Primalist"} //nolint:gochecknoglobals // a constant table
+
 // bloodline maps PoB's secondary ascendancy, the 1-based index of an alternate ascendancy in
-// the tree export, to its id; the dataset keeps the export's order. An index the tree does not
-// list gives a warning.
+// the tree export, to its id; the dataset keeps the export's order. A legacy bloodline, and an
+// index the tree does not list, give a warning.
 func (im *importer) bloodline(s *dataset.Store, variant string) (string, error) {
 	i := im.spec.SecondaryAscendClassID
 	if i == 0 {
+		return "", nil
+	}
+	if i > 0 && i <= len(legacyBloodlines) {
+		im.warnf(AscendancyIgnored, legacyBloodlines[i-1], "legacy secondary ascendancy %d, which PoB hides and ignores; not imported", i)
 		return "", nil
 	}
 	t, err := s.Tree(variant)

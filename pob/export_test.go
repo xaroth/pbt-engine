@@ -63,6 +63,8 @@ func TestToXMLRoundTrip(t *testing.T) {
 	}
 	alternate := chieftain(t)
 	alternate.Variant, alternate.Config = "alternate", values(t, poe1.BanditsHelpOak, poe1.CampaignComplete)
+	bloodline := chieftain(t)
+	bloodline.Bloodline, bloodline.Nodes = "Trialmaster", append(bloodline.Nodes, 32730, 17297)
 	kraityn := chieftain(t)
 	kraityn.Config, kraityn.Skills = values(t, poe1.BanditsHelpKraityn, ""), build.Skills{}
 	testCases := []struct {
@@ -72,6 +74,7 @@ func TestToXMLRoundTrip(t *testing.T) {
 		{"chieftain", chieftain(t)},
 		{"ruthless without ascendancy or skills", ruthless},
 		{"alternate", alternate},
+		{"bloodline with its nodes", bloodline},
 		{"campaign stage unset", kraityn},
 	}
 	for _, testCase := range testCases {
@@ -151,6 +154,37 @@ func TestToXMLWarnings(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
+	}
+}
+
+func TestToXMLBloodline(t *testing.T) {
+	t.Parallel()
+	reg := exportRegistry(t)
+	testCases := []struct {
+		bloodline, spec string
+		warnings        []build.Warning
+	}{
+		{"Trialmaster", `ascendClassId="3" secondaryAscendClassId="4" nodes=`, nil},
+		{"Warden", `ascendClassId="3" nodes=`, []build.Warning{
+			{Code: pob.BloodlineNotExported, Subject: "Warden", Message: "legacy secondary ascendancy, which PoB hides and ignores; not exported"},
+		}},
+		{"Oshabi", `ascendClassId="3" nodes=`, []build.Warning{
+			{Code: pob.BloodlineNotExported, Subject: "Oshabi", Message: `no secondary ascendancy "Oshabi" in the standard tree of dataset 3.29.3.5; not exported`},
+		}},
+	}
+	for _, testCase := range testCases {
+		b := chieftain(t)
+		b.Bloodline = testCase.bloodline
+		file, warnings, err := pob.ToXML(b, reg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(file), testCase.spec) {
+			t.Errorf("%s: file lacks %s:\n%s", testCase.bloodline, testCase.spec, file)
+		}
+		if diff := cmp.Diff(testCase.warnings, warnings); diff != "" {
+			t.Errorf("%s: warnings (-want +got):\n%s", testCase.bloodline, diff)
+		}
 	}
 }
 

@@ -29,9 +29,10 @@ var (
 
 // Warning codes of ToXML: each names something in the build that the file does not hold.
 const (
-	ConfigNotExported   build.Code = "pob-config-not-exported"
-	ItemNotExported     build.Code = "pob-item-not-exported"
-	OverrideNotExported build.Code = "pob-override-not-exported"
+	BloodlineNotExported build.Code = "pob-bloodline-not-exported"
+	ConfigNotExported    build.Code = "pob-config-not-exported"
+	ItemNotExported      build.Code = "pob-item-not-exported"
+	OverrideNotExported  build.Code = "pob-override-not-exported"
 )
 
 const xmlTrue = "true"
@@ -41,15 +42,15 @@ const liveTargetVersion = "3_0"
 
 var gameVersion = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.|$)`)
 
-// ToXML writes b as a PoB build file that FromXML reads back to b. Names come from the
-// English text of the dataset reg resolves for b's version, or of the newest poe1 dataset
-// when it has none (warning VersionFallback). The file holds one tree with b's class,
-// ascendancy, level, nodes, mastery choices and overrides; the bandit choice and the campaign stage as
-// PoB's resistance penalty; and b's skill groups with their gems and main skill. A bandit
-// choice PoB has no option for, an override the text does not name, other config values and
-// items give warnings. A gem the dataset
-// lacks is written by id only, with warning GemUnknown. ErrGame, ErrClass, ErrAscendancy and
-// ErrVersion are a build the file cannot name.
+// ToXML writes b as a PoB build file that FromXML reads back to b. Names come from the English
+// text of the dataset reg resolves for b's version, or of the newest poe1 dataset when it has
+// none (warning VersionFallback). The file holds one tree with b's class, ascendancy,
+// bloodline, level, nodes, mastery choices and overrides; the bandit choice and the campaign
+// stage as PoB's resistance penalty; and b's skill groups with their gems and main skill. A
+// bandit choice PoB has no option for, a bloodline the tree does not list or PoB ignores, an
+// override the text does not name, other config values and items give warnings. A gem the
+// dataset lacks is written by id only, with warning GemUnknown. ErrGame, ErrClass,
+// ErrAscendancy and ErrVersion are a build the file cannot name.
 func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, error) {
 	if b.Game != game {
 		return nil, nil, fmt.Errorf("%w: %q", ErrGame, b.Game)
@@ -150,8 +151,28 @@ func (ex *exporter) tree(s *dataset.Store, treeVersion string, bl *outBuild) (ou
 		}
 		spec.AscendClassID, bl.Ascendancy = a+1, text.AscendancyNames[j].Name
 	}
+	spec.SecondaryID = ex.bloodline(tree, s.Manifest().Version)
 	spec.Overrides = ex.overrides(text)
 	return outTree{Active: 1, Specs: []outSpec{spec}}, nil
+}
+
+// bloodline is PoB's secondary ascendancy of b's bloodline: the 1-based index of the
+// alternate ascendancy in the tree, or 0 with a warning when PoB cannot hold it.
+func (ex *exporter) bloodline(tree *dataset.Tree, version string) int {
+	id := ex.b.Bloodline
+	if id == "" {
+		return 0
+	}
+	if slices.Contains(legacyBloodlines, id) {
+		ex.warnf(BloodlineNotExported, id, "legacy secondary ascendancy, which PoB hides and ignores; not exported")
+		return 0
+	}
+	i := slices.IndexFunc(tree.AlternateAscendancies, func(a dataset.Ascendancy) bool { return a.ID == id })
+	if i < 0 {
+		ex.warnf(BloodlineNotExported, id, "no secondary ascendancy %q in the %s tree of dataset %s; not exported", id, tree.Variant, version)
+		return 0
+	}
+	return i + 1
 }
 
 // overrides names b's overrides as PoB does, by their English names.
@@ -380,6 +401,7 @@ type outSpec struct {
 	TreeVersion   string        `xml:"treeVersion,attr"`
 	ClassID       int           `xml:"classId,attr"`
 	AscendClassID int           `xml:"ascendClassId,attr"`
+	SecondaryID   int           `xml:"secondaryAscendClassId,attr,omitempty"`
 	Nodes         string        `xml:"nodes,attr"`
 	Masteries     string        `xml:"masteryEffects,attr"`
 	Overrides     []outOverride `xml:"Overrides>Override,omitempty"`
