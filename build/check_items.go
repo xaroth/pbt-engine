@@ -15,6 +15,7 @@ const (
 	ItemSlotUnknown    Code = "item-slot-unknown"
 	ItemBaseUnknown    Code = "item-base-unknown"
 	ItemSlotMismatch   Code = "item-slot-mismatch"
+	ItemSlotClosed     Code = "item-slot-closed"
 	ItemLineUnread     Code = "item-line-unread"
 	ItemStatUnknown    Code = "item-stat-unknown"
 	ItemOffhandBlocked Code = "item-offhand-blocked"
@@ -51,7 +52,7 @@ func slotClasses(s Slot) []string {
 		return []string{"Boots"}
 	case SlotAmulet:
 		return []string{"Amulet"}
-	case SlotRing1, SlotRing2:
+	case SlotRing1, SlotRing2, SlotRing3:
 		return []string{"Ring"}
 	case SlotBelt:
 		return []string{"Belt"}
@@ -131,6 +132,10 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		c.warnAboutf(about, ItemSlotUnknown, "no item slot %q; item left out", s)
 		return false
 	}
+	if stat := SlotStat(s); stat != "" && !c.grants(stat) {
+		c.warnAboutf(about, ItemSlotClosed, "no allocated node grants %s, which opens the slot; item left out", stat)
+		return false
+	}
 	base := c.itemBase(about, it, data)
 	if base == nil {
 		return false
@@ -141,6 +146,19 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 	}
 	c.checkMods(about, it)
 	return true
+}
+
+// grants reports whether an allocated node or a chosen mastery effect grants the stat id.
+func (c *Checked) grants(id string) bool {
+	has := func(svs []dataset.StatValue) bool {
+		return slices.ContainsFunc(svs, func(sv dataset.StatValue) bool { return c.stats[sv.Stat].ID == id })
+	}
+	for _, n := range c.nodes {
+		if has(n.Stats) {
+			return true
+		}
+	}
+	return slices.ContainsFunc(c.masteries, func(m MasteryChoice) bool { return has(m.Effect.Stats) })
 }
 
 // itemWarning is what a warning about the item in slot s is about.

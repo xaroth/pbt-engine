@@ -12,12 +12,23 @@ const (
 	SlotAmulet Slot = "amulet"
 	SlotRing1  Slot = "ring-1"
 	SlotRing2  Slot = "ring-2"
-	SlotBelt   Slot = "belt"
+	// SlotRing3 is open only to a build with a node that grants it; see SlotStat.
+	SlotRing3 Slot = "ring-3"
+	SlotBelt  Slot = "belt"
 )
 
-// ItemSlots returns the slots an item can be equipped in.
+// ItemSlots returns the slots an item can be equipped in, those a node must open included.
 func ItemSlots() []Slot {
-	return append(Slots(), SlotAmulet, SlotRing1, SlotRing2, SlotBelt)
+	return append(Slots(), SlotAmulet, SlotRing1, SlotRing2, SlotRing3, SlotBelt)
+}
+
+// SlotStat returns the ID of the stat a passive node grants to open slot s, or "" for a slot
+// every build has.
+func SlotStat(s Slot) string {
+	if s == SlotRing3 {
+		return "enable_ring_slot_3"
+	}
+	return ""
 }
 
 // Rarity is an item's rarity.

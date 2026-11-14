@@ -281,3 +281,46 @@ func TestUncountedItemStatWarning(t *testing.T) {
 		t.Errorf("warning (-want +got):\n%s", diff)
 	}
 }
+
+// A ring in the third ring slot reaches the sheet when the build has The Unseen Hand of the
+// King in the Mists bloodline, which opens the slot; without it the ring is left out with a
+// warning.
+func TestThirdRingOnSheet(t *testing.T) {
+	t.Parallel()
+	const start, beforeHand, unseenHand = 9920, 12354, 43902
+	s := realSim(t)
+	it, _, err := s.Data().Item(ringText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	king := func(nodes ...uint32) *build.Build {
+		b := marauderBuild(90, nodes...)
+		b.Bloodline = "KingInTheMists"
+		return b
+	}
+	for _, testCase := range []struct {
+		name  string
+		nodes []uint32
+		item  float64
+		left  bool
+	}{
+		{"with The Unseen Hand", []uint32{start, beforeHand, unseenHand}, 30, false},
+		{"without", []uint32{start, beforeHand}, 0, true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			bare := king(testCase.nodes...)
+			with := bare.Clone()
+			if err := with.Apply(build.Equip(build.SlotRing3, it)); err != nil {
+				t.Fatal(err)
+			}
+			st := simulate(t, s, with)
+			if got := slices.Contains(codes(st), build.ItemSlotClosed); got != testCase.left {
+				t.Errorf("warnings %v, want the ring left out %v", st.Warnings(), testCase.left)
+			}
+			if got, want := get(t, st, poe1.Strength), get(t, simulate(t, s, bare), poe1.Strength)+testCase.item; got != want {
+				t.Errorf("strength with the ring %v, want %v", got, want)
+			}
+		})
+	}
+}
