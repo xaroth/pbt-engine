@@ -11,7 +11,8 @@ import (
 
 // TestBudget pins the budget on 3.29 against its quest rows. The default config is the
 // campaign complete without the bandit kill: 21 quests worth 1 point and a10q3 worth 2. Up to
-// act 5 it is 9 quests worth 1. Four labyrinths give 2 ascendancy points each.
+// act 5 it is 9 quests worth 1. Four labyrinths give 2 ascendancy points each. Simulate and
+// Budget give the same.
 func TestBudget(t *testing.T) {
 	t.Parallel()
 	sim, err := simulator.New(realdata.Open(t, realdata.Current))
@@ -38,7 +39,18 @@ func TestBudget(t *testing.T) {
 				t.Fatal(err)
 			}
 			if got := st.Budget(); got != testCase.want {
-				t.Errorf("got %+v, want %+v", got, testCase.want)
+				t.Errorf("Simulate: got %+v, want %+v", got, testCase.want)
+			}
+			c, _, err := build.Check(b, sim.Store())
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := sim.Budget(c, testCase.opts...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != testCase.want {
+				t.Errorf("Budget: got %+v, want %+v", got, testCase.want)
 			}
 		})
 	}
