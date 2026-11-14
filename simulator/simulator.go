@@ -228,7 +228,7 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if w, ok := versionWarning(b.Version, s.store.Manifest().Version); ok {
 		r.warnings = append(r.warnings, w)
 	}
-	if err := s.compileItems(r, cb.Items); err != nil {
+	if err := s.compileItems(r, &cb); err != nil {
 		return nil, err
 	}
 	if err := mainSkill(r); err != nil {

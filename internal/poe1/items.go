@@ -11,10 +11,12 @@ import (
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
-// Item is an equipped item compiled for a sheet: its stats with the local ones resolved on the
-// item, the rest the character's.
+// Item is an equipped item or a socketed jewel compiled for a sheet: its stats with the local
+// ones resolved on the item, the rest the character's.
 type Item struct {
 	Slot build.Slot
+	// Node is a jewel's socket node; 0 for an equipped item, which has a Slot instead.
+	Node uint32
 	Name string
 	// Key identifies the item's content; a sheet keeps one source per slot and key.
 	Key   string
@@ -143,31 +145,34 @@ func (d defence) value(it *build.Item, a *dataset.ArmourValues, sums map[string]
 
 type itemKey struct {
 	slot build.Slot
+	node uint32
 	key  string
 }
 
-// SetItems equips items: their sources go on, other items' off. An item not seen yet in its
-// slot gets its source added once; adding is refused while a checkpoint is open
+// SetItems equips items and jewels: their sources go on, other items' off. An item not seen yet
+// in its slot or socket gets its source added once; adding is refused while a checkpoint is open
 // (ErrCheckpointOpen).
 func (sh *Sheet) SetItems(items []Item) error {
 	want := make(map[itemKey]bool, len(items))
 	for _, it := range items {
-		want[itemKey{it.Slot, it.Key}] = true
+		want[itemKey{it.Slot, it.Node, it.Key}] = true
 	}
 	for k, src := range sh.items {
 		sh.setSources([]core.SourceID{src}, want[k])
 	}
 	for _, it := range items {
-		k := itemKey{it.Slot, it.Key}
+		k := itemKey{it.Slot, it.Node, it.Key}
 		if _, ok := sh.items[k]; ok {
 			continue
 		}
+		var source resolve.Source = resolve.ItemSource{Slot: it.Slot, Name: it.Name}
+		if it.Node != 0 {
+			source = resolve.JewelSource{Node: it.Node, Name: it.Name}
+		}
 		if sh.marked {
-			return fmt.Errorf("%w: item %s", ErrCheckpointOpen, it.Slot)
+			return fmt.Errorf("%w: %s", ErrCheckpointOpen, source)
 		}
-		bd := resolve.Bundle{
-			Actor: resolve.Player, Scope: resolve.Global, Source: resolve.ItemSource{Slot: it.Slot, Name: it.Name}, Stats: it.Stats,
-		}
+		bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: source, Stats: it.Stats}
 		src, err := sh.add(&bd, sh.table, sh.gameVersion, -1)
 		if err != nil {
 			return err

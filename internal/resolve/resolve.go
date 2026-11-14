@@ -51,7 +51,7 @@ func (s Scope) String() string {
 }
 
 // Source is where a bundle came from: a CharacterSource, LevelSource, NodeSource,
-// QuestSource or ItemSource.
+// QuestSource, ItemSource or JewelSource.
 type Source interface {
 	String() string
 	source()
@@ -106,8 +106,25 @@ func (s ItemSource) String() string {
 	return "item " + string(s.Slot)
 }
 
+// JewelSource is a jewel in a tree socket. Resolve returns none; the rules compile jewels as
+// items.
+type JewelSource struct {
+	// Node is the jewel socket node's id.
+	Node uint32
+	// Name is as ItemSource's.
+	Name string
+}
+
+func (s JewelSource) String() string {
+	if s.Name != "" {
+		return fmt.Sprintf("jewel %d: %s", s.Node, s.Name)
+	}
+	return fmt.Sprintf("jewel %d", s.Node)
+}
+
 func (CharacterSource) source() {}
 func (ItemSource) source()      {}
+func (JewelSource) source()     {}
 func (LevelSource) source()     {}
 func (NodeSource) source()      {}
 func (QuestSource) source()     {}

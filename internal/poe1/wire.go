@@ -159,6 +159,12 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Slot string `json:"slot"`
 			Name string `json:"name"`
 		}{"item", string(src.Slot), src.Name})
+	case resolve.JewelSource:
+		return marshal(struct {
+			Kind string `json:"kind"`
+			Node uint32 `json:"node"`
+			Name string `json:"name"`
+		}{"jewel", src.Node, src.Name})
 	}
 	return nil, fmt.Errorf("%w %T", errSourceKind, s.Bundle.Source)
 }
