@@ -91,9 +91,8 @@ func TestFeaturesOfLeagues(t *testing.T) {
 			if len(f.ItemClasses) != 32 || !slices.Contains(f.ItemClasses, "AbyssJewel") {
 				t.Errorf("item classes: got %d %v, want the 32 with AbyssJewel", len(f.ItemClasses), f.ItemClasses)
 			}
-			ring3 := dataset.Slot{ID: "Ring3", Stat: "enable_ring_slot_3"}
-			if len(f.Slots) != 14 || !slices.Contains(f.Slots, ring3) {
-				t.Errorf("slots: got %v, want 14 with Ring3", f.Slots)
+			if diff := cmp.Diff([]string{"enable_ring_slot_3"}, f.SlotStats); diff != "" {
+				t.Errorf("slot stats (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -118,20 +117,19 @@ func TestFeaturesOfEmptyContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Slots != nil || f.ItemClasses != nil || !slices.Equal(f.Bloodlines, []string{"Bloodline"}) {
-		t.Errorf("standard: got slots %v, classes %v, bloodlines %v", f.Slots, f.ItemClasses, f.Bloodlines)
+	if f.SlotStats != nil || f.ItemClasses != nil || !slices.Equal(f.Bloodlines, []string{"Bloodline"}) {
+		t.Errorf("standard: got slot stats %v, classes %v, bloodlines %v", f.SlotStats, f.ItemClasses, f.Bloodlines)
 	}
 }
 
-// TestFeaturesStatEnabledSlot checks that the third ring slot is listed only when a node
-// grants its stat.
-func TestFeaturesStatEnabledSlot(t *testing.T) {
+// TestFeaturesSlotStats checks that a slot-opening stat is listed only when a node grants it.
+func TestFeaturesSlotStats(t *testing.T) {
 	t.Parallel()
-	ring3 := dataset.Slot{ID: "Ring3", Stat: "enable_ring_slot_3"}
+	const ring3 = "enable_ring_slot_3"
 	d := withItems()
+	d.Stats = append(d.Stats, dataset.Stat{ID: ring3})
 	for _, granted := range []bool{false, true} {
 		if granted {
-			d.Stats = append(d.Stats, dataset.Stat{ID: ring3.Stat})
 			n := &d.Trees[0].Nodes[1]
 			n.Stats = append(n.Stats, dataset.StatValue{Stat: uint32(len(d.Stats) - 1), Value: 1})
 		}
@@ -143,8 +141,8 @@ func TestFeaturesStatEnabledSlot(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := slices.Contains(f.Slots, ring3); got != granted || len(f.Slots) == 0 {
-			t.Errorf("granted %t: got slots %v", granted, f.Slots)
+		if got := slices.Contains(f.SlotStats, ring3); got != granted {
+			t.Errorf("granted %t: got slot stats %v", granted, f.SlotStats)
 		}
 	}
 }

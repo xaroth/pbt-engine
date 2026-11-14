@@ -3,6 +3,7 @@ package dataset
 import (
 	"errors"
 	"slices"
+	"strings"
 )
 
 // Features is what a dataset holds of the content that differs between leagues, read from the
@@ -16,30 +17,13 @@ type Features struct {
 	OverrideTargets []OverrideTarget
 	// ItemClasses are the ItemClass.IDs that have at least one base, sorted.
 	ItemClasses []string
-	// Slots are the equipment slots, in game order; a stat-enabled slot is listed only when a
-	// node of the tree grants its stat. None without an items group.
-	Slots []Slot
+	// SlotStats are the IDs of the stats a node of the tree grants that open an equipment
+	// slot, which the game names enable_..._slot..., such as "enable_ring_slot_3", sorted.
+	// None without an items group.
+	SlotStats []string
 	// ProxyKinds are the kinds of the tree's proxy nodes, sorted.
 	ProxyKinds []ProxyKind
 	Jewels     JewelFeatures
-}
-
-// Slot is an equipment slot.
-type Slot struct {
-	// ID is the game's Inventories.Id, such as "Ring1".
-	ID string
-	// Stat is the stat that opens the slot, such as "enable_ring_slot_3", or empty for a slot
-	// every character has.
-	Stat string
-}
-
-// equipmentSlots are the game's equipment inventories.
-func equipmentSlots() []Slot {
-	return []Slot{
-		{ID: "Weapon1"}, {ID: "Offhand1"}, {ID: "Weapon2"}, {ID: "Offhand2"}, {ID: "Helm1"},
-		{ID: "BodyArmour1"}, {ID: "Gloves1"}, {ID: "Boots1"}, {ID: "Amulet1"}, {ID: "Ring1"},
-		{ID: "Ring2"}, {ID: "Ring3", Stat: "enable_ring_slot_3"}, {ID: "Belt1"}, {ID: "Flask1"},
-	}
 }
 
 // ProxyKind classifies proxy nodes.
@@ -106,7 +90,7 @@ func (s *Store) Features(variant string) (Features, error) {
 			f.ItemClasses = append(f.ItemClasses, b.Class)
 		}
 		f.ItemClasses = sortedSet(f.ItemClasses)
-		f.Slots = slots(t, st.index)
+		f.SlotStats = slotStats(t, st.stats)
 	}
 	return f, nil
 }
@@ -131,30 +115,27 @@ func jewelFeatures(t *Tree) JewelFeatures {
 	return j
 }
 
-// slots returns the equipment slots, leaving out a stat-enabled one whose stat no node of t
-// grants.
-func slots(t *Tree, index map[string]uint32) []Slot {
-	var out []Slot
-	for _, sl := range equipmentSlots() {
-		if sl.Stat == "" {
-			out = append(out, sl)
-			continue
+// slotStats returns the IDs of the slot-opening stats a node of t grants.
+func slotStats(t *Tree, stats []Stat) []string {
+	var out []string
+	for _, n := range t.Nodes {
+		for _, sv := range n.Stats {
+			out = appendSlotStat(out, stats[sv.Stat].ID)
 		}
-		h, ok := index[sl.Stat]
-		if ok && slices.ContainsFunc(t.Nodes, func(n Node) bool { return grants(n, h) }) {
-			out = append(out, sl)
+		for _, e := range n.MasteryEffects {
+			for _, sv := range e.Stats {
+				out = appendSlotStat(out, stats[sv.Stat].ID)
+			}
 		}
 	}
-	return out
+	return sortedSet(out)
 }
 
-// grants reports whether node n or one of its mastery effects grants stat handle h.
-func grants(n Node, h uint32) bool {
-	has := func(sv StatValue) bool { return sv.Stat == h }
-	if slices.ContainsFunc(n.Stats, has) {
-		return true
+func appendSlotStat(out []string, id string) []string {
+	if strings.HasPrefix(id, "enable_") && strings.Contains(id, "_slot") {
+		return append(out, id)
 	}
-	return slices.ContainsFunc(n.MasteryEffects, func(e MasteryEffect) bool { return slices.ContainsFunc(e.Stats, has) })
+	return out
 }
 
 // proxyKinds returns the kinds of t's proxy nodes; l, which may be nil, gives the proxy groups.
