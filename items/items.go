@@ -54,7 +54,7 @@ const statScope = "Metadata/StatDescriptions/stat_descriptions.txt"
 type Reader struct {
 	set      *statdesc.Set
 	bases    map[string]*dataset.ItemBase
-	byName   map[string][]*dataset.ItemBase
+	byName   map[string][]*dataset.ItemBase // by folded name
 	mods     modIndex
 	crafting crafting
 	classes  classes
@@ -127,12 +127,13 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 // out. Item classes no slot takes, such as maps and currency, fail with ErrNotEquipable, and
 // flasks with ErrNotSupported.
 //
-// A Relic reads as a unique. The base is found by its English name; a magic item's base is the
-// longest base name in its name; of bases of one name, the one whose implicits read the item's
-// implicit lines. Each mod line is read through the stat descriptions; a line that reads in
-// several ways is read as one the item can have (see choose). A line nothing reads is a warning
-// and stays without stats. It fails with ErrFormat on text without a rarity, name or, in Path
-// of Building's text, implicit count, and ErrUnknownBase.
+// A Relic reads as a unique. The base is found by its English name, accents aside, as Path of
+// Building drops them ("Maelstrom Staff"); a magic item's base is the longest base name in its
+// name; of bases of one name, the one whose implicits read the item's implicit lines. Each mod
+// line is read through the stat descriptions; a line that reads in several ways is read as one
+// the item can have (see choose). A line nothing reads is a warning and stays without stats. It
+// fails with ErrFormat on text without a rarity, name or, in Path of Building's text, implicit
+// count, and ErrUnknownBase.
 func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 	p, err := r.split(text)
 	if err != nil {
@@ -186,7 +187,7 @@ func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name) {
 	}
 	for _, n := range names {
 		if b, ok := r.bases[n.ID]; ok {
-			r.byName[n.Name] = append(r.byName[n.Name], b)
+			r.byName[fold(n.Name)] = append(r.byName[fold(n.Name)], b)
 		}
 	}
 }
@@ -231,7 +232,7 @@ func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.Mod
 
 // base returns the item's base by the name in its text.
 func (r *Reader) base(p parsed) (*dataset.ItemBase, error) {
-	name := strings.TrimPrefix(p.baseName, "Superior ")
+	name := fold(strings.TrimPrefix(p.baseName, "Superior "))
 	if p.item.Rarity == build.Magic {
 		name = r.longestBaseName(name)
 	}
@@ -297,6 +298,20 @@ func (r *Reader) longestBaseName(name string) string {
 		}
 	}
 	return best
+}
+
+// latin1ASCII is the ASCII letter of each Latin-1 letter from U+00C0, or 0 for one that has none.
+const latin1ASCII = "AAAAAA\x00CEEEEIIIIDNOOOOO\x00OUUUUY\x00\x00aaaaaa\x00ceeeeiiiidnooooo\x00ouuuuy\x00y"
+
+// fold drops the accents of Latin letters, as Path of Building writes the game's names: the
+// game's "Maelström Staff" is its "Maelstrom Staff".
+func fold(s string) string {
+	return strings.Map(func(c rune) rune {
+		if c >= 0xC0 && c <= 0xFF && latin1ASCII[c-0xC0] != 0 {
+			return rune(latin1ASCII[c-0xC0])
+		}
+		return c
+	}, s)
 }
 
 // containsWord reports whether s contains w with no letter on either side.

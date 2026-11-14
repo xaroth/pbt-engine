@@ -32,6 +32,8 @@ const (
 	tinctureBase     = "Metadata/Items/Tinctures/Tincture"
 	abyssJewelBase   = "Metadata/Items/Jewels/AbyssJewel"
 	spikedKnifeBase  = "Metadata/Items/Weapons/OneHandWeapons/Daggers/SpikedKnife"
+	// A base whose name has an accent, which Path of Building drops.
+	staffBase = "Metadata/Items/Weapons/TwoHandWeapons/Staves/Staff17"
 	// Three bases named "Twin Ring", told apart by their implicits.
 	twinFire     = "Metadata/Items/Rings/TwinFire"
 	twinCold     = "Metadata/Items/Rings/TwinCold"
@@ -312,6 +314,7 @@ func testBases() []dataset.ItemBase {
 			ID: spikedKnifeBase, Class: "Dagger", Tags: []string{"dagger", "weapon", "default"},
 			Implicits: []string{"LocalEvasionImplicit"}, Weapon: &dataset.WeaponValues{},
 		},
+		{ID: staffBase, Class: "Warstaff", Tags: []string{"staff", "weapon", "default"}, Weapon: &dataset.WeaponValues{}},
 		{ID: twinFire, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicit"}},
 		{ID: twinCold, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"ColdImplicit"}},
 		{ID: twinFireHigh, Class: "Ring", Tags: []string{"ring", "default"}, Implicits: []string{"FireImplicitHigh"}},
@@ -319,7 +322,7 @@ func testBases() []dataset.ItemBase {
 }
 
 // testDataset has an iron hat (a strength helmet), iron gloves, an iron ring, an iron amulet, an
-// iron belt, a knife and three Twin Rings, with the mods of testMods.
+// iron belt, a knife, a staff and three Twin Rings, with the mods of testMods.
 func testDataset() *dataset.Dataset {
 	anyValue := []statdesc.Limit{{Min: math.MinInt32, Max: math.MaxInt32}}
 	d := &dataset.Dataset{
@@ -327,11 +330,11 @@ func testDataset() *dataset.Dataset {
 		Items: &dataset.Items{
 			Classes: []dataset.ItemClass{
 				{ID: "Helmet"}, {ID: "Gloves"}, {ID: "Ring"}, {ID: "Amulet"}, {ID: "Belt"}, {ID: "Dagger"}, {ID: "LifeFlask"}, {ID: "Jewel"},
-				{ID: "ManaFlask"}, {ID: "HybridFlask"}, {ID: "UtilityFlask"}, {ID: "Tincture"}, {ID: "AbyssJewel"},
+				{ID: "ManaFlask"}, {ID: "HybridFlask"}, {ID: "UtilityFlask"}, {ID: "Tincture"}, {ID: "AbyssJewel"}, {ID: "Warstaff"},
 			},
 			Tags: []string{
 				"str_armour", "helmet", "gloves", "armour", "ring", "amulet", "belt", "dagger", "weapon", "flask", "jewel", "tincture",
-				"abyss_jewel", "default",
+				"abyss_jewel", "staff", "default",
 				"helmet_shaper", "ring_shaper", "ring_elder", "ring_crusader", "ring_eyrie", "ring_basilisk", "ring_adjudicator",
 			},
 			Bases: testBases(),
@@ -372,6 +375,7 @@ func testDataset() *dataset.Dataset {
 			{ID: manaFlaskBase, Name: "Iron Mana Flask"}, {ID: hybridFlaskBase, Name: "Iron Hybrid Flask"},
 			{ID: utilityFlaskBase, Name: "Iron Utility Flask"}, {ID: tinctureBase, Name: "Iron Tincture"},
 			{ID: abyssJewelBase, Name: "Iron Abyss Jewel"}, {ID: spikedKnifeBase, Name: "Spiked Knife"},
+			{ID: staffBase, Name: "Maelström Staff"},
 			{ID: twinFire, Name: "Twin Ring"}, {ID: twinCold, Name: "Twin Ring"}, {ID: twinFireHigh, Name: "Twin Ring"},
 		},
 	}}
@@ -928,6 +932,24 @@ func TestParse(t *testing.T) {
 			"a local stat the base's implicit has is preferred",
 			"Rarity: UNIQUE\nX\nSpiked Knife\nImplicits: 0\n+25 to Evasion Rating\n",
 			unique(spikedKnifeBase, line(build.Explicit, "+25 to Evasion Rating", "local_evasion", 25)),
+			nil,
+		},
+		{
+			"a base named without its accent, as Path of Building writes it",
+			"Rarity: RARE\nX\nMaelstrom Staff\nImplicits: 0\n",
+			build.Item{Rarity: build.Rare, Name: "X", Base: staffBase},
+			nil,
+		},
+		{
+			"a magic item's base named without its accent",
+			"Rarity: MAGIC\nHeavy Maelstrom Staff\nImplicits: 0\n",
+			build.Item{Rarity: build.Magic, Name: "Heavy Maelstrom Staff", Base: staffBase},
+			nil,
+		},
+		{
+			"a base named with its accent, as the game writes it",
+			"Rarity: NORMAL\nMaelström Staff\nImplicits: 0\n",
+			build.Item{Rarity: build.Normal, Base: staffBase},
 			nil,
 		},
 		{
