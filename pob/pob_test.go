@@ -25,7 +25,8 @@ const (
 
 // registry holds one poe1 dataset, 3.29.3.5, with the names FromXML reads: Marauder,
 // Chieftain as named in the standard and alternate trees, a tattoo, a runegraft, and two
-// overrides that share a name.
+// overrides that share a name. Its trees list the legacy bloodlines and Trialmaster, fourth as
+// in the game's trees.
 func registry(t *testing.T) *dataset.Registry {
 	t.Helper()
 	return registryOf(t, testDataset())
@@ -74,7 +75,8 @@ func tree(variant string) dataset.Tree {
 			{Character: scion, StartNode: 2},
 			{Character: marauder, StartNode: 1, Ascendancies: []dataset.Ascendancy{{ID: "Juggernaut"}, {ID: "Berserker"}, {ID: "Chieftain"}}},
 		},
-		Nodes: []dataset.Node{{ID: 1, Kind: dataset.ClassStart}, {ID: 2, Kind: dataset.ClassStart}},
+		AlternateAscendancies: []dataset.Ascendancy{{ID: "Warden"}, {ID: "Warlock"}, {ID: "Primalist"}, {ID: "Trialmaster"}},
+		Nodes:                 []dataset.Node{{ID: 1, Kind: dataset.ClassStart}, {ID: 2, Kind: dataset.ClassStart}},
 		Overrides: []dataset.NodeOverride{
 			{ID: "Twin1", Icon: "twin.png"}, {ID: "Twin2", Icon: "twin.png"},
 			{ID: "Valako4", Icon: "shield.png", Target: dataset.SmallAttribute},
@@ -144,7 +146,7 @@ func TestFromXML(t *testing.T) {
 		t.Errorf("build (-want +got):\n%s", diff)
 	}
 	wantWarnings := []build.Warning{
-		{Code: pob.AscendancyIgnored, Subject: "2", Message: "no secondary ascendancy 2 in the standard tree of dataset 3.29.3.5; not imported"},
+		{Code: pob.AscendancyIgnored, Subject: "Warlock", Message: "legacy secondary ascendancy 2, which PoB hides and ignores; not imported"},
 		{Code: pob.ClusterNodeDropped, Subject: "nodes 65601,65602", Message: "2 cluster jewel nodes dropped; cluster jewels are not imported"},
 		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`},
 		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input not modelled (true)"},
@@ -163,7 +165,7 @@ func TestFromXML(t *testing.T) {
 }
 
 // TestFromXMLBloodlineReal imports a 3.29 Gladiator with the Trialmaster bloodline, PoB's
-// fourth secondary ascendancy, and two of its nodes, on the pinned dataset.
+// fourth secondary ascendancy, and two of its nodes, on the pinned dataset, and exports it back.
 func TestFromXMLBloodlineReal(t *testing.T) {
 	t.Parallel()
 	reg := &dataset.Registry{}
@@ -184,6 +186,20 @@ func TestFromXMLBloodlineReal(t *testing.T) {
 	if b.Bloodline != "Trialmaster" {
 		t.Errorf("bloodline %q, want Trialmaster", b.Bloodline)
 	}
+	file, warnings, err := pob.ToXML(b, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) > 0 {
+		t.Errorf("export warnings %v", warnings)
+	}
+	back, _, err := pob.FromXML(file, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(b, back, cmpopts.EquateEmpty(), cmpopts.SortSlices(func(a, b uint32) bool { return a < b })); diff != "" {
+		t.Errorf("round trip (-want +got):\n%s", diff)
+	}
 	c, checked, err := build.Check(b, reg.Stores("poe1")[0])
 	if err != nil {
 		t.Fatal(err)
@@ -193,6 +209,31 @@ func TestFromXMLBloodlineReal(t *testing.T) {
 	}
 	if got := c.Build().Nodes; len(got) != 4 {
 		t.Errorf("nodes %v, want the Gladiator start, the Trialmaster start and two Trialmaster nodes", got)
+	}
+}
+
+func TestFromXMLBloodline(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		secondary, want string
+		warnings        []build.Warning
+	}{
+		{"4", "Trialmaster", nil},
+		{"3", "", []build.Warning{
+			{Code: pob.AscendancyIgnored, Subject: "Primalist", Message: "legacy secondary ascendancy 3, which PoB hides and ignores; not imported"},
+		}},
+		{"5", "", []build.Warning{
+			{Code: pob.AscendancyIgnored, Subject: "5", Message: "no secondary ascendancy 5 in the standard tree of dataset 3.29.3.5; not imported"},
+		}},
+	}
+	for _, testCase := range testCases {
+		b, w := fromXML(t, `className="Marauder" ascendClassName="None"`, `treeVersion="3_29" secondaryAscendClassId="`+testCase.secondary+`"`, "")
+		if b.Bloodline != testCase.want {
+			t.Errorf("%s: bloodline %q, want %q", testCase.secondary, b.Bloodline, testCase.want)
+		}
+		if diff := cmp.Diff(testCase.warnings, w); diff != "" {
+			t.Errorf("%s: warnings (-want +got):\n%s", testCase.secondary, diff)
+		}
 	}
 }
 
