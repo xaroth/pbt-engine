@@ -92,7 +92,8 @@ func (s NodeSource) String() string {
 }
 func (s QuestSource) String() string { return "quest " + s.ID }
 
-// ItemSource is an equipped item. Resolve returns none; the rules compile items themselves.
+// ItemSource is an equipped item. Resolve returns none; the rules compile items themselves. A
+// skill's support an item grants has it.
 type ItemSource struct {
 	Slot build.Slot
 	// Name is a rare or unique item's name, or a magic item's full name; empty for others.

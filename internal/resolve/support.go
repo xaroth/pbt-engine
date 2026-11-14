@@ -4,29 +4,21 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// supportedTypes applies the supports of group g to skill ge of gem src: it sets sk.Supports
-// and returns the skill's types with those the supports add, indexed as Skills.Types. A
-// support applies when the skill can be supported, shares a weapon class with the support if
-// the support restricts them, and has the types the support allows and none it excludes. Types
-// a support adds can let another support apply, so supports are tried until none more apply.
-// Every support is then checked again against the final types, so one that a later support's
-// types exclude does not apply whatever the group's order; the types it added stay. The rest
-// warn.
-func (r *skillResolver) supportedTypes(src GemSource, g build.SkillGroup, ge *dataset.GrantedEffect, sk *Skill) []bool {
+// supportedTypes applies the supports that can support skill ge of gem src (see candidates):
+// it sets sk.Supports and returns the skill's types with those the supports add, indexed as
+// Skills.Types. A support applies when the skill can be supported, shares a weapon class with
+// the support if the support restricts them, and has the types the support allows and none it
+// excludes. Types a support adds can let another support apply, so supports are tried until
+// none more apply. Every support is then checked again against the final types, so one that a
+// later support's types exclude does not apply whatever the order; the types it added stay. A
+// support gem of the skill's group that does not apply warns.
+func (r *skillResolver) supportedTypes(src GemSource, ge *dataset.GrantedEffect, sk *Skill) []bool {
 	active := r.data.ActiveSkill(ge.ActiveSkill)
-	types := make([]bool, len(r.data.Types))
-	minion := make([]bool, len(r.data.Types))
-	for _, t := range active.Types {
-		types[t] = true
-	}
-	for _, t := range active.MinionTypes {
-		minion[t] = true
-	}
-	pending := r.supportGems(src, g)
+	types, minion := r.typeSet(active.Types), r.typeSet(active.MinionTypes)
+	pending := r.candidates(src)
 	applied := make([]bool, len(pending))
 	for progress := true; progress; {
 		progress = false
@@ -42,7 +34,9 @@ func (r *skillResolver) supportedTypes(src GemSource, g build.SkillGroup, ge *da
 	}
 	for _, sp := range pending {
 		if why := r.notSupported(ge, active, sp.effect, types, minion); why != "" {
-			r.warnf(SupportNotApplied, sp.src, "%s does not support %s: %s; left out", sp.effect.ID, ge.ID, why)
+			if sp.own {
+				r.warnf(SupportNotApplied, sp.src, "%s does not support %s: %s; left out", sp.effect.ID, ge.ID, why)
+			}
 			continue
 		}
 		sk.Supports = append(sk.Supports, r.support(sp))
@@ -50,21 +44,86 @@ func (r *skillResolver) supportedTypes(src GemSource, g build.SkillGroup, ge *da
 	return types
 }
 
-// supportGem is an enabled support gem of a group with its support effect.
+// supportGem is a support that can support a skill, at its level and quality with what items
+// add to a gem.
 type supportGem struct {
-	src    GemSource
-	gem    build.Gem
-	effect *dataset.GrantedEffect
+	src            Source
+	effect         *dataset.GrantedEffect
+	level, quality int
+	// own is a gem of the skill's group.
+	own bool
 }
 
-// supportGems returns the enabled support effects of group g's gems other than the skill's gem
-// src: those of support gems, and the support an active gem grants as its second effect, such
-// as the one with which a gem's skill supports warcries in its group.
-func (r *skillResolver) supportGems(src GemSource, g build.SkillGroup) []supportGem {
+// typeSet returns ts, indexes into Skills.Types, as a set indexed the same way.
+func (r *skillResolver) typeSet(ts []uint16) []bool {
+	out := make([]bool, len(r.data.Types))
+	for _, t := range ts {
+		out[t] = true
+	}
+	return out
+}
+
+// candidates returns the supports that can support gem src: those the item it is socketed in
+// grants, its group's other gems', then those socketed in the slots linked to its own and those
+// the items there grant.
+func (r *skillResolver) candidates(src GemSource) []supportGem {
+	slot := r.groups[src.Group].Slot
+	l := supportList{r: r}
+	if slot != "" {
+		l.add(r.itemSupports[slot]...)
+	}
+	own := r.groupSupports(src.Group, src.Gem)
+	for i := range own {
+		own[i].own = true
+	}
+	l.add(own...)
+	if slot == "" || slot.Swap() {
+		return l.list
+	}
+	for _, from := range r.linked[slot] {
+		l.add(r.itemSupports[from]...)
+		for i, g := range r.groups {
+			if g.Slot == from {
+				l.add(r.groupSupports(i, -1)...)
+			}
+		}
+	}
+	return l.list
+}
+
+// supportList is a list of supports with one of each effect: the one at the highest level, then
+// quality, in the place of the first, as in Path of Building. A gem of the skill's group left
+// out warns.
+type supportList struct {
+	r    *skillResolver
+	list []supportGem
+}
+
+func (l *supportList) add(sps ...supportGem) {
+	for _, sp := range sps {
+		k := slices.IndexFunc(l.list, func(o supportGem) bool { return o.effect == sp.effect })
+		if k < 0 {
+			l.list = append(l.list, sp)
+			continue
+		}
+		keep, drop := l.list[k], sp
+		if sp.level > keep.level || sp.level == keep.level && sp.quality > keep.quality {
+			keep, drop = sp, keep
+			l.list[k] = sp
+		}
+		if drop.own {
+			l.r.warnf(SupportNotApplied, drop.src, "%s of %s at level %d quality %d applies instead; left out", drop.effect.ID, keep.src, keep.level, keep.quality)
+		}
+	}
+}
+
+// groupSupports returns the enabled support effects of group i's gems other than gem skip:
+// those of support gems, and the support an active gem grants as its second effect, such as
+// the one with which a gem's skill supports warcries in its group.
+func (r *skillResolver) groupSupports(i, skip int) []supportGem {
 	var out []supportGem
-	i := src.Group
-	for j, gem := range g.Gems {
-		if j == src.Gem || gem.Disabled {
+	for j, gem := range r.groups[i].Gems {
+		if j == skip || gem.Disabled {
 			continue
 		}
 		e := r.gemEffect(gem)
@@ -75,9 +134,13 @@ func (r *skillResolver) supportGems(src GemSource, g build.SkillGroup) []support
 		if !gem.Support {
 			id = e.SecondaryGrantedEffect
 		}
-		if ge := r.data.GrantedEffect(id); ge != nil && ge.Support {
-			out = append(out, supportGem{src: GemSource{Group: i, Gem: j, ID: gem.ID}, gem: gem, effect: ge})
+		ge := r.data.GrantedEffect(id)
+		if ge == nil || !ge.Support {
+			continue
 		}
+		src := GemSource{Group: i, Gem: j, ID: gem.ID}
+		level, quality := r.characterBonus(src, gem, r.tags(gem))
+		out = append(out, supportGem{src: src, effect: ge, level: gem.Level + level, quality: gem.Quality + quality})
 	}
 	return out
 }
@@ -128,11 +191,9 @@ func (r *skillResolver) typesMatch(expr []uint16, has func(uint16) bool) bool {
 	return slices.Contains(stack, true)
 }
 
-// support returns the support sp as it applies: at its level and quality with what items and
-// its socket add, with the stats of its primary stat set.
+// support returns the support sp as it applies, with the stats of its primary stat set.
 func (r *skillResolver) support(sp supportGem) Support {
-	level, quality := r.characterBonus(sp.src, sp.gem, r.tags(sp.gem))
-	out := Support{Source: sp.src, GrantedEffect: sp.effect.ID, Level: sp.gem.Level + level, Quality: sp.gem.Quality + quality}
+	out := Support{Source: sp.src, GrantedEffect: sp.effect.ID, Level: sp.level, Quality: sp.quality}
 	if len(sp.effect.Levels) > 0 {
 		out.Level = r.clampLevel(sp.src, sp.effect, out.Level)
 		row := sp.effect.Levels[rowAt(sp.effect.Levels, out.Level, effectLevel)]

@@ -142,7 +142,7 @@ const skillCases = `<PathOfBuilding>
 				<Gem nameSpec="Fireball of Splitting" gemId="Metadata/Items/Gems/SkillGemFireball" skillId="FireballofSplitting" level="21" quality="23"/>
 				<Gem nameSpec="Firestorm of Pelting" level="1"/>
 			</Skill>
-			<Skill enabled="false" slot="Amulet"><Gem nameSpec="Frostblink" level="5"/><Gem nameSpec="Blink Arrow" level="5"/></Skill>
+			<Skill enabled="false" slot="Ring 1"><Gem nameSpec="Frostblink" level="5"/><Gem nameSpec="Blink Arrow" level="5"/></Skill>
 			<Skill source="Item:3:Doom Crown"><Gem nameSpec="Envy" level="15"/></Skill>
 			<Skill slot="Gloves"><Gem nameSpec="Punishment" level="20" enabled="false"/><Gem nameSpec="Fireball of Splitting" level="2"/></Skill>
 		</SkillSet>
@@ -175,7 +175,7 @@ func TestFromXMLSkillCases(t *testing.T) {
 	wantWarnings := []build.Warning{
 		{Code: pob.GemToggleIgnored, Subject: "Vaal Fireball", Message: "one of the Vaal gem's two skills is switched off; the switch is not imported"},
 		{Code: pob.GemUnknown, Subject: "Firestorm of Pelting", Message: "gem not in dataset 3.29.3.5; dropped"},
-		{Code: pob.SlotIgnored, Subject: "Frostblink", Message: `slot "Amulet" has no sockets; group imported without a slot`},
+		{Code: pob.SlotIgnored, Subject: "Frostblink", Message: `slot "Ring 1" has no sockets; group imported without a slot`},
 		{Code: pob.GemUnknown, Subject: "Blink Arrow", Message: "gem not in dataset 3.29.3.5; dropped"},
 		{Code: pob.SkillIgnored, Subject: "Envy", Message: "granted by Item:3:Doom Crown; skills an item or the tree grants are not imported"},
 	}

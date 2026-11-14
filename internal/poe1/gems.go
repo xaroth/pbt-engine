@@ -3,6 +3,7 @@ package poe1
 import (
 	"slices"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
@@ -21,6 +22,12 @@ func GemRules() resolve.GemRules {
 		MatchingSocketQuality: matchingSocketQuality,
 		// 3.29 describes it as "Gems Socketed always have the Quality bonus from Socket Colour".
 		AlwaysMatchingStat: "local_can_socket_gems_ignoring_colour",
+		// "Socketed Support Gems can also Support Skills from your Main Hand" and "from Equipped
+		// Body Armour".
+		LinkedSupports: []resolve.LinkedSupport{
+			{Stat: "support_gems_socketed_in_off_hand_also_support_main_hand_skills", To: build.SlotWeapon},
+			{Stat: "support_gems_socketed_in_amulet_also_support_body_skills", To: build.SlotBodyArmour},
+		},
 	}
 }
 

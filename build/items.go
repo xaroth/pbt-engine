@@ -7,7 +7,8 @@ import (
 	"slices"
 )
 
-// Item slots that have no sockets, beside Slots.
+// Item slots beside the other Slots. Of these only the amulet can have a socket, so Slots lists
+// it too.
 const (
 	SlotAmulet Slot = "amulet"
 	SlotRing1  Slot = "ring-1"
@@ -19,7 +20,7 @@ const (
 
 // ItemSlots returns the slots an item can be equipped in, those a node must open included.
 func ItemSlots() []Slot {
-	return append(Slots(), SlotAmulet, SlotRing1, SlotRing2, SlotRing3, SlotBelt)
+	return append(Slots(), SlotRing1, SlotRing2, SlotRing3, SlotBelt)
 }
 
 // SlotStat returns the ID of the stat a passive node grants to open slot s, or "" for a slot
