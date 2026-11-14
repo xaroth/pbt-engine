@@ -124,7 +124,7 @@ type TreeTerm struct {
 
 // Explain explains catalogue output k in view v.
 func (sh *Sheet) Explain(k output.Key, v View) (*Explanation, error) {
-	o, ok := outputByKey(k)
+	o, ok := sh.outputs[k]
 	if !ok {
 		return nil, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
