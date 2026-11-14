@@ -39,9 +39,9 @@ func (c *Checked) checkJewels(data *dataset.Items) {
 // checkJewel fixes the jewel it in node id as the dataset says, or reports false to leave it
 // out.
 func (c *Checked) checkJewel(id uint32, it *Item, data *dataset.Items) bool {
-	subject := fmt.Sprintf("jewel %d", id)
-	if n := c.node(id); n == nil || n.Kind != dataset.JewelSocket {
-		c.warnf(JewelNotSocket, subject, "node %d is not a jewel socket of the %s tree; jewel left out", id, c.build.Variant)
+	subject := jewelSubject(id)
+	if w, bad := c.socketProblem(id); bad {
+		c.warnings = append(c.warnings, w)
 		return false
 	}
 	if data != nil {
@@ -59,4 +59,17 @@ func (c *Checked) checkJewel(id uint32, it *Item, data *dataset.Items) bool {
 		c.warnf(JewelNotAllocated, subject, "socket not allocated; kept, it counts once allocated")
 	}
 	return true
+}
+
+func jewelSubject(id uint32) string { return fmt.Sprintf("jewel %d", id) }
+
+// socketProblem returns the warning for a jewel in node id when the node is not a jewel socket.
+func (c *Checked) socketProblem(id uint32) (Warning, bool) {
+	if n := c.node(id); n != nil && n.Kind == dataset.JewelSocket {
+		return Warning{}, false
+	}
+	return Warning{
+		Code: JewelNotSocket, Subject: jewelSubject(id),
+		Message: fmt.Sprintf("node %d is not a jewel socket of the %s tree; jewel left out", id, c.build.Variant),
+	}, true
 }

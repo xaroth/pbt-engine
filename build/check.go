@@ -245,9 +245,10 @@ func (c *Checked) Nodes() []*dataset.Node { return slices.Clone(c.nodes) }
 
 // EditWarnings returns the warnings Check would give about edits applied to the checked build,
 // as far as they concern the edits themselves: nodes it cannot take, mastery effects on a
-// node that is not an allocated mastery or not of that mastery, and overrides that do not
-// fit. Connectivity, mastery choices still to make and point budgets are about the whole
-// build; Check gives those.
+// node that is not an allocated mastery or not of that mastery, overrides that do not fit, and
+// jewels put in a node that is not a jewel socket. Connectivity, mastery choices still to make,
+// point budgets and whether a jewel fits its socket are about the whole build; Check gives
+// those.
 func (c *Checked) EditWarnings(edits []Edit) []Warning {
 	allocated := map[uint32]bool{}
 	for _, n := range c.build.Nodes {
@@ -281,9 +282,11 @@ func (c *Checked) editWarnings(e Edit, allocated map[uint32]bool) []Warning {
 		w, bad = c.effectProblem(e.Node, e.Effect, allocated[e.Node])
 	case OpSetOverride:
 		w, bad = c.overrideProblem(e.Node, e.Override, allocated[e.Node])
+	case OpSocketJewel:
+		w, bad = c.socketProblem(e.Node)
 	case OpClearMastery, OpClearOverride, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
 		OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
-		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip, OpSocketJewel, OpUnsocketJewel:
+		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip, OpUnsocketJewel:
 	}
 	if bad {
 		return []Warning{w}
