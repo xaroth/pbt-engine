@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" className="Marauder" ascendClassName="None" bandit="None"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="1" ascendClassId="0" secondaryAscendClassId="6" nodes="9920,12354,43902" masteryEffects=""/>
+	</Tree>
+	<Items activeItemSet="1">
+		<Item id="1">
+			Rarity: RARE
+Rune Loop
+Two-Stone Ring
+Item Level: 84
+Implicits: 1
++16% to Fire and Lightning Resistances
++30 to Strength
+		</Item>
+		<ItemSet id="1">
+			<Slot itemId="1" name="Ring 3"/>
+		</ItemSet>
+	</Items>
+</PathOfBuilding>
