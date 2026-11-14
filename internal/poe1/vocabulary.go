@@ -69,6 +69,8 @@ const (
 	statHasMaximumFortification                          = "has_maximum_fortification"
 	statFortification                                    = "fortification"
 	statFortificationAbove20                             = "fortification_above_20"
+	statMaximumInspirationCharges                        = "maximum_inspiration_charges"
+	statInspirationCharges                               = "inspiration_charges"
 	statSpellBlockChance                                 = "spell_block_chance"
 	statMaximumSpellBlockChance                          = "maximum_spell_block_chance"
 	statSpellBlockChanceCapped                           = "spell_block_chance_capped"
@@ -103,6 +105,26 @@ const (
 	statCost                                             = "cost"
 	statManaCost                                         = "mana_cost"
 	statLifeCost                                         = "life_cost"
+	statEnemyResistance                                  = "enemy_resistance"
+	statEnemyArmour                                      = "enemy_armour"
+	statBaseMinimumDamage                                = "base_minimum_damage"
+	statBaseMaximumDamage                                = "base_maximum_damage"
+	statAddedMinimumDamage                               = "added_minimum_damage"
+	statAddedMaximumDamage                               = "added_maximum_damage"
+	statBaseDamageMultiplier                             = "base_damage_multiplier"
+	statDamageEffectiveness                              = "damage_effectiveness"
+	statMinimumHitDamage                                 = "minimum_hit_damage"
+	statMaximumHitDamage                                 = "maximum_hit_damage"
+	statEffectiveMinimumHitDamage                        = "effective_minimum_hit_damage"
+	statEffectiveMaximumHitDamage                        = "effective_maximum_hit_damage"
+	statCriticalStrikeChance                             = "critical_strike_chance"
+	statCriticalStrikeMultiplier                         = "critical_strike_multiplier"
+	statAverageHit                                       = "average_hit"
+	statHitChance                                        = "hit_chance"
+	statCastTime                                         = "cast_time"
+	statCastSpeed                                        = "cast_speed"
+	statHitsPerSecond                                    = "hits_per_second"
+	statHitDPS                                           = "hit_dps"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -129,7 +151,8 @@ const (
 // minimum, at most its maximum, as PoB counts them by default (charges not in use).
 // fortification is the character's Fortification: its maximum while has_maximum_fortification
 // is set, else none, as PoB counts it by default (not Fortified); fortification_above_20 is
-// the part above 20.
+// the part above 20. inspiration_charges are the Inspiration Charges the character has: its
+// maximum_inspiration_charges, as PoB counts them by default.
 //
 // spell_block_chance is the uncapped chance to block spell damage, maximum_spell_block_chance
 // its cap and spell_block_chance_capped the value the sheet shows.
@@ -152,6 +175,19 @@ const (
 // the cost after its modifiers and mana_cost_efficiency; cost and cost_efficiency hold those to
 // every cost. The skill_ flags are its "Reserves Life instead of Mana", "has no Reservation"
 // and "Costs Life instead of Mana".
+//
+// A skill's hit is read in its context. enemy_resistance, read for one damage type, is the
+// enemy's resistance to it; enemy_armour its armour. base_minimum_damage and
+// base_maximum_damage, read for one damage type, are the skill's own base damage of that type,
+// and added_minimum_damage and added_maximum_damage the damage added to it; the skill's
+// base_damage_multiplier scales the first and its damage_effectiveness the second, both in
+// percent. minimum_hit_damage and maximum_hit_damage are the hit of that type after damage, and
+// effective_minimum_hit_damage and effective_maximum_hit_damage what the enemy takes of a hit
+// that is not critical. critical_strike_chance and critical_strike_multiplier are in percent;
+// average_hit is what the enemy takes from an average hit of every type, critical strikes
+// weighed in. hit_chance is the chance to hit in percent. cast_time is the skill's in seconds
+// and cast_speed its speed in percent of it, 100 before modifiers; hits_per_second follows, and
+// hit_dps is the damage the enemy takes per second from hits.
 //
 // number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
 // counters, since every allocatable mastery carries its group's count at 1.
@@ -204,7 +240,7 @@ func engineStats() []string {
 		statSpellBlockChanceCapped,
 		statMovementSpeed,
 		statDamage,
-	}, reservationStats(), []string{
+	}, reservationStats(), hitStats(), []string{
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,
 		statEffectiveMaximumLightningResistance,
@@ -253,6 +289,32 @@ func reservationStats() []string {
 	}
 }
 
+// hitStats are the engine stats of a skill's hit, in registration order.
+func hitStats() []string {
+	return []string{
+		statEnemyResistance,
+		statEnemyArmour,
+		statBaseMinimumDamage,
+		statBaseMaximumDamage,
+		statAddedMinimumDamage,
+		statAddedMaximumDamage,
+		statBaseDamageMultiplier,
+		statDamageEffectiveness,
+		statMinimumHitDamage,
+		statMaximumHitDamage,
+		statEffectiveMinimumHitDamage,
+		statEffectiveMaximumHitDamage,
+		statCriticalStrikeChance,
+		statCriticalStrikeMultiplier,
+		statAverageHit,
+		statHitChance,
+		statCastTime,
+		statCastSpeed,
+		statHitsPerSecond,
+		statHitDPS,
+	}
+}
+
 // chargeStats are the engine stats of charges and Fortification, in registration order.
 func chargeStats() []string {
 	return []string{
@@ -270,6 +332,8 @@ func chargeStats() []string {
 		statMaximumFortification,
 		statFortification,
 		statFortificationAbove20,
+		statMaximumInspirationCharges,
+		statInspirationCharges,
 	}
 }
 
@@ -299,5 +363,6 @@ func (Vocabulary) RuleParams(name string) ([]string, bool) {
 }
 
 // IsContext reports whether name, as "dimension.value", is a context value a table modifier
-// may require: a skill type (type.Spell) or a damage type (damage.fire).
+// may require: a skill type (type.Spell), a damage type (damage.fire) or a form of damage
+// (form.hit).
 func (Vocabulary) IsContext(name string) bool { return isTableContext(name) }

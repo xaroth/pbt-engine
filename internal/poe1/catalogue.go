@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 )
 
@@ -53,10 +55,44 @@ type Output struct {
 	// damage, for an output of the skill group, is the damage type of the part of the main
 	// skill's damage it reads.
 	damage DamageType
+	// needs is what the main skill must be for the sheet to give the output.
+	needs skillNeed
 }
+
+// skillNeed is what a main skill must be for the sheet to give an output of it.
+type skillNeed uint8
+
+const (
+	// needsSkill is any main skill.
+	needsSkill skillNeed = iota
+	// needsHit is a spell hit (SpellHit).
+	needsHit
+	// needsRate is a spell hit the character casts itself.
+	needsRate
+)
 
 // IsSkill reports whether o is read in the main skill's context.
 func (o Output) IsSkill() bool { return o.Group == GroupSkill }
+
+// Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none: an
+// output of the sheet always, one of the skill group for a main skill; its hit only for a spell
+// hit, and its rate of hits only for a spell hit the character casts itself.
+func Gives(o Output, sk *resolve.Skill) bool {
+	switch {
+	case !o.IsSkill():
+		return true
+	case sk == nil:
+		return false
+	}
+	switch o.needs {
+	case needsHit:
+		return SpellHit(sk)
+	case needsRate:
+		return selfCastHit(sk)
+	case needsSkill:
+	}
+	return true
+}
 
 // Outputs returns the catalogue of outputs, in display order.
 func Outputs() []Output {
@@ -106,11 +142,57 @@ func Outputs() []Output {
 		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
 		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost},
 		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost},
-	}))
+	}), group(GroupSkill, hitOutputs()))
 	for i := range out {
 		out[i].Order = i
 	}
 	return out
+}
+
+// Decimal places of hit outputs: damage, and chances and rates.
+const (
+	hitPlaces  = 1
+	ratePlaces = 2
+)
+
+// hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, the
+// chances to hit and to strike critically, hits per second and hit damage per second, and per
+// damage type the smallest and largest hit that is not critical.
+func hitOutputs() []Output {
+	types := []struct {
+		t        DamageType
+		min, max output.Key
+	}{
+		{Physical, PhysicalMinimum, PhysicalMaximum}, {Fire, FireMinimum, FireMaximum}, {Cold, ColdMinimum, ColdMaximum},
+		{Lightning, LightningMinimum, LightningMaximum}, {Chaos, ChaosMinimum, ChaosMaximum},
+	}
+	perType := make([]Output, 0, len(types)*len([]string{"minimum", "maximum"}))
+	for _, d := range types {
+		name := strings.ToUpper(d.t.String()[:1]) + d.t.String()[1:]
+		perType = append(perType,
+			Output{
+				Key: d.min, Label: "Minimum " + name + " Hit", Better: output.Higher, Places: hitPlaces,
+				stat: statEffectiveMinimumHitDamage, damage: d.t, needs: needsHit,
+			},
+			Output{
+				Key: d.max, Label: "Maximum " + name + " Hit", Better: output.Higher, Places: hitPlaces,
+				stat: statEffectiveMaximumHitDamage, damage: d.t, needs: needsHit,
+			},
+		)
+	}
+	return append([]Output{
+		{Key: AverageHit, Label: "Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsHit},
+		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsHit},
+		{
+			Key: CriticalStrikeChance, Label: "Critical Strike Chance", Better: output.Higher, Unit: UnitPercent, Places: ratePlaces,
+			stat: statCriticalStrikeChance, needs: needsHit,
+		},
+		{
+			Key: HitsPerSecond, Label: "Hits per Second", Better: output.Higher, Unit: UnitPerSecond, Places: ratePlaces,
+			stat: statHitsPerSecond, needs: needsRate,
+		},
+		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsRate},
+	}, perType...)
 }
 
 // group returns outputs with their group set to g.
@@ -139,7 +221,8 @@ func (sh *Sheet) Output(k output.Key) (float64, error) {
 }
 
 // outputNode returns the node o reads: a skill output's in the main skill's context (the
-// sheet's first skill), for its damage type; ErrSkill when the sheet has no skill.
+// sheet's first skill), for its damage type, and a hit output's for hits; ErrSkill when the
+// sheet has no skill.
 func (sh *Sheet) outputNode(o Output) (core.Node, error) {
 	if !o.IsSkill() {
 		return core.Node{Stat: sh.stats[o.stat]}, nil
@@ -148,7 +231,11 @@ func (sh *Sheet) outputNode(o Output) (core.Node, error) {
 	if o.damage != 0 {
 		damage = []DamageType{o.damage}
 	}
-	return sh.skillNode(0, o.stat, damage)
+	form := formNone
+	if o.needs != needsSkill {
+		form = formHit
+	}
+	return sh.skillNode(0, o.stat, damage, form)
 }
 
 func outputByKey(k output.Key) (Output, bool) {

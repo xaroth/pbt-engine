@@ -86,12 +86,16 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 		}
 		srcs = append(srcs, src)
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, nil))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, nil, formNone))
 	src, err := sh.addSkillRules(sk, slot, ctx)
 	if err != nil {
 		return nil, err
 	}
-	return append(srcs, src), nil
+	hit, err := sh.addHitRules(sk, slot)
+	if err != nil {
+		return nil, err
+	}
+	return append(srcs, src, hit), nil
 }
 
 func skillBundle(src resolve.GemSource, stats []resolve.StatValue) resolve.Bundle {
@@ -102,7 +106,7 @@ func skillBundle(src resolve.GemSource, stats []resolve.StatValue) resolve.Bundl
 // of its damage whose chain is damage: its type and the types it was converted from. With no
 // damage types it reads no part of the damage.
 func (sh *Sheet) SkillValue(i int, name string, damage ...DamageType) (float64, error) {
-	n, err := sh.skillNode(i, name, damage)
+	n, err := sh.skillNode(i, name, damage, formNone)
 	if err != nil {
 		return 0, err
 	}
@@ -114,8 +118,8 @@ func (sh *Sheet) SkillValue(i int, name string, damage ...DamageType) (float64, 
 }
 
 // skillNode returns the node of engine stat name in skill i's context for the damage chain
-// damage.
-func (sh *Sheet) skillNode(i int, name string, damage []DamageType) (core.Node, error) {
+// damage in form.
+func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageForm) (core.Node, error) {
 	id, ok := sh.stats[name]
 	switch {
 	case !ok:
@@ -128,7 +132,7 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType) (core.Node, 
 			return core.Node{}, fmt.Errorf("%w %d", ErrDamageType, d)
 		}
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i].types, damage))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i].types, damage, form))
 	return core.Node{Stat: id, Ctx: ctx}, nil
 }
 

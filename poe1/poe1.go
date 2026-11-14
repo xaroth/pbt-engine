@@ -46,6 +46,21 @@ const (
 	ChaosDamageModifier         = rules.ChaosDamageModifier
 	ManaCost                    = rules.ManaCost
 	LifeCost                    = rules.LifeCost
+	AverageHit                  = rules.AverageHit
+	HitChance                   = rules.HitChance
+	CriticalStrikeChance        = rules.CriticalStrikeChance
+	HitsPerSecond               = rules.HitsPerSecond
+	HitDPS                      = rules.HitDPS
+	PhysicalMinimum             = rules.PhysicalMinimum
+	PhysicalMaximum             = rules.PhysicalMaximum
+	FireMinimum                 = rules.FireMinimum
+	FireMaximum                 = rules.FireMaximum
+	ColdMinimum                 = rules.ColdMinimum
+	ColdMaximum                 = rules.ColdMaximum
+	LightningMinimum            = rules.LightningMinimum
+	LightningMaximum            = rules.LightningMaximum
+	ChaosMinimum                = rules.ChaosMinimum
+	ChaosMaximum                = rules.ChaosMaximum
 )
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.

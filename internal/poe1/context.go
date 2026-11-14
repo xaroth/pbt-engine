@@ -12,7 +12,7 @@ import (
 
 // Context dimensions. A value is read in a context: the sheet's values in the empty one, a
 // skill's values in a context of its types, its slot and, for a part of its damage, the damage
-// types of that part's chain. A table modifier with a semantics.ContextFilter applies only in the contexts
+// types of that part's chain and the form of the damage. A table modifier with a semantics.ContextFilter applies only in the contexts
 // it matches, so it never reaches a sheet value.
 const (
 	// dimType holds the skill's ActiveSkillType ids that skillTypes lists, those its supports
@@ -26,7 +26,20 @@ const (
 	// own stats (stat set, quality, supports) requires it, so they reach that skill only.
 	// Tables never name it.
 	dimSkill = "skill"
+	// dimForm holds the form of the damage being read: a hit, damage over time or an ailment.
+	// A modifier to "damage with hits" requires the hit; one to damage in general none.
+	dimForm = "form"
 )
+
+// damageForm is a form of damage, a value of the form dimension; formNone reads none.
+type damageForm uint8
+
+const (
+	formNone damageForm = iota
+	formHit
+)
+
+func damageFormNames() []string { return []string{"hit", "dot", "ailment"} }
 
 // maxSkills is how many skills a sheet holds at once, each with its own dimSkill bit.
 const maxSkills = 32
@@ -70,7 +83,7 @@ func skillTypes() []string {
 
 // contexts are the context dimensions of a sheet model.
 type contexts struct {
-	types, damage, skill core.Dimension
+	types, damage, skill, form core.Dimension
 }
 
 // addContexts registers the context dimensions on b.
@@ -83,6 +96,7 @@ func addContexts(b *core.ModelBuilder) contexts {
 		types:  mustDimension(b, dimType, skillTypes()),
 		damage: mustDimension(b, dimDamage, damageTypeNames()[Physical:]),
 		skill:  mustDimension(b, dimSkill, slots),
+		form:   mustDimension(b, dimForm, damageFormNames()),
 	}
 }
 
@@ -104,13 +118,15 @@ func isTableContext(name string) bool {
 		return slices.Contains(skillTypes(), value)
 	case dim == dimDamage:
 		return slices.Contains(damageTypeNames()[Physical:], value)
+	case dim == dimForm:
+		return slices.Contains(damageFormNames(), value)
 	}
 	return false
 }
 
 // skillMask returns the context of the skill in slot with types, reading a part of its damage
-// whose chain is damage, or no part when damage is empty.
-func (c contexts) skillMask(slot int, types []string, damage []DamageType) core.Mask {
+// whose chain is damage, or no part when damage is empty, in form, or none.
+func (c contexts) skillMask(slot int, types []string, damage []DamageType, form damageForm) core.Mask {
 	m := core.MaskOf(c.skill.Bit(slot))
 	for _, t := range types {
 		if i := slices.Index(c.types.Values, t); i >= 0 {
@@ -119,6 +135,9 @@ func (c contexts) skillMask(slot int, types []string, damage []DamageType) core.
 	}
 	for _, d := range damage {
 		m = m.Set(c.damage.Bit(int(d) - 1))
+	}
+	if form != formNone {
+		m = m.Set(c.form.Bit(int(form) - 1))
 	}
 	return m
 }

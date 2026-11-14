@@ -109,6 +109,8 @@ type Sheet struct {
 	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.
 	skillSources map[skillKey][]core.SourceID
+	// enemy holds the enemy's values.
+	enemy enemyMods
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
 	marked bool
 }
@@ -246,6 +248,9 @@ func modelFor(counters []string) *sheetModel {
 	}
 	addTransferStats(&b, md.stats)
 	md.ctx = addContexts(&b)
+	if md.ctx.damage.First != damageDimension().First {
+		panic("poe1: damage dimension bits differ from the hit formulas'")
+	}
 	for _, name := range counters {
 		if _, ok := md.stats[name]; !ok {
 			md.stats[name] = b.MustAddStat(core.StatDef{Name: name})
@@ -305,12 +310,19 @@ func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot
 	return sh.applyRule(e, v, src)
 }
 
-// addBaseValues adds the rules' base values of movement speed, damage and efficiencies.
+// addBaseValues adds the rules' base values of movement speed, damage, cast speed and
+// efficiencies, and the enemy.
 func (sh *Sheet) addBaseValues() error {
 	if err := sh.addBaseMovementSpeed(); err != nil {
 		return err
 	}
 	if err := sh.addBaseDamage(); err != nil {
+		return err
+	}
+	if err := sh.addBaseCastSpeed(); err != nil {
+		return err
+	}
+	if err := sh.addEnemy(); err != nil {
 		return err
 	}
 	return sh.addBaseEfficiencies()
