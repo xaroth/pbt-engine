@@ -130,7 +130,12 @@ func (p *Predicate) matches(m Mask) bool {
 	return true
 }
 
+// MoreGroup keys the more modifiers of one stat whose product a model's MoreRule takes as one
+// (ModelBuilder.SetMoreRule). Its meaning lives outside core.
+type MoreGroup uint16
+
 // Modifier is one change to a stat of an actor. Conditions must all hold; scales multiply.
+// Group matters only to a more modifier under a MoreRule.
 type Modifier struct {
 	Stat   StatID
 	Actor  ActorID
@@ -140,4 +145,5 @@ type Modifier struct {
 	Pred   Predicate
 	Conds  []Cond
 	Scales []Scale
+	Group  MoreGroup
 }

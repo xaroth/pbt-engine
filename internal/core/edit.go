@@ -94,6 +94,7 @@ func (s *Session) AddModifier(m Modifier) (ModID, error) {
 	s.mStat = append(s.mStat, m.Stat)
 	s.mActor = append(s.mActor, m.Actor)
 	s.mOp = append(s.mOp, m.Op)
+	s.mGroup = append(s.mGroup, m.Group)
 	s.mValue = append(s.mValue, m.Value)
 	s.mSource = append(s.mSource, m.Source)
 	s.mAlive = append(s.mAlive, true)
@@ -186,6 +187,7 @@ func (s *Session) Modifier(id ModID) (m Modifier, removed bool, err error) {
 		Stat:   s.mStat[mi],
 		Actor:  s.mActor[mi],
 		Op:     s.mOp[mi],
+		Group:  s.mGroup[mi],
 		Value:  s.mValue[mi],
 		Source: s.mSource[mi],
 		Conds:  slices.Clone(s.conds[s.mCond[mi]:s.mCond[mi+1]]),

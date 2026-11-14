@@ -727,3 +727,38 @@ func BenchmarkNodePower(b *testing.B) {
 	}
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(whatIfs), "ns/whatif")
 }
+
+func TestMoreRule(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	generic := b.MustAddStat(core.StatDef{Name: "generic_damage"})
+	scale := b.MustAddStat(core.StatDef{Name: "scale"})
+	damage := b.MustAddStat(core.StatDef{Name: "damage", Includes: []core.StatID{generic}})
+	var seen [][]core.MoreProduct
+	b.SetMoreRule(func(ps []core.MoreProduct) float64 {
+		seen = append(seen, append([]core.MoreProduct(nil), ps...))
+		m := 1.0
+		for _, p := range ps {
+			m *= math.Floor(p.Value*100+0.5) / 100
+		}
+		return m
+	})
+	s := newSession(t, b.Build(), 1)
+	addAll(t, s, []core.Modifier{
+		{Stat: damage, Op: core.OpBase, Value: 100, Source: 1},
+		{Stat: damage, Op: core.OpMore, Value: 39, Source: 1, Group: 1},
+		// Its value reads scale, whose evaluation nests inside damage's.
+		{Stat: damage, Op: core.OpMore, Value: 39, Source: 2, Group: 1, Scales: []core.Scale{{Ref: core.SelfRef(scale), Step: 1}}},
+		{Stat: damage, Op: core.OpMore, Value: 39, Source: 3, Group: 2},
+		{Stat: generic, Op: core.OpMore, Value: 39, Source: 4, Group: 1},
+		{Stat: scale, Op: core.OpBase, Value: 1, Source: 5},
+		{Stat: scale, Op: core.OpMore, Value: 0.4, Source: 5},
+	})
+	if got, want := get(t, s, 0, damage, core.GlobalCtx), 100*1.93*1.39*1.39; !near(got, want) {
+		t.Errorf("damage %v, want %v", got, want)
+	}
+	want := []core.MoreProduct{{Stat: damage, Group: 1, Value: 1.39 * 1.39}, {Stat: damage, Group: 2, Value: 1.39}, {Stat: generic, Group: 1, Value: 1.39}}
+	if diff := cmp.Diff(want, seen[len(seen)-1], cmp.Comparer(near)); diff != "" {
+		t.Errorf("products (-want +got):\n%s", diff)
+	}
+}

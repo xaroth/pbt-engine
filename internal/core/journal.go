@@ -95,6 +95,7 @@ func (s *Session) popModifier(mi uint32) {
 	s.mStat = s.mStat[:mi]
 	s.mActor = s.mActor[:mi]
 	s.mOp = s.mOp[:mi]
+	s.mGroup = s.mGroup[:mi]
 	s.mValue = s.mValue[:mi]
 	s.mSource = s.mSource[:mi]
 	s.mAlive = s.mAlive[:mi]

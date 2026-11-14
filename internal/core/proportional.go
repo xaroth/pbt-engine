@@ -205,7 +205,7 @@ func (a *Attributor) Default() []Part { return a.Layers(a.BaseTerms()) }
 // base: an increased term gets B i/100; more terms split B (1 + I/100)(M - 1) by the weight
 // ln(1 + m/100). A more factor of 0 or below takes the whole more part, split equally among
 // such terms.
-func (a *Attributor) Layers(base []Part) []Part { return a.layers(a.e.Terms, a.def, base) }
+func (a *Attributor) Layers(base []Part) []Part { return a.layers(&a.e, a.def, base) }
 
 // LayersOver is Layers with the increased and more terms of another node, for a formula
 // that applies that node's multipliers to an amount of its own.
@@ -215,18 +215,18 @@ func (a *Attributor) LayersOver(ref Ref, base []Part) []Part {
 	if a.fail(err) {
 		return nil
 	}
-	return a.layers(e.Terms, &a.p.s.m.stats[n.Stat], base)
+	return a.layers(&e, &a.p.s.m.stats[n.Stat], base)
 }
 
-func (a *Attributor) layers(terms []Term, def *StatDef, base []Part) []Part {
+func (a *Attributor) layers(e *Explanation, def *StatDef, base []Part) []Part {
 	out := append([]Part(nil), base...)
 	b := 0.0
 	for _, pt := range base {
 		b += pt.Value
 	}
-	inc, more, nonPositive := sums(terms)
+	inc, product, nonPositive := sums(e.Terms)
 	bi := float64(b * (1 + inc/percent))
-	for _, t := range terms {
+	for _, t := range e.Terms {
 		if !t.Held {
 			continue
 		}
@@ -234,7 +234,7 @@ func (a *Attributor) layers(terms []Term, def *StatDef, base []Part) []Part {
 		case OpInc:
 			out = append(out, a.credit(t, def, float64(b*t.Value)/percent)...)
 		case OpMore:
-			if v, ok := moreShare(t.Value, bi, more, nonPositive); ok {
+			if v, ok := moreShare(t.Value, bi, e.Agg.More, product, nonPositive); ok {
 				out = append(out, a.credit(t, def, v)...)
 			}
 		case OpBase, OpOverride, OpFlag:
@@ -279,18 +279,20 @@ func sums(terms []Term) (inc, more float64, nonPositive int) {
 	return inc, more, nonPositive
 }
 
-// moreShare is a more term m's share of bi (M - 1), and false when it gets none.
-func moreShare(m, bi, more float64, nonPositive int) (float64, bool) {
+// moreShare is a more term m's share of bi (M - 1), and false when it gets none. M is the
+// node's more multiplier, product the exact product of its terms: they differ when a MoreRule
+// rounds.
+func moreShare(m, bi, more, product float64, nonPositive int) (float64, bool) {
 	f := 1 + m/percent
 	switch {
 	case nonPositive > 0 && f <= 0:
 		return float64(bi*(more-1)) / float64(nonPositive), true
 	case nonPositive > 0:
 		return 0, false
-	case more == 1:
+	case product == 1:
 		return float64(bi * math.Log(f)), true
 	}
-	return float64(bi * math.Log(f) * ((more - 1) / math.Log(more))), true
+	return float64(bi * math.Log(f) * ((more - 1) / math.Log(product))), true
 }
 
 // credit returns the parts for term t of a node of def worth v: its own source, or for a

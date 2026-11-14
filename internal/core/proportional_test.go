@@ -267,3 +267,29 @@ func TestProportionalLayersOver(t *testing.T) {
 		t.Errorf("formula name: %q, %v", e.Formula, err)
 	}
 }
+
+func TestProportionalMoreRule(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	damage := b.MustAddStat(core.StatDef{Name: "damage"})
+	b.SetMoreRule(func(ps []core.MoreProduct) float64 {
+		m := 1.0
+		for _, p := range ps {
+			m *= math.Floor(p.Value*100+0.5) / 100
+		}
+		return m
+	})
+	s := newSession(t, b.Build(), 1)
+	addAll(t, s, []core.Modifier{
+		{Stat: damage, Op: core.OpBase, Value: 100, Source: 0},
+		{Stat: damage, Op: core.OpMore, Value: 39, Source: 1},
+		{Stat: damage, Op: core.OpMore, Value: 39, Source: 2},
+	})
+	p := proportional(t, s, core.Node{Stat: damage})
+	if !near(sumParts(p.Parts), 193) || !near(p.Amount, 193) {
+		t.Errorf("parts sum %v, amount %v, want 193", sumParts(p.Parts), p.Amount)
+	}
+	if got := bySource(p.Parts); !near(got[1], got[2]) {
+		t.Errorf("equal more terms split %v and %v", got[1], got[2])
+	}
+}

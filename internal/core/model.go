@@ -32,8 +32,10 @@ const (
 
 // Agg is the aggregation of the modifiers matching one node.
 type Agg struct {
-	Base, Inc   float64 // sums
-	More        float64 // product of (1 + v/100), 1 when none
+	Base, Inc float64 // sums
+	// More is the product of (1 + v/100), 1 when none; under a MoreRule, what the rule makes of
+	// the products per stat and group.
+	More        float64
 	Flag        bool    // any OpFlag modifier matched
 	Override    float64 // value of the last matching override
 	HasOverride bool
@@ -43,6 +45,19 @@ type Agg struct {
 func (a Agg) Default() float64 {
 	return a.Base * (1.0 + a.Inc/100.0) * a.More
 }
+
+// MoreProduct is the exact product of the more modifiers of one stat and group that match a
+// node.
+type MoreProduct struct {
+	Stat  StatID
+	Group MoreGroup
+	Value float64
+}
+
+// MoreRule makes a node's more multiplier from its products, given in the order their first
+// modifier matched. It replaces the exact product, so a rules package can round as its game
+// does.
+type MoreRule func(products []MoreProduct) float64
 
 // Formula computes a node's value before clamping and rounding. It is not called when an
 // override matched, unless the stat sets FormulaSeesOverride. Reads through r are recorded as
@@ -162,6 +177,7 @@ type ModelBuilder struct {
 	dimNames map[string]bool
 	nBits    int
 	bitNames map[string]Bit // "dimension.value"
+	more     MoreRule
 }
 
 // AddStat registers a stat. Names are unique; includes and shares, with their rates, must
@@ -235,6 +251,10 @@ func (b *ModelBuilder) SetAttribute(id StatID, name string, a Attribute) error {
 	return nil
 }
 
+// SetMoreRule sets the rule that makes every node's more multiplier from its products per stat
+// and group. Without one it is their exact product.
+func (b *ModelBuilder) SetMoreRule(r MoreRule) { b.more = r }
+
 // AddDimension registers a context dimension with its values, each getting one bit.
 func (b *ModelBuilder) AddDimension(name string, values ...string) (Dimension, error) {
 	if b.nBits+len(values) > MaxBits {
@@ -269,6 +289,7 @@ func (b *ModelBuilder) Build() *Model {
 	return &Model{
 		stats:    slices.Clone(b.stats),
 		bitNames: maps.Clone(b.bitNames),
+		more:     b.more,
 	}
 }
 
@@ -277,6 +298,7 @@ func (b *ModelBuilder) Build() *Model {
 type Model struct {
 	stats    []StatDef
 	bitNames map[string]Bit
+	more     MoreRule
 }
 
 // StatDef returns a copy of a stat's definition, and false for an unknown id.

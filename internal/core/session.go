@@ -48,6 +48,7 @@ type Session struct {
 	mStat   []StatID
 	mActor  []ActorID
 	mOp     []Op
+	mGroup  []MoreGroup
 	mValue  []float64
 	mSource []SourceID
 	mAlive  []bool
@@ -70,6 +71,9 @@ type Session struct {
 	blockIdx []uint32 // [(ctx*nActors+actor)*2+uncond] -> index into blocks + 1, 0 if absent
 	stack    []uint32
 	err      error
+	// more holds the more products of the nodes being evaluated, nested evaluations after
+	// their callers'.
+	more []MoreProduct
 
 	journal    []edit
 	journalGen uint32 // starts at 1, so the zero Checkpoint is stale
