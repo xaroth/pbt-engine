@@ -135,6 +135,13 @@ const (
 	statAttackSpeed                                      = "attack_speed"
 	statHitsPerSecond                                    = "hits_per_second"
 	statHitDPS                                           = "hit_dps"
+	statSpellDamageModifiersApplyToSkillDot              = "spell_damage_modifiers_apply_to_skill_dot"
+	statProjectileDamageModifiersApplyToSkillDot         = "projectile_damage_modifiers_apply_to_skill_dot"
+	statBaseDamageOverTime                               = "base_damage_over_time"
+	statDamageOverTimeMultiplier                         = "damage_over_time_multiplier"
+	statDamageOverTimeEnemyResistance                    = "damage_over_time_enemy_resistance"
+	statDamageOverTime                                   = "damage_over_time"
+	statDamageOverTimeDPS                                = "damage_over_time_dps"
 )
 
 // engineStats are the engine stats of the character sheet, named after the game's words, in
@@ -204,6 +211,16 @@ const (
 // and cast_speed its speed in percent of it, 100 before modifiers; hits_per_second follows, and
 // hit_dps is the damage the enemy takes per second from hits.
 //
+// A skill's damage over time is read in its context for damage over time, which has the
+// skill's types but Attack and Area, and but Spell and Projectile unless
+// spell_damage_modifiers_apply_to_skill_dot or projectile_damage_modifiers_apply_to_skill_dot
+// is set for it.
+// base_damage_over_time, read for one damage type, is the skill's own damage of that type per
+// second before modifiers; damage_over_time_multiplier is the Damage over Time Multiplier in
+// percent. damage_over_time_enemy_resistance is the resistance damage over time of the type
+// meets, and damage_over_time what the enemy takes of the type per second.
+// damage_over_time_dps totals it over the types.
+//
 // number_of_allocated_masteries is the allocated Mastery passives: the sum of the tree's
 // counters, since every allocatable mastery carries its group's count at 1.
 func engineStats() []string {
@@ -255,7 +272,7 @@ func engineStats() []string {
 		statSpellBlockChanceCapped,
 		statMovementSpeed,
 		statDamage,
-	}, reservationStats(), hitStats(), []string{
+	}, reservationStats(), hitStats(), dotStats(), []string{
 		statEffectiveMaximumFireResistance,
 		statEffectiveMaximumColdResistance,
 		statEffectiveMaximumLightningResistance,
@@ -337,6 +354,19 @@ func hitStats() []string {
 		statAttackSpeed,
 		statHitsPerSecond,
 		statHitDPS,
+	}
+}
+
+// dotStats are the engine stats of a skill's damage over time, in registration order.
+func dotStats() []string {
+	return []string{
+		statSpellDamageModifiersApplyToSkillDot,
+		statProjectileDamageModifiersApplyToSkillDot,
+		statBaseDamageOverTime,
+		statDamageOverTimeMultiplier,
+		statDamageOverTimeEnemyResistance,
+		statDamageOverTime,
+		statDamageOverTimeDPS,
 	}
 }
 

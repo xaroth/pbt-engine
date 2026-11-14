@@ -124,6 +124,7 @@ const (
 	CriticalStrikeChance        output.Key = "skill.critical_strike_chance"
 	HitsPerSecond               output.Key = "skill.hits_per_second"
 	HitDPS                      output.Key = "skill.hit_dps"
+	DotDPS                      output.Key = "skill.dot_dps"
 	PhysicalMinimum             output.Key = "skill.physical_minimum"
 	PhysicalMaximum             output.Key = "skill.physical_maximum"
 	FireMinimum                 output.Key = "skill.fire_minimum"

@@ -51,6 +51,7 @@ const (
 	CriticalStrikeChance        = rules.CriticalStrikeChance
 	HitsPerSecond               = rules.HitsPerSecond
 	HitDPS                      = rules.HitDPS
+	DotDPS                      = rules.DotDPS
 	PhysicalMinimum             = rules.PhysicalMinimum
 	PhysicalMaximum             = rules.PhysicalMaximum
 	FireMinimum                 = rules.FireMinimum

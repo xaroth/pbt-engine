@@ -24,6 +24,8 @@ const (
 	typeSummonsTotem = "SummonsTotem"
 	typeTriggered    = "Triggered"
 	typeCooldown     = "Cooldown"
+	typeProjectile   = "Projectile"
+	typeArea         = "Area"
 )
 
 // Hit limits. The rate cap is the server tick: a skill used more often than once a tick still
@@ -130,7 +132,7 @@ func attackMask() core.Mask {
 // damage of the type times its base damage multiplier, plus added damage times its damage
 // effectiveness, times the type's damage modifier and the modifier of the smallest or largest
 // damage alone, rounded half up. Against the enemy it is reduced by the resistance it meets
-// (hitResistance), or for physical damage by the enemy's armour against a hit of that size,
+// (metResistance), or for physical damage by the enemy's armour against a hit of that size,
 // then scaled by the enemy's damage taken. A critical strike multiplies the hit before the
 // enemy reduces it. The average hit weighs the non-critical and critical averages of every
 // type by the critical strike chance. Hits per second are the cast time divided by the cast
@@ -211,38 +213,44 @@ func (h hitDamage) attribute() core.Attribute {
 	}
 }
 
-// enemyDef completes def when it is a stat of the resistance a hit meets.
+// enemyDef completes def when it is a stat of the resistance a hit or damage over time meets.
 func enemyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
 	case statEnemyExposure:
 		def.LowestBase = true
 	case statHitEnemyResistance:
-		h := newHitResistance(ids)
+		h := newMetResistance(ids, true)
 		def.FormulaName, def.Formula, def.Attribute = formulaHitEnemyResistance, h.formula(), h.attribute()
+	case statDamageOverTimeEnemyResistance:
+		h := newMetResistance(ids, false)
+		def.FormulaName, def.Formula, def.Attribute = formulaDotEnemyResistance, h.formula(), h.attribute()
 	}
 	return def
 }
 
-// hitResistance is the resistance a hit of one damage type meets, read in the type's context:
-// the enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum,
-// less the hit's penetration. Exposure is its strongest instance, and what the character adds
-// to Exposure it inflicts applies only while there is some. Penetration counts after the
-// limits, so it can take the resistance below the floor. All follow PoB (CalcOffence.lua
-// calcResistForType and the hit's resistance, CalcPerform.lua's exposures); the game text
-// gives none of the order.
-type hitResistance struct {
+// metResistance is the resistance damage of one type meets, read in the type's context: the
+// enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum, and
+// for a hit less its penetration. Exposure is its strongest instance, and what the character
+// adds to Exposure it inflicts applies only while there is some. Penetration counts after the
+// limits, so it can take the resistance below the floor; damage over time does not penetrate.
+// All follow PoB (CalcOffence.lua calcResistForType, the hit's resistance and the skill's
+// damage over time, CalcPerform.lua's exposures); the game text gives none of the order.
+type metResistance struct {
 	resistance, maximum, exposure, extra, penetration core.StatID
+	// penetrates is set for a hit.
+	penetrates bool
 }
 
-func newHitResistance(ids map[string]core.StatID) hitResistance {
-	return hitResistance{
+func newMetResistance(ids map[string]core.StatID, penetrates bool) metResistance {
+	return metResistance{
 		resistance: mustID(ids, statEnemyResistance), maximum: mustID(ids, statEnemyMaximumResistance),
 		exposure: mustID(ids, statEnemyExposure), extra: mustID(ids, statExtraExposure), penetration: mustID(ids, statPenetration),
+		penetrates: penetrates,
 	}
 }
 
 // exposed returns the Exposure the enemy has, with stat reading a stat.
-func (h hitResistance) exposed(stat func(core.StatID) float64) float64 {
+func (h metResistance) exposed(stat func(core.StatID) float64) float64 {
 	e := stat(h.exposure)
 	if e != 0 {
 		e += stat(h.extra)
@@ -250,16 +258,19 @@ func (h hitResistance) exposed(stat func(core.StatID) float64) float64 {
 	return e
 }
 
-func (h hitResistance) formula() core.Formula {
+func (h metResistance) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
 		v := min(max(r.Stat(h.resistance)+h.exposed(r.Stat), resistanceFloor), r.Stat(h.maximum))
-		return v - r.Stat(h.penetration)
+		if h.penetrates {
+			v -= r.Stat(h.penetration)
+		}
+		return v
 	}
 }
 
-// attribute credits the enemy's resistance, its Exposure and the penetration, which counts
+// attribute credits the enemy's resistance, its Exposure and any penetration, which counts
 // against it; what the limits change goes to the maximum's sources.
-func (h hitResistance) attribute() core.Attribute {
+func (h metResistance) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		parts, _ := a.Of(core.SelfRef(h.resistance))
 		if h.exposed(a.Stat) != 0 {
@@ -268,8 +279,10 @@ func (h hitResistance) attribute() core.Attribute {
 				parts = append(parts, p...)
 			}
 		}
-		pen, _ := a.Of(core.SelfRef(h.penetration))
-		parts = append(parts, scaled(pen, -1)...)
+		if h.penetrates {
+			pen, _ := a.Of(core.SelfRef(h.penetration))
+			parts = append(parts, scaled(pen, -1)...)
+		}
 		total := a.Explanation().Total
 		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.maximum)), Amount: total}
 	}
