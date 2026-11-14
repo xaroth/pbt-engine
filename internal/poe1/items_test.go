@@ -67,11 +67,11 @@ func TestCompileItem(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, assumed := poe1.CompileItem(&tc.item, tc.base)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			got := poe1.CompileItem(&tc.item, tc.base)
+			if diff := cmp.Diff(tc.want, got.Stats); diff != "" {
 				t.Errorf("stats (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantAssumed, assumed); diff != "" {
+			if diff := cmp.Diff(tc.wantAssumed, got.Assumed); diff != "" {
 				t.Errorf("assumed (-want +got):\n%s", diff)
 			}
 		})

@@ -123,6 +123,8 @@ const (
 	statHitChance                                        = "hit_chance"
 	statCastTime                                         = "cast_time"
 	statCastSpeed                                        = "cast_speed"
+	statAttackRate                                       = "attack_rate"
+	statAttackSpeed                                      = "attack_speed"
 	statHitsPerSecond                                    = "hits_per_second"
 	statHitDPS                                           = "hit_dps"
 )
@@ -310,6 +312,8 @@ func hitStats() []string {
 		statHitChance,
 		statCastTime,
 		statCastSpeed,
+		statAttackRate,
+		statAttackSpeed,
 		statHitsPerSecond,
 		statHitDPS,
 	}

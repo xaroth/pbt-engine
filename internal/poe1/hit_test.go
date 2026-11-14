@@ -88,33 +88,39 @@ func TestPhysicalHitAgainstArmour(t *testing.T) {
 	}
 }
 
-// The sheet gives a spell hit's damage, and its rate of hits only when the character casts it.
+// The sheet gives a hit's damage for a spell or an attack with one weapon, its rate of hits
+// only when the character uses it itself, and its chance to hit and hit DPS for a spell only.
 func TestHitOutputsGiven(t *testing.T) {
 	t.Parallel()
 	byKey := map[output.Key]poe1.Output{}
 	for _, o := range poe1.Outputs() {
 		byKey[o.Key] = o
 	}
+	sword := &poe1.Weapon{}
+	oneWeapon, twoWeapons := poe1.Hands{MainHand: sword}, poe1.Hands{MainHand: sword, OffHand: sword}
 	for _, c := range []struct {
-		name      string
-		skill     *resolve.Skill
-		hit, rate bool
+		name                 string
+		skill                *resolve.Skill
+		hands                poe1.Hands
+		hit, rate, spellRate bool
 	}{
-		{"none", nil, false, false},
-		{"spell", skill(0, "Spell", "Damage"), true, true},
-		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), true, false},
-		{"spell of a mine", skill(0, "Spell", "Damage", "RemoteMined"), true, false},
-		{"attack", skill(0, "Attack", "Damage"), false, false},
-		{"spell without a hit", skill(0, "Spell", "DamageOverTime"), false, false},
+		{"none", nil, oneWeapon, false, false, false},
+		{"spell", skill(0, "Spell", "Damage"), poe1.Hands{}, true, true, true},
+		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), poe1.Hands{}, true, false, false},
+		{"spell of a mine", skill(0, "Spell", "Damage", "RemoteMined"), poe1.Hands{}, true, false, false},
+		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, false},
+		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, false, false},
+		{"attack of a totem", skill(0, "Attack", "Damage", "SummonsTotem"), oneWeapon, false, false, false},
+		{"attack unarmed", skill(0, "Attack", "Damage"), poe1.Hands{}, false, false, false},
+		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, false, false, false},
+		{"spell without a hit", skill(0, "Spell", "DamageOverTime"), poe1.Hands{}, false, false, false},
 	} {
-		if got := poe1.Gives(byKey[poe1.AverageHit], c.skill); got != c.hit {
-			t.Errorf("%s: average hit given %v, want %v", c.name, got, c.hit)
-		}
-		if got := poe1.Gives(byKey[poe1.HitDPS], c.skill); got != c.rate {
-			t.Errorf("%s: hit DPS given %v, want %v", c.name, got, c.rate)
-		}
-		if got := poe1.Gives(byKey[poe1.Life], c.skill); !got {
-			t.Errorf("%s: life not given", c.name)
+		for k, want := range map[output.Key]bool{
+			poe1.AverageHit: c.hit, poe1.HitsPerSecond: c.rate, poe1.HitDPS: c.spellRate, poe1.Life: true,
+		} {
+			if got := poe1.Gives(byKey[k], c.skill, c.hands); got != want {
+				t.Errorf("%s: %s given %v, want %v", c.name, k, got, want)
+			}
 		}
 	}
 }

@@ -86,7 +86,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 		}
 		srcs = append(srcs, src)
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, nil, formNone))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, 0, nil, formNone))
 	src, err := sh.addSkillRules(sk, slot, ctx)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,11 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageF
 			return core.Node{}, fmt.Errorf("%w %d", ErrDamageType, d)
 		}
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i].types, damage, form))
+	var weapon weaponKinds
+	if slices.Contains(sh.skills[i].types, typeAttack) {
+		weapon = sh.mainHand
+	}
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, sh.skills[i].types, weapon, damage, form))
 	return core.Node{Stat: id, Ctx: ctx}, nil
 }
 

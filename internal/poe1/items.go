@@ -2,6 +2,7 @@ package poe1
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 
@@ -21,6 +22,8 @@ type Item struct {
 	// Key identifies the item's content; a sheet keeps one source per slot and key.
 	Key   string
 	Stats []resolve.StatValue
+	// Weapon is the item's own weapon values; nil for an item that is not a weapon.
+	Weapon *Weapon
 }
 
 // defence is one of an armour base's defences and the local stats that change it.
@@ -72,34 +75,48 @@ func defences() []defence {
 	}
 }
 
-// CompileItem returns the stats it gives the character on base: each defence of an armour base
-// as one flat stat, the rest of its stats as they are. A defence the item's text gives is taken
-// as it is; otherwise it is the base's highest roll plus the local flat stats, times the local
-// increases and, separately, the quality, rounded half away from zero. Assumed lists the defences taken at
-// the highest roll of a base whose roll varies. Quality multiplying apart from the increases
-// and the rounding follow PoB (Item.lua, BuildModListForSlotNum); unvalidated.
-func CompileItem(it *build.Item, base *dataset.ItemBase) (stats []resolve.StatValue, assumed []string) {
+// CompiledItem is an item compiled for a sheet.
+type CompiledItem struct {
+	// Stats are the stats it gives the character.
+	Stats []resolve.StatValue
+	// Weapon is its own weapon values, nil for an item that is not a weapon.
+	Weapon *Weapon
+	// Assumed lists the defences taken at the highest roll of a base whose roll varies.
+	Assumed []string
+}
+
+// CompileItem returns what it gives the character on base: each defence of an armour base as one
+// flat stat, a weapon's own values with its local stats applied (compileWeapon), the rest of its
+// stats as they are. A defence the item's text gives is taken as it is; otherwise it is the
+// base's highest roll plus the local flat stats, times the local increases and, separately, the
+// quality, rounded half away from zero. Quality multiplying apart from the increases and the
+// rounding follow PoB (Item.lua, BuildModListForSlotNum); unvalidated.
+func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
+	var c CompiledItem
+	sums := statSums(it)
+	local := localDefenceStats()
+	if c.Weapon = compileWeapon(it, base, sums); c.Weapon != nil {
+		maps.Copy(local, localWeaponStats())
+	}
 	if base.Armour != nil {
-		sums := statSums(it)
 		for _, d := range defences() {
 			v, rolled := d.value(it, base.Armour, sums)
 			if rolled {
-				assumed = append(assumed, d.name)
+				c.Assumed = append(c.Assumed, d.name)
 			}
 			if v != 0 {
-				stats = append(stats, resolve.StatValue{Stat: d.stat, Value: v})
+				c.Stats = append(c.Stats, resolve.StatValue{Stat: d.stat, Value: v})
 			}
 		}
 	}
-	local := localDefenceStats()
 	for _, m := range it.Mods {
 		for _, sv := range m.Stats {
 			if !local[sv.Stat] {
-				stats = append(stats, resolve.StatValue{Stat: sv.Stat, Value: float64(sv.Value)})
+				c.Stats = append(c.Stats, resolve.StatValue{Stat: sv.Stat, Value: float64(sv.Value)})
 			}
 		}
 	}
-	return stats, assumed
+	return c
 }
 
 func statSums(it *build.Item) map[string]float64 {
@@ -149,8 +166,9 @@ type itemKey struct {
 	key  string
 }
 
-// SetItems equips items and jewels: their sources go on, other items' off. An item not seen yet
-// in its slot or socket gets its source added once; adding is refused while a checkpoint is open
+// SetItems equips items and jewels: their sources go on, other items' off; the weapon in the
+// weapon slot is the main hand's (setMainHand). An item not seen yet in its slot or socket gets
+// its source added once; adding is refused while a checkpoint is open
 // (ErrCheckpointOpen).
 func (sh *Sheet) SetItems(items []Item) error {
 	want := make(map[itemKey]bool, len(items))
@@ -182,5 +200,15 @@ func (sh *Sheet) SetItems(items []Item) error {
 		}
 		sh.items[k] = src
 	}
-	return nil
+	return sh.setMainHand(mainHandOf(items))
+}
+
+// mainHandOf returns the weapon in the weapon slot among items and its name; nil for none.
+func mainHandOf(items []Item) (*Weapon, string) {
+	for _, it := range items {
+		if it.Slot == build.SlotWeapon && it.Node == 0 {
+			return it.Weapon, it.Name
+		}
+	}
+	return nil, ""
 }

@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
@@ -36,25 +37,58 @@ const (
 	millisecondsPerSecond     = 1000
 	critPermyriadToPercent    = 100
 	effectivenessPermyriadPct = 100
-	// speedPlaces is the decimal places PoB rounds a speed modifier to.
-	speedPlaces = 2
 	// half averages a minimum and a maximum, splits what critical strikes add between their
 	// chance and multiplier, and rounds half up.
 	half = 0.5
 )
 
-// SpellHit reports whether the sheet gives sk's hit: a spell that deals damage, not an attack
-// and not a minion's.
+// SpellHit reports whether the sheet gives sk's hit as a spell's: a spell that deals damage, not
+// an attack and not a minion's.
 func SpellHit(sk *resolve.Skill) bool {
 	return hasTypes(sk, typeSpell, typeDamage) && !hasAnyType(sk, typeAttack, typeMinion)
 }
 
-// selfCastHit reports whether the sheet gives sk's rate of hits: a spell hit the character casts
-// itself, without a cooldown, channelling, brand, trap, mine, totem or trigger, whose rates
-// these rules do not give.
-func selfCastHit(sk *resolve.Skill) bool {
-	return SpellHit(sk) &&
+// attackHit reports whether the sheet gives sk's hit as an attack's with hands: an attack the
+// character makes with one weapon in the main hand and none in the off hand, not a minion's
+// and not made by a totem, trap or mine.
+func attackHit(sk *resolve.Skill, h Hands) bool {
+	return hasTypes(sk, typeAttack) && h.MainHand != nil && h.OffHand == nil &&
+		!hasAnyType(sk, typeMinion, typeTrapped, typeRemoteMined, typeSummonsTotem)
+}
+
+// Hit reports whether the sheet gives sk's hit with hands: a spell hit, or an attack with one
+// weapon.
+func Hit(sk *resolve.Skill, h Hands) bool {
+	return sk != nil && (SpellHit(sk) || attackHit(sk, h))
+}
+
+// selfUsedHit reports whether the sheet gives sk's rate of hits with hands: a hit the character
+// uses itself, without a cooldown, channelling, brand, trap, mine, totem or trigger, whose
+// rates these rules do not give.
+func selfUsedHit(sk *resolve.Skill, h Hands) bool {
+	return Hit(sk, h) &&
 		!hasAnyType(sk, typeChannel, typeBrand, typeTrapped, typeRemoteMined, typeSummonsTotem, typeTriggered, typeCooldown)
+}
+
+// Hands is what the character holds: the weapon in each hand, nil for none. A shield or quiver
+// is not a weapon.
+type Hands struct {
+	MainHand, OffHand *Weapon
+}
+
+// HandsOf returns what items put in the character's hands.
+func HandsOf(items []Item) Hands {
+	var h Hands
+	for _, it := range items {
+		switch {
+		case it.Node != 0:
+		case it.Slot == build.SlotWeapon:
+			h.MainHand = it.Weapon
+		case it.Slot == build.SlotOffhand:
+			h.OffHand = it.Weapon
+		}
+	}
+	return h
 }
 
 func hasTypes(sk *resolve.Skill, types ...string) bool {
@@ -80,6 +114,14 @@ func damageDimension() core.Dimension {
 // damageBit returns the context bit of damage type d.
 func damageBit(dim core.Dimension, d DamageType) core.Mask {
 	return core.MaskOf(dim.Bit(int(d) - 1))
+}
+
+// attackMask is the Attack type's context bit of a sheet model, the same in every model as
+// damageDimension's.
+func attackMask() core.Mask {
+	var b core.ModelBuilder
+	types := addContexts(&b).types
+	return core.MaskOf(types.Bit(slices.Index(types.Values, typeAttack)))
 }
 
 // hitDef completes def when it is a hit stat.
@@ -124,7 +166,10 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		h := newAverageHit(ids)
 		def.FormulaName, def.Formula, def.Attribute = formulaAverageHit, h.formula(), h.attribute()
 	case statHitsPerSecond:
-		h := hitRate{castTime: mustID(ids, statCastTime), castSpeed: mustID(ids, statCastSpeed)}
+		h := hitRate{
+			castTime: mustID(ids, statCastTime), castSpeed: mustID(ids, statCastSpeed),
+			attackRate: mustID(ids, statAttackRate), attackSpeed: mustID(ids, statAttackSpeed), attack: attackMask(),
+		}
 		def.FormulaName, def.Formula, def.Attribute = formulaHitsPerSecond, h.formula(), h.attribute()
 	case statHitDPS:
 		h := hitDPS{average: mustID(ids, statAverageHit), chance: mustID(ids, statHitChance), rate: mustID(ids, statHitsPerSecond)}
@@ -303,34 +348,57 @@ func (h averageHit) attribute() core.Attribute {
 	}
 }
 
-// hitRate is a skill's hits per second.
+// hitRate is a skill's hits per second: an attack's from its attack rate and speed, another
+// skill's from its cast time and speed.
 type hitRate struct {
-	castTime, castSpeed core.StatID
+	castTime, castSpeed, attackRate, attackSpeed core.StatID
+	// attack is the Attack type's context bit.
+	attack core.Mask
+}
+
+// base returns the skill's uses per second before its speed, and the speed stat that scales
+// them, with stat reading a stat.
+func (h hitRate) base(isAttack bool, stat func(core.StatID) float64) (float64, core.StatID) {
+	if isAttack {
+		return stat(h.attackRate), h.attackSpeed
+	}
+	if t := stat(h.castTime); t > 0 {
+		return 1 / t, h.castSpeed
+	}
+	return 0, h.castSpeed
 }
 
 func (h hitRate) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
+		if r.Mask().Intersects(h.attack) {
+			rate := r.Stat(h.attackRate) * roundHundredths(r.Stat(h.attackSpeed)/percentScale)
+			return min(max(rate, 0), 1/serverTickSeconds)
+		}
 		t := r.Stat(h.castTime)
 		if t <= 0 {
 			return 0
 		}
-		speed := roundHalfPlaces(r.Stat(h.castSpeed)/percentScale, speedPlaces)
-		return min(speed/t, 1/serverTickSeconds)
+		return min(roundHundredths(r.Stat(h.castSpeed)/percentScale)/t, 1/serverTickSeconds)
 	}
 }
 
-// attribute credits one cast per cast time to the cast time's sources, then the cast speed's
-// increases and more multipliers over it; what rounding and the tick cap change goes to the
-// cast speed's sources.
+// attribute credits the uses per second before speed to the sources of the attack rate or cast
+// time, then the speed's increases and more multipliers over them; what rounding and the tick
+// cap change goes to the speed's sources.
 func (h hitRate) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		total := a.Explanation().Total
-		t := a.Stat(h.castTime)
-		if t <= 0 {
+		isAttack := a.Mask().Intersects(h.attack)
+		base, speed := h.base(isAttack, a.Stat)
+		if base <= 0 {
 			return core.Attribution{Amount: total}
 		}
-		parts := a.LayersOver(core.SelfRef(h.castSpeed), a.Spread(core.SelfRef(h.castTime), 1/t, core.OpBase))
-		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.castSpeed)), Amount: total}
+		from := h.castTime
+		if isAttack {
+			from = h.attackRate
+		}
+		parts := a.LayersOver(core.SelfRef(speed), a.Spread(core.SelfRef(from), base, core.OpBase))
+		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(speed)), Amount: total}
 	}
 }
 
@@ -382,33 +450,40 @@ func rest(a *core.Attributor, parts []core.Part, total float64, ref core.Ref) []
 // roundHalf rounds half up, as PoB's round does.
 func roundHalf(v float64) float64 { return math.Floor(v + half) }
 
-// roundHalfPlaces rounds half up to places decimals.
-func roundHalfPlaces(v float64, places int) float64 {
-	scale := math.Pow10(places)
+// roundHundredths rounds half up to hundredths, as PoB rounds a speed modifier, a weapon's
+// attacks per second and its critical strike chance.
+func roundHundredths(v float64) float64 {
+	const scale = 100
 	return math.Floor(v*scale+half) / scale
 }
 
-// hitBase is a base value of a skill's hit stats from its granted effect and primary stat set.
+// hitBase is a value of a skill's hit stats from its granted effect and primary stat set.
 type hitBase struct {
 	stat  string
+	op    core.Op
 	value float64
 }
 
 // hitBases are sk's cast time in seconds, the damage effectiveness, base damage multiplier and
-// critical strike chance of its primary stat set in percent, and, for a spell, its chance to
-// hit: spells always hit.
+// critical strike chance of its primary stat set in percent, for a spell its chance to hit
+// (spells always hit), and for an attack its level row's attack speed multiplier, a more
+// multiplier to the weapon's attacks per second as PoB applies it (CalcOffence.lua
+// attackSpeedMultiplier).
 func hitBases(sk *resolve.Skill) []hitBase {
-	out := []hitBase{{statCastTime, float64(sk.CastTime) / millisecondsPerSecond}}
+	out := []hitBase{{statCastTime, core.OpBase, float64(sk.CastTime) / millisecondsPerSecond}}
 	if len(sk.StatSets) > 0 {
 		set := sk.StatSets[0]
 		out = append(out,
-			hitBase{statDamageEffectiveness, percentScale + float64(set.DamageEffectiveness)/effectivenessPermyriadPct},
-			hitBase{statBaseDamageMultiplier, percentScale + float64(set.BaseMultiplier)/effectivenessPermyriadPct},
-			hitBase{statCriticalStrikeChance, float64(set.SpellCritChance) / critPermyriadToPercent},
+			hitBase{statDamageEffectiveness, core.OpBase, percentScale + float64(set.DamageEffectiveness)/effectivenessPermyriadPct},
+			hitBase{statBaseDamageMultiplier, core.OpBase, percentScale + float64(set.BaseMultiplier)/effectivenessPermyriadPct},
+			hitBase{statCriticalStrikeChance, core.OpBase, float64(set.SpellCritChance) / critPermyriadToPercent},
 		)
 	}
-	if hasTypes(sk, typeSpell) && !hasTypes(sk, typeAttack) {
-		out = append(out, hitBase{statHitChance, percentScale})
+	switch {
+	case hasTypes(sk, typeAttack):
+		out = append(out, hitBase{statAttackRate, core.OpMore, float64(sk.AttackSpeedMultiplier)})
+	case hasTypes(sk, typeSpell):
+		out = append(out, hitBase{statHitChance, core.OpBase, percentScale})
 	}
 	return out
 }
@@ -424,7 +499,7 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 		if b.value == 0 {
 			continue
 		}
-		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: b.value, Source: src, Pred: pred}
+		mod := core.Modifier{Stat: sh.stats[b.stat], Op: b.op, Value: b.value, Source: src, Pred: pred}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return 0, fmt.Errorf("sheet: skill hit: %w", err)
 		}
@@ -432,16 +507,21 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	return src, nil
 }
 
-// baseCastSpeed is cast speed before modifiers: 100%.
-const baseCastSpeed = 100
+// baseSpeed is cast and attack speed before modifiers: 100%.
+const baseSpeed = 100
 
-// addBaseCastSpeed adds the base cast speed as a rule's source, so increases and more
-// multipliers apply to it by the default rule.
-func (sh *Sheet) addBaseCastSpeed() error {
-	src := sh.newSource(Source{RuleID: "base-cast-speed", Rule: "base cast speed (100%)"})
-	mod := core.Modifier{Stat: sh.stats[statCastSpeed], Op: core.OpBase, Value: baseCastSpeed, Source: src}
-	if _, err := sh.session.AddModifier(mod); err != nil {
-		return fmt.Errorf("sheet: base cast speed: %w", err)
+// addBaseSpeeds adds the base cast and attack speed as a rule's source each, so increases and
+// more multipliers apply to them by the default rule.
+func (sh *Sheet) addBaseSpeeds() error {
+	for _, b := range []struct{ stat, id, rule string }{
+		{statCastSpeed, "base-cast-speed", "base cast speed (100%)"},
+		{statAttackSpeed, "base-attack-speed", "base attack speed (100%)"},
+	} {
+		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
+		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: baseSpeed, Source: src}
+		if _, err := sh.session.AddModifier(mod); err != nil {
+			return fmt.Errorf("sheet: %s: %w", b.rule, err)
+		}
 	}
 	return nil
 }

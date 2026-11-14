@@ -29,6 +29,9 @@ const (
 	// dimForm holds the form of the damage being read: a hit, damage over time or an ailment.
 	// A modifier to "damage with hits" requires the hit; one to damage in general none.
 	dimForm = "form"
+	// dimWeapon holds what an attack is made with: the main hand weapon's kinds. Spells and a
+	// skill that is not an attack read none.
+	dimWeapon = "weapon"
 )
 
 // damageForm is a form of damage, a value of the form dimension; formNone reads none.
@@ -83,7 +86,7 @@ func skillTypes() []string {
 
 // contexts are the context dimensions of a sheet model.
 type contexts struct {
-	types, damage, skill, form core.Dimension
+	types, damage, skill, form, weapon core.Dimension
 }
 
 // addContexts registers the context dimensions on b.
@@ -97,6 +100,7 @@ func addContexts(b *core.ModelBuilder) contexts {
 		damage: mustDimension(b, dimDamage, damageTypeNames()[Physical:]),
 		skill:  mustDimension(b, dimSkill, slots),
 		form:   mustDimension(b, dimForm, damageFormNames()),
+		weapon: mustDimension(b, dimWeapon, weaponKindNames()),
 	}
 }
 
@@ -120,14 +124,21 @@ func isTableContext(name string) bool {
 		return slices.Contains(damageTypeNames()[Physical:], value)
 	case dim == dimForm:
 		return slices.Contains(damageFormNames(), value)
+	case dim == dimWeapon:
+		return slices.Contains(weaponKindNames(), value)
 	}
 	return false
 }
 
-// skillMask returns the context of the skill in slot with types, reading a part of its damage
-// whose chain is damage, or no part when damage is empty, in form, or none.
-func (c contexts) skillMask(slot int, types []string, damage []DamageType, form damageForm) core.Mask {
+// skillMask returns the context of the skill in slot with types, made with weapon, reading a
+// part of its damage whose chain is damage, or no part when damage is empty, in form, or none.
+func (c contexts) skillMask(slot int, types []string, weapon weaponKinds, damage []DamageType, form damageForm) core.Mask {
 	m := core.MaskOf(c.skill.Bit(slot))
+	for k := range weaponKindCount {
+		if weapon&(1<<k) != 0 {
+			m = m.Set(c.weapon.Bit(int(k)))
+		}
+	}
 	for _, t := range types {
 		if i := slices.Index(c.types.Values, t); i >= 0 {
 			m = m.Set(c.types.Bit(i))

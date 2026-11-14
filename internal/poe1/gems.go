@@ -31,7 +31,7 @@ func GemBonuses() []resolve.GemBonus {
 	add("local_socketed_elemental_gem_level_+", false, resolve.Socketed, resolve.GemFilter{AnyTags: elemental})
 	add("local_socketed_trap_and_mine_gem_level_+", false, resolve.Socketed, resolve.GemFilter{AnyTags: []string{"trap", "mine"}})
 	for _, t := range slices.Concat([]string{
-		"projectile", "spell", melee, "bow", minion, aura, "movement", curse, vaal, "warcry", "golem", "herald", "duration", "hex", "trap",
+		"projectile", "spell", melee, bow, minion, aura, "movement", curse, vaal, "warcry", "golem", "herald", "duration", "hex", "trap",
 	}, damage, attributes) {
 		add("local_socketed_"+t+"_gem_level_+", false, resolve.Socketed, tag(resolve.AnyGem, t))
 	}
@@ -40,7 +40,7 @@ func GemBonuses() []resolve.GemBonus {
 	add("local_socketed_support_gem_quality_+", true, resolve.Socketed, tag(resolve.SupportGem))
 	add("local_socketed_active_skill_gem_quality_+", true, resolve.Socketed, tag(resolve.SkillGem))
 	add("local_socketed_area_of_effect_gem_quality_+", true, resolve.Socketed, tag(resolve.AnyGem, "area"))
-	for _, t := range slices.Concat([]string{minion, melee, "bow", aura, "projectile"}, damage[:4], attributes) {
+	for _, t := range slices.Concat([]string{minion, melee, bow, aura, "projectile"}, damage[:4], attributes) {
 		add("local_socketed_"+t+"_gem_quality_+", true, resolve.Socketed, tag(resolve.AnyGem, t))
 	}
 
