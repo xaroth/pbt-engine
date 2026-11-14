@@ -15,7 +15,8 @@ import (
 )
 
 // TestFromXMLItemsReal imports a 3.29 build from pbt-conformance with an item in every
-// equipment slot, weapon swap included, and a jewel in the tree, on the pinned dataset.
+// equipment slot, weapon swap included, and a jewel in the tree, on the pinned dataset. The
+// jewel is kept in its socket.
 func TestFromXMLItemsReal(t *testing.T) {
 	t.Parallel()
 	reg := &dataset.Registry{}
@@ -44,8 +45,11 @@ func TestFromXMLItemsReal(t *testing.T) {
 	if diff := cmp.Diff(want, names); diff != "" {
 		t.Errorf("items by slot (-want +got):\n%s", diff)
 	}
+	if got := b.Jewels[41263].Name; len(b.Jewels) != 1 || got != "Rapture Essence" {
+		t.Errorf("jewels %v, want Rapture Essence in 41263", b.Jewels)
+	}
 	for _, w := range warnings {
-		if w.Code == pob.ItemIgnored {
+		if w.Code == pob.ItemIgnored || w.Code == pob.JewelIgnored {
 			t.Errorf("warning %v", w)
 		}
 	}
@@ -53,7 +57,9 @@ func TestFromXMLItemsReal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	leftOut := []build.Code{build.ItemSlotUnknown, build.ItemBaseUnknown, build.ItemSlotMismatch}
+	leftOut := []build.Code{
+		build.ItemSlotUnknown, build.ItemBaseUnknown, build.ItemSlotMismatch, build.JewelNotSocket, build.JewelNotAllocated, build.JewelKindMismatch,
+	}
 	for _, w := range checked {
 		if slices.Contains(leftOut, w.Code) {
 			t.Errorf("check: %v", w)

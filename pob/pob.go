@@ -65,23 +65,23 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 
 // FromXML reads a PoB build file. The active tree spec gives the version, variant, bloodline
 // (PoB's secondary ascendancy), nodes, mastery choices and node overrides; the class,
-// ascendancy and override names map to ids through the English text of the dataset reg
-// resolves for that version, or of the newest poe1 dataset when it has none (warning
-// VersionFallback; the build keeps the file's version). Config: the bandit choice, the
-// campaign stage from PoB's resistance penalty, and the enemy's kind, level, resistances,
-// armour and evasion, read as PoB reads them (a 0 level or resistance is empty, a level above
-// 85 is 85); PoB's placeholders, the values it shows for inputs left empty, are not read. The
-// active skill set's groups, with their gems resolved through the dataset's skills group (see
-// build.Skills). The active item set's items in the equipment slots, weapon swap included,
+// ascendancy and override names map to ids through the English text of the dataset reg resolves
+// for that version, or of the newest poe1 dataset when it has none (warning VersionFallback;
+// the build keeps the file's version). Config: the bandit choice, the campaign stage from PoB's
+// resistance penalty, and the enemy's kind, level, resistances, armour and evasion, read as PoB
+// reads them (a 0 level or resistance is empty, a level above 85 is 85); PoB's placeholders,
+// the values it shows for inputs left empty, are not read. The active skill set's groups, with
+// their gems resolved through the dataset's skills group (see build.Skills). The active item
+// set's items in the equipment slots, weapon swap included, and the jewels in tree sockets,
 // read through the dataset's items group; the reader's warnings on the lines it reads are not
 // repeated, as build.Check gives them. Everything else in the file gives a warning: other
-// specs, cluster jewel nodes (dropped), jewels, overrides whose name names no override or
-// several, config inputs, pantheon, a legacy secondary ascendancy (Warden, Warlock, Primalist)
-// or one the tree does not list, items in other slots, not equipped or not read, and of the
-// skills: groups an item or the tree grants (and the main skill when it is one of them), gems
-// the dataset lacks, gems of a name or skill id the dataset cannot choose between (imported as
-// the first), slots without sockets, the switches of a Vaal gem's two skills, and every group
-// when the dataset has no skills group.
+// specs, cluster jewel nodes (dropped) and jewels in their sockets, overrides whose name names
+// no override or several, config inputs, pantheon, a legacy secondary ascendancy (Warden,
+// Warlock, Primalist) or one the tree does not list, items in other slots, not equipped or not
+// read, jewels not read, and of the skills: groups an item or the tree grants (and the main
+// skill when it is one of them), gems the dataset lacks, gems of a name or skill id the dataset
+// cannot choose between (imported as the first), slots without sockets, the switches of a Vaal
+// gem's two skills, and every group when the dataset has no skills group.
 func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning, error) {
 	f, err := parse(data)
 	if err != nil {
@@ -117,7 +117,7 @@ func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning,
 		return nil, nil, err
 	}
 	im.treeLeftOut()
-	if b.Items, err = im.items(store); err != nil {
+	if b.Items, b.Jewels, err = im.items(store); err != nil {
 		return nil, nil, err
 	}
 	return b, im.warnings, nil
