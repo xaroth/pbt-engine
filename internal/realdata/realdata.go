@@ -16,10 +16,12 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// The pinned poe1 datasets: Previous is the league before Current.
+// The pinned poe1 datasets: Previous is the league before Current. InGame is the version the
+// cases confirmed in the game client were recorded on.
 const (
 	Previous = "3.28.0.16"
 	Current  = "3.29.3.6"
+	InGame   = "3.30.0.1"
 )
 
 // ids are the dataset ids of the pinned versions.
@@ -28,6 +30,7 @@ const (
 var ids = map[string]string{
 	Previous: "5f14cda3263e1d93da9969242fe91c41b0fbb5145ca4864b405947ddc1b13427",
 	Current:  "a7ac693b1a4da19aecd8110379fa8c8f2b7bfdac1c48387573bb4d249ced86db",
+	InGame:   "fe5fd41f270eadc01b1a059798eec7887e22754428b122821559a63613e5be4e",
 }
 
 // artIDs are the art manifest ids, each the manifest's SHA-256, published with the pinned
@@ -37,6 +40,7 @@ var ids = map[string]string{
 var artIDs = map[string]string{
 	Previous: "34692fb8eb2093c41ec79dc904017be3725ca89234c0f5d74692a9e8c8c6d689",
 	Current:  "1bfa96b1c78bd161b9b624e62540150cef061afc2433ff589c7fe8c5faef7ee6",
+	InGame:   "fc11aebc338c297d9157fd811d44f437f3e9340a766959a2ffd006a4f29e3299",
 }
 
 // fetchHint tells how to put the pinned datasets under $PBT_DATASETS.
@@ -69,9 +73,14 @@ func ArtManifest(tb testing.TB, version string) []byte {
 	return b
 }
 
-// Versions are the pinned versions, oldest first.
+// Versions are the pinned versions the sheet is tested on, oldest first.
 func Versions() []string {
 	return []string{Previous, Current}
+}
+
+// Pinned are all pinned versions, oldest first.
+func Pinned() []string {
+	return []string{Previous, Current, InGame}
 }
 
 // Root is $PBT_DATASETS, and skips tb without it.

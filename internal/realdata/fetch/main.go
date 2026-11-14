@@ -52,7 +52,7 @@ func main() {
 
 func run(ctx context.Context, dir string, versions []string) error {
 	if len(versions) == 0 {
-		versions = realdata.Versions()
+		versions = realdata.Pinned()
 	}
 	src := httpfetch.Source{Base: remote.DefaultSource}
 	var errs []error
