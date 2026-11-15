@@ -42,7 +42,7 @@ var (
 	errWithMods       = errors.New("with mods")
 	errOnlyAuthored   = errors.New("with unvalidated, omitted or unchecked; only authored entries have them")
 	errStepPositive   = errors.New("want > 0")
-	errCount          = errors.New("want a counter and atLeast > 0")
+	errCount          = errors.New("want a counter or an engine stat, and atLeast > 0")
 	errStatIDRefText  = errors.New("stat-id with ref or text")
 	errWithoutRef     = errors.New("without ref")
 	errWithoutText    = errors.New("without text")
@@ -224,12 +224,15 @@ type Per struct {
 	Step int32
 }
 
-// Count holds a modifier until the dataset counter Stat reaches AtLeast, as in "10% more
-// Maximum Life if you have at least 6 Life Masteries allocated". A counter is a stat the
+// Count holds a modifier until Stat reaches AtLeast: a dataset counter, as in "10% more
+// Maximum Life if you have at least 6 Life Masteries allocated", or an engine stat, as in "+1%
+// to all maximum Resistances if you have at least 150 Devotion". A counter is a stat the
 // dataset counts rather than an engine stat: a mastery group's count stat, 1 per allocated
 // mastery of the group.
 type Count struct {
-	Stat    string
+	Stat string
+	// Counter tells that Stat is a dataset counter.
+	Counter bool
 	AtLeast int32
 }
 
@@ -370,7 +373,8 @@ type fileMod struct {
 }
 
 type fileCount struct {
-	Stat    string `json:"count"`
+	Counter string `json:"count"`
+	Stat    string `json:"stat"`
 	AtLeast int32  `json:"atLeast"`
 }
 
@@ -678,7 +682,7 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 	if m.Per, err = parsePer(f.Per, vocab); err != nil {
 		return Mod{}, err
 	}
-	if m.If, err = parseCount(f.If); err != nil {
+	if m.If, err = parseCount(f.If, vocab); err != nil {
 		return Mod{}, err
 	}
 	if m.While, err = parseWhile(f.While, vocab); err != nil {
@@ -733,14 +737,18 @@ func parseWhile(stat string, vocab Vocabulary) (string, error) {
 	return stat, nil
 }
 
-func parseCount(f *fileCount) (*Count, error) {
+func parseCount(f *fileCount, vocab Vocabulary) (*Count, error) {
 	switch {
 	case f == nil:
 		return nil, nil //nolint:nilnil // no condition is valid
-	case f.Stat == "" || f.AtLeast <= 0:
-		return nil, fmt.Errorf("if: %w: count %q, atLeast %d", errCount, f.Stat, f.AtLeast)
+	case (f.Counter == "") == (f.Stat == "") || f.AtLeast <= 0:
+		return nil, fmt.Errorf("if: %w: count %q, stat %q, atLeast %d", errCount, f.Counter, f.Stat, f.AtLeast)
+	case f.Stat != "" && !vocab.IsEngineStat(f.Stat):
+		return nil, fmt.Errorf("if: %w engine stat %q", errUnknown, f.Stat)
+	case f.Stat != "":
+		return &Count{Stat: f.Stat, AtLeast: f.AtLeast}, nil
 	}
-	return &Count{Stat: f.Stat, AtLeast: f.AtLeast}, nil
+	return &Count{Stat: f.Counter, Counter: true, AtLeast: f.AtLeast}, nil
 }
 
 func parseSource(f *fileSource) (Source, error) {

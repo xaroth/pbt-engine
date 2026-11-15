@@ -47,7 +47,7 @@ func (t *Table) Check(s *dataset.Store, files map[resolve.Scope]string) error {
 			errs = append(errs, fmt.Errorf("semantics: %s: %w %s", e, ErrUnknownStat, d.name))
 		}
 		for _, m := range e.Mods {
-			if m.If != nil && !d.known[m.If.Stat] {
+			if m.If != nil && m.If.Counter && !d.known[m.If.Stat] {
 				errs = append(errs, fmt.Errorf("semantics: %s: counter %s: %w %s", e, m.If.Stat, ErrUnknownStat, d.name))
 			}
 		}

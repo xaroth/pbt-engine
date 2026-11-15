@@ -388,7 +388,7 @@ func (sh *Sheet) addCount(sv resolve.StatValue, src core.SourceID) error {
 func (sh *Sheet) conds(m *semantics.Mod) ([]core.Cond, bool) {
 	var out []core.Cond
 	if m.If != nil {
-		if !sh.counters[m.If.Stat] {
+		if m.If.Counter && !sh.counters[m.If.Stat] {
 			// A counter the tree lacks stays 0, below any AtLeast.
 			return nil, false
 		}
