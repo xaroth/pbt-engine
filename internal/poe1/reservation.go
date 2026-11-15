@@ -10,6 +10,38 @@ import (
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
+// Engine stats of reservation, read in a skill's context. mana_reservation_base and
+// mana_reservation_permyriad_base are what the skill's level row reserves with its supports'
+// multipliers, flat and in hundredths of a percent of maximum mana; mana_reservation and
+// mana_reservation_permyriad are what it reserves, after the increases and more multipliers of
+// "Mana Reservation" and the mana_reservation_efficiency; reservation and
+// reservation_efficiency hold those to both pools. reserved_mana and reserved_mana_permyriad,
+// read on the sheet, total every reserving skill's, and unreserved_mana is what is left of
+// maximum mana. The same for life. The skill_ flags are its "Reserves Life instead of Mana" and
+// "has no Reservation".
+const (
+	statReservation                    = "reservation"
+	statReservationEfficiency          = "reservation_efficiency"
+	statManaReservationEfficiency      = "mana_reservation_efficiency"
+	statLifeReservationEfficiency      = "life_reservation_efficiency"
+	statSkillReservesLifeInsteadOfMana = "skill_reserves_life_instead_of_mana"
+	statSkillHasNoReservation          = "skill_has_no_reservation"
+	statManaReservationBase            = "mana_reservation_base"
+	statManaReservationPermyriadBase   = "mana_reservation_permyriad_base"
+	statLifeReservationBase            = "life_reservation_base"
+	statLifeReservationPermyriadBase   = "life_reservation_permyriad_base"
+	statManaReservation                = "mana_reservation"
+	statManaReservationPermyriad       = "mana_reservation_permyriad"
+	statLifeReservation                = "life_reservation"
+	statLifeReservationPermyriad       = "life_reservation_permyriad"
+	statReservedManaPermyriad          = "reserved_mana_permyriad"
+	statReservedMana                   = "reserved_mana"
+	statReservedLifePermyriad          = "reserved_life_permyriad"
+	statReservedLife                   = "reserved_life"
+	statUnreservedMana                 = "unreserved_mana"
+	statUnreservedLife                 = "unreserved_life"
+)
+
 // Skill types that decide whether a skill reserves.
 const (
 	typeHasReservation         = "HasReservation"
@@ -31,6 +63,38 @@ const (
 	// multipliers keeps, rounded down.
 	multiplierPlaces = 4
 )
+
+// Formula names shown in explanations.
+const (
+	formulaSkillReservation = "reservation of a skill"
+	formulaReserved         = "reservation of a pool"
+	formulaUnreserved       = "pool less its reservation"
+)
+
+func reservationMechanic() mechanic {
+	return mechanic{name: "reservation", after: []string{mechanicDefences}, stats: []string{
+		statReservation,
+		statReservationEfficiency,
+		statManaReservationEfficiency,
+		statLifeReservationEfficiency,
+		statSkillReservesLifeInsteadOfMana,
+		statSkillHasNoReservation,
+		statManaReservationBase,
+		statManaReservationPermyriadBase,
+		statLifeReservationBase,
+		statLifeReservationPermyriadBase,
+		statManaReservation,
+		statManaReservationPermyriad,
+		statLifeReservation,
+		statLifeReservationPermyriad,
+		statReservedManaPermyriad,
+		statReservedMana,
+		statReservedLifePermyriad,
+		statReservedLife,
+		statUnreservedMana,
+		statUnreservedLife,
+	}, def: reservationDef}
+}
 
 // reservationPool is one pool's reservation stats: per skill, the base flat amount and
 // percentage (with supports' multipliers), the efficiency and the result; on the sheet, the
@@ -66,6 +130,11 @@ func reservationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	mana, life := reservationPools()
 	flags := func() (instead, none core.StatID) {
 		return mustID(ids, statSkillReservesLifeInsteadOfMana), mustID(ids, statSkillHasNoReservation)
+	}
+	switch def.Name {
+	case statSkillReservesLifeInsteadOfMana, statSkillHasNoReservation:
+		def.Flag = true
+		return def
 	}
 	for _, p := range []reservationPool{mana, life} {
 		isMana := p == mana

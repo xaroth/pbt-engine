@@ -16,6 +16,25 @@ const (
 	ruleConvert = "convert"
 )
 
+// Formula names shown in explanations.
+const (
+	formulaTransfers         = "conversion and gain as extra"
+	formulaTransferIncreases = "increases of a transfer"
+	formulaTransferMore      = "more multipliers of a transfer"
+	formulaTransferSource    = "amount a transfer starts from"
+)
+
+// transferMechanic has no engine stats of its own: it registers its helper stats once the
+// stats it transfers between are registered.
+func transferMechanic() mechanic {
+	params := []string{"from", "to"}
+	return mechanic{
+		name: "transfers", after: []string{mechanicDefences},
+		rules:    []tableRule{{name: ruleGainAsExtra, params: params}, {name: ruleConvert, params: params}},
+		complete: addTransferStats,
+	}
+}
+
 // transfer is one supported use of ruleGainAsExtra or ruleConvert.
 type transfer struct {
 	rule, from, to string
@@ -38,16 +57,18 @@ func (t transfer) inc() string  { return "increases." + t.from + "." + t.to }
 func (t transfer) more() string { return "more." + t.from + "." + t.to }
 func baseOf(stat string) string { return "base." + stat }
 
-// addTransferStats registers each transfer's helper stats on b, after the engine stats, and
-// sets the formulas of the stats that transfers take from or give to.
+// addTransferStats registers each transfer's helper stats on b, after the engine stats r holds, and
+// sets the formulas of the stats that transfers take from or give to. It panics when one of
+// those already has a formula, which it would replace.
 //
 // The share starts from the source's flat amounts; the increases of source and target are
 // summed (a modifier both include counts once) and the more multipliers of both multiply, as
 // PoB does (CalcDefence.lua:1021 to 1060). A converted source keeps (1 - rate) of its value,
 // at least none. Neither the text nor game data states this order; it is unvalidated.
-func addTransferStats(b *core.ModelBuilder, ids map[string]core.StatID) {
+func addTransferStats(b *core.ModelBuilder, r registered) {
+	ids := r.ids
 	for _, t := range transfers() {
-		from, to := statDef(t.from, ids).Includes, statDef(t.to, ids).Includes
+		from, to := r.defs[t.from].Includes, r.defs[t.to].Includes
 		both := append([]core.StatID{mustID(ids, t.from), mustID(ids, t.to)}, from...)
 		for _, inc := range to {
 			if !slices.Contains(both, inc) {
@@ -70,6 +91,9 @@ func addTransferStats(b *core.ModelBuilder, ids map[string]core.StatID) {
 	}
 	for _, name := range transferStats() {
 		id := mustID(ids, name)
+		if r.defs[name].Formula != nil {
+			panic("poe1: transfer stat " + name + " has a formula")
+		}
 		if err := b.SetFormula(id, transferFormula(name, ids)); err != nil {
 			panic(err)
 		}
@@ -160,11 +184,8 @@ func transferStats() []string {
 }
 
 // transferFormula is the formula of stat name: its own value, less what converts away, plus
-// what transfers give it. It panics when the stat already has a formula, which it would replace.
+// what transfers give it.
 func transferFormula(name string, ids map[string]core.StatID) core.Formula {
-	if statDef(name, ids).Formula != nil {
-		panic("poe1: transfer stat " + name + " has a formula")
-	}
 	type part struct{ rate, base, inc, more core.StatID }
 	var away []core.StatID
 	var in []part

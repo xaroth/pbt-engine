@@ -10,6 +10,25 @@ import (
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
+// Engine stats of a skill's hit, read in its context. effective_minimum_hit_damage and
+// effective_maximum_hit_damage are what the enemy takes of a hit that is not critical.
+// average_hit is what the enemy takes from an average hit of every type, critical strikes
+// weighed in by the chance that a use strikes critically. cast_time is the skill's in seconds
+// and cast_speed its speed in percent of it, 100 before modifiers; attack_rate and attack_speed
+// are the same for attacks. hits_per_second follows, and hit_dps is the damage the enemy takes
+// per second from hits.
+const (
+	statEffectiveMinimumHitDamage = "effective_minimum_hit_damage"
+	statEffectiveMaximumHitDamage = "effective_maximum_hit_damage"
+	statAverageHit                = "average_hit"
+	statCastTime                  = "cast_time"
+	statCastSpeed                 = "cast_speed"
+	statAttackRate                = "attack_rate"
+	statAttackSpeed               = "attack_speed"
+	statHitsPerSecond             = "hits_per_second"
+	statHitDPS                    = "hit_dps"
+)
+
 // Skill types that decide which of a skill's hit outputs the sheet gives.
 const (
 	typeSpell        = "Spell"
@@ -113,6 +132,35 @@ func attackMask() core.Mask {
 	return core.MaskOf(types.Bit(slices.Index(types.Values, typeAttack)))
 }
 
+// Formula names shown in explanations.
+const (
+	formulaHitAgainstEnemy = "hit damage the enemy takes"
+	formulaAverageHit      = "average hit"
+	formulaHitsPerSecond   = "hits per second"
+	formulaHitDPS          = "hit damage per second"
+)
+
+// mechanicHit names the hit mechanic for those that come after it.
+const mechanicHit = "hit"
+
+func hitMechanic() mechanic {
+	return mechanic{
+		name: mechanicHit, after: []string{mechanicDamage, mechanicEnemy, mechanicConversion, mechanicAccuracy},
+		stats: []string{
+			statEffectiveMinimumHitDamage,
+			statEffectiveMaximumHitDamage,
+			statAverageHit,
+			statCastTime,
+			statCastSpeed,
+			statAttackRate,
+			statAttackSpeed,
+			statHitsPerSecond,
+			statHitDPS,
+		},
+		def: hitDef,
+	}
+}
+
 // hitDef completes def when it is a hit stat.
 //
 // A hit's damage of one type, read in the skill's context for that type, is the skill's base
@@ -137,10 +185,6 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			h.hit = mustID(ids, statMaximumHitDamage)
 		}
 		def.FormulaName, def.Formula, def.Attribute = formulaHitAgainstEnemy, h.formula(), h.attribute()
-	case statCriticalStrikeChance, statHitChance:
-		def.HasMin, def.HasMax, def.Max = true, true, percentScale
-	case statCriticalStrikeMultiplier:
-		def.HasMin, def.Min = true, percentScale
 	case statAverageHit:
 		h := newAverageHit(ids)
 		def.FormulaName, def.Formula, def.Attribute = formulaAverageHit, h.formula(), h.attribute()
@@ -181,81 +225,6 @@ func newHitDamage(ids map[string]core.StatID, isMaximum bool) hitDamage {
 // unscaled returns the damage before the damage modifiers, with read reading a stat.
 func (h hitDamage) unscaled(read func(core.StatID) float64) float64 {
 	return read(h.base)*read(h.multiplier)/percentScale + read(h.added)*read(h.effectiveness)/percentScale
-}
-
-// enemyDef completes def when it is a stat of the resistance a hit or damage over time meets.
-func enemyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
-	switch def.Name {
-	case statEnemyExposure:
-		def.LowestBase = true
-	case statHitEnemyResistance:
-		h := newMetResistance(ids, true)
-		def.FormulaName, def.Formula, def.Attribute = formulaHitEnemyResistance, h.formula(), h.attribute()
-	case statDamageOverTimeEnemyResistance:
-		h := newMetResistance(ids, false)
-		def.FormulaName, def.Formula, def.Attribute = formulaDotEnemyResistance, h.formula(), h.attribute()
-	}
-	return def
-}
-
-// metResistance is the resistance damage of one type meets, read in the type's context: the
-// enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum, and
-// for a hit less its penetration. Exposure is its strongest instance, and what the character
-// adds to Exposure it inflicts applies only while there is some. Penetration counts after the
-// limits, so it can take the resistance below the floor; damage over time does not penetrate.
-// All follow PoB (CalcOffence.lua calcResistForType, the hit's resistance and the skill's
-// damage over time, CalcPerform.lua's exposures); the game text gives none of the order.
-type metResistance struct {
-	resistance, maximum, exposure, extra, penetration core.StatID
-	// penetrates is set for a hit.
-	penetrates bool
-}
-
-func newMetResistance(ids map[string]core.StatID, penetrates bool) metResistance {
-	return metResistance{
-		resistance: mustID(ids, statEnemyResistance), maximum: mustID(ids, statEnemyMaximumResistance),
-		exposure: mustID(ids, statEnemyExposure), extra: mustID(ids, statExtraExposure), penetration: mustID(ids, statPenetration),
-		penetrates: penetrates,
-	}
-}
-
-// exposed returns the Exposure the enemy has, with stat reading a stat.
-func (h metResistance) exposed(stat func(core.StatID) float64) float64 {
-	e := stat(h.exposure)
-	if e != 0 {
-		e += stat(h.extra)
-	}
-	return e
-}
-
-func (h metResistance) formula() core.Formula {
-	return func(r core.Reader, _ core.Agg) float64 {
-		v := min(max(r.Stat(h.resistance)+h.exposed(r.Stat), resistanceFloor), r.Stat(h.maximum))
-		if h.penetrates {
-			v -= r.Stat(h.penetration)
-		}
-		return v
-	}
-}
-
-// attribute credits the enemy's resistance, its Exposure and any penetration, which counts
-// against it; what the limits change goes to the maximum's sources.
-func (h metResistance) attribute() core.Attribute {
-	return func(a *core.Attributor) core.Attribution {
-		parts, _ := a.Of(core.SelfRef(h.resistance))
-		if h.exposed(a.Stat) != 0 {
-			for _, s := range []core.StatID{h.exposure, h.extra} {
-				p, _ := a.Of(core.SelfRef(s))
-				parts = append(parts, p...)
-			}
-		}
-		if h.penetrates {
-			pen, _ := a.Of(core.SelfRef(h.penetration))
-			parts = append(parts, scaled(pen, -1)...)
-		}
-		total := a.Explanation().Total
-		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.maximum)), Amount: total}
-	}
 }
 
 // effectiveHit is what the enemy takes of a hit of one type that is not critical, read in the

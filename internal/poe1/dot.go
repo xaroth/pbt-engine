@@ -8,6 +8,24 @@ import (
 	"github.com/xaroth/pbt-engine/output"
 )
 
+// Engine stats of a skill's damage over time, read in its context for damage over time, which
+// has the skill's types but Attack and Area, and but Spell and Projectile unless
+// spell_damage_modifiers_apply_to_skill_dot or projectile_damage_modifiers_apply_to_skill_dot is
+// set for it. base_damage_over_time, read for one damage type, is the skill's own damage of that
+// type per second before modifiers; damage_over_time_multiplier is the Damage over Time
+// Multiplier in percent. damage_over_time_enemy_resistance is the resistance damage over time of
+// the type meets, and damage_over_time what the enemy takes of the type per second.
+// damage_over_time_dps totals it over the types.
+const (
+	statSpellDamageModifiersApplyToSkillDot      = "spell_damage_modifiers_apply_to_skill_dot"
+	statProjectileDamageModifiersApplyToSkillDot = "projectile_damage_modifiers_apply_to_skill_dot"
+	statBaseDamageOverTime                       = "base_damage_over_time"
+	statDamageOverTimeMultiplier                 = "damage_over_time_multiplier"
+	statDamageOverTimeEnemyResistance            = "damage_over_time_enemy_resistance"
+	statDamageOverTime                           = "damage_over_time"
+	statDamageOverTimeDPS                        = "damage_over_time_dps"
+)
+
 const typeDamageOverTime = "DamageOverTime"
 
 // dotDPSCap is the most damage over time per second PoB gives: the largest 32-bit integer over
@@ -49,6 +67,25 @@ func dotOutputs() []Output {
 	}
 }
 
+// Formula names shown in explanations.
+const (
+	formulaDotEnemyResistance = "enemy resistance damage over time meets"
+	formulaDamageOverTime     = "damage over time of a damage type"
+	formulaDamageOverTimeDPS  = "damage over time per second"
+)
+
+func dotMechanic() mechanic {
+	return mechanic{name: "damage over time", after: []string{mechanicDamage, mechanicEnemy}, stats: []string{
+		statSpellDamageModifiersApplyToSkillDot,
+		statProjectileDamageModifiersApplyToSkillDot,
+		statBaseDamageOverTime,
+		statDamageOverTimeMultiplier,
+		statDamageOverTimeEnemyResistance,
+		statDamageOverTime,
+		statDamageOverTimeDPS,
+	}, def: dotDef}
+}
+
 // dotDef completes def when it is a damage over time stat.
 //
 // A skill's damage over time of one type, read in its context for damage over time of that
@@ -59,6 +96,11 @@ func dotOutputs() []Output {
 // none of it.
 func dotDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
+	case statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
+		def.Flag = true
+	case statDamageOverTimeEnemyResistance:
+		h := newMetResistance(ids, false)
+		def.FormulaName, def.Formula, def.Attribute = formulaDotEnemyResistance, h.formula(), h.attribute()
 	case statDamageOverTime:
 		d := damageOverTime{
 			base: mustID(ids, statBaseDamageOverTime), damage: mustID(ids, statDamage),

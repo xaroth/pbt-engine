@@ -10,6 +10,10 @@ import (
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
+// statSkillStages, read in a skill's context, is the stages the skill has built up, as its gem
+// says; the skill's stats per stage scale with it.
+const statSkillStages = "skill_stages"
+
 // Errors of a sheet's skills.
 var (
 	// ErrSkill is a skill the sheet does not hold, or more skills than it can hold.
@@ -253,4 +257,8 @@ func (sh *Sheet) addBaseDamage() error {
 		}
 	}
 	return nil
+}
+
+func skillStageMechanic() mechanic {
+	return mechanic{name: "skill stages", stats: []string{statSkillStages}}
 }

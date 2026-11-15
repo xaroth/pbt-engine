@@ -9,7 +9,7 @@ func TestMustIDPanicsOnUnregistered(t *testing.T) {
 			t.Error("mustID of an unregistered stat: no panic")
 		}
 	}()
-	statDef(statFireResistance, nil)
+	mustID(nil, statFireResistance)
 }
 
 // Each attribute bonus has a rule source id of its own.

@@ -6,6 +6,16 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
+// Engine stats of a hit's damage with conversion, read in a skill's context for one damage
+// type. minimum_hit_damage and maximum_hit_damage are the hit of that type after damage and
+// conversion; the _before_conversion stats are the hit of the type before what converts away.
+const (
+	statMinimumHitDamageBeforeConversion = "minimum_hit_damage_before_conversion"
+	statMaximumHitDamageBeforeConversion = "maximum_hit_damage_before_conversion"
+	statMinimumHitDamage                 = "minimum_hit_damage"
+	statMaximumHitDamage                 = "maximum_hit_damage"
+)
+
 // conversionOrder is the order damage converts in: a type converts only to the types after it.
 // It follows PoB (CalcOffence.lua dmgTypeList); the game data does not hold it.
 func conversionOrder() []DamageType {
@@ -258,6 +268,29 @@ func (h convertedHit) attribute() core.Attribute {
 			}
 		}
 		return core.Attribution{Parts: rest(a, parts, total, a.RefAt(h.own.effectiveness, at)), Amount: total}
+	}
+}
+
+// Formula names shown in explanations.
+const (
+	formulaHitDamage           = "hit damage of a damage type"
+	formulaHitBeforeConversion = "hit damage of a damage type before conversion"
+)
+
+// mechanicConversion names the conversion mechanic for those that come after it.
+const mechanicConversion = "conversion"
+
+func conversionMechanic() mechanic {
+	return mechanic{
+		name: mechanicConversion, after: []string{mechanicDamage},
+		stats: slices.Concat(conversionStats(), []string{
+			statMinimumHitDamageBeforeConversion,
+			statMaximumHitDamageBeforeConversion,
+			statMinimumHitDamage,
+			statMaximumHitDamage,
+		}),
+		def:      conversionDef,
+		complete: func(b *core.ModelBuilder, r registered) { addConversionFormulas(b, r.ids) },
 	}
 }
 
