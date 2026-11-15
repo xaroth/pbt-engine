@@ -237,8 +237,9 @@ type switchPlan struct {
 // with the checked base the sheet is switched to: what the check dropped from the base can come
 // back (a mastery choice on a node the variant allocates). Nodes the build cannot take have no
 // sources on the sheet, so switching them does nothing, as the check drops them. It reports
-// false for any other edit, and when the check would resolve the result differently: two
-// options of one choice node, or one mastery effect chosen on two allocated masteries.
+// false for any other edit, when the check would resolve the result differently (two options
+// of one choice node, or one mastery effect chosen on two allocated masteries), and when it
+// allocates or deallocates a socket that holds a jewel.
 func (sw *sweep) fastPlan(edits []build.Edit) (switchPlan, bool) {
 	raw := sw.base.build
 	nodes := make(map[uint32]bool, len(raw.Nodes))
@@ -257,7 +258,17 @@ func (sw *sweep) fastPlan(edits []build.Edit) (switchPlan, bool) {
 	}
 	p := switchPlan{warnings: sw.base.checked.EditWarnings(edits)}
 	sw.diffPlan(sw.base.checked.Build(), nodes, masteries, &p)
+	if sw.switchesJewel(p) {
+		return switchPlan{}, false
+	}
 	return p, true
+}
+
+// switchesJewel reports whether p switches a socket that holds a jewel: the jewel counts only
+// while its socket is allocated, and the sheet's items are not switched per variant.
+func (sw *sweep) switchesJewel(p switchPlan) bool {
+	held := func(id uint32) bool { _, ok := sw.base.build.Jewels[id]; return ok }
+	return slices.ContainsFunc(p.nodesOn, held) || slices.ContainsFunc(p.nodesOff, held)
 }
 
 func applyFast(e build.Edit, nodes map[uint32]bool, masteries map[uint32]uint32) bool {
