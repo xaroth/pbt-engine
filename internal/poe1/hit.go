@@ -44,6 +44,7 @@ const (
 	typeCooldown     = "Cooldown"
 	typeProjectile   = "Projectile"
 	typeArea         = "Area"
+	typeMelee        = "Melee"
 	typeMainHandOnly = "MainHandOnly"
 )
 
@@ -535,7 +536,7 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	if err != nil {
 		return 0, err
 	}
-	for _, b := range hitBases(sk) {
+	for _, b := range slices.Concat(hitBases(sk), dotBases(sk)) {
 		if b.value == 0 {
 			continue
 		}

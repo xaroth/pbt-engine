@@ -123,7 +123,8 @@ func TestPhysicalDamageOverTime(t *testing.T) {
 	}
 }
 
-// The sheet gives damage over time for a skill of the DamageOverTime type only.
+// The sheet gives damage over time for a skill of the DamageOverTime type that does not hit,
+// and for a hit whose ignite it gives; not for one whose ignite it leaves out.
 func TestDotOutputGiven(t *testing.T) {
 	t.Parallel()
 	var dot poe1.Output
@@ -138,8 +139,10 @@ func TestDotOutputGiven(t *testing.T) {
 		want  bool
 	}{
 		{"none", nil, false},
-		{"spell hit", skill(0, "Spell", "Damage"), false},
+		{"spell hit", skill(0, "Spell", "Damage"), true},
+		{"spell hit by a totem", skill(0, "Spell", "Damage", "SummonsTotem"), false},
 		{"damage over time", skill(0, "Spell", "DamageOverTime"), true},
+		{"damage over time hit by a totem", skill(0, "Spell", "Damage", "DamageOverTime", "SummonsTotem"), false},
 	} {
 		if got := poe1.Gives(dot, c.skill, poe1.Hands{}); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)

@@ -32,6 +32,6 @@ func (Vocabulary) RuleParams(name string) ([]string, bool) {
 }
 
 // IsContext reports whether name, as "dimension.value", is a context value a table modifier
-// may require: a skill type (type.Spell), a damage type (damage.fire) or a form of damage
-// (form.hit).
+// may require: a skill type (type.Spell), a damage type (damage.fire), a form of damage
+// (form.hit), a weapon (weapon.bow), a hand (hand.main_hand) or an ailment (ailment.ignite).
 func (Vocabulary) IsContext(name string) bool { return isTableContext(name) }

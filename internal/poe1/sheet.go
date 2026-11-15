@@ -334,6 +334,9 @@ func (sh *Sheet) addBaseValues() error {
 	if err := sh.addBaseSpeeds(); err != nil {
 		return err
 	}
+	if err := sh.addBaseAilmentDuration(); err != nil {
+		return err
+	}
 	if err := sh.addEnemy(); err != nil {
 		return err
 	}
