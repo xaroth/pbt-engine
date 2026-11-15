@@ -34,7 +34,8 @@ func ItemFiles(m dataset.Manifest) []string {
 // when it has gems and an item with stats in a slot with sockets, which can grant supports, or
 // a body armour with stats, whose Life Modifiers a mastery looks at (poe1.ModTags), the
 // layout of its variant and the English text when it has a cluster jewel, whose lines say
-// which passives it adds. Compare, Sweep and Stats.Explain read no more than the simulations
+// which passives it adds, and the layout when it has a jewel that transforms the attributes of
+// the passives in its radius (build.TransformsAttributes). Compare, Sweep and Stats.Explain read no more than the simulations
 // of the builds they take or make; Stats.Text reads the text of its language.
 func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile, dataset.SkillsFile}
@@ -47,14 +48,26 @@ func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 			hasStats(b.Items[build.SlotBodyArmour]) {
 			files = append(files, dataset.ModsFile)
 		}
-		for _, it := range b.Jewels {
-			if cluster.IsJewelBase(it.Base) {
-				files = append(files, dataset.LayoutFile(cmp.Or(b.Variant, build.DefaultVariant)), dataset.TextFile("en"))
-				break
-			}
-		}
+		files = append(files, jewelFiles(b)...)
 	}
 	return m.Needs(files...)
+}
+
+// jewelFiles returns the files b's jewels read beside the items group.
+func jewelFiles(b *build.Build) []string {
+	var clusterJewel, transform bool
+	for _, it := range b.Jewels {
+		clusterJewel = clusterJewel || cluster.IsJewelBase(it.Base)
+		transform = transform || build.TransformsAttributes(&it)
+	}
+	layout := dataset.LayoutFile(cmp.Or(b.Variant, build.DefaultVariant))
+	switch {
+	case clusterJewel:
+		return []string{layout, dataset.TextFile("en")}
+	case transform:
+		return []string{layout}
+	}
+	return nil
 }
 
 // socketedStats reports whether an item in a slot with sockets has stats.
