@@ -8,8 +8,8 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/poe1/passives"
 	"github.com/xaroth/pbt-engine/poe1/timeless"
-	"github.com/xaroth/pbt-engine/simulator"
 )
 
 // seedRanges are the seeds each version's jewel can show: first, last and step.
@@ -99,13 +99,10 @@ func fullestRadius(tb testing.TB, store *dataset.Store) []timeless.Node {
 // fullestSocket returns the nodes in the Large radius of the jewel socket with the most of them.
 func fullestSocket(tb testing.TB, store *dataset.Store, tree *dataset.Tree) []uint32 {
 	tb.Helper()
-	sim, err := simulator.New(store)
-	if err != nil {
-		tb.Fatal(err)
-	}
+	reader := passives.New(store)
 	var fullest []uint32
 	for _, s := range tree.JewelSlots {
-		ids, err := sim.NodesInRadius(build.DefaultVariant, s, simulator.Radius{ID: "Large"})
+		ids, err := reader.NodesInRadius(build.DefaultVariant, s, passives.Radius{ID: "Large"})
 		if err == nil && len(ids) > len(fullest) {
 			fullest = ids
 		}

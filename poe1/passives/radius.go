@@ -1,4 +1,4 @@
-package simulator
+package passives
 
 import (
 	"fmt"
@@ -21,18 +21,18 @@ type Radius struct {
 // NodesInRadius returns the passives of the tree variant, such as build.DefaultVariant, that a
 // jewel in socket reaches with r, sorted by id. They are the nodes whose drawn position lies
 // within r of the socket's, bounds included, among the normal passives, notables, keystones and
-// jewel sockets outside ascendancies and cluster jewels; the passives a cluster jewel adds are
-// not covered. An unknown variant or radius, or a dataset without the layout, returns an error
-// matching dataset.ErrNotInDataset, and a node that is not a jewel socket on the tree
-// ErrNotSocket.
-func (s *Sim) NodesInRadius(variant string, socket uint32, r Radius) ([]uint32, error) {
-	ix, err := radius.Of(s.store, variant)
+// jewel sockets outside ascendancies and cluster jewels. The passives and sockets a cluster jewel
+// adds are never in a radius, whichever socket the jewel is in. An unknown variant or radius, or
+// a dataset without the layout, returns an error matching dataset.ErrNotInDataset, and a node
+// that is not a jewel socket on the tree ErrNotSocket.
+func (p *Reader) NodesInRadius(variant string, socket uint32, r Radius) ([]uint32, error) {
+	ix, err := radius.Of(p.store, variant)
 	if err != nil {
-		return nil, fmt.Errorf("simulator: %w", err)
+		return nil, fmt.Errorf("passives: %w", err)
 	}
-	tree, err := s.store.Tree(variant)
+	tree, err := p.store.Tree(variant)
 	if err != nil {
-		return nil, fmt.Errorf("simulator: %w", err)
+		return nil, fmt.Errorf("passives: %w", err)
 	}
 	var area radius.Area
 	found := false
@@ -45,11 +45,11 @@ func (s *Sim) NodesInRadius(variant string, socket uint32, r Radius) ([]uint32, 
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("simulator: jewel radius %q in the %s tree: %w", r.ID, variant, dataset.ErrNotInDataset)
+		return nil, fmt.Errorf("passives: jewel radius %q in the %s tree: %w", r.ID, variant, dataset.ErrNotInDataset)
 	}
 	nodes, err := ix.Nodes(socket, area)
 	if err != nil {
-		return nil, fmt.Errorf("simulator: %w", err)
+		return nil, fmt.Errorf("passives: %w", err)
 	}
 	return nodes, nil
 }
