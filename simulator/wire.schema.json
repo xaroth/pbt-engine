@@ -426,6 +426,12 @@
         "evasion": { "type": "integer" },
         "energyShield": { "type": "integer" },
         "ward": { "type": "integer" },
+        "defenceRolls": {
+          "type": "object",
+          "description": "Where the base's defences rolled in their ranges, 0 at the lowest to 1 at the highest. A printed defence without a roll is taken as printed.",
+          "propertyNames": { "enum": ["armour", "evasion", "energy-shield", "ward"] },
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
         "flags": { "type": "array", "items": { "type": "string" } },
         "mods": { "type": "array", "items": { "$ref": "#/$defs/ModLine" } },
         "abyssJewels": {

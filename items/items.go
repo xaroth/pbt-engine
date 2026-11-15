@@ -164,6 +164,7 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 		warnings = append(warnings, ws...)
 		i += n
 	}
+	warnings = append(warnings, rollDefences(&it, base, p.game)...)
 	return it, warnings, nil
 }
 

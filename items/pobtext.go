@@ -14,6 +14,8 @@ type parsed struct {
 	item     build.Item
 	baseName string
 	lines    []modText
+	// game is text the game copied, not Path of Building.
+	game bool
 }
 
 type modText struct {
@@ -121,6 +123,15 @@ func (p *parsed) property(l string) int {
 	if key == "Sockets" {
 		p.item.Sockets = val
 	}
+	if d, ok := basePercentiles()[key]; ok {
+		if roll, err := strconv.ParseFloat(val, 64); err == nil {
+			if p.item.DefenceRolls == nil {
+				p.item.DefenceRolls = map[build.Defence]float64{}
+			}
+			p.item.DefenceRolls[d] = roll
+		}
+		return -1
+	}
 	fields := map[string]*int{
 		"Item Level": &p.item.ItemLevel, "Quality": &p.item.Quality, "Armour": &p.item.Armour,
 		"Evasion": &p.item.Evasion, "Evasion Rating": &p.item.Evasion, "Energy Shield": &p.item.EnergyShield, "Ward": &p.item.Ward,
@@ -129,6 +140,14 @@ func (p *parsed) property(l string) int {
 		*f = n
 	}
 	return -1
+}
+
+// basePercentiles are Path of Building's properties that give a defence's roll.
+func basePercentiles() map[string]build.Defence {
+	return map[string]build.Defence{
+		"ArmourBasePercentile": build.DefenceArmour, "EvasionBasePercentile": build.DefenceEvasion,
+		"EnergyShieldBasePercentile": build.DefenceEnergyShield, "WardBasePercentile": build.DefenceWard,
+	}
 }
 
 // tagged strips the leading {tag} markers of a mod line and returns its kind by them.

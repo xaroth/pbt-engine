@@ -59,8 +59,9 @@ const (
 	// ItemsNotSimulated is a build with items on a dataset without the items group: outputs
 	// leave them out.
 	ItemsNotSimulated build.Code = "items-not-simulated"
-	// ItemDefenceAssumed is an item defence its text does not give, on a base whose roll of it
-	// varies: the highest roll is taken.
+	// ItemDefenceAssumed is an item defence whose roll its text neither gives nor lets the
+	// reader derive from a printed value, on a base whose roll of it varies: the highest roll is
+	// taken.
 	ItemDefenceAssumed build.Code = "item-defence-assumed"
 )
 
