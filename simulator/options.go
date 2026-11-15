@@ -10,9 +10,16 @@ import (
 	"github.com/xaroth/pbt-engine/output"
 )
 
-// ErrOption is an option that does not apply where it was given, such as Outputs to Configure,
-// or a Set whose value fails its key's check.
-var ErrOption = errors.New("simulator: bad option")
+// Errors of options; match them with errors.Is.
+var (
+	// ErrOption is an option that does not apply where it was given, such as Outputs to
+	// Configure, or a Set whose value fails its key's check.
+	ErrOption = errors.New("simulator: bad option")
+	// ErrNotSkillOutput is a RankBySkill key that is not an output of the skill group.
+	ErrNotSkillOutput = errors.New("simulator: not a skill output")
+	// ErrNoSkill is a RankBySkill ref at which the base build has no skill that resolves.
+	ErrNoSkill = errors.New("simulator: no skill at ref")
+)
 
 type optionKind uint8
 
@@ -64,7 +71,9 @@ func Outputs(keys ...output.Key) Option {
 func RankBy(k output.Key) Option { return Option{kind: optRankBy, outputs: []output.Key{k}} }
 
 // RankBySkill is RankBy for output k of the skill at ref, an output of the skill group. That
-// skill's outputs are computed as with EverySkill; a variant without the skill sorts last.
+// skill's outputs are computed as with EverySkill; a variant without the skill sorts last. A
+// call fails with ErrUnknownOutput or ErrNotSkillOutput for k, and a sweep with ErrNoSkill when
+// the base build has no skill at ref.
 func RankBySkill(ref SkillRef, k output.Key) Option {
 	return Option{kind: optRankBy, outputs: []output.Key{k}, skill: &ref}
 }
@@ -119,9 +128,8 @@ func readCallOptions(opts []Option) (callOptions, error) {
 		case optOutputs:
 			co.outputs = append(co.outputs, o.outputs...)
 		case optRankBy:
-			co.rankBy, co.rankSkill = o.outputs[0], o.skill
-			if o.skill != nil {
-				co.skills.refs = append(co.skills.refs, *o.skill)
+			if err := co.rank(o); err != nil {
+				return co, err
 			}
 		case optEverySkill:
 			co.skills.every = true
@@ -130,4 +138,23 @@ func readCallOptions(opts []Option) (callOptions, error) {
 		}
 	}
 	return co, nil
+}
+
+// rank takes a RankBy or RankBySkill option, failing for a RankBySkill key that is not an
+// output of the skill group.
+func (co *callOptions) rank(o Option) error {
+	k := o.outputs[0]
+	co.rankBy, co.rankSkill = k, o.skill
+	if o.skill == nil {
+		return nil
+	}
+	out, ok := catalogue()[k]
+	switch {
+	case !ok:
+		return fmt.Errorf("%w %q", ErrUnknownOutput, k)
+	case !out.IsSkill():
+		return fmt.Errorf("%w: %q", ErrNotSkillOutput, k)
+	}
+	co.skills.refs = append(co.skills.refs, *o.skill)
+	return nil
 }
