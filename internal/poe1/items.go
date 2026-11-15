@@ -23,6 +23,8 @@ type Item struct {
 	Stats []resolve.StatValue
 	// Weapon is the item's own weapon values; nil for an item that is not a weapon.
 	Weapon *Weapon
+	// Shield is true for a shield.
+	Shield bool
 	// MovementPenalty is its armour base's movement speed penalty as an increase, such as -5;
 	// armour_movement_penalties_are_ignored lifts it.
 	MovementPenalty float64
@@ -34,11 +36,16 @@ type CompiledItem struct {
 	Stats []resolve.StatValue
 	// Weapon is its own weapon values, nil for an item that is not a weapon.
 	Weapon *Weapon
+	// Shield is true for a shield.
+	Shield bool
 	// Assumed lists the defences taken at the highest roll of a base whose roll varies.
 	Assumed []string
 	// MovementPenalty is as Item's.
 	MovementPenalty float64
 }
+
+// shieldClass is the ItemClass id of shields.
+const shieldClass = "Shield"
 
 // defencelessUniques are the uniques on armour bases that have no defences, by name. The
 // dataset does not say which items these are: their hidden mod (RemoveStatsFromTabulaRasa and
@@ -53,7 +60,7 @@ func defencelessUniques() []string {
 // has no defences, whatever its text gives. An armour base's movement speed penalty is kept
 // apart, as MovementPenalty.
 func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
-	var c CompiledItem
+	c := CompiledItem{Shield: base.Class == shieldClass}
 	sums := statSums(it)
 	local := map[string]bool{}
 	if c.Weapon = compileWeapon(it, base, sums); c.Weapon != nil {

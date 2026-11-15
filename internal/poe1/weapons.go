@@ -104,6 +104,8 @@ type Weapon struct {
 	// the percentage it increases theirs by; with CannotBeEvaded its attacks always hit.
 	Accuracy, IncreasedAccuracy float64
 	CannotBeEvaded              bool
+	// Sockets are the item's sockets as its text writes them, such as "R-B-B".
+	Sockets string
 }
 
 // DamageRange is a minimum and maximum damage.
@@ -168,7 +170,7 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 		return nil
 	}
 	b := base.Weapon
-	w := &Weapon{Name: it.Name, Class: base.Class, Kinds: ks, Damage: weaponDamage(it, b, sums)}
+	w := &Weapon{Name: it.Name, Class: base.Class, Kinds: ks, Damage: weaponDamage(it, b, sums), Sockets: it.Sockets}
 	w.AttackRate = roundHundredths(attackRate(b.AttackTime) * (1 + sums[localAttackSpeedInc]/percentScale))
 	crit := float64(b.CriticalChance)/critPermyriadToPercent + sums[localCriticalChance]/critPermyriadToPercent
 	w.CriticalChance = roundHundredths(crit * (1 + sums[localCriticalChanceInc]/percentScale))
@@ -248,9 +250,9 @@ type weaponKey struct {
 }
 
 // SetHands puts h in the character's hands: each hand's weapon's damage, attacks per second
-// and critical strike chance become the base of the attacks read with that hand. A weapon not
-// seen yet in its hand gets its source added once; adding is refused while a checkpoint is open
-// (ErrCheckpointOpen).
+// and critical strike chance become the base of the attacks read with that hand, and what it
+// holds sets the stats of a held shield or staff (setHeld). A weapon not seen yet in its hand
+// gets its source added once; adding is refused while a checkpoint is open (ErrCheckpointOpen).
 func (sh *Sheet) SetHands(h Hands) error {
 	held := map[hand]*Weapon{handMain: h.MainHand, handOff: h.OffHand}
 	want := map[weaponKey]bool{}
@@ -263,6 +265,7 @@ func (sh *Sheet) SetHands(h Hands) error {
 		sh.setSources([]core.SourceID{src}, want[k])
 	}
 	sh.hands = h
+	sh.setHeld(h)
 	for _, hd := range []hand{handMain, handOff} {
 		w := held[hd]
 		if w == nil {

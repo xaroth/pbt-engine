@@ -61,7 +61,7 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 }
 
 // compileItem adds to the items of r's sheet the item it in slot, then its abyss jewels. Each jewel counts
-// as part of its item: it shares the item's slot and weapon, so the hands read the same
+// as part of its item: it shares the item's slot, weapon and shield, so the hands read the same
 // whichever of the two they meet last, and its index keeps two equal jewels apart.
 func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[string]*dataset.ItemBase) error {
 	abyss := it.AbyssJewels
@@ -71,7 +71,7 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 		return fmt.Errorf("simulator: item %s: %w", slot, err)
 	}
 	r.sheet.Items = append(r.sheet.Items, poe1.Item{
-		Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, MovementPenalty: c.MovementPenalty,
+		Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, Shield: c.Shield, MovementPenalty: c.MovementPenalty,
 	})
 	if len(c.Assumed) > 0 {
 		r.warnings = append(r.warnings, Warning{
@@ -86,7 +86,7 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 			return fmt.Errorf("simulator: abyss jewel %s %d: %w", slot, i, err)
 		}
 		r.sheet.Items = append(r.sheet.Items, poe1.Item{
-			Slot: slot, Name: j.Name, Key: fmt.Sprintf("abyss %d %s", i, jkey), Stats: jc.Stats, Weapon: c.Weapon,
+			Slot: slot, Name: j.Name, Key: fmt.Sprintf("abyss %d %s", i, jkey), Stats: jc.Stats, Weapon: c.Weapon, Shield: c.Shield,
 		})
 	}
 	return nil
