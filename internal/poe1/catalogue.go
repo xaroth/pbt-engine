@@ -69,10 +69,8 @@ const (
 	needsHit
 	// needsRate is a hit the character uses itself.
 	needsRate
-	// needsSpellHit is a spell hit (SpellHit): an attack's chance to hit is not given yet.
-	needsSpellHit
-	// needsSpellRate is a spell hit the character casts itself.
-	needsSpellRate
+	// needsAttackHit is an attack's hit.
+	needsAttackHit
 	// needsDot is a skill that deals damage over time (dotSkill).
 	needsDot
 )
@@ -82,9 +80,8 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 
 // Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, with
 // hands: an output of the sheet always, one of the skill group for a main skill; its hit only
-// for a hit, its rate of hits only for a hit the character uses itself, its chance to hit
-// and hit damage per second only for a spell, and its damage over time only for a skill that
-// deals it.
+// for a hit, its accuracy only for an attack's, its rate of hits and hit damage per second
+// only for a hit the character uses itself, and its damage over time only for a skill that deals it.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -97,10 +94,8 @@ func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 		return Hit(sk, hands)
 	case needsRate:
 		return selfUsedHit(sk, hands)
-	case needsSpellHit:
-		return SpellHit(sk)
-	case needsSpellRate:
-		return SpellHit(sk) && selfUsedHit(sk, hands)
+	case needsAttackHit:
+		return attackHit(sk, hands)
 	case needsDot:
 		return dotSkill(sk)
 	case needsSkill:
@@ -169,9 +164,9 @@ const (
 	ratePlaces = 2
 )
 
-// hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, the
-// chances to hit and to strike critically, hits per second and hit damage per second, and per
-// damage type the smallest and largest hit that is not critical.
+// hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, an
+// attack's accuracy, the chance to hit and that a use strikes critically, hits per second and
+// hit damage per second, and per damage type the smallest and largest hit that is not critical.
 func hitOutputs() []Output {
 	types := []struct {
 		t        DamageType
@@ -196,16 +191,17 @@ func hitOutputs() []Output {
 	}
 	return append([]Output{
 		{Key: AverageHit, Label: "Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsHit},
-		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsSpellHit},
+		{Key: AccuracyRating, Label: "Accuracy Rating", Better: output.Higher, stat: statAccuracyRating, needs: needsAttackHit},
+		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsHit},
 		{
 			Key: CriticalStrikeChance, Label: "Critical Strike Chance", Better: output.Higher, Unit: UnitPercent, Places: ratePlaces,
-			stat: statCriticalStrikeChance, needs: needsHit,
+			stat: statEffectiveCriticalStrikeChance, needs: needsHit,
 		},
 		{
 			Key: HitsPerSecond, Label: "Hits per Second", Better: output.Higher, Unit: UnitPerSecond, Places: ratePlaces,
 			stat: statHitsPerSecond, needs: needsRate,
 		},
-		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsSpellRate},
+		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsRate},
 	}, perType...)
 }
 
@@ -256,7 +252,7 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 		form = formNone
 	case needsDot:
 		form = formDot
-	case needsHit, needsRate, needsSpellHit, needsSpellRate:
+	case needsHit, needsRate, needsAttackHit:
 		form = formHit
 	}
 	return sh.skillNode(i, o.stat, damage, form)

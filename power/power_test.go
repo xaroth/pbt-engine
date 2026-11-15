@@ -36,6 +36,7 @@ func testSim(tb testing.TB) *simulator.Sim {
 			{ID: "life_per_strength", Value: 1, Per: 2}, {ID: "mana_per_intelligence", Value: 1, Per: 2},
 			{ID: "evasion_rating_+%_per_dexterity", Value: 1, Per: 5}, {ID: "energy_shield_+%_per_intelligence", Value: 1, Per: 10},
 			{ID: "melee_physical_damage_+%_per_strength", Value: 1, Per: 5},
+			{ID: "accuracy_rating_per_dexterity", Value: 2, Per: 1},
 		},
 		Trees: []dataset.Tree{{
 			Variant: "standard",

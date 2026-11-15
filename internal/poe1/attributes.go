@@ -35,6 +35,11 @@ func attributeBonuses() []attributeBonus {
 			off: statNoIntelligenceBonusToMaximumMana,
 		},
 		{
+			id:       "dexterity-bonus-accuracy",
+			constant: "accuracy_rating_per_dexterity", label: "Dexterity bonus to accuracy rating",
+			attribute: statDexterity, target: statAccuracyRating, op: core.OpBase,
+		},
+		{
 			id:       "dexterity-bonus-evasion",
 			constant: "evasion_rating_+%_per_dexterity", label: "Dexterity bonus to evasion rating", attribute: statDexterity, target: statEvasionRating, op: core.OpInc,
 			off: statNoDexterityBonusToEvasionRating,

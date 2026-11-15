@@ -199,12 +199,12 @@ func enemyMaximumResistance(res int) int {
 
 // enemyMods are the modifiers that hold the enemy's values on a sheet.
 type enemyMods struct {
-	resistances, maxima map[DamageType]core.ModID
-	armour, damageTaken core.ModID
+	resistances, maxima          map[DamageType]core.ModID
+	armour, evasion, damageTaken core.ModID
 }
 
 // addEnemy adds the enemy's resistances and their maximums, each in the context of its damage
-// type, its armour and the more multiplier of the damage it takes as a rule's source, set to
+// type, its armour and evasion rating and the more multiplier of the damage it takes as a rule's source, set to
 // the default enemy; and the damage it takes before modifiers, 100%.
 func (sh *Sheet) addEnemy() error {
 	src := sh.newSource(Source{RuleID: "enemy", Rule: "the enemy"})
@@ -228,6 +228,9 @@ func (sh *Sheet) addEnemy() error {
 	}
 	var err error
 	if sh.enemy.armour, err = add(statEnemyArmour, core.OpBase, core.Predicate{}); err != nil {
+		return err
+	}
+	if sh.enemy.evasion, err = add(statEnemyEvasion, core.OpBase, core.Predicate{}); err != nil {
 		return err
 	}
 	if sh.enemy.damageTaken, err = add(statEnemyDamageTaken, core.OpMore, core.Predicate{}); err != nil {
@@ -260,5 +263,6 @@ func (sh *Sheet) SetEnemy(e EnemyStats) {
 		_ = sh.session.SetModifierValue(sh.enemy.maxima[d], float64(enemyMaximumResistance(values[d])))
 	}
 	_ = sh.session.SetModifierValue(sh.enemy.armour, float64(e.Armour))
+	_ = sh.session.SetModifierValue(sh.enemy.evasion, float64(e.Evasion))
 	_ = sh.session.SetModifierValue(sh.enemy.damageTaken, float64(enemyPresets()[e.Kind].DamageTaken))
 }

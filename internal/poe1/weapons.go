@@ -83,6 +83,10 @@ type Weapon struct {
 	Damage [Chaos + 1]DamageRange
 	// AttackRate is attacks per second; CriticalChance is in percent.
 	AttackRate, CriticalChance float64
+	// Accuracy and IncreasedAccuracy are the accuracy rating the weapon adds to its attacks and
+	// the percentage it increases theirs by; with CannotBeEvaded its attacks always hit.
+	Accuracy, IncreasedAccuracy float64
+	CannotBeEvaded              bool
 }
 
 // DamageRange is a minimum and maximum damage.
@@ -107,6 +111,9 @@ const (
 	localCriticalChance     = "local_critical_strike_chance"
 	localCriticalChanceInc  = "local_critical_strike_chance_+%"
 	localNoPhysicalDamage   = "local_weapon_no_physical_damage"
+	localAccuracy           = "local_accuracy_rating"
+	localAccuracyInc        = "local_accuracy_rating_+%"
+	localAlwaysHit          = "local_always_hit"
 )
 
 // localWeaponStats are the stats that change a weapon's own values.
@@ -114,6 +121,7 @@ func localWeaponStats() map[string]bool {
 	local := map[string]bool{
 		localPhysicalDamageInc: true, localElementalDamageInc: true, localAttackSpeedInc: true,
 		localCriticalChance: true, localCriticalChanceInc: true, localNoPhysicalDamage: true,
+		localAccuracy: true, localAccuracyInc: true, localAlwaysHit: true,
 	}
 	for _, ids := range localAdded() {
 		for _, id := range ids {
@@ -130,7 +138,8 @@ func localWeaponStats() map[string]bool {
 // separately, the quality; elemental damage is the local added damage times the local elemental
 // increase; each rounded half up. Attacks per second are the base's, rounded to hundredths,
 // times the local increase, rounded again; critical strike chance is the base's plus the local
-// addition, times the local increase, rounded to hundredths. Order and roundings follow PoB
+// addition, times the local increase, rounded to hundredths. Its accuracy stats apply to its
+// attacks only, as PoB makes them local (Item.lua). Order and roundings follow PoB
 // (Item.lua, BuildModListForSlotNum; the base's attacks per second from Export/Scripts/bases.lua);
 // the game text gives none of them.
 func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float64) *Weapon {
@@ -149,6 +158,7 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 	}
 	crit := float64(b.CriticalChance)/critPermyriadToPercent + sums[localCriticalChance]/critPermyriadToPercent
 	w.CriticalChance = roundHundredths(crit * (1 + sums[localCriticalChanceInc]/percentScale))
+	w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded = sums[localAccuracy], sums[localAccuracyInc], sums[localAlwaysHit] != 0
 	return w
 }
 
@@ -212,6 +222,37 @@ func (sh *Sheet) setMainHand(w *Weapon, name string) error {
 	return nil
 }
 
+// weaponMod is one of a weapon's values as a modifier, in the contexts of req besides attacks.
+type weaponMod struct {
+	stat  string
+	op    core.Op
+	value float64
+	req   []core.Mask
+}
+
+// mods returns w's values as modifiers, damage in the context of its type, with dim the damage
+// dimension.
+func (w *Weapon) mods(dim core.Dimension) []weaponMod {
+	var out []weaponMod
+	for d := Physical; d <= Chaos; d++ {
+		bit := []core.Mask{damageBit(dim, d)}
+		out = append(out,
+			weaponMod{statBaseMinimumDamage, core.OpBase, w.Damage[d].Min, bit},
+			weaponMod{statBaseMaximumDamage, core.OpBase, w.Damage[d].Max, bit},
+		)
+	}
+	out = append(out,
+		weaponMod{statAttackRate, core.OpBase, w.AttackRate, nil},
+		weaponMod{statCriticalStrikeChance, core.OpBase, w.CriticalChance, nil},
+		weaponMod{statAccuracyRating, core.OpBase, w.Accuracy, nil},
+		weaponMod{statAccuracyRating, core.OpInc, w.IncreasedAccuracy, nil},
+	)
+	if w.CannotBeEvaded {
+		out = append(out, weaponMod{statHitsCannotBeEvaded, core.OpFlag, 1, nil})
+	}
+	return out
+}
+
 // addWeapon adds w's values as a source whose modifiers reach attacks only.
 func (sh *Sheet) addWeapon(w *Weapon, name string) (core.SourceID, error) {
 	src := sh.newSource(Source{RuleID: "main-hand-weapon", Rule: "main hand weapon " + name})
@@ -220,30 +261,14 @@ func (sh *Sheet) addWeapon(w *Weapon, name string) (core.SourceID, error) {
 		panic("poe1: no attack context")
 	}
 	attackMask := core.MaskOf(attack)
-	add := func(stat string, v float64, req ...core.Mask) error {
-		if v == 0 {
-			return nil
+	for _, m := range w.mods(sh.ctx.damage) {
+		if m.value == 0 {
+			continue
 		}
-		mod := core.Modifier{Stat: sh.stats[stat], Op: core.OpBase, Value: v, Source: src, Pred: core.Predicate{Req: append([]core.Mask{attackMask}, req...)}}
+		mod := core.Modifier{Stat: sh.stats[m.stat], Op: m.op, Value: m.value, Source: src, Pred: core.Predicate{Req: append([]core.Mask{attackMask}, m.req...)}}
 		if _, err := sh.session.AddModifier(mod); err != nil {
-			return fmt.Errorf("sheet: main hand weapon: %w", err)
+			return 0, fmt.Errorf("sheet: main hand weapon: %w", err)
 		}
-		return nil
-	}
-	for d := Physical; d <= Chaos; d++ {
-		bit := damageBit(sh.ctx.damage, d)
-		if err := add(statBaseMinimumDamage, w.Damage[d].Min, bit); err != nil {
-			return 0, err
-		}
-		if err := add(statBaseMaximumDamage, w.Damage[d].Max, bit); err != nil {
-			return 0, err
-		}
-	}
-	if err := add(statAttackRate, w.AttackRate); err != nil {
-		return 0, err
-	}
-	if err := add(statCriticalStrikeChance, w.CriticalChance); err != nil {
-		return 0, err
 	}
 	return src, nil
 }

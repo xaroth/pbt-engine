@@ -120,6 +120,7 @@ const (
 	ManaCost                    output.Key = "skill.mana_cost"
 	LifeCost                    output.Key = "skill.life_cost"
 	AverageHit                  output.Key = "skill.average_hit"
+	AccuracyRating              output.Key = "skill.accuracy_rating"
 	HitChance                   output.Key = "skill.hit_chance"
 	CriticalStrikeChance        output.Key = "skill.critical_strike_chance"
 	HitsPerSecond               output.Key = "skill.hits_per_second"
