@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 256 authored, 111 unknown, 1 display-only, 0 gaps, 1541 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 265 authored, 111 unknown, 1 display-only, 0 gaps, 1532 outside
 unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -6,6 +6,7 @@ unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Lif
 unvalidated accuracy_rating_per_level global, uses 13: counts the levels after the first, as PoB does (CalcSetup.lua); the text says per Level and does not say which. A level 1 character's accuracy rating in game would validate it
 unvalidated area_damage_+% global, uses 10: that all damage of a skill with the Area type is area damage is our reading; the game data does not mark which of a skill's damage is area damage. A skill that hits both in and outside an area would validate it; a skill's damage over time is area damage only for the ground and aura effects PoB lists, since the game data does not mark them
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
+omitted base_all_ailment_duration_+% global, uses 9: the duration of non-damaging ailments, which the sheet does not give
 unvalidated life_per_level global, uses 9: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
 unknown shield_armour_+% global, uses 9: items: depends on equipped items, which an entry cannot check yet
 unknown spell_block_with_staff_% global, uses 9: items: depends on equipped items, which an entry cannot check yet
@@ -24,7 +25,9 @@ unvalidated mana_per_level global, uses 7: the text says per Level; whether it c
 unvalidated reduce_enemy_elemental_resistance_with_weapons_% global, uses 7: damage with weapons read as an attack's made with a weapon, not unarmed
 unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equipped items, which an entry cannot check yet
 unvalidated strength_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
+omitted base_elemental_status_ailment_duration_+% global, uses 6: the duration of the non-damaging elemental ailments, which the sheet does not give
 unvalidated base_physical_damage_%_to_convert_to_cold global, uses 6: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
+omitted chance_to_freeze_shock_ignite_% global, uses 6: the chance to Freeze and Shock, which the sheet does not give
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
 unvalidated X_to_armour_per_2_strength global, uses 5: the text says per 2 Strength; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
 unknown additional_maximum_all_elemental_resistances_%_if_all_equipment_grants_armour global, uses 5: items: depends on equipped items, which an entry cannot check yet
@@ -101,7 +104,7 @@ unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
 omitted keystone_chaos_inoculation global, uses 1: Immune to Chaos Damage
 unknown keystone_divine_shield global, uses 1: condition: physical damage prevented from hits recently
-omitted keystone_elemental_overload global, uses 1: 40% more Elemental Damage with Hits and Ailments for Skills that have dealt a Critical Strike in the past 8 seconds, which PoB counts for any skill that can strike critically; Ailments never counting as from Critical Strikes
+omitted keystone_elemental_overload global, uses 1: 40% more Elemental Damage with Hits and Ailments for Skills that have dealt a Critical Strike in the past 8 seconds, which PoB counts for any skill that can strike critically
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life
 unvalidated keystone_glancing_blows global, uses 1: the text does not say whether doubling applies before or after other modifiers; the total is doubled, as PoB does (a 100% more multiplier)
 omitted keystone_glancing_blows global, uses 1: Chance to Block Attack Damage is doubled; You take 65% of Damage from Blocked Hits
