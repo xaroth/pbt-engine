@@ -124,7 +124,9 @@ type Checked struct {
 	conquests   []Conquest
 	// radiusPassives are the small passives jewels change by allocation.
 	radiusPassives []RadiusPassive
-	warnings       []Warning
+	// unconnected are the passives each socket's jewel lets be allocated without a connection.
+	unconnected map[uint32][]uint32
+	warnings    []Warning
 }
 
 // MasteryChoice is an allocated mastery node and its chosen effect.
@@ -141,7 +143,9 @@ type MasteryChoice struct {
 // fit or are on a mastery an override replaces, and overrides that are unknown, on a node not
 // allocated or on a node they may not replace, each with a warning. It warns without a fix
 // about nodes not connected to the class, ascendancy or bloodline start and about allocated
-// masteries with no choice and no override. Against the dataset's skills group it drops unknown gems,
+// masteries with no choice and no override. A passive that Thread of Hope or Intuitive Leap, or
+// Impossible Escape around its keystone, reaches from a socket joined to a start is connected
+// without a path, and so are the nodes paths join to it. Against the dataset's skills group it drops unknown gems,
 // clears unknown variants and slots without sockets, corrects which gems are supports, clamps
 // gem levels and quality, and moves a main skill or active gem that does not fit to the first,
 // each with a warning; a dataset without the group gets one warning and the skills stay as
@@ -203,7 +207,6 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 		return nil, nil, err
 	}
 	c.checkChoices()
-	c.checkConnected()
 	c.checkOverrides()
 	c.checkMasteries()
 	if err := c.checkSkills(); err != nil {
@@ -212,6 +215,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	if err := c.checkGear(); err != nil {
 		return nil, nil, err
 	}
+	c.checkConnected()
 	return c, slices.Clone(c.warnings), nil
 }
 
@@ -341,7 +345,8 @@ func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...an
 }
 
 // checkGear checks the items and jewels, sets the weapon swap aside and finds what the
-// timeless jewels conquer and the small passives jewels change by allocation.
+// timeless jewels conquer, the small passives jewels change by allocation and the passives
+// jewels let be allocated without a connection.
 func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
@@ -350,7 +355,10 @@ func (c *Checked) checkGear() error {
 	if err := c.conquer(); err != nil {
 		return err
 	}
-	return c.findRadiusPassives()
+	if err := c.findRadiusPassives(); err != nil {
+		return err
+	}
+	return c.findUnconnected()
 }
 
 // setClass sets c's class and character, and reports whether both exist.
@@ -487,7 +495,8 @@ func (c *Checked) node(id uint32) *dataset.Node {
 }
 
 // checkConnected warns about allocated nodes no path of allocated nodes joins to the class,
-// ascendancy or bloodline start. They stay allocated: jewels can make such trees legal.
+// ascendancy or bloodline start, or to a passive a jewel lets be allocated without one (see
+// joined). They stay allocated: the jewel may be missing from the build only.
 func (c *Checked) checkConnected() {
 	reached := c.joined(c.allocatedSet())
 	var lost []string
@@ -538,11 +547,10 @@ func (c *Checked) choiceOf(n *dataset.Node) *dataset.Node {
 	return nil
 }
 
-// reach returns the nodes reachable from roots through nodes in allowed, all of them allocated
-// or starts, stepping only where Crosses allows. A mastery is reached but not passed through:
-// its edges say which notables unlock it, not a path.
-func (c *Checked) reach(roots []uint32, allowed map[uint32]bool) map[uint32]bool {
-	reached := map[uint32]bool{}
+// reach adds to reached the nodes reachable from roots through nodes in allowed, all of them
+// allocated or starts, stepping only where Crosses allows. A mastery is reached but not passed
+// through: its edges say which notables unlock it, not a path.
+func (c *Checked) reach(roots []uint32, allowed, reached map[uint32]bool) {
 	queue := slices.Clone(roots)
 	for len(queue) > 0 {
 		id := queue[0]
@@ -559,7 +567,6 @@ func (c *Checked) reach(roots []uint32, allowed map[uint32]bool) map[uint32]bool
 			}
 		}
 	}
-	return reached
 }
 
 // checkMasteries keeps the mastery choices that fit and warns about allocated masteries with

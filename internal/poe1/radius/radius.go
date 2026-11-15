@@ -11,12 +11,16 @@ package radius
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
 // ErrNotSocket is a node that is not a jewel socket drawn on the tree.
 var ErrNotSocket = errors.New("radius: not a jewel socket on the tree")
+
+// ErrNotPassive is a node that is not a passive a radius can reach.
+var ErrNotPassive = errors.New("radius: not a passive in a radius")
 
 // Area is the part of the tree around a socket that a jewel reaches: the passives at a
 // distance from Inner to Outer, in the layout's units.
@@ -43,6 +47,8 @@ type Index struct {
 	// passives can be in a radius, sorted by id.
 	passives []point
 	sockets  map[uint32]point
+	// byID holds the passives by id.
+	byID map[uint32]point
 }
 
 type point struct {
@@ -81,7 +87,7 @@ func New(tree *dataset.Tree, layout *dataset.Layout) *Index {
 	for _, n := range layout.Nodes {
 		group[n.ID] = n.Group
 	}
-	ix := &Index{sockets: map[uint32]point{}}
+	ix := &Index{sockets: map[uint32]point{}, byID: map[uint32]point{}}
 	for i := range tree.Nodes {
 		n := &tree.Nodes[i]
 		x, y, ok := layout.Position(n.ID)
@@ -99,6 +105,7 @@ func New(tree *dataset.Tree, layout *dataset.Layout) *Index {
 		case inCluster, n.Ascendancy != "":
 		case n.Kind == dataset.Normal, n.Kind == dataset.Notable, n.Kind == dataset.Keystone, n.Kind == dataset.JewelSocket:
 			ix.passives = append(ix.passives, p)
+			ix.byID[p.id] = p
 		}
 	}
 	return ix
@@ -111,13 +118,29 @@ func (ix *Index) Nodes(socket uint32, a Area) ([]uint32, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: node %d", ErrNotSocket, socket)
 	}
+	return slices.DeleteFunc(ix.around(s, a), func(id uint32) bool { return id == socket }), nil
+}
+
+// NodesAround returns the passives in area a around passive, itself included, sorted by id, as
+// Impossible Escape reaches around a keystone. A node that is not a passive a radius can reach
+// returns ErrNotPassive.
+func (ix *Index) NodesAround(passive uint32, a Area) ([]uint32, error) {
+	c, ok := ix.byID[passive]
+	if !ok {
+		return nil, fmt.Errorf("%w: node %d", ErrNotPassive, passive)
+	}
+	return ix.around(c, a), nil
+}
+
+// around returns the passives in area a around c, sorted by id.
+func (ix *Index) around(c point, a Area) []uint32 {
 	inner, outer := a.Inner*a.Inner, a.Outer*a.Outer
 	var out []uint32
 	for _, p := range ix.passives {
-		dx, dy := p.x-s.x, p.y-s.y
-		if d := dx*dx + dy*dy; p.id != socket && inner <= d && d <= outer {
+		dx, dy := p.x-c.x, p.y-c.y
+		if d := dx*dx + dy*dy; inner <= d && d <= outer {
 			out = append(out, p.id)
 		}
 	}
-	return out, nil
+	return out
 }

@@ -274,7 +274,7 @@ func TestWarnings(t *testing.T) {
 	b.Config = config.Values{"campaign": json.RawMessage(`"act 3"`), "charges": json.RawMessage(`3`)}
 	st := simulate(t, s, b)
 	want := []build.Code{
-		build.NodeUnknown, build.NodesDisconnected, build.MasteryNotChosen, simulator.VersionMismatch,
+		build.NodeUnknown, build.MasteryNotChosen, build.NodesDisconnected, simulator.VersionMismatch,
 		simulator.ConfigBadValue, simulator.ConfigUnknownKey, poe1.PointsOverBudget,
 	}
 	if got := codes(st); !slices.Equal(got, want) {
