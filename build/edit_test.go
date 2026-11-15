@@ -19,8 +19,12 @@ const keyCampaign config.Key[string] = "campaign"
 func TestClone(t *testing.T) {
 	t.Parallel()
 	b := juggernaut()
+	b.Name = "Boneshatter"
 	b.Masteries = map[uint32]uint32{3: 7}
 	c := b.Clone()
+	if diff := cmp.Diff(b, c); diff != "" {
+		t.Errorf("clone (-want +got):\n%s", diff)
+	}
 	c.Nodes[0] = 99
 	c.Masteries[3] = 8
 	c.Config["campaign"][1] = 'x'
@@ -39,13 +43,14 @@ func TestApply(t *testing.T) {
 	}
 	err = b.Apply(
 		build.Allocate(4, 3), build.Deallocate(10), build.SetMastery(4, 2), build.SetMastery(5, 1), build.ClearMastery(5),
-		build.SetLevel(70), build.SetClass(ranger), build.SetAscendancy(""), set, build.ClearConfig("bandits"),
+		build.SetName("Boneshatter"), build.SetLevel(70), build.SetClass(ranger), build.SetAscendancy(""), set, build.ClearConfig("bandits"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := juggernaut()
 	want.Nodes, want.Masteries, want.Level, want.Class, want.Ascendancy = []uint32{1, 3, 4}, map[uint32]uint32{4: 2}, 70, ranger, ""
+	want.Name = "Boneshatter"
 	want.Config = config.Values{"campaign": json.RawMessage(`"complete"`)}
 	if diff := cmp.Diff(want, b); diff != "" {
 		t.Errorf("(-want +got):\n%s", diff)
@@ -61,12 +66,12 @@ func TestEditJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	edits := []build.Edit{build.Allocate(1, 2), build.SetMastery(3, 4), build.SetAscendancy(""), set, build.ClearConfig("bandits")}
+	edits := []build.Edit{build.SetName("Boneshatter"), build.Allocate(1, 2), build.SetMastery(3, 4), build.SetAscendancy(""), set, build.ClearConfig("bandits")}
 	data, err := json.Marshal(edits)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `[{"op":"allocate","nodes":[1,2]},{"op":"set-mastery","node":3,"effect":4},{"op":"set-ascendancy"},` +
+	want := `[{"op":"set-name","name":"Boneshatter"},{"op":"allocate","nodes":[1,2]},{"op":"set-mastery","node":3,"effect":4},{"op":"set-ascendancy"},` +
 		`{"op":"set-config","key":"campaign","value":"acts-1-5"},{"op":"clear-config","key":"bandits"}]`
 	if string(data) != want {
 		t.Errorf("got %s\nwant %s", data, want)
@@ -83,6 +88,7 @@ func TestEditJSON(t *testing.T) {
 func randBuild(r *rand.Rand) *build.Build {
 	b := &build.Build{
 		Format: build.Format, Game: "poe1", Version: "3.29", Variant: "standard",
+		Name:  []string{"", "Boneshatter", "RF"}[r.IntN(3)],
 		Class: []string{marauder, ranger}[r.IntN(2)], Level: 1 + r.IntN(100),
 	}
 	if r.IntN(2) == 0 {

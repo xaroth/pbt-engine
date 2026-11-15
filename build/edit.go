@@ -21,6 +21,7 @@ type EditOp string
 
 // Edit ops.
 const (
+	OpSetName       EditOp = "set-name"
 	OpAllocate      EditOp = "allocate"
 	OpDeallocate    EditOp = "deallocate"
 	OpSetMastery    EditOp = "set-mastery"
@@ -40,6 +41,8 @@ const (
 // applied; a simulation judges the build they produce.
 type Edit struct {
 	Op EditOp `json:"op"`
+	// Name for set-name; empty clears it.
+	Name string `json:"name,omitzero"`
 	// Nodes for allocate and deallocate.
 	Nodes []uint32 `json:"nodes,omitzero"`
 	// Node and Effect for set-mastery, Node and Override for set-override, Node for
@@ -67,6 +70,9 @@ type Edit struct {
 	Enabled    bool        `json:"enabled,omitzero"`
 	Item       *Item       `json:"item,omitzero"`
 }
+
+// SetName sets the build's name; empty clears it.
+func SetName(name string) Edit { return Edit{Op: OpSetName, Name: name} }
 
 // Allocate allocates nodes.
 func Allocate(nodes ...uint32) Edit { return Edit{Op: OpAllocate, Nodes: slices.Clone(nodes)} }
@@ -136,7 +142,7 @@ func (b *Build) apply(e Edit) error {
 		b.applyOverride(e)
 	case OpSetConfig, OpClearConfig:
 		b.applyConfig(e)
-	case OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline:
+	case OpSetName, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline:
 		b.applyCharacter(e)
 	case OpEquip, OpUnequip:
 		b.applyItem(e)
@@ -151,9 +157,12 @@ func (b *Build) apply(e Edit) error {
 	return nil
 }
 
-// applyCharacter applies e, a set-level, set-class, set-ascendancy or set-bloodline edit.
+// applyCharacter applies e, a set-name, set-level, set-class, set-ascendancy or set-bloodline
+// edit.
 func (b *Build) applyCharacter(e Edit) {
 	switch e.Op {
+	case OpSetName:
+		b.Name = e.Name
 	case OpSetLevel:
 		b.Level = e.Level
 	case OpSetClass:
@@ -208,7 +217,7 @@ func (b *Build) applyConfig(e Edit) {
 	b.Config[e.Key] = slices.Clone(e.Value)
 }
 
-// Diff returns the edits that turn a into b: class, ascendancy, bloodline, level, nodes
+// Diff returns the edits that turn a into b: name, class, ascendancy, bloodline, level, nodes
 // deallocated then allocated, mastery choices cleared then set, overrides cleared then set,
 // config keys cleared then set, each in sorted order, then the skill groups, then the items,
 // then the jewels. Version and format are not compared. Builds of another game or tree variant
@@ -218,6 +227,9 @@ func Diff(a, b *Build) ([]Edit, error) {
 		return nil, fmt.Errorf("%w: %s %s and %s %s", ErrNotComparable, a.Game, a.Variant, b.Game, b.Variant)
 	}
 	var out []Edit
+	if a.Name != b.Name {
+		out = append(out, SetName(b.Name))
+	}
 	if a.Class != b.Class {
 		out = append(out, SetClass(b.Class))
 	}
