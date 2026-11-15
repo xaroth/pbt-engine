@@ -55,6 +55,7 @@ const (
 	HitsPerSecond               = rules.HitsPerSecond
 	HitDPS                      = rules.HitDPS
 	DotDPS                      = rules.DotDPS
+	IgniteDPS                   = rules.IgniteDPS
 	PhysicalMinimum             = rules.PhysicalMinimum
 	PhysicalMaximum             = rules.PhysicalMaximum
 	FireMinimum                 = rules.FireMinimum

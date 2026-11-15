@@ -5,18 +5,18 @@ import (
 
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
-	"github.com/xaroth/pbt-engine/output"
 )
 
 // Engine stats of a skill's damage over time, read in its context for damage over time, which
-// has the skill's types but Attack and Area, and but Spell and Projectile unless
-// spell_damage_modifiers_apply_to_skill_dot or projectile_damage_modifiers_apply_to_skill_dot is
-// set for it. base_damage_over_time, read for one damage type, is the skill's own damage of that
+// has the skill's types but Attack, and but Area, Spell and Projectile unless
+// area_damage_modifiers_apply_to_skill_dot, spell_damage_modifiers_apply_to_skill_dot or
+// projectile_damage_modifiers_apply_to_skill_dot is set for it. base_damage_over_time, read for one damage type, is the skill's own damage of that
 // type per second before modifiers; damage_over_time_multiplier is the Damage over Time
 // Multiplier in percent. damage_over_time_enemy_resistance is the resistance damage over time of
 // the type meets, and damage_over_time what the enemy takes of the type per second.
 // damage_over_time_dps totals it over the types.
 const (
+	statAreaDamageModifiersApplyToSkillDot       = "area_damage_modifiers_apply_to_skill_dot"
 	statSpellDamageModifiersApplyToSkillDot      = "spell_damage_modifiers_apply_to_skill_dot"
 	statProjectileDamageModifiersApplyToSkillDot = "projectile_damage_modifiers_apply_to_skill_dot"
 	statBaseDamageOverTime                       = "base_damage_over_time"
@@ -38,11 +38,55 @@ func dotSkill(sk *resolve.Skill) bool {
 	return hasTypes(sk, typeDamageOverTime)
 }
 
-// areaDotSkill reports whether sk's damage over time is area damage, which modifiers to Area
-// Damage reach: a ground or aura effect such as Righteous Fire's burn, not a debuff an area
-// skill applies.
-func areaDotSkill(sk *resolve.Skill) bool {
-	return slices.Contains(areaDotSkills(), sk.GrantedEffect)
+// dotBases are sk's own values of its damage over time: for a skill whose damage over time is
+// area damage, a ground or aura effect such as Righteous Fire's burn and not a debuff an area
+// skill applies, that modifiers to Area Damage reach it.
+func dotBases(sk *resolve.Skill) []hitBase {
+	if slices.Contains(areaDotSkills(), sk.GrantedEffect) {
+		return []hitBase{{statAreaDamageModifiersApplyToSkillDot, core.OpFlag, 1}}
+	}
+	return nil
+}
+
+// dotMasks are the context bits a skill's context loses or gains for its damage over time.
+type dotMasks struct {
+	attack, forms, dot core.Mask
+	// kept are the types the context keeps only while their flag is set.
+	kept []keptType
+}
+
+// keptType is a skill type and the flag that keeps it in the context of damage over time.
+type keptType struct {
+	bit  core.Mask
+	flag core.StatID
+}
+
+func newDotMasks(ids map[string]core.StatID) dotMasks {
+	c := modelContexts()
+	d := dotMasks{attack: typeMask(c, typeAttack), dot: core.MaskOf(c.form.Bit(int(formDot) - 1))}
+	for _, f := range []damageForm{formHit, formDot, formAilment} {
+		d.forms = d.forms.Set(c.form.Bit(int(f) - 1))
+	}
+	for t, flag := range map[string]string{
+		typeArea:       statAreaDamageModifiersApplyToSkillDot,
+		typeSpell:      statSpellDamageModifiersApplyToSkillDot,
+		typeProjectile: statProjectileDamageModifiersApplyToSkillDot,
+	} {
+		d.kept = append(d.kept, keptType{bit: typeMask(c, t), flag: mustID(ids, flag)})
+	}
+	return d
+}
+
+// of returns the context of damage over time of a skill whose context is m, with flag reading a
+// flag in the skill's context.
+func (d dotMasks) of(m core.Mask, flag func(core.StatID) float64) core.Mask {
+	out := m.AndNot(d.attack).AndNot(d.forms).Or(d.dot)
+	for _, k := range d.kept {
+		if flag(k.flag) == 0 {
+			out = out.AndNot(k.bit)
+		}
+	}
+	return out
 }
 
 // areaDotSkills are the granted effects whose damage over time is area damage. The game data
@@ -60,13 +104,6 @@ func areaDotSkills() []string {
 	}
 }
 
-// dotOutputs are the main skill's damage over time outputs.
-func dotOutputs() []Output {
-	return []Output{
-		{Key: DotDPS, Label: "Damage over Time DPS", Better: output.Higher, Places: hitPlaces, stat: statDamageOverTimeDPS, needs: needsDot},
-	}
-}
-
 // Formula names shown in explanations.
 const (
 	formulaDotEnemyResistance = "enemy resistance damage over time meets"
@@ -74,8 +111,12 @@ const (
 	formulaDamageOverTimeDPS  = "damage over time per second"
 )
 
+// mechanicDot names the damage over time mechanic for those that come after it.
+const mechanicDot = "damage over time"
+
 func dotMechanic() mechanic {
-	return mechanic{name: "damage over time", after: []string{mechanicDamage, mechanicEnemy}, stats: []string{
+	return mechanic{name: mechanicDot, after: []string{mechanicDamage, mechanicEnemy}, stats: []string{
+		statAreaDamageModifiersApplyToSkillDot,
 		statSpellDamageModifiersApplyToSkillDot,
 		statProjectileDamageModifiersApplyToSkillDot,
 		statBaseDamageOverTime,
@@ -96,7 +137,7 @@ func dotMechanic() mechanic {
 // none of it.
 func dotDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
-	case statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
+	case statAreaDamageModifiersApplyToSkillDot, statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
 		def.Flag = true
 	case statDamageOverTimeEnemyResistance:
 		h := newMetResistance(ids, false)

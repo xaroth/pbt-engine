@@ -36,6 +36,9 @@ const (
 	// Every attack reads one hand: the main hand, and the off hand too when the skill attacks
 	// with both. A weapon's own values require its hand.
 	dimHand = "hand"
+	// dimAilment holds the damaging ailment whose damage or chance is read, with the ailment
+	// form for its damage. A modifier to "damage with ignites" requires ailment.ignite.
+	dimAilment = "ailment"
 	// dimOffHandWeapon holds the off hand weapon's kinds in the context of an attack with both
 	// hands read with the main hand: the attack's context, from which its off hand's is made
 	// (handBits). Tables never name it.
@@ -63,9 +66,23 @@ const (
 	formNone damageForm = iota
 	formHit
 	formDot
+	formAilment
 )
 
 func damageFormNames() []string { return []string{"hit", "dot", "ailment"} }
+
+// ailment is a damaging ailment, a value of the ailment dimension.
+type ailment uint8
+
+const (
+	ailmentIgnite ailment = iota
+	ailmentBleed
+	ailmentPoison
+)
+
+func ailmentNames() []string {
+	return []string{ailmentIgnite: "ignite", ailmentBleed: "bleed", ailmentPoison: "poison"}
+}
 
 // maxSkills is how many skills a sheet holds at once, each with its own dimSkill bit.
 const maxSkills = 32
@@ -107,9 +124,21 @@ func skillTypes() []string {
 	}
 }
 
+// modelContexts returns the context dimensions of a sheet model: addContexts registers them
+// the same way on every builder, so their bits are the same in every model.
+func modelContexts() contexts {
+	var b core.ModelBuilder
+	return addContexts(&b)
+}
+
+// typeMask returns skill type t's bit among c's.
+func typeMask(c contexts, t string) core.Mask {
+	return core.MaskOf(c.types.Bit(slices.Index(c.types.Values, t)))
+}
+
 // contexts are the context dimensions of a sheet model.
 type contexts struct {
-	types, damage, skill, form, weapon, hand, offHandWeapon core.Dimension
+	types, damage, skill, form, weapon, hand, offHandWeapon, ailment core.Dimension
 }
 
 // addContexts registers the context dimensions on b.
@@ -127,6 +156,7 @@ func addContexts(b *core.ModelBuilder) contexts {
 		hand:   mustDimension(b, dimHand, handNames()),
 		// The same values as the weapon dimension's, so a kind's index is its bit in either.
 		offHandWeapon: mustDimension(b, dimOffHandWeapon, weaponKindNames()),
+		ailment:       mustDimension(b, dimAilment, ailmentNames()),
 	}
 }
 
@@ -154,6 +184,8 @@ func isTableContext(name string) bool {
 		return slices.Contains(weaponKindNames(), value)
 	case dim == dimHand:
 		return slices.Contains(handNames(), value)
+	case dim == dimAilment:
+		return slices.Contains(ailmentNames(), value)
 	}
 	return false
 }

@@ -151,6 +151,30 @@ type convertedHit struct {
 	ownMinimum, ownMaximum hitDamage
 	conversion             conversionIDs
 	masks                  damageMasks
+	// at gives the masks the damage's parts are read at; the zero value reads them all at the
+	// mask read.
+	at partMasks
+}
+
+// partMasks gives the masks the parts of a hit's damage are read at, from the mask read: the
+// base and added damage and conversion at hit, the damage modifiers at scale. Nil reads a part
+// at the mask read.
+type partMasks struct {
+	hit, scale func(core.Mask) core.Mask
+}
+
+func (p partMasks) hitAt(m core.Mask) core.Mask {
+	if p.hit == nil {
+		return m
+	}
+	return p.hit(m)
+}
+
+func (p partMasks) scaleAt(m core.Mask) core.Mask {
+	if p.scale == nil {
+		return m
+	}
+	return p.scale(m)
 }
 
 func newConvertedHit(ids map[string]core.StatID, isMaximum bool) convertedHit {
@@ -180,7 +204,7 @@ func (h convertedHit) shares(d DamageType, mask core.Mask, stat func(core.StatID
 		if from == d {
 			break
 		}
-		at := h.masks.only(mask, from)
+		at := h.masks.only(h.at.hitAt(mask), from)
 		r := h.conversion.rates(from, func(s core.StatID) float64 { return stat(s, at) })
 		rate := r.to(d)
 		if rate <= 0 {
@@ -211,12 +235,13 @@ func (h convertedHit) value(d DamageType, mask core.Mask, stat func(core.StatID,
 	if h.isMaximum {
 		add = addMax
 	}
-	at := h.masks.only(mask, d)
+	at := h.masks.only(h.at.hitAt(mask), d)
 	read := func(s core.StatID) float64 { return stat(s, at) }
 	if h.ownMinimum.unscaled(read) == 0 && h.ownMaximum.unscaled(read) == 0 {
 		return add
 	}
-	return roundHalf(h.own.unscaled(read)*stat(h.own.damage, mask)/percentScale*read(h.own.extreme)/percentScale + add)
+	scaled := stat(h.own.damage, h.at.scaleAt(mask)) / percentScale * stat(h.own.extreme, h.at.scaleAt(h.masks.only(mask, d))) / percentScale
+	return roundHalf(h.own.unscaled(read)*scaled + add)
 }
 
 func (h convertedHit) formula() core.Formula {
@@ -243,20 +268,21 @@ func (h convertedHit) attribute() core.Attribute {
 			return core.Attribution{Amount: total}
 		}
 		stat := func(s core.StatID, m core.Mask) float64 { return a.Read(a.RefAt(s, m)) }
-		at := h.masks.only(mask, d)
+		at := h.masks.only(h.at.hitAt(mask), d)
 		var parts []core.Part
 		for _, s := range []core.StatID{h.own.base, h.own.added} {
 			if v := stat(s, at); v != 0 {
 				parts = append(parts, a.Spread(a.RefAt(s, at), v, core.OpBase)...)
 			}
 		}
-		parts = a.LayersOver(a.RefAt(h.own.extreme, at), a.LayersOver(core.SelfRef(h.own.damage), parts))
+		scale := a.RefAt(h.own.damage, h.at.scaleAt(mask))
+		parts = a.LayersOver(a.RefAt(h.own.extreme, h.at.scaleAt(h.masks.only(mask, d))), a.LayersOver(scale, parts))
 		for _, s := range h.shares(d, mask, stat) {
 			v := s.minimum
 			if h.isMaximum {
 				v = s.maximum
 			}
-			from := h.masks.only(mask, s.from)
+			from := h.masks.only(h.at.hitAt(mask), s.from)
 			rate := s.rates.to(d)
 			for _, c := range []struct {
 				stat core.StatID
@@ -334,6 +360,8 @@ type convertedAwayHit struct {
 	before     core.StatID
 	conversion conversionIDs
 	masks      damageMasks
+	// at reads the conversion at its hit mask.
+	at partMasks
 }
 
 func newConvertedAwayHit(ids map[string]core.StatID, before string) convertedAwayHit {
@@ -346,7 +374,7 @@ func (h convertedAwayHit) rates(mask core.Mask, stat func(core.StatID, core.Mask
 	if !ok {
 		return 0, conversionRates{}, false
 	}
-	at := h.masks.only(mask, d)
+	at := h.masks.only(h.at.hitAt(mask), d)
 	return d, h.conversion.rates(d, func(s core.StatID) float64 { return stat(s, at) }), true
 }
 
@@ -372,7 +400,7 @@ func (h convertedAwayHit) attribute() core.Attribute {
 			return core.Attribution{Parts: parts, Amount: total}
 		}
 		converted := 1 - rates.keep
-		at := h.masks.only(a.Mask(), d)
+		at := h.masks.only(h.at.hitAt(a.Mask()), d)
 		for _, to := range conversionDestinations() {
 			for _, c := range []struct {
 				stat core.StatID

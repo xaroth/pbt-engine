@@ -61,6 +61,9 @@ func mechanics() []mechanic {
 		hitMechanic(),
 		handsMechanic(),
 		dotMechanic(),
+		ailmentMechanic(),
+		igniteMechanic(),
+		totalDotMechanic(),
 	}
 }
 
