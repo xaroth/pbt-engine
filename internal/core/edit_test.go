@@ -422,3 +422,27 @@ func droppedOK(tb testing.TB, err error) {
 		tb.Fatal(err)
 	}
 }
+
+// A stat is live while it has a modifier that is not removed and whose source is enabled.
+func TestLive(t *testing.T) {
+	t.Parallel()
+	var b core.ModelBuilder
+	x := b.MustAddStat(core.StatDef{Name: "x"})
+	y := b.MustAddStat(core.StatDef{Name: "y"})
+	s := newSession(t, b.Build(), 1)
+	ids := addAll(t, s, []core.Modifier{
+		{Stat: x, Op: core.OpBase, Value: 1, Source: 1},
+		{Stat: x, Op: core.OpBase, Value: 2, Source: 2},
+	})
+	if !s.Live(x, 0) || s.Live(y, 0) || s.Live(x, 1) || s.Live(9, 0) {
+		t.Fatalf("live: x %v, y %v, x of actor 1 %v, unknown stat %v", s.Live(x, 0), s.Live(y, 0), s.Live(x, 1), s.Live(9, 0))
+	}
+	must(t, s.SetSourceEnabled(1, false))
+	if !s.Live(x, 0) {
+		t.Error("x with one source disabled: not live")
+	}
+	must(t, s.RemoveModifier(ids[1]))
+	if s.Live(x, 0) {
+		t.Error("x with its modifiers disabled or removed: live")
+	}
+}

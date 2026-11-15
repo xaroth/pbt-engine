@@ -128,6 +128,7 @@ func TestExplainHitAgainstEnemy(t *testing.T) {
 	sk := elementalSpell()
 	sk.StatSets[0].SpellCritChance = 1000
 	setSkills(t, sh, sk)
+	derive(t, sh)
 	sh.SetEnemy(poe1.EnemyStats{Kind: poe1.EnemyUber, FireResistance: 50, ColdResistance: 50})
 	for _, o := range poe1.Outputs() {
 		ex := explainOf(t, sh, o.Key, poe1.Proportional)

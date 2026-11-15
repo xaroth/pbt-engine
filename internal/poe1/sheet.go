@@ -121,6 +121,8 @@ type Sheet struct {
 	enemy enemyMods
 	// conditions holds the conditions' sources.
 	conditions conditionMods
+	// exposure holds the enemy's Exposure by damage type.
+	exposure map[DamageType]core.ModID
 	// outputs is the catalogue by key.
 	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
@@ -364,6 +366,9 @@ func (sh *Sheet) addBaseValues() error {
 		return err
 	}
 	if err := sh.addEnemy(); err != nil {
+		return err
+	}
+	if err := sh.addExposure(); err != nil {
 		return err
 	}
 	return sh.addBaseEfficiencies()

@@ -75,10 +75,10 @@ const (
 
 // ConfigSpecs returns every poe1 config key with its default and values.
 func ConfigSpecs() []config.Spec {
-	return append([]config.Spec{
+	return slices.Concat([]config.Spec{
 		config.SpecOf(Campaign, CampaignComplete, campaignStages()...),
 		config.SpecOf(Bandits, BanditsNotCompleted, banditChoices()...),
-	}, append(enemySpecs(), conditionSpecs()...)...)
+	}, enemySpecs(), conditionSpecs(), exposureSpecs())
 }
 
 // Output keys, one per catalogue entry.

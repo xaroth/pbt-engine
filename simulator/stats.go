@@ -135,14 +135,16 @@ type Named interface{ Name() string }
 
 // Config returns the value the key resolved to and its source, and false for a key the game
 // does not have. A condition the build can cause itself (EnemyShocked, EnemyChilled,
-// EnemyIgnited) that no layer sets is on with source config.Derived when a skill of the build
-// inflicts it, else off with source config.Default.
+// EnemyIgnited, EnemyFireExposure, EnemyColdExposure, EnemyLightningExposure) that no layer sets
+// is on with source config.Derived when a skill of the build inflicts it, else off with source
+// config.Default. Exposure a hit inflicts only by chance is no such source.
 func (st *Stats) Config(k Named) (config.Entry, bool) {
 	e, ok := st.cfg[k.Name()]
 	return e, ok
 }
 
-// openSheet opens a sheet of the simulated build with its items.
+// openSheet opens a sheet of the simulated build with its items, and the conditions it causes
+// derived again: the config alone does not give the Exposure the build's hits inflict.
 func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	r, err := resolve.Resolve(st.checked)
 	if err != nil {
@@ -164,5 +166,8 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 		}
 	}
 	sh.SetEnemy(st.enemy)
+	if _, _, err := sh.DeriveConditions(st.cfg); err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
 	return sh, nil
 }
