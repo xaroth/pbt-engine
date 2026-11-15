@@ -467,6 +467,124 @@ func TestAbyssJewelOnSheet(t *testing.T) {
 	}
 }
 
+// Darkness Enthroned's increased effect of socketed abyss jewels scales the stats of the jewels in
+// its sockets, rounded toward zero, on a level 1 Marauder: at 98%, the jewel's 29 life is 57.42,
+// 57, and its 12% fire resistance 23.76, 23. The same jewel in a belt with 50% gives 43.5, 43
+// life and 18% fire resistance.
+func TestDarknessEnthronedScalesAbyssJewels(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	jewel, _, err := s.Data().Item("Rarity: RARE\nGrim Lens\nHypnotic Eye Jewel\nItem Level: 77\nImplicits: 0\n+29 to maximum Life\n+12% to Fire Resistance\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		effect     string
+		life, fire float64
+	}{{"98", 66 + 57, -60 + 23}, {"50", 66 + 43, -60 + 18}} {
+		belt, _, err := s.Data().Item("Rarity: UNIQUE\nDarkness Enthroned\nStygian Vise\nItem Level: 84\nSockets: A-A\nImplicits: 1\n" +
+			"Has 1 Abyssal Socket\nHas 1 Abyssal Socket\n" + tc.effect + "% increased Effect of Socketed Abyss Jewels\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		belt.AbyssJewels = map[int]build.Item{1: jewel}
+		b := marauderBuild(1)
+		if err := b.Apply(build.Equip(build.SlotBelt, belt)); err != nil {
+			t.Fatal(err)
+		}
+		st := simulate(t, s, b)
+		if got := get(t, st, poe1.Life); got != tc.life {
+			t.Errorf("%s%%: life %v, want %v", tc.effect, got, tc.life)
+		}
+		if got := get(t, st, poe1.FireResistance); got != tc.fire {
+			t.Errorf("%s%%: fire resistance %v, want %v", tc.effect, got, tc.fire)
+		}
+		if w, ok := warnedStat(st, "local_socketed_abyss_jewel_effect_+%"); ok {
+			t.Errorf("%s%%: warning %v, want the effect not left out", tc.effect, w)
+		}
+	}
+}
+
+// The Adorned's increased effect of jewel socket passives containing corrupted magic jewels
+// scales the stats of such a jewel in another allocated socket: at 95%, 10% fire resistance is
+// 19.5, 19, over the -60% penalty of a level 1 Marauder. A magic jewel not corrupted, a corrupted
+// rare jewel, and any jewel beside The Adorned in a socket not allocated give their 10%.
+func TestAdornedScalesCorruptedMagicJewels(t *testing.T) {
+	t.Parallel()
+	const (
+		otherSocket = 61834
+		adornedStat = "local_unique_jewel_passive_jewel_socket_mod_effect_+%_with_corrupted_magic_jewel_socketed"
+	)
+	s := realSim(t)
+	adorned, _, err := s.Data().Item("Rarity: UNIQUE\nThe Adorned\nCrimson Jewel\nImplicits: 0\n" +
+		"95% increased Effect of Jewel Socket Passive Skills containing Corrupted Magic Jewels\nCorrupted\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	magic := "Rarity: MAGIC\nCrimson Jewel of Flames\nImplicits: 0\n+10% to Fire Resistance\n"
+	rare := "Rarity: RARE\nGloom Spark\nCrimson Jewel\nImplicits: 0\n+10% to Fire Resistance\n"
+	for _, tc := range []struct {
+		name      string
+		jewel     string
+		allocated []uint32
+		fire      float64
+	}{
+		{"corrupted magic", magic + "Corrupted\n", []uint32{jewelSocket, otherSocket}, -41},
+		{"magic", magic, []uint32{jewelSocket, otherSocket}, -50},
+		{"corrupted rare", rare + "Corrupted\n", []uint32{jewelSocket, otherSocket}, -50},
+		{"The Adorned not allocated", magic + "Corrupted\n", []uint32{otherSocket}, -50},
+	} {
+		jewel, _, err := s.Data().Item(tc.jewel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := marauderBuild(1, tc.allocated...)
+		if err := b.Apply(build.SocketJewel(jewelSocket, adorned), build.SocketJewel(otherSocket, jewel)); err != nil {
+			t.Fatal(err)
+		}
+		st := simulate(t, s, b)
+		if got := get(t, st, poe1.FireResistance); got != tc.fire {
+			t.Errorf("%s: fire resistance %v, want %v", tc.name, got, tc.fire)
+		}
+		if w, ok := warnedStat(st, adornedStat); ok {
+			t.Errorf("%s: warning %v, want the effect not left out", tc.name, w)
+		}
+	}
+}
+
+// A Helical Ring's text shows its suffix modifiers with its increased suffix modifier magnitudes
+// applied, so the ring gives its lines as printed, and the implicit is not left out.
+func TestHelicalRingAsPrinted(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	ring, _, err := s.Data().Item("Rarity: RARE\nVortex Gyre\nHelical Ring\nItem Level: 84\nImplicits: 1\n" +
+		"50% increased Suffix Modifier magnitudes\n+75 to Strength\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bare := marauderBuild(1)
+	b := bare.Clone()
+	if err := b.Apply(build.Equip(build.SlotRing1, ring)); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, s, b)
+	if got, want := get(t, st, poe1.Strength), get(t, simulate(t, s, bare), poe1.Strength)+75; got != want {
+		t.Errorf("strength %v, want %v", got, want)
+	}
+	if w, ok := warnedStat(st, "local_suffix_mod_effect_+%"); ok {
+		t.Errorf("warning %v, want the implicit not left out", w)
+	}
+}
+
+// warnedStat returns the warning of st about stat, if any.
+func warnedStat(st *simulator.Stats, stat string) (simulator.Warning, bool) {
+	ws := st.Warnings()
+	if i := slices.IndexFunc(ws, func(w simulator.Warning) bool { return w.Stat == stat }); i >= 0 {
+		return ws[i], true
+	}
+	return simulator.Warning{}, false
+}
+
 // A plate body armour slows its wearer: Astral Plate's -5% movement speed penalty is 5% reduced
 // movement speed, 95%.
 func TestBodyArmourMovementPenalty(t *testing.T) {
