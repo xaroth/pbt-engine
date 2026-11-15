@@ -125,17 +125,19 @@ func shapeOf(c *build.Checked) shape {
 	}
 }
 
+const decimal = 10
+
 // clustersKey lists nodes with their stats and buffs.
 func clustersKey(nodes []*dataset.Node) string {
 	var buf []byte
 	appendStats := func(svs []dataset.StatValue) {
 		for _, sv := range svs {
-			buf = strconv.AppendUint(append(buf, ' '), uint64(sv.Stat), 10)
-			buf = strconv.AppendInt(append(buf, '='), int64(sv.Value), 10)
+			buf = strconv.AppendUint(append(buf, ' '), uint64(sv.Stat), decimal)
+			buf = strconv.AppendInt(append(buf, '='), int64(sv.Value), decimal)
 		}
 	}
 	for _, n := range nodes {
-		buf = strconv.AppendUint(append(buf, ','), uint64(n.ID), 10)
+		buf = strconv.AppendUint(append(buf, ','), uint64(n.ID), decimal)
 		appendStats(n.Stats)
 		for _, bf := range n.Buffs {
 			buf = append(buf, '|')
