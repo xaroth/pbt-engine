@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"math"
+	"slices"
 )
 
 // blockKinds counts a block of each actor and context: conditional and unconditional.
@@ -148,6 +149,16 @@ func (s *Session) NewSource() SourceID {
 // SourceEnabled reports whether a source's modifiers apply; false for an unknown source.
 func (s *Session) SourceEnabled(src SourceID) bool {
 	return int(src) < len(s.srcOff) && !s.srcOff[src]
+}
+
+// Live reports whether stat has a modifier for actor that is not removed and whose source is
+// enabled; false for an unknown stat or actor. Predicates and conditions are not checked, so a
+// node of the stat can still read none of it.
+func (s *Session) Live(stat StatID, actor ActorID) bool {
+	if int(stat) >= len(s.m.stats) || int(actor) >= s.nActors {
+		return false
+	}
+	return slices.ContainsFunc(s.buckets[int(stat)*s.nActors+int(actor)], s.modLive)
 }
 
 // Get returns the value of a node. If a formula panics, the session drops its cached

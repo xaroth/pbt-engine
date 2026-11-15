@@ -152,6 +152,10 @@ func (sh *Sheet) deriveExposure(cfg, out config.Resolved) ([]build.Warning, erro
 // sheet, but the default attack, inflict, with either hand.
 func (sh *Sheet) exposureOf(d DamageType) (inflictedExposure, error) {
 	var x inflictedExposure
+	// Most builds inflict no Exposure; this spares them reading every hit for it.
+	if !sh.session.Live(sh.stats[statInflictedExposure], 0) && !sh.session.Live(sh.stats[statExposureChance], 0) {
+		return x, nil
+	}
 	err := sh.eachHit(func(i int, read handRead) (bool, error) {
 		strongest, err := sh.hitValue(i, statInflictedExposure, d, read)
 		if err != nil {
