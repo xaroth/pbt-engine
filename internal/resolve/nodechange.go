@@ -49,3 +49,39 @@ func nodeChanges(c *build.Checked) map[uint32][]NodeChange {
 	}
 	return out
 }
+
+// grantedPassive is a passive a jewel grants while it is not allocated.
+type grantedPassive struct {
+	source RadiusSource
+	node   *dataset.Node
+	// changes are what timeless jewels make of the node.
+	changes []NodeChange
+}
+
+func (g grantedPassive) bundles(stats []dataset.Stat) []Bundle {
+	return sourcedBundles(stats, ChangeNode(g.node, g.changes...), g.source)
+}
+
+// radiusChanges returns the passives c's jewels make grant nothing while allocated, by node id,
+// and those they grant while not allocated, by socket then node id.
+func radiusChanges(c *build.Checked) (map[uint32]bool, []grantedPassive) {
+	nothing := map[uint32]bool{}
+	var granted []grantedPassive
+	conquests := c.Conquests()
+	for _, p := range c.RadiusPassives() {
+		if p.Nothing {
+			nothing[p.Node.ID] = true
+		}
+		if !p.Granted {
+			continue
+		}
+		g := grantedPassive{source: RadiusSource{Socket: p.Socket, Node: p.Node.ID}, node: p.Node}
+		for _, q := range conquests {
+			if q.Node.ID == p.Node.ID {
+				g.changes = append(g.changes, NodeChange{Replace: q.Replace, Stats: q.Stats})
+			}
+		}
+		granted = append(granted, g)
+	}
+	return nothing, granted
+}

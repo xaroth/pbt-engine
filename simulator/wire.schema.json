@@ -663,6 +663,24 @@
           }
         },
         {
+          "description": "An unallocated small passive whose stats a jewel in its radius grants.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "socket", "node"],
+          "properties": {
+            "kind": { "const": "radius" },
+            "socket": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The jewel socket node."
+            },
+            "node": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
           "description": "A quest reward.",
           "type": "object",
           "additionalProperties": false,

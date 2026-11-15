@@ -108,6 +108,8 @@ type shape struct {
 	clusters string
 	// conquests lists the passives timeless jewels change with their changes.
 	conquests string
+	// radius lists the passives jewels change by allocation.
+	radius string
 }
 
 // shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
@@ -121,6 +123,7 @@ func shapeOf(c *build.Checked) shape {
 	return shape{
 		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
 		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()), conquests: conquestsKey(c.Conquests()),
+		radius: radiusKey(c.RadiusPassives()),
 	}
 }
 
@@ -148,6 +151,22 @@ func conquestsKey(qs []build.Conquest) string {
 			buf = append(buf, '!')
 		}
 		buf = appendStats(buf, q.Stats)
+	}
+	return string(buf)
+}
+
+// radiusKey lists passives with their socket and what the jewel does to them.
+func radiusKey(ps []build.RadiusPassive) string {
+	var buf []byte
+	for _, p := range ps {
+		buf = strconv.AppendUint(append(buf, ','), uint64(p.Node.ID), decimal)
+		buf = strconv.AppendUint(append(buf, '@'), uint64(p.Socket), decimal)
+		if p.Nothing {
+			buf = append(buf, '-')
+		}
+		if p.Granted {
+			buf = append(buf, '+')
+		}
 	}
 	return string(buf)
 }

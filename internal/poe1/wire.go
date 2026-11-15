@@ -141,6 +141,12 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Node   uint32 `json:"node"`
 			Effect uint32 `json:"effect"`
 		}{"node", src.ID, src.Effect})
+	case resolve.RadiusSource:
+		return marshal(struct {
+			Kind   string `json:"kind"`
+			Socket uint32 `json:"socket"`
+			Node   uint32 `json:"node"`
+		}{"radius", src.Socket, src.Node})
 	case resolve.QuestSource:
 		return marshal(struct {
 			Kind  string `json:"kind"`
