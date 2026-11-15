@@ -1,8 +1,7 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 329 authored, 104 unknown, 1 display-only, 0 gaps, 1475 outside
-unknown by reason: condition 68, items 19, event 7, reservation 4, context 3, scale 2, unestablished 1
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 330 authored, 103 unknown, 1 display-only, 0 gaps, 1475 outside
+unknown by reason: condition 68, items 18, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
-unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
 unvalidated accuracy_rating_per_level global, uses 13: counts the levels after the first, as PoB does (CalcSetup.lua); the text says per Level and does not say which. A level 1 character's accuracy rating in game would validate it
 unvalidated area_damage_+% global, uses 10: that all damage of a skill with the Area type is area damage is our reading; the game data does not mark which of a skill's damage is area damage. A skill that hits both in and outside an area would validate it; a skill's damage over time is area damage only for the ground and aura effects PoB lists, since the game data does not mark them
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
@@ -30,7 +29,6 @@ unvalidated chance_to_inflict_cold_exposure_on_hit_with_cold_damage_% global, us
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
 unvalidated exposure_you_inflict_has_minimum_resistance_% global, uses 6: applied to any Exposure the enemy has, after what is added to it, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
 unvalidated X_to_armour_per_2_strength global, uses 5: the text says per 2 Strength; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
-unknown additional_maximum_all_elemental_resistances_%_if_all_equipment_grants_armour global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unknown armour_+%_per_retaliation_used_in_past_10_seconds global, uses 5: condition: Retaliation Skills used in the past 10 seconds
 unknown armour_+%_per_second_while_stationary_up_to_100 global, uses 5: condition: time stationary
 unknown armour_from_gloves_and_boots_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
