@@ -1,8 +1,9 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 237 authored, 111 unknown, 1 display-only, 0 gaps, 1560 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 255 authored, 111 unknown, 1 display-only, 0 gaps, 1542 outside
 unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
+unvalidated accuracy_rating_per_level global, uses 13: counts the levels after the first, as PoB does (CalcSetup.lua); the text says per Level and does not say which. A level 1 character's accuracy rating in game would validate it
 unvalidated area_damage_+% global, uses 10: that all damage of a skill with the Area type is area damage is our reading; the game data does not mark which of a skill's damage is area damage. A skill that hits both in and outside an area would validate it; a skill's damage over time is area damage only for the ground and aura effects PoB lists, since the game data does not mark them
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
 unvalidated life_per_level global, uses 9: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
@@ -161,7 +162,6 @@ unknown regenerate_%_life_over_1_second_when_stunned global, uses 1: event: reco
 unknown regenerate_%_maximum_energy_shield_over_2_seconds_on_consuming_corpse global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown regenerate_%_maximum_mana_over_2_seconds_on_consuming_corpse global, uses 1: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unvalidated regenerate_energy_shield_instead_of_life global, uses 1: the text does not say whether life regeneration rate modifiers carry over; flat and percent life regeneration apply to energy shield without them, as PoB does
-omitted resolute_technique global, uses 1: hits can't be evaded: the chance to hit of attacks is not given yet
 unknown spell_block_%_while_at_max_power_charges global, uses 1: condition: at maximum Power Charges
 unvalidated trap_damage_penetrates_%_elemental_resistance global, uses 1: that the damage of a skill with the Trapped type is trap damage is our reading, as PoB's
 unknown warcry_physical_damage_reduction_rating_+%_per_5_power_for_8_seconds global, uses 1: condition: Warcry used in the past 8 seconds, and its Power
