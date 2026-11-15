@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
@@ -184,5 +186,208 @@ func TestSpellHitOutputs(t *testing.T) {
 	attack.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemCleave", Level: 20}}})
 	if _, ok := simulate(t, s, attack).Get(poe1.AverageHit); ok {
 		t.Error("an attack has an average hit")
+	}
+}
+
+// With EverySkill a result gives each skill's outputs. Fireball is the main skill: its values are
+// the outputs', which are those of a run without EverySkill. Freezing Pulse, in another group,
+// has the values it has as the main skill; Haste, an aura, has a cost and no hit. A Vaal Flicker
+// Strike choosing its Vaal skill's second stat set does not warn about its regular skill, which
+// has one set.
+func TestEverySkill(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	b := marauderBuild(90)
+	flicker := build.Gem{ID: gems + "SkillGemVaalFlickerStrike", Level: 20, StatSet: 1}
+	for _, g := range [][]build.Gem{
+		{{ID: gems + "SkillGemFireball", Level: 20}, {ID: gems + "SupportGemAddedFireDamage", Level: 20, Support: true}},
+		{{ID: gems + "SkillGemFreezingPulse", Level: 18}},
+		{{ID: gems + "SkillGemHaste", Level: 20}},
+		{flicker},
+	} {
+		b.Skills.AddGroup(build.SkillGroup{Gems: g})
+	}
+	sheet := simulate(t, s, b)
+	st := simulate(t, s, b, simulator.EverySkill())
+	if len(sheet.Skills()) != 0 {
+		t.Errorf("skills %v without EverySkill", sheet.Skills())
+	}
+	for _, k := range sheet.Keys() {
+		if get(t, st, k) != get(t, sheet, k) {
+			t.Errorf("%s %v with EverySkill, %v without", k, get(t, st, k), get(t, sheet, k))
+		}
+	}
+	refs := make([]simulator.SkillRef, 0, len(st.Skills()))
+	for _, ss := range st.Skills() {
+		refs = append(refs, ss.Ref)
+	}
+	fireball, pulse, haste := simulator.SkillRef{}, simulator.SkillRef{Group: 1}, simulator.SkillRef{Group: 2}
+	want := []simulator.SkillRef{fireball, pulse, haste, {Group: 3}, {Group: 3, Skill: 1}}
+	if !slices.Equal(refs, want) {
+		t.Fatalf("skills %v, want %v", refs, want)
+	}
+	sameAs := func(ref simulator.SkillRef, main *simulator.Stats) {
+		t.Helper()
+		ss := st.Skill(ref)
+		var skillKeys []output.Key
+		for _, o := range s.Outputs() {
+			if o.IsSkill() && slices.Contains(main.Keys(), o.Key) {
+				skillKeys = append(skillKeys, o.Key)
+			}
+		}
+		if !slices.Equal(ss.Keys(), skillKeys) {
+			t.Errorf("%v: outputs %v, want the main skill's %v", ref, ss.Keys(), skillKeys)
+		}
+		for _, k := range skillKeys {
+			if v, _ := ss.Get(k); v != get(t, main, k) {
+				t.Errorf("%v: %s %v, want %v", ref, k, v, get(t, main, k))
+			}
+		}
+	}
+	sameAs(fireball, sheet)
+	asMain := b.Clone()
+	asMain.Skills.MainGroup = 1
+	sameAs(pulse, simulate(t, s, asMain))
+	if _, ok := st.Skill(haste).Get(poe1.AverageHit); ok {
+		t.Error("Haste has an average hit")
+	}
+	if _, ok := st.Skill(haste).Get(poe1.ManaCost); !ok {
+		t.Error("Haste has no mana cost")
+	}
+	if slices.ContainsFunc(st.Warnings(), func(w simulator.Warning) bool { return w.Code == resolve.StatSetUnknown }) {
+		t.Errorf("warnings %v, want none about Vaal Flicker Strike's stat set", st.Warnings())
+	}
+	data, err := json.Marshal(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validate(t, "Stats", data)
+}
+
+// Compare and Sweep read a named skill's outputs: Freezing Pulse, outside the main group, gains
+// average hit with its level, and a sweep ranked by it puts the higher level first and gives its
+// changes on the fast path too.
+func TestSkillChanges(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	b := chieftainWithHelmet(t, s)
+	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: gems + "SkillGemFireball", Level: 20}}})
+	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: gems + "SkillGemFreezingPulse", Level: 10}}})
+	pulse := simulator.SkillRef{Group: 1}
+	up := b.Clone()
+	if err := up.Apply(build.SetGemLevel(1, 0, 20)); err != nil {
+		t.Fatal(err)
+	}
+	d, err := s.Compare(b, up, simulator.EverySkill())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := d.GetSkill(pulse, poe1.AverageHit); !c.Has || c.Abs <= 0 {
+		t.Errorf("Freezing Pulse's average hit from level 10 to 20: %+v, want a gain", c)
+	}
+	if c := d.Get(poe1.AverageHit); !c.Has || c.Abs != 0 {
+		t.Errorf("main skill's average hit: %+v, want no change", c)
+	}
+	node := []build.Edit{build.Deallocate(b.Nodes[len(b.Nodes)-1])}
+	if fast, err := simulator.FastPath(s, b, node); err != nil || !fast {
+		t.Fatalf("deallocating a node: fast path %v, %v", fast, err)
+	}
+	results, err := s.Sweep(b, [][]build.Edit{{build.SetGemLevel(1, 0, 11)}, {build.SetGemLevel(1, 0, 20)}, {build.SetGemLevel(0, 0, 1)}, node},
+		simulator.Outputs(poe1.Life), simulator.RankBySkill(pulse, poe1.AverageHit))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order := []int{results[0].Index, results[1].Index}; !slices.Equal(order, []int{1, 0}) {
+		t.Errorf("ranked %v, want level 20 then 11", order)
+	}
+	for _, r := range results {
+		if _, ok := r.SkillChanges[pulse][poe1.AverageHit]; !ok || r.Err != nil {
+			t.Errorf("variant %d: %v, %v; want Freezing Pulse's average hit", r.Index, r.SkillChanges, r.Err)
+		}
+	}
+	for def, v := range map[string]any{"Diff": d, "Result": results[0]} {
+		data, err := json.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		validate(t, def, data)
+	}
+}
+
+// A skill the dataset does not resolve, one without levels, warns with EverySkill, and the run
+// goes on without its outputs.
+func TestSkillUnresolved(t *testing.T) {
+	t.Parallel()
+	d := testDataset("3.29.3.3", 20)
+	d.Skills = &dataset.Skills{
+		Gems: []dataset.Gem{{
+			ID: "Metadata/Items/Gems/SkillGemNoLevels", Colour: dataset.Blue,
+			Effects: []dataset.GemEffect{{ID: "NoLevels", GrantedEffect: "NoLevels", Style: dataset.DefaultStyle}},
+		}},
+		GrantedEffects: []dataset.GrantedEffect{{ID: "NoLevels", ActiveSkill: "no_levels"}},
+		ActiveSkills:   []dataset.ActiveSkill{{ID: "no_levels"}},
+	}
+	s, err := simulator.New(storeOf(t, d))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := marauderBuild(90)
+	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemNoLevels", Level: 1}}})
+	st := simulate(t, s, b, simulator.EverySkill())
+	if !slices.Contains(codes(st), simulator.SkillUnresolved) || len(st.Skills()) != 0 {
+		t.Errorf("warnings %v, skills %v; want %s and no skills", st.Warnings(), st.Skills(), simulator.SkillUnresolved)
+	}
+	if slices.Contains(codes(simulate(t, s, b)), simulator.SkillUnresolved) {
+		t.Errorf("warns %s without EverySkill", simulator.SkillUnresolved)
+	}
+}
+
+// A ref is a position: after removing a group before it, another skill is there, so Compare and
+// Sweep give no change for it, while the skill before the removed group keeps its change.
+func TestSkillMovedByEdit(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	b := marauderBuild(90)
+	for _, id := range []string{"SkillGemFireball", "SkillGemFreezingPulse", "SkillGemArc"} {
+		b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: gems + id, Level: 20}}})
+	}
+	edit := []build.Edit{build.RemoveSkillGroup(1)}
+	removed := b.Clone()
+	if err := removed.Apply(edit...); err != nil {
+		t.Fatal(err)
+	}
+	fireball, moved := simulator.SkillRef{}, simulator.SkillRef{Group: 1}
+	d, err := s.Compare(b, removed, simulator.EverySkill())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := d.GetSkill(moved, poe1.AverageHit); c.Has {
+		t.Errorf("group 2, Freezing Pulse before and Arc after: %+v, want no change", c)
+	}
+	if c := d.GetSkill(fireball, poe1.AverageHit); !c.Has {
+		t.Error("Fireball has no change")
+	}
+	data, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var w struct {
+		SkillChanges []simulator.SkillRef `json:"skillChanges"`
+	}
+	if err := json.Unmarshal(data, &w); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(w.SkillChanges, []simulator.SkillRef{fireball}) {
+		t.Errorf("wire skill changes %v, want Fireball's alone", w.SkillChanges)
+	}
+	results, err := s.Sweep(b, [][]build.Edit{edit}, simulator.EverySkill())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := results[0].SkillChanges[moved]; ok || results[0].SkillChanges[fireball] == nil {
+		t.Errorf("sweep skill changes %v, want Fireball's alone", results[0].SkillChanges)
 	}
 }

@@ -22,6 +22,7 @@ const (
 	optOutputs
 	optRankBy
 	optWorkers
+	optEverySkill
 )
 
 // Option configures a sim (Configure) or one call (Simulate, Compare).
@@ -30,6 +31,7 @@ type Option struct {
 	key     string
 	values  config.Values
 	outputs []output.Key
+	skill   *SkillRef
 	workers int
 	err     error
 }
@@ -61,19 +63,45 @@ func Outputs(keys ...output.Key) Option {
 // order. The output is computed even when Outputs does not list it.
 func RankBy(k output.Key) Option { return Option{kind: optRankBy, outputs: []output.Key{k}} }
 
+// RankBySkill is RankBy for output k of the skill at ref, an output of the skill group. That
+// skill's outputs are computed as with EverySkill; a variant without the skill sorts last.
+func RankBySkill(ref SkillRef, k output.Key) Option {
+	return Option{kind: optRankBy, outputs: []output.Key{k}, skill: &ref}
+}
+
+// EverySkill makes a call compute the outputs of the skill group of each skill of the build,
+// the main skill included (Stats.Skills), besides those of the main skill it always computes.
+// Each skill costs a reading of those outputs.
+func EverySkill() Option { return Option{kind: optEverySkill} }
+
 // Workers sets how many goroutines a sweep runs, each on its own sheet; 0 or less means
 // runtime.GOMAXPROCS. Results do not depend on it.
 func Workers(n int) Option { return Option{kind: optWorkers, workers: n} }
 
-// callOptions are the options of one call: config values set and keys cleared, outputs, and
-// for sweeps the ranking and workers.
+// callOptions are the options of one call: config values set and keys cleared, outputs, the
+// skills whose outputs are computed besides the main skill's, and for sweeps the ranking and
+// workers.
 type callOptions struct {
 	set     config.Values
 	cleared map[string]bool
 	outputs []output.Key
+	skills  skillAsk
 	rankBy  output.Key
-	workers int
+	// rankSkill is the skill rankBy is read in; nil for the outputs themselves.
+	rankSkill *SkillRef
+	workers   int
 }
+
+// skillAsk is which skills a call computes the outputs of: every skill, or those listed.
+type skillAsk struct {
+	every bool
+	refs  []SkillRef
+}
+
+// any reports whether the call asks for any skill's outputs.
+func (a skillAsk) any() bool { return a.every || len(a.refs) > 0 }
+
+func (a skillAsk) wants(ref SkillRef) bool { return a.every || slices.Contains(a.refs, ref) }
 
 func readCallOptions(opts []Option) (callOptions, error) {
 	co := callOptions{set: config.Values{}, cleared: map[string]bool{}}
@@ -91,7 +119,12 @@ func readCallOptions(opts []Option) (callOptions, error) {
 		case optOutputs:
 			co.outputs = append(co.outputs, o.outputs...)
 		case optRankBy:
-			co.rankBy = o.outputs[0]
+			co.rankBy, co.rankSkill = o.outputs[0], o.skill
+			if o.skill != nil {
+				co.skills.refs = append(co.skills.refs, *o.skill)
+			}
+		case optEverySkill:
+			co.skills.every = true
 		case optWorkers:
 			co.workers = o.workers
 		}

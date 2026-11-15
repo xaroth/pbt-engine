@@ -136,8 +136,7 @@ func sketchRun() []sketchPart {
 		{name: "simulate against a map boss", run: sketchSimulate},
 		{name: "a build the dataset cannot take is ErrUnreconcilable", run: sketchUnreconcilable},
 		{name: "read an output", run: sketchGet},
-		{name: "read a skill's average hit", code: `stats.Skill(fireball).Get(poe1.AverageHit)`,
-			needs: []need{needSkillSim("simulator.Stats.Skill", "poe1.AverageHit")}},
+		{name: "read a skill's average hit", run: sketchSkillHit},
 		{name: "a gem not in the dataset warns", run: sketchGemWarning},
 		{name: "a condition with no source warns", code: `stats.Warnings() // {Code: NoConditionSource, Subject: "enemy.shocked", ...}`,
 			needs: []need{needDerived("simulator.NoConditionSource")}},
@@ -466,6 +465,13 @@ func sketchGemWarning(t *testing.T, s *sketchState) {
 		return w.Code == build.GemUnknown && strings.Contains(w.Message, "SkillGemSupportNothing")
 	}) {
 		t.Errorf("warnings %v, want the unknown gem", warnings)
+	}
+}
+
+func sketchSkillHit(t *testing.T, s *sketchState) {
+	stats := simulate(t, s.sim, s.next, simulator.EverySkill())
+	if _, ok := stats.Skill(simulator.SkillRef{Group: 0, Gem: 0}).Get(poe1.AverageHit); !ok {
+		t.Error("no average hit of Fireball")
 	}
 }
 

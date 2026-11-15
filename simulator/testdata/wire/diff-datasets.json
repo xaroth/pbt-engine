@@ -50,7 +50,8 @@
         "message": "build for 3.29, simulated on dataset 3.28.0.16"
       }
     ],
-    "skill": null
+    "skill": null,
+    "skills": []
   },
   "after": {
     "version": "3.29.3.3",
@@ -97,7 +98,8 @@
       }
     ],
     "warnings": [],
-    "skill": null
+    "skill": null,
+    "skills": []
   },
   "changes": [
     {
@@ -193,5 +195,6 @@
         }
       ]
     }
-  ]
+  ],
+  "skillChanges": []
 }

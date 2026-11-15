@@ -44,7 +44,8 @@
       }
     ],
     "warnings": [],
-    "skill": null
+    "skill": null,
+    "skills": []
   },
   "after": {
     "version": "3.29.3.3",
@@ -97,7 +98,8 @@
         "message": "allocated mastery with no effect chosen; it counts towards its group only"
       }
     ],
-    "skill": null
+    "skill": null,
+    "skills": []
   },
   "changes": [
     {
@@ -170,5 +172,6 @@
       ]
     }
   ],
-  "dataChanges": []
+  "dataChanges": [],
+  "skillChanges": []
 }

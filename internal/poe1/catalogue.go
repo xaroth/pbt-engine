@@ -217,13 +217,18 @@ func group(g string, outputs []Output) []Output {
 	return outputs
 }
 
-// Output returns the value of catalogue output k.
-func (sh *Sheet) Output(k output.Key) (float64, error) {
+// Output returns the value of catalogue output k, an output of the skill group in the main
+// skill's context: the sheet's first skill.
+func (sh *Sheet) Output(k output.Key) (float64, error) { return sh.SkillOutput(0, k) }
+
+// SkillOutput returns the value of catalogue output k, an output of the skill group in the
+// context of skill i of SetSkills.
+func (sh *Sheet) SkillOutput(i int, k output.Key) (float64, error) {
 	o, ok := sh.outputs[k]
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
-	n, err := sh.outputNode(o)
+	n, err := sh.outputNode(o, i)
 	if err != nil {
 		return 0, err
 	}
@@ -234,10 +239,10 @@ func (sh *Sheet) Output(k output.Key) (float64, error) {
 	return v, nil
 }
 
-// outputNode returns the node o reads: a skill output's in the main skill's context (the
-// sheet's first skill), for its damage type, a hit output's for hits and a damage over time
-// output's for damage over time; ErrSkill when the sheet has no skill.
-func (sh *Sheet) outputNode(o Output) (core.Node, error) {
+// outputNode returns the node o reads: a skill output's in the context of skill i, for its
+// damage type, a hit output's for hits and a damage over time output's for damage over time;
+// ErrSkill when the sheet has no skill i.
+func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	if !o.IsSkill() {
 		return core.Node{Stat: sh.stats[o.stat]}, nil
 	}
@@ -254,7 +259,7 @@ func (sh *Sheet) outputNode(o Output) (core.Node, error) {
 	case needsHit, needsRate, needsSpellHit, needsSpellRate:
 		form = formHit
 	}
-	return sh.skillNode(0, o.stat, damage, form)
+	return sh.skillNode(i, o.stat, damage, form)
 }
 
 // outputsByKey returns the catalogue by key.

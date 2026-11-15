@@ -115,6 +115,21 @@ func BenchmarkSimulateReal(b *testing.B) {
 	}
 }
 
+// BenchmarkSimulateEverySkillReal is BenchmarkSimulateReal with every skill's outputs
+// (simulator.EverySkill).
+func BenchmarkSimulateEverySkillReal(b *testing.B) {
+	s, cases := realBench(b)
+	for _, c := range cases {
+		b.Run(c.Name, func(b *testing.B) {
+			simulate(b, s, c.Build, simulator.EverySkill())
+			b.ReportAllocs()
+			for b.Loop() {
+				simulate(b, s, c.Build, simulator.EverySkill())
+			}
+		})
+	}
+}
+
 // BenchmarkSweepReal is a hover preview on each benchmark build: one variant that allocates the
 // path to a notable, every output.
 func BenchmarkSweepReal(b *testing.B) {

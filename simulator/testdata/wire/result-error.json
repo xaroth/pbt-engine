@@ -11,6 +11,7 @@
     }
   ],
   "changes": [],
+  "skillChanges": [],
   "warnings": [],
   "error": "simulator: edit 0: build: no such skill group or gem: set-gem-level: group 5"
 }

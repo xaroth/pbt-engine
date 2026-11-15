@@ -25,8 +25,10 @@ type Stats struct {
 	checked  *build.Checked
 	items    []poe1.Item
 	skill    *resolve.Skill
-	// skills are the sheet's skills, the main skill first.
-	skills []*resolve.Skill
+	// sheetSkills are the sheet's skills, the main skill first.
+	sheetSkills []*resolve.Skill
+	// perSkill are the outputs of each skill asked for, as Skills returns them.
+	perSkill []SkillStats
 	// enemy is what the main skill's hits are measured against.
 	enemy poe1.EnemyStats
 	sim   *Sim
@@ -149,8 +151,8 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	if err := sh.SetItems(st.items); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
-	if len(st.skills) > 0 {
-		if err := sh.SetSkills(st.skills); err != nil {
+	if len(st.sheetSkills) > 0 {
+		if err := sh.SetSkills(st.sheetSkills); err != nil {
 			return nil, fmt.Errorf("simulator: explain: %w", err)
 		}
 	}

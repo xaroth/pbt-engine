@@ -14,6 +14,7 @@ import (
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 )
 
@@ -23,11 +24,14 @@ import (
 // about the base build are Simulate's of the base. A variant that cannot be simulated has Err
 // and no changes; the sweep goes on.
 type Result struct {
-	Index    int
-	Edits    []build.Edit
-	Changes  map[output.Key]Change
-	Warnings []Warning
-	Err      error
+	Index   int
+	Edits   []build.Edit
+	Changes map[output.Key]Change
+	// SkillChanges are the changes of the outputs of each skill asked for (EverySkill,
+	// RankBySkill) that the base and the variant both have at the same ref, by skill.
+	SkillChanges map[SkillRef]map[output.Key]Change
+	Warnings     []Warning
+	Err          error
 }
 
 // Sweep simulates each variant (edits applied to a clone of base) and returns the results in
@@ -45,15 +49,20 @@ func (s *Sim) Sweep(base *build.Build, variants [][]build.Edit, opts ...Option) 
 	co, _ := readCallOptions(opts)
 	if co.rankBy != "" {
 		slices.SortStableFunc(out, func(a, b Result) int {
-			return cmp.Compare(rankValue(b, co.rankBy), rankValue(a, co.rankBy))
+			return cmp.Compare(rankValue(b, co.rankSkill, co.rankBy), rankValue(a, co.rankSkill, co.rankBy))
 		})
 	}
 	return out, nil
 }
 
-// rankValue is a result's change in k; failed results sort last.
-func rankValue(r Result, k output.Key) float64 {
-	if c, ok := r.Changes[k]; ok && r.Err == nil {
+// rankValue is a result's change in k, of the skill at ref unless it is nil; failed results
+// sort last.
+func rankValue(r Result, ref *SkillRef, k output.Key) float64 {
+	changes := r.Changes
+	if ref != nil {
+		changes = r.SkillChanges[*ref]
+	}
+	if c, ok := changes[k]; ok && r.Err == nil {
 		return c.Abs
 	}
 	return math.Inf(-1)
@@ -101,10 +110,12 @@ func (s *Sim) SweepEach(base *build.Build, variants [][]build.Edit, opts ...Opti
 
 // sweep is a sweep's shared state: the base run, its values, the outputs and the options.
 type sweep struct {
-	sim      *Sim
-	base     *run
-	keys     []output.Key
-	before   map[output.Key]float64
+	sim    *Sim
+	base   *run
+	keys   []output.Key
+	before map[output.Key]float64
+	// skills are the base's outputs of each skill asked for.
+	skills   []baseSkill
 	co       callOptions
 	snapshot config.Values
 	workers  int
@@ -142,7 +153,26 @@ func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
 	if workers <= 0 {
 		workers = runtime.GOMAXPROCS(0)
 	}
-	return &sweep{sim: s, base: r, keys: st.keys, before: st.values, co: co, snapshot: snapshot, workers: workers, tree: r.checked.Tree()}, nil
+	return &sweep{
+		sim: s, base: r, keys: st.keys, before: st.values, skills: baseSkills(r, st.perSkill),
+		co: co, snapshot: snapshot, workers: workers, tree: r.checked.Tree(),
+	}, nil
+}
+
+// baseSkill is a skill's outputs on the base sheet, and its slot there.
+type baseSkill struct {
+	SkillStats
+
+	slot int
+}
+
+func baseSkills(r *run, skills []SkillStats) []baseSkill {
+	out := make([]baseSkill, 0, len(skills))
+	for _, ss := range skills {
+		slot := slices.IndexFunc(r.skills.Skills, func(sk *resolve.Skill) bool { return refOf(sk) == ss.Ref })
+		out = append(out, baseSkill{SkillStats: ss, slot: slot})
+	}
+	return out
 }
 
 // work runs variants from jobs on its own sheet of the base's shape, switched to the base.
@@ -332,7 +362,17 @@ func (sw *sweep) fast(sh *poe1.Sheet, p switchPlan) Result {
 	for _, ne := range p.effectsOn {
 		sh.SetMasteryEffect(ne[0], ne[1], true)
 	}
-	changes, err := readChanges(sw.keys, sw.before, sh.Output)
+	r := Result{Warnings: p.warnings}
+	var err error
+	r.Changes, err = readChanges(sw.keys, sw.before, sh.Output)
+	for _, bs := range sw.skills {
+		if err != nil {
+			break
+		}
+		var changes map[output.Key]Change
+		changes, err = readChanges(bs.keys, bs.values, func(k output.Key) (float64, error) { return sh.SkillOutput(bs.slot, k) })
+		r.SkillChanges = withSkill(r.SkillChanges, bs.Ref, changes)
+	}
 	if rerr := sh.Revert(cp); rerr != nil && err == nil {
 		err = fmt.Errorf("simulator: %w", rerr)
 	}
@@ -340,7 +380,16 @@ func (sw *sweep) fast(sh *poe1.Sheet, p switchPlan) Result {
 	if err != nil {
 		return Result{Warnings: p.warnings, Err: err}
 	}
-	return Result{Changes: changes, Warnings: p.warnings}
+	return r
+}
+
+// withSkill returns all with the changes of the skill at ref added, made when nil.
+func withSkill(all map[SkillRef]map[output.Key]Change, ref SkillRef, changes map[output.Key]Change) map[SkillRef]map[output.Key]Change {
+	if all == nil {
+		all = map[SkillRef]map[output.Key]Change{}
+	}
+	all[ref] = changes
+	return all
 }
 
 // readChanges reads each output against its value before, and none when any read fails.
@@ -375,14 +424,26 @@ func (sw *sweep) full(edits []build.Edit) Result {
 	if err != nil {
 		return Result{Err: err}
 	}
-	r := Result{Changes: make(map[output.Key]Change, len(sw.keys)), Warnings: sw.base.checked.EditWarnings(edits)}
-	for _, k := range sw.keys {
-		// A skill output is gone when an edit leaves the build without a main skill.
-		if v, ok := st.values[k]; ok {
-			r.Changes[k] = change(sw.before[k], v)
+	r := Result{Changes: changesOf(sw.keys, sw.before, st.values), Warnings: sw.base.checked.EditWarnings(edits)}
+	for _, bs := range sw.skills {
+		// Another skill at the ref, after an edit before it, is not this skill's change.
+		if after := st.Skill(bs.Ref); after.GrantedEffect == bs.GrantedEffect {
+			r.SkillChanges = withSkill(r.SkillChanges, bs.Ref, changesOf(bs.keys, bs.values, after.values))
 		}
 	}
 	return r
+}
+
+// changesOf returns the change of each of keys from before to after that after has: a skill
+// output is gone when an edit leaves the build without the skill.
+func changesOf(keys []output.Key, before, after map[output.Key]float64) map[output.Key]Change {
+	out := make(map[output.Key]Change, len(keys))
+	for _, k := range keys {
+		if v, ok := after[k]; ok {
+			out[k] = change(before[k], v)
+		}
+	}
+	return out
 }
 
 func change(before, after float64) Change {
