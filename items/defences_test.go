@@ -79,8 +79,8 @@ func TestParseDefenceDiffers(t *testing.T) {
 }
 
 // TestParseArmourBase reads Path of Building's text of armour: its base percentiles as rolls,
-// and the variant of a base of one name by the defences the text prints where the implicits do
-// not tell.
+// the variant of a base of one name by the defences the text prints where the implicits do not
+// tell, and a unique's defence line as local though no mod of that stat rolls on the base.
 func TestParseArmourBase(t *testing.T) {
 	t.Parallel()
 	r, _ := realReader(t)
@@ -89,6 +89,8 @@ func TestParseArmourBase(t *testing.T) {
 	beacon := "Rarity: UNIQUE\nBeacon of Madness\nTwo-Toned Boots (Armour/Evasion)\nArmour: 458\nArmourBasePercentile: 0.1093\n" +
 		"Evasion: 458\nEvasionBasePercentile: 0.1093\nQuality: 20\nImplicits: 1\n{vestigial}+1 to Maximum Frenzy Charges\n" +
 		"198% increased Armour and Evasion\n"
+	sinTrek := "Rarity: UNIQUE\nSin Trek\nStealth Boots\nQuality: 20\nImplicits: 1\n" +
+		"{vestigial}Action Speed cannot be modified to below Base Value\n+148 to maximum Energy Shield\n"
 	for _, tc := range []struct {
 		name, text, base string
 		rolls            map[build.Defence]float64
@@ -105,6 +107,8 @@ func TestParseArmourBase(t *testing.T) {
 			rolls: map[build.Defence]float64{build.DefenceArmour: 0.1093, build.DefenceEvasion: 0.1093},
 			stat:  "local_armour_and_evasion_+%",
 		},
+		// Stealth Boots have no energy shield; the line's 148 at 20% quality is 178, as PoB has it.
+		{name: "Sin Trek", text: sinTrek, base: "Metadata/Items/Armours/Boots/BootsDex8", stat: "local_energy_shield"},
 	} {
 		it, _, err := r.Parse(tc.text)
 		if err != nil {

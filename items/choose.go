@@ -6,6 +6,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1/itemdefence"
 	"github.com/xaroth/pbt-engine/statdesc"
 )
 
@@ -156,13 +157,27 @@ func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind,
 
 // preferLocal returns the readings of rs with a local stat that rolls on t, or rs when there are
 // none. A unique's local stat can read as a global stat the unique has, as with a sword's
-// "+190 to Armour", so only a local stat that rolls on the base counts.
+// "+190 to Armour", so only a local stat that rolls on the base counts. On a unique armour a
+// stat of the item's own defences counts too, as on Sin Trek's "+148 to maximum Energy Shield" on
+// evasion boots: Path of Building reads defence lines on armour as local.
 func (r *Reader) preferLocal(rs []statdesc.RangeReading, t target) []statdesc.RangeReading {
 	rolls := func(m *dataset.Mod) bool { return slices.Contains(t.base.Implicits, m.ID) || spawnsOn(m, t.tags) }
-	local, _, _ := r.narrow(rs, []step{{mods: rolls, also: func(rd statdesc.RangeReading) bool {
+	local, _, ok := r.narrow(rs, []step{{mods: rolls, also: func(rd statdesc.RangeReading) bool {
 		return slices.ContainsFunc(rd.Stats, isLocal)
 	}}})
-	return local
+	if ok || t.base.Armour == nil || t.rarity != build.Unique {
+		return local
+	}
+	var defence []statdesc.RangeReading
+	for _, rd := range rs {
+		if slices.ContainsFunc(rd.Stats, itemdefence.IsLocal) {
+			defence = append(defence, rd)
+		}
+	}
+	if len(defence) == 0 {
+		return rs
+	}
+	return defence
 }
 
 // finish returns rd with the values the mods of step s store, and the warnings of s and of the
