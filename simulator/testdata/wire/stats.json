@@ -452,6 +452,21 @@
       "key": "enemy-shock-effect",
       "value": 0,
       "source": "default"
+    },
+    {
+      "key": "enemy-fire-exposure",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "enemy-cold-exposure",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "enemy-lightning-exposure",
+      "value": false,
+      "source": "default"
     }
   ]
 }
