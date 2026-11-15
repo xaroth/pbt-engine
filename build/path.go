@@ -94,8 +94,9 @@ func Crosses(from, to *dataset.Node, fromAllocated bool) bool {
 }
 
 // DeallocateBranch returns the edits that deallocate node and the allocated nodes joined to the
-// class, ascendancy or bloodline start only through it, and clear the mastery choices of those.
-// Nodes not joined before stay, as jewels can make them legal. It reports false when node is
+// class, ascendancy or bloodline start, or to a passive a jewel lets be allocated without a
+// connection, only through it, and clear the mastery choices of those. Deallocating a jewel's
+// socket takes the passives it held. Nodes not joined before stay. It reports false when node is
 // not allocated.
 func (c *Checked) DeallocateBranch(node uint32) ([]Edit, bool) {
 	allocated := c.allocatedSet()
@@ -152,10 +153,15 @@ func (c *Checked) starts() map[uint32]bool {
 }
 
 // joined returns the nodes a path of allocated nodes joins to the class, ascendancy or
-// bloodline start, the starts included.
+// bloodline start, the starts included, or to a passive that a jewel in a socket so joined lets
+// be allocated without a connection.
 func (c *Checked) joined(allocated map[uint32]bool) map[uint32]bool {
 	starts := c.starts()
 	allowed := maps.Clone(allocated)
 	maps.Copy(allowed, starts)
-	return c.reach(slices.Sorted(maps.Keys(starts)), allowed)
+	reached := map[uint32]bool{}
+	for roots := slices.Sorted(maps.Keys(starts)); len(roots) > 0; roots = c.unconnectedRoots(allocated, reached) {
+		c.reach(roots, allowed, reached)
+	}
+	return reached
 }

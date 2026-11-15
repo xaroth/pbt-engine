@@ -131,7 +131,7 @@ func TestCheckJewelsNoItemsGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff([]build.Code{build.NodesDisconnected, build.ItemsUnchecked, build.JewelNotSocket}, codesOf(warnings)); diff != "" {
+	if diff := cmp.Diff([]build.Code{build.ItemsUnchecked, build.JewelNotSocket, build.NodesDisconnected}, codesOf(warnings)); diff != "" {
 		t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
 	}
 	if diff := cmp.Diff(build.Jewels{70: jewel(ringBase)}, c.Build().Jewels); diff != "" {
