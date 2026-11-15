@@ -3,7 +3,6 @@ package poe1_test
 import (
 	"testing"
 
-	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
@@ -55,8 +54,8 @@ func TestMasteryCountWithoutCounter(t *testing.T) {
 }
 
 // TestLifeIfNoLifeOnBodyArmour: "15% increased maximum Life if there are no Life Modifiers on
-// Equipped Body Armour" applies unconditionally, since builds hold no items and an empty body
-// armour slot meets the condition. Level 90: 1134 life, 15% increased gives 1304.1.
+// Equipped Body Armour" applies without items, as an empty body armour slot meets the condition.
+// Level 90: 1134 life, 15% increased gives 1304.1.
 func TestLifeIfNoLifeOnBodyArmour(t *testing.T) {
 	t.Parallel()
 	bundles := append(endgame(),
@@ -65,9 +64,8 @@ func TestLifeIfNoLifeOnBodyArmour(t *testing.T) {
 	if got := value(t, sh, "maximum_life"); got != 1304 {
 		t.Errorf("life: got %v, want 1304", got)
 	}
-	notes := sh.Notes()
-	if len(notes) != 1 || notes[0].Kind != poe1.Unchecked || notes[0].Stat != "maximum_life_+%_if_no_life_tags_on_body_armour" {
-		t.Errorf("notes: got %v, want one unchecked note for the body armour condition", notes)
+	if notes := sh.Notes(); len(notes) != 0 {
+		t.Errorf("notes: got %v, want none: the body armour condition is checked", notes)
 	}
 }
 

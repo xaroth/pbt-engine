@@ -88,6 +88,8 @@ type Sim struct {
 	items func() (*items.Reader, error)
 	// bases indexes the dataset's item bases by id, on first use.
 	bases func() (map[string]*dataset.ItemBase, error)
+	// modTags indexes the tags of the dataset's mods, on first use.
+	modTags func() (*poe1.ModTags, error)
 
 	mu  sync.Mutex
 	cfg config.Values
@@ -197,6 +199,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 	s := &Sim{store: store, table: t, cfg: config.Values{}}
 	s.items = sync.OnceValues(func() (*items.Reader, error) { return items.NewReader(store) })
 	s.bases = sync.OnceValues(func() (map[string]*dataset.ItemBase, error) { return indexBases(store) })
+	s.modTags = sync.OnceValues(func() (*poe1.ModTags, error) { return indexModTags(store) })
 	if err := s.Configure(opts...); err != nil {
 		return nil, err
 	}
@@ -204,13 +207,14 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 }
 
 // Load makes now what the sim makes on the first call that needs it, so that call is as fast as
-// later ones: the item reader, the index of item bases, and what build.Load makes. One that fails
+// later ones: the item reader, the indexes of item bases and mod tags, and what build.Load makes. One that fails
 // to be made fails the call that needs it, as it would have without Load. It reads the groups of
 // the dataset it needs, which dataset.Store.Load can read first.
 func (s *Sim) Load() {
 	build.Load(s.store)
 	_, _ = s.items()
 	_, _ = s.bases()
+	_, _ = s.modTags()
 }
 
 // Store returns the sim's dataset.

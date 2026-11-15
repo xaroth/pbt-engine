@@ -49,6 +49,7 @@ func mechanics() []mechanic {
 		regenerationMechanic(),
 		conditionMechanic(),
 		heldMechanic(),
+		equipmentMechanic(),
 		chargeMechanic(),
 		spellBlockMechanic(),
 		movementMechanic(),

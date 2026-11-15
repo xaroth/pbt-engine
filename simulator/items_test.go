@@ -499,3 +499,28 @@ func TestNoEnergyShieldLine(t *testing.T) {
 		t.Errorf("warnings %v, want no roll assumed", st.Warnings())
 	}
 }
+
+// The Chieftain's mastery "15% increased maximum Life if there are no Life Modifiers on
+// Equipped Body Armour" counts with a body armour without them as without one, and not with one
+// that regenerates life, a Life Modifier that adds no maximum life of its own.
+func TestLifeModifiersOnBodyArmour(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	base := chieftainWithHelmet(t, s)
+	plate := func(text string) *build.Build {
+		it, _, err := s.Data().Item("Rarity: MAGIC\nAstral Plate\nArmour: 800\nItem Level: 85\nImplicits: 0\n" + text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return withItem(t, base.Clone(), build.SlotBodyArmour, it)
+	}
+	none := get(t, simulate(t, s, base), poe1.Life)
+	without := get(t, simulate(t, s, plate("+40% to Fire Resistance\n")), poe1.Life)
+	with := get(t, simulate(t, s, plate("Regenerate 20 Life per second\n")), poe1.Life)
+	if without != none {
+		t.Errorf("life with a body armour without Life Modifiers %v, without a body armour %v", without, none)
+	}
+	if with >= without {
+		t.Errorf("life with a body armour with a Life Modifier %v, want less than %v without", with, without)
+	}
+}

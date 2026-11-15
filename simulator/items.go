@@ -25,6 +25,18 @@ func indexBases(s *dataset.Store) (map[string]*dataset.ItemBase, error) {
 	return out, nil
 }
 
+func indexModTags(s *dataset.Store) (*poe1.ModTags, error) {
+	mods, err := s.Mods()
+	if err != nil {
+		return nil, err //nolint:wrapcheck // wrapped by the caller
+	}
+	stats, err := s.Stats()
+	if err != nil {
+		return nil, err //nolint:wrapcheck // wrapped by the caller
+	}
+	return poe1.NewModTags(mods, stats), nil
+}
+
 // compileItems sets the items of r's sheet from the checked build's items with their abyss jewels and the
 // jewels in its allocated sockets, each compiled once per content. On a dataset without the
 // items group they are left out with a warning.
@@ -62,7 +74,9 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 
 // compileItem adds to the items of r's sheet the item it in slot, then its abyss jewels. Each jewel counts
 // as part of its item: it shares the item's slot, weapon and shield, so the hands read the same
-// whichever of the two they meet last, and its index keeps two equal jewels apart.
+// whichever of the two they meet last, and its index keeps two equal jewels apart. Only a
+// body armour with stats is told whether it has Life Modifiers: only the body armour is asked,
+// and a line without stats is none.
 func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[string]*dataset.ItemBase) error {
 	abyss := it.AbyssJewels
 	it.AbyssJewels = nil
@@ -70,8 +84,17 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 	if err != nil {
 		return fmt.Errorf("simulator: item %s: %w", slot, err)
 	}
+	life := false
+	if slot == build.SlotBodyArmour && hasStats(it) {
+		tags, err := s.modTags()
+		if err != nil {
+			return fmt.Errorf("simulator: item %s: %w", slot, err)
+		}
+		life = tags.LifeModifiers(&it)
+	}
 	r.sheet.Items = append(r.sheet.Items, poe1.Item{
-		Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, Shield: c.Shield, MovementPenalty: c.MovementPenalty,
+		Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, Shield: c.Shield,
+		Armour: c.Armour, LifeModifiers: life, MovementPenalty: c.MovementPenalty,
 	})
 	if len(c.Assumed) > 0 {
 		r.warnings = append(r.warnings, Warning{
