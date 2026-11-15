@@ -4,9 +4,13 @@
     "label": "Cold Resistance",
     "unit": "%",
     "places": 0,
-    "group": "sheet",
+    "group": "resistances",
     "better": "higher",
-    "order": 13
+    "order": 16,
+    "related": {
+      "maximum": "player.maximum_cold_resistance",
+      "uncapped": "player.uncapped_cold_resistance"
+    }
   },
   "view": "tree",
   "version": "3.29.3.3",

@@ -2,6 +2,8 @@ package poe1_test
 
 import (
 	"errors"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/internal/poe1"
@@ -36,13 +38,15 @@ func TestOutputs(t *testing.T) {
 func TestOutputKeys(t *testing.T) {
 	t.Parallel()
 	keys := []output.Key{
-		poe1.Strength, poe1.Dexterity, poe1.Intelligence, poe1.Life, poe1.ReservedLife, poe1.UnreservedLife, poe1.Mana,
-		poe1.ReservedMana, poe1.UnreservedMana,
-		poe1.EnergyShield, poe1.Armour,
-		poe1.EvasionRating, poe1.FireResistance, poe1.ColdResistance, poe1.LightningResistance, poe1.ChaosResistance,
-		poe1.MaximumFireResistance, poe1.MaximumColdResistance, poe1.MaximumLightningResistance, poe1.MaximumChaosResistance,
-		poe1.UncappedFireResistance, poe1.UncappedColdResistance, poe1.UncappedLightningResistance, poe1.UncappedChaosResistance,
-		poe1.LifeRegeneration, poe1.ManaRegeneration, poe1.EnergyShieldRegeneration, poe1.MovementSpeed, poe1.SpellBlockChance,
+		poe1.Strength, poe1.Dexterity, poe1.Intelligence,
+		poe1.Life, poe1.ReservedLife, poe1.UnreservedLife, poe1.LifeRegeneration,
+		poe1.Mana, poe1.ReservedMana, poe1.UnreservedMana, poe1.ManaRegeneration,
+		poe1.EnergyShield, poe1.EnergyShieldRegeneration,
+		poe1.FireResistance, poe1.MaximumFireResistance, poe1.UncappedFireResistance,
+		poe1.ColdResistance, poe1.MaximumColdResistance, poe1.UncappedColdResistance,
+		poe1.LightningResistance, poe1.MaximumLightningResistance, poe1.UncappedLightningResistance,
+		poe1.ChaosResistance, poe1.MaximumChaosResistance, poe1.UncappedChaosResistance,
+		poe1.Armour, poe1.EvasionRating, poe1.SpellBlockChance, poe1.MovementSpeed,
 		poe1.PhysicalDamageModifier, poe1.FireDamageModifier, poe1.ColdDamageModifier, poe1.LightningDamageModifier,
 		poe1.ChaosDamageModifier, poe1.ManaCost, poe1.LifeCost,
 		poe1.AverageHit, poe1.MainHandAverageHit, poe1.OffHandAverageHit, poe1.AccuracyRating, poe1.HitChance,
@@ -67,15 +71,52 @@ func TestOutputKeys(t *testing.T) {
 	}
 }
 
-// Every output has a group and its display order is its position in the catalogue.
+// Every output has a group, the groups come in topic order, each once, and an output's display
+// order is its position in the catalogue.
 func TestOutputGroupsAndOrder(t *testing.T) {
 	t.Parallel()
+	var groups []string
 	for i, o := range poe1.Outputs() {
 		if o.Group == "" {
 			t.Errorf("%s has no group", o.Key)
 		}
 		if o.Order != i {
 			t.Errorf("%s: order %d, want %d", o.Key, o.Order, i)
+		}
+		if len(groups) == 0 || groups[len(groups)-1] != o.Group {
+			groups = append(groups, o.Group)
+		}
+	}
+	want := []string{
+		poe1.GroupAttributes, poe1.GroupLife, poe1.GroupMana, poe1.GroupEnergyShield, poe1.GroupResistances,
+		poe1.GroupDefences, poe1.GroupSkill,
+	}
+	if !slices.Equal(groups, want) {
+		t.Errorf("groups %v, want %v", groups, want)
+	}
+}
+
+// Each resistance relates to its maximum and its uncapped value, and only resistances relate to
+// others.
+func TestOutputRelated(t *testing.T) {
+	t.Parallel()
+	want := map[output.Key]map[string]output.Key{
+		poe1.FireResistance: {poe1.RelationMaximum: poe1.MaximumFireResistance, poe1.RelationUncapped: poe1.UncappedFireResistance},
+		poe1.ColdResistance: {poe1.RelationMaximum: poe1.MaximumColdResistance, poe1.RelationUncapped: poe1.UncappedColdResistance},
+		poe1.LightningResistance: {
+			poe1.RelationMaximum: poe1.MaximumLightningResistance, poe1.RelationUncapped: poe1.UncappedLightningResistance,
+		},
+		poe1.ChaosResistance: {poe1.RelationMaximum: poe1.MaximumChaosResistance, poe1.RelationUncapped: poe1.UncappedChaosResistance},
+	}
+	outputs := poe1.Outputs()
+	for _, o := range outputs {
+		if !maps.Equal(o.Related, want[o.Key]) {
+			t.Errorf("%s: related %v, want %v", o.Key, o.Related, want[o.Key])
+		}
+		for rel, k := range o.Related {
+			if !slices.ContainsFunc(outputs, func(r poe1.Output) bool { return r.Key == k && r.Group == o.Group }) {
+				t.Errorf("%s: %s %s is not an output of its group", o.Key, rel, k)
+			}
 		}
 	}
 }

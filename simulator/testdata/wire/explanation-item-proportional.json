@@ -4,9 +4,9 @@
     "label": "Armour",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "defences",
     "better": "higher",
-    "order": 10
+    "order": 25
   },
   "view": "proportional",
   "version": "3.29.3.6",

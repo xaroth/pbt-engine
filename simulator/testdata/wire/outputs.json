@@ -4,7 +4,7 @@
     "label": "Strength",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "attributes",
     "better": "higher",
     "order": 0
   },
@@ -13,7 +13,7 @@
     "label": "Dexterity",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "attributes",
     "better": "higher",
     "order": 1
   },
@@ -22,7 +22,7 @@
     "label": "Intelligence",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "attributes",
     "better": "higher",
     "order": 2
   },
@@ -31,7 +31,7 @@
     "label": "Life",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "life",
     "better": "higher",
     "order": 3
   },
@@ -40,7 +40,7 @@
     "label": "Reserved Life",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "life",
     "better": "lower",
     "order": 4
   },
@@ -49,214 +49,230 @@
     "label": "Unreserved Life",
     "unit": "",
     "places": 0,
-    "group": "sheet",
+    "group": "life",
     "better": "higher",
     "order": 5
-  },
-  {
-    "key": "player.mana",
-    "label": "Mana",
-    "unit": "",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 6
-  },
-  {
-    "key": "player.reserved_mana",
-    "label": "Reserved Mana",
-    "unit": "",
-    "places": 0,
-    "group": "sheet",
-    "better": "lower",
-    "order": 7
-  },
-  {
-    "key": "player.unreserved_mana",
-    "label": "Unreserved Mana",
-    "unit": "",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 8
-  },
-  {
-    "key": "player.energy_shield",
-    "label": "Energy Shield",
-    "unit": "",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 9
-  },
-  {
-    "key": "player.armour",
-    "label": "Armour",
-    "unit": "",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 10
-  },
-  {
-    "key": "player.evasion_rating",
-    "label": "Evasion Rating",
-    "unit": "",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 11
-  },
-  {
-    "key": "player.fire_resistance",
-    "label": "Fire Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 12
-  },
-  {
-    "key": "player.cold_resistance",
-    "label": "Cold Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 13
-  },
-  {
-    "key": "player.lightning_resistance",
-    "label": "Lightning Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 14
-  },
-  {
-    "key": "player.chaos_resistance",
-    "label": "Chaos Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 15
-  },
-  {
-    "key": "player.maximum_fire_resistance",
-    "label": "Maximum Fire Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 16
-  },
-  {
-    "key": "player.maximum_cold_resistance",
-    "label": "Maximum Cold Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 17
-  },
-  {
-    "key": "player.maximum_lightning_resistance",
-    "label": "Maximum Lightning Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 18
-  },
-  {
-    "key": "player.maximum_chaos_resistance",
-    "label": "Maximum Chaos Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 19
-  },
-  {
-    "key": "player.uncapped_fire_resistance",
-    "label": "Uncapped Fire Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 20
-  },
-  {
-    "key": "player.uncapped_cold_resistance",
-    "label": "Uncapped Cold Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 21
-  },
-  {
-    "key": "player.uncapped_lightning_resistance",
-    "label": "Uncapped Lightning Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 22
-  },
-  {
-    "key": "player.uncapped_chaos_resistance",
-    "label": "Uncapped Chaos Resistance",
-    "unit": "%",
-    "places": 0,
-    "group": "sheet",
-    "better": "higher",
-    "order": 23
   },
   {
     "key": "player.life_regeneration",
     "label": "Life Regeneration",
     "unit": "/s",
     "places": 1,
-    "group": "sheet",
+    "group": "life",
     "better": "higher",
-    "order": 24
+    "order": 6
+  },
+  {
+    "key": "player.mana",
+    "label": "Mana",
+    "unit": "",
+    "places": 0,
+    "group": "mana",
+    "better": "higher",
+    "order": 7
+  },
+  {
+    "key": "player.reserved_mana",
+    "label": "Reserved Mana",
+    "unit": "",
+    "places": 0,
+    "group": "mana",
+    "better": "lower",
+    "order": 8
+  },
+  {
+    "key": "player.unreserved_mana",
+    "label": "Unreserved Mana",
+    "unit": "",
+    "places": 0,
+    "group": "mana",
+    "better": "higher",
+    "order": 9
   },
   {
     "key": "player.mana_regeneration",
     "label": "Mana Regeneration",
     "unit": "/s",
     "places": 1,
-    "group": "sheet",
+    "group": "mana",
     "better": "higher",
-    "order": 25
+    "order": 10
+  },
+  {
+    "key": "player.energy_shield",
+    "label": "Energy Shield",
+    "unit": "",
+    "places": 0,
+    "group": "energy-shield",
+    "better": "higher",
+    "order": 11
   },
   {
     "key": "player.energy_shield_regeneration",
     "label": "Energy Shield Regeneration",
     "unit": "/s",
     "places": 1,
-    "group": "sheet",
+    "group": "energy-shield",
     "better": "higher",
-    "order": 26
+    "order": 12
   },
   {
-    "key": "player.movement_speed",
-    "label": "Movement Speed",
+    "key": "player.fire_resistance",
+    "label": "Fire Resistance",
     "unit": "%",
     "places": 0,
-    "group": "sheet",
+    "group": "resistances",
     "better": "higher",
-    "order": 27
+    "order": 13,
+    "related": {
+      "maximum": "player.maximum_fire_resistance",
+      "uncapped": "player.uncapped_fire_resistance"
+    }
+  },
+  {
+    "key": "player.maximum_fire_resistance",
+    "label": "Maximum Fire Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 14
+  },
+  {
+    "key": "player.uncapped_fire_resistance",
+    "label": "Uncapped Fire Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 15
+  },
+  {
+    "key": "player.cold_resistance",
+    "label": "Cold Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 16,
+    "related": {
+      "maximum": "player.maximum_cold_resistance",
+      "uncapped": "player.uncapped_cold_resistance"
+    }
+  },
+  {
+    "key": "player.maximum_cold_resistance",
+    "label": "Maximum Cold Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 17
+  },
+  {
+    "key": "player.uncapped_cold_resistance",
+    "label": "Uncapped Cold Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 18
+  },
+  {
+    "key": "player.lightning_resistance",
+    "label": "Lightning Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 19,
+    "related": {
+      "maximum": "player.maximum_lightning_resistance",
+      "uncapped": "player.uncapped_lightning_resistance"
+    }
+  },
+  {
+    "key": "player.maximum_lightning_resistance",
+    "label": "Maximum Lightning Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 20
+  },
+  {
+    "key": "player.uncapped_lightning_resistance",
+    "label": "Uncapped Lightning Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 21
+  },
+  {
+    "key": "player.chaos_resistance",
+    "label": "Chaos Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 22,
+    "related": {
+      "maximum": "player.maximum_chaos_resistance",
+      "uncapped": "player.uncapped_chaos_resistance"
+    }
+  },
+  {
+    "key": "player.maximum_chaos_resistance",
+    "label": "Maximum Chaos Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 23
+  },
+  {
+    "key": "player.uncapped_chaos_resistance",
+    "label": "Uncapped Chaos Resistance",
+    "unit": "%",
+    "places": 0,
+    "group": "resistances",
+    "better": "higher",
+    "order": 24
+  },
+  {
+    "key": "player.armour",
+    "label": "Armour",
+    "unit": "",
+    "places": 0,
+    "group": "defences",
+    "better": "higher",
+    "order": 25
+  },
+  {
+    "key": "player.evasion_rating",
+    "label": "Evasion Rating",
+    "unit": "",
+    "places": 0,
+    "group": "defences",
+    "better": "higher",
+    "order": 26
   },
   {
     "key": "player.spell_block_chance",
     "label": "Chance to Block Spell Damage",
     "unit": "%",
     "places": 0,
-    "group": "defence",
+    "group": "defences",
+    "better": "higher",
+    "order": 27
+  },
+  {
+    "key": "player.movement_speed",
+    "label": "Movement Speed",
+    "unit": "%",
+    "places": 0,
+    "group": "defences",
     "better": "higher",
     "order": 28
   },

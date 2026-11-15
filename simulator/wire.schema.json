@@ -24,7 +24,13 @@
         "places": { "type": "integer", "minimum": 0, "description": "Decimal places to show." },
         "group": { "$ref": "#/$defs/OutputGroup" },
         "better": { "$ref": "#/$defs/Better" },
-        "order": { "type": "integer", "minimum": 0, "description": "Position in the catalogue; lower shows first." }
+        "order": { "type": "integer", "minimum": 0, "description": "Position in the catalogue; lower shows first." },
+        "related": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Relation" },
+          "additionalProperties": { "type": "string" },
+          "description": "Optional; the keys of other outputs by their relation to this one, such as a resistance's maximum. Absent for an output with none."
+        }
       }
     },
     "Unit": {
@@ -34,8 +40,13 @@
     },
     "OutputGroup": {
       "title": "OutputGroup",
-      "description": "The panel an output is shown in: the character sheet, defences, or the main skill (read in its context).",
-      "enum": ["sheet", "defence", "skill"]
+      "description": "The topic an output is shown under. Groups come in this order in the catalogue; skill outputs are read in the main skill's context.",
+      "enum": ["attributes", "life", "mana", "energy-shield", "resistances", "defences", "skill"]
+    },
+    "Relation": {
+      "title": "Relation",
+      "description": "How a related output relates to an output: its maximum, or its value before the maximum applies.",
+      "enum": ["maximum", "uncapped"]
     },
     "Better": {
       "title": "Better",
@@ -56,6 +67,12 @@
         "group": { "$ref": "#/$defs/OutputGroup" },
         "better": { "$ref": "#/$defs/Better" },
         "order": { "type": "integer", "minimum": 0 },
+        "related": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Relation" },
+          "additionalProperties": { "type": "string" },
+          "description": "Optional; the keys of other outputs by their relation to this one, such as a resistance's maximum. Absent for an output with none."
+        },
         "value": { "type": "number" }
       }
     },
@@ -166,6 +183,12 @@
         "group": { "$ref": "#/$defs/OutputGroup" },
         "better": { "$ref": "#/$defs/Better" },
         "order": { "type": "integer", "minimum": 0 },
+        "related": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Relation" },
+          "additionalProperties": { "type": "string" },
+          "description": "Optional; the keys of other outputs by their relation to this one, such as a resistance's maximum. Absent for an output with none."
+        },
         "before": { "type": "number" },
         "after": { "type": "number" },
         "abs": { "type": "number", "description": "after - before." },
