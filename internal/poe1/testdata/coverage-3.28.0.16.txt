@@ -1,4 +1,4 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 293 authored, 114 unknown, 1 display-only, 0 gaps, 1434 outside
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 297 authored, 114 unknown, 1 display-only, 0 gaps, 1430 outside
 unknown by reason: condition 67, items 30, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -27,7 +27,7 @@ unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equi
 unvalidated strength_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 omitted base_elemental_status_ailment_duration_+% global, uses 6: the duration of the non-damaging elemental ailments, which the sheet does not give
 unvalidated base_physical_damage_%_to_convert_to_cold global, uses 6: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
-omitted chance_to_freeze_shock_ignite_% global, uses 6: the chance to Freeze and Shock, which the sheet does not give
+omitted chance_to_freeze_shock_ignite_% global, uses 6: the chance to Freeze, which the sheet does not give
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
 unvalidated X_to_armour_per_2_strength global, uses 5: the text says per 2 Strength; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
 unknown additional_maximum_all_elemental_resistances_%_if_all_equipment_grants_armour global, uses 5: items: depends on equipped items, which an entry cannot check yet
