@@ -6,6 +6,16 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
+// Engine stats of accuracy. accuracy_rating is an attack's accuracy rating; hits_cannot_be_evaded
+// is a flag that makes its hits always land. hit_chance is the chance to hit in percent, and
+// effective_critical_strike_chance the chance that a use of the skill hits and is critical.
+const (
+	statAccuracyRating                = "accuracy_rating"
+	statHitsCannotBeEvaded            = "hits_cannot_be_evaded"
+	statHitChance                     = "hit_chance"
+	statEffectiveCriticalStrikeChance = "effective_critical_strike_chance"
+)
+
 // Chance to hit limits and the formula's constants. They follow PoB (CalcDefence.lua
 // calcs.hitChance); the game data read here gives none of them.
 const (
@@ -16,9 +26,27 @@ const (
 	alwaysHitChance  = percentScale
 )
 
+// Formula names shown in explanations.
+const (
+	formulaHitChance               = "chance to hit"
+	formulaEffectiveCriticalChance = "critical strike chance of a use that hits"
+)
+
+// mechanicAccuracy names the accuracy mechanic for those that come after it.
+const mechanicAccuracy = "accuracy"
+
+func accuracyMechanic() mechanic {
+	return mechanic{name: mechanicAccuracy, after: []string{mechanicDamage, mechanicEnemy}, stats: []string{
+		statAccuracyRating,
+		statHitsCannotBeEvaded,
+		statHitChance,
+		statEffectiveCriticalStrikeChance,
+	}, def: accuracyDef}
+}
+
 // accuracyDef completes def when it is a stat of accuracy or the chance to hit.
 //
-// Accuracy is rounded down and at least 0. An attack's chance to hit is accuracy / (accuracy +
+// Accuracy is rounded down and at least 0, the chance to hit from 0 to 100%. An attack's chance to hit is accuracy / (accuracy +
 // (evasion / 5)^0.9) x 125%, rounded half up, from 5% to 100%, against the enemy's evasion; it
 // always hits while hits_cannot_be_evaded is set. Other hits take their chance to hit from
 // their modifiers. A critical strike counts only on a hit that lands, so the chance that a use
@@ -31,6 +59,7 @@ func accuracyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	case statHitsCannotBeEvaded:
 		def.Flag = true
 	case statHitChance:
+		def.HasMin, def.HasMax, def.Max = true, true, percentScale
 		h := hitChance{
 			accuracy: mustID(ids, statAccuracyRating), evasion: mustID(ids, statEnemyEvasion),
 			cannotBeEvaded: mustID(ids, statHitsCannotBeEvaded), attack: attackMask(),

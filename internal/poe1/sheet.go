@@ -252,12 +252,12 @@ func modelFor(counters []string) *sheetModel {
 		return md
 	}
 	var b core.ModelBuilder
-	md := &sheetModel{stats: map[string]core.StatID{}, counters: make(map[string]bool, len(counters))}
-	for _, name := range engineStats() {
-		md.stats[name] = b.MustAddStat(statDef(name, md.stats))
+	r, err := addMechanics(&b, mechanics())
+	if err != nil {
+		// TestMechanics fails on it first.
+		panic(err)
 	}
-	addTransferStats(&b, md.stats)
-	addConversionFormulas(&b, md.stats)
+	md := &sheetModel{stats: r.ids, counters: make(map[string]bool, len(counters))}
 	b.SetMoreRule(pobMore)
 	md.ctx = addContexts(&b)
 	if md.ctx.damage.First != damageDimension().First {

@@ -6,6 +6,14 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
+// Engine stats of movement. movement_speed is the character's movement speed as a percentage of
+// the base speed: 100 before modifiers. armour_movement_penalties_are_ignored is a flag that
+// lifts the movement speed penalties of armour bases.
+const (
+	statArmourMovementPenaltiesAreIgnored = "armour_movement_penalties_are_ignored"
+	statMovementSpeed                     = "movement_speed"
+)
+
 // baseMovementSpeed is movement_speed before modifiers: the base speed, 100%.
 const baseMovementSpeed = 100
 
@@ -19,4 +27,19 @@ func (sh *Sheet) addBaseMovementSpeed() error {
 		return fmt.Errorf("sheet: base movement speed: %w", err)
 	}
 	return nil
+}
+
+func movementMechanic() mechanic {
+	return mechanic{
+		name: "movement", stats: []string{
+			statArmourMovementPenaltiesAreIgnored,
+			statMovementSpeed,
+		},
+		def: func(def core.StatDef, _ map[string]core.StatID) core.StatDef {
+			if def.Name == statArmourMovementPenaltiesAreIgnored {
+				def.Flag = true
+			}
+			return def
+		},
+	}
 }

@@ -8,6 +8,9 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
+// statDoubleHitsWhenDualWielding is a flag for a skill that hits with both hands at once.
+const statDoubleHitsWhenDualWielding = "double_hits_when_dual_wielding"
+
 // Hands is what the character attacks with: the weapon in each hand, nil for none, and in the
 // main hand without a weapon the class's unarmed attacks. A shield or quiver is not a weapon.
 type Hands struct {
@@ -107,6 +110,10 @@ func (c combineMode) combine(main, off float64, double bool) float64 {
 		return 0
 	}
 	return 1 / ((1/main + 1/off) * half)
+}
+
+func handsMechanic() mechanic {
+	return mechanic{name: "hands", after: []string{mechanicHit, mechanicAccuracy}, stats: []string{statDoubleHitsWhenDualWielding}, def: handsDef}
 }
 
 // handsDef completes def when it is a stat an attack with both hands combines from its hands

@@ -9,6 +9,26 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
+// Engine stats of the enemy a skill's damage meets, read in the skill's context.
+// enemy_resistance, read for one damage type, is the enemy's resistance to it, its reductions
+// included, and enemy_maximum_resistance its cap. enemy_exposure is the Exposure the enemy has
+// to the type, its strongest instance; extra_exposure what is added to Exposure the character
+// inflicts. penetration is how much of the resistance the character's hits of the type
+// penetrate. hit_enemy_resistance is the resistance a hit of the type meets after all of these.
+// enemy_damage_taken is the damage the enemy takes of the type in percent, 100 before modifiers;
+// enemy_armour and enemy_evasion are its armour and evasion rating.
+const (
+	statEnemyResistance        = "enemy_resistance"
+	statEnemyMaximumResistance = "enemy_maximum_resistance"
+	statEnemyExposure          = "enemy_exposure"
+	statExtraExposure          = "extra_exposure"
+	statPenetration            = "penetration"
+	statHitEnemyResistance     = "hit_enemy_resistance"
+	statEnemyDamageTaken       = "enemy_damage_taken"
+	statEnemyArmour            = "enemy_armour"
+	statEnemyEvasion           = "enemy_evasion"
+)
+
 // EnemyKind is what the enemy a build is measured against is: a normal monster or a boss of
 // some tier. Its values for level, resistances, armour and evasion apply where the config sets
 // none.
@@ -265,4 +285,96 @@ func (sh *Sheet) SetEnemy(e EnemyStats) {
 	_ = sh.session.SetModifierValue(sh.enemy.armour, float64(e.Armour))
 	_ = sh.session.SetModifierValue(sh.enemy.evasion, float64(e.Evasion))
 	_ = sh.session.SetModifierValue(sh.enemy.damageTaken, float64(enemyPresets()[e.Kind].DamageTaken))
+}
+
+// formulaHitEnemyResistance is the formula name shown in explanations.
+const formulaHitEnemyResistance = "enemy resistance a hit meets"
+
+// mechanicEnemy names the enemy mechanic for those that come after it.
+const mechanicEnemy = "enemy"
+
+func enemyMechanic() mechanic {
+	return mechanic{name: mechanicEnemy, stats: []string{
+		statEnemyResistance,
+		statEnemyMaximumResistance,
+		statEnemyExposure,
+		statExtraExposure,
+		statPenetration,
+		statHitEnemyResistance,
+		statEnemyDamageTaken,
+		statEnemyArmour,
+		statEnemyEvasion,
+	}, def: enemyDef}
+}
+
+// enemyDef completes def when it is a stat of the resistance a hit meets.
+func enemyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
+	switch def.Name {
+	case statEnemyExposure:
+		def.LowestBase = true
+	case statHitEnemyResistance:
+		h := newMetResistance(ids, true)
+		def.FormulaName, def.Formula, def.Attribute = formulaHitEnemyResistance, h.formula(), h.attribute()
+	}
+	return def
+}
+
+// metResistance is the resistance damage of one type meets, read in the type's context: the
+// enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum, and
+// for a hit less its penetration. Exposure is its strongest instance, and what the character
+// adds to Exposure it inflicts applies only while there is some. Penetration counts after the
+// limits, so it can take the resistance below the floor; damage over time does not penetrate.
+// All follow PoB (CalcOffence.lua calcResistForType, the hit's resistance and the skill's
+// damage over time, CalcPerform.lua's exposures); the game text gives none of the order.
+type metResistance struct {
+	resistance, maximum, exposure, extra, penetration core.StatID
+	// penetrates is set for a hit.
+	penetrates bool
+}
+
+func newMetResistance(ids map[string]core.StatID, penetrates bool) metResistance {
+	return metResistance{
+		resistance: mustID(ids, statEnemyResistance), maximum: mustID(ids, statEnemyMaximumResistance),
+		exposure: mustID(ids, statEnemyExposure), extra: mustID(ids, statExtraExposure), penetration: mustID(ids, statPenetration),
+		penetrates: penetrates,
+	}
+}
+
+// exposed returns the Exposure the enemy has, with stat reading a stat.
+func (h metResistance) exposed(stat func(core.StatID) float64) float64 {
+	e := stat(h.exposure)
+	if e != 0 {
+		e += stat(h.extra)
+	}
+	return e
+}
+
+func (h metResistance) formula() core.Formula {
+	return func(r core.Reader, _ core.Agg) float64 {
+		v := min(max(r.Stat(h.resistance)+h.exposed(r.Stat), resistanceFloor), r.Stat(h.maximum))
+		if h.penetrates {
+			v -= r.Stat(h.penetration)
+		}
+		return v
+	}
+}
+
+// attribute credits the enemy's resistance, its Exposure and any penetration, which counts
+// against it; what the limits change goes to the maximum's sources.
+func (h metResistance) attribute() core.Attribute {
+	return func(a *core.Attributor) core.Attribution {
+		parts, _ := a.Of(core.SelfRef(h.resistance))
+		if h.exposed(a.Stat) != 0 {
+			for _, s := range []core.StatID{h.exposure, h.extra} {
+				p, _ := a.Of(core.SelfRef(s))
+				parts = append(parts, p...)
+			}
+		}
+		if h.penetrates {
+			pen, _ := a.Of(core.SelfRef(h.penetration))
+			parts = append(parts, scaled(pen, -1)...)
+		}
+		total := a.Explanation().Total
+		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.maximum)), Amount: total}
+	}
 }

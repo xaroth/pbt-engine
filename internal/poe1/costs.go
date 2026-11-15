@@ -6,6 +6,39 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
+// Engine stats of costs, read in a skill's context. mana_cost_base is the skill's level row mana
+// cost with its supports' multipliers, mana_cost the cost after its modifiers and
+// mana_cost_efficiency; cost and cost_efficiency hold those to every cost. The skill_ flag is
+// its "Costs Life instead of Mana".
+const (
+	statCostEfficiency              = "cost_efficiency"
+	statManaCostEfficiency          = "mana_cost_efficiency"
+	statLifeCostEfficiency          = "life_cost_efficiency"
+	statSkillCostsLifeInsteadOfMana = "skill_costs_life_instead_of_mana"
+	statManaCostBase                = "mana_cost_base"
+	statLifeCostBase                = "life_cost_base"
+	statCost                        = "cost"
+	statManaCost                    = "mana_cost"
+	statLifeCost                    = "life_cost"
+)
+
+// formulaSkillCost is the formula name shown in explanations.
+const formulaSkillCost = "cost of a skill"
+
+func costMechanic() mechanic {
+	return mechanic{name: "costs", stats: []string{
+		statCostEfficiency,
+		statManaCostEfficiency,
+		statLifeCostEfficiency,
+		statSkillCostsLifeInsteadOfMana,
+		statManaCostBase,
+		statLifeCostBase,
+		statCost,
+		statManaCost,
+		statLifeCost,
+	}, def: costDef}
+}
+
 // costDef completes def when it is a cost stat. A skill's cost, read in its context, is its
 // base (with supports' multipliers, rounded down), plus the mana base for life while it costs
 // life instead of mana; then its increases, rounded up when they reduce it and down otherwise;
@@ -15,6 +48,8 @@ import (
 // text gives none of it.
 func costDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
+	case statSkillCostsLifeInsteadOfMana:
+		def.Flag = true
 	case statManaCostEfficiency, statLifeCostEfficiency:
 		def.HasMin = true
 		def.Includes = []core.StatID{mustID(ids, statCostEfficiency)}

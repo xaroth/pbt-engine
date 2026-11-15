@@ -8,6 +8,21 @@ import (
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
+// attributeFamily is the core CycleFamily of the attributes, which can grant each other.
+const attributeFamily = 1
+
+// Engine stats of the attributes. The no_ stats are flags that turn off one inherent attribute
+// bonus each.
+const (
+	statStrength                                 = "strength"
+	statDexterity                                = "dexterity"
+	statIntelligence                             = "intelligence"
+	statNoStrengthBonusToMaximumLife             = "no_strength_bonus_to_maximum_life"
+	statNoIntelligenceBonusToMaximumMana         = "no_intelligence_bonus_to_maximum_mana"
+	statNoDexterityBonusToEvasionRating          = "no_dexterity_bonus_to_evasion_rating"
+	statNoIntelligenceBonusToMaximumEnergyShield = "no_intelligence_bonus_to_maximum_energy_shield"
+)
+
 // attributeBonus is an inherent bonus of an attribute: the constant's Value per Per points of
 // the attribute, in whole steps, unless flag stat off is set (none when empty).
 type attributeBonus struct {
@@ -98,4 +113,30 @@ func constant(consts []resolve.Constant, id string) (resolve.Constant, error) {
 		}
 	}
 	return resolve.Constant{}, fmt.Errorf("sheet: constant %s: %w", id, ErrConstant)
+}
+
+func attributeMechanic() mechanic {
+	return mechanic{name: "attributes", stats: []string{
+		statStrength,
+		statDexterity,
+		statIntelligence,
+		statNoStrengthBonusToMaximumLife,
+		statNoIntelligenceBonusToMaximumMana,
+		statNoDexterityBonusToEvasionRating,
+		statNoIntelligenceBonusToMaximumEnergyShield,
+	}, def: attributeDef}
+}
+
+// attributeDef completes def when it is an attribute or a flag that turns off its bonus. An
+// attribute is rounded half up and at least 0, as in PoB (CalcPerform.lua); the game text does
+// not say.
+func attributeDef(def core.StatDef, _ map[string]core.StatID) core.StatDef {
+	switch def.Name {
+	case statStrength, statDexterity, statIntelligence:
+		def.Round, def.HasMin, def.CycleFamily = core.RoundHalf, true, attributeFamily
+	case statNoStrengthBonusToMaximumLife, statNoIntelligenceBonusToMaximumMana,
+		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield:
+		def.Flag = true
+	}
+	return def
 }

@@ -2,6 +2,14 @@ package poe1
 
 import "github.com/xaroth/pbt-engine/internal/core"
 
+// Engine stats of spell block. spell_block_chance is the uncapped chance to block spell damage,
+// maximum_spell_block_chance its cap and spell_block_chance_capped the value the sheet shows.
+const (
+	statSpellBlockChance        = "spell_block_chance"
+	statMaximumSpellBlockChance = "maximum_spell_block_chance"
+	statSpellBlockChanceCapped  = "spell_block_chance_capped"
+)
+
 // blockChanceCap is the most any maximum block chance can be: PoB's BlockChanceCap (Data.lua);
 // unvalidated.
 const blockChanceCap = 90
@@ -22,4 +30,12 @@ func spellBlockDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		def.FormulaName, def.Attribute = formulaCappedSpellBlock, cappedAttribute(total, maximum)
 	}
 	return def
+}
+
+func spellBlockMechanic() mechanic {
+	return mechanic{name: "spell block", stats: []string{
+		statSpellBlockChance,
+		statMaximumSpellBlockChance,
+		statSpellBlockChanceCapped,
+	}, def: spellBlockDef}
 }
