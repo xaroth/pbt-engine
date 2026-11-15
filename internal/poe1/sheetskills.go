@@ -30,8 +30,8 @@ type SheetSkills struct {
 	Skills []*resolve.Skill
 	// Every says the outputs of every skill are read, not only the main skill's.
 	Every bool
-	// Kept is how many of Skills, from the first, stay switched on: the main skill, those that
-	// reserve and, with Every, the rest. The others are on the sheet only to derive the
+	// Kept is how many of Skills, from the first, are read and noted: the main skill, those
+	// that reserve and, with Every, the rest. The others are on the sheet only to derive the
 	// conditions they cause (Sheet.DeriveOnly).
 	Kept     int
 	Warnings []build.Warning

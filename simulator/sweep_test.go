@@ -249,7 +249,8 @@ Implicits: 1
 
 // A variant on the fast path derives the conditions again after switching its nodes: on the
 // elementalist bench build, with a ring that gives damage with hits against Ignited enemies,
-// deallocating node 22088 and allocating it again give what simulating the edited build gives.
+// deallocating node 22088 from it and allocating it on the build without it give what
+// simulating the edited build gives.
 func TestSweepDerivesConditions(t *testing.T) {
 	t.Parallel()
 	d := benchbuilds.Open(t)
@@ -270,28 +271,38 @@ func TestSweepDerivesConditions(t *testing.T) {
 	if err := b.Apply(build.Equip(build.SlotRing1, ring)); err != nil {
 		t.Fatal(err)
 	}
-	variants := [][]build.Edit{{build.Deallocate(22088)}, {build.Allocate(22088)}}
-	res, err := sim.Sweep(b, variants, simulator.Outputs(poe1.AverageHit))
-	if err != nil {
+	without := b.Clone()
+	if err := without.Apply(build.Deallocate(22088)); err != nil {
 		t.Fatal(err)
 	}
 	// Without 22088 the build's hits can ignite.
-	wantIgnited := []string{"true", "false"}
-	for i, v := range variants {
-		if fast, err := simulator.FastPath(sim, b, v); err != nil || !fast {
+	for _, c := range []struct {
+		base        *build.Build
+		edit        build.Edit
+		wantIgnited string
+	}{
+		{b, build.Deallocate(22088), "true"},
+		{without, build.Allocate(22088), "false"},
+	} {
+		v := []build.Edit{c.edit}
+		res, err := sim.Sweep(c.base, [][]build.Edit{v}, simulator.Outputs(poe1.AverageHit))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fast, err := simulator.FastPath(sim, c.base, v); err != nil || !fast {
 			t.Fatalf("variant %v: fast path %v, %v", v, fast, err)
 		}
-		e := b.Clone()
+		e := c.base.Clone()
 		if err := e.Apply(v...); err != nil {
 			t.Fatal(err)
 		}
 		st := simulate(t, sim, e)
-		if on, _ := configOf(st, poe1.EnemyIgnited); on != wantIgnited[i] {
-			t.Fatalf("variant %v: ignited %s, want %s", v, on, wantIgnited[i])
+		if on, _ := configOf(st, poe1.EnemyIgnited); on != c.wantIgnited {
+			t.Fatalf("variant %v: ignited %s, want %s", v, on, c.wantIgnited)
 		}
 		want := get(t, st, poe1.AverageHit)
-		if got := res[i].Changes[poe1.AverageHit].After; res[i].Err != nil || math.Float64bits(got) != math.Float64bits(want) {
-			t.Errorf("variant %v: sweep %v (%v), simulate %v", v, got, res[i].Err, want)
+		if got := res[0].Changes[poe1.AverageHit].After; res[0].Err != nil || math.Float64bits(got) != math.Float64bits(want) {
+			t.Errorf("variant %v: sweep %v (%v), simulate %v", v, got, res[0].Err, want)
 		}
 	}
 }

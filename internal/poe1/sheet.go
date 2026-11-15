@@ -157,10 +157,9 @@ func (sh *Sheet) Notes() []Note {
 	return out
 }
 
-// DeriveOnly switches off the skills in slots from n on: they are on the sheet only for
-// DeriveConditions, which switches them on while it reads them. Their outputs are not read and
-// Notes leaves them out, and the other skills' outputs are read without their sources. SetSkills
-// switches every skill on again.
+// DeriveOnly marks the skills in slots from n on as on the sheet only for DeriveConditions:
+// they stay switched on, their outputs are not read, and Notes leaves out their notes.
+// SetSkills clears the mark.
 func (sh *Sheet) DeriveOnly(n int) { sh.deriveFrom = n }
 
 // Open builds the sheet of r under config cfg (resolved over ConfigSpecs; keys it lacks take
