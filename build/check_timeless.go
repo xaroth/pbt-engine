@@ -10,10 +10,6 @@ import (
 	"github.com/xaroth/pbt-engine/internal/poe1/timeless"
 )
 
-// TimelessPartial warns about a timeless jewel whose changes to passives other than keystones
-// are not modelled.
-const TimelessPartial Code = "timeless-jewel-partial"
-
 // timelessRadius is the radius of every timeless jewel that conquers passives around it.
 const timelessRadius = "Large"
 
@@ -32,8 +28,7 @@ type Conquest struct {
 func (c *Checked) Conquests() []Conquest { return slices.Clone(c.conquests) }
 
 // conquer finds what the timeless jewels in allocated sockets make of the passives in their
-// radius: Elegant Hubris replaces or adds to each, every other jewel only replaces keystones,
-// with a warning. A jewel whose version the tree does not have, as an abyss timeless jewel,
+// radius. A jewel whose version the tree does not have, as an abyss timeless jewel,
 // changes nothing. The radius and versions are read only when such a jewel is socketed.
 func (c *Checked) conquer() error {
 	var data *timelessData
@@ -83,17 +78,13 @@ func (c *Checked) timelessData() (*timelessData, error) {
 
 // conquerFrom adds what jewel j in socket makes of the passives in its radius.
 func (c *Checked) conquerFrom(socket uint32, j timeless.ModJewel, data *timelessData) {
-	name := data.versions.Name(j.Version)
-	if name == "" {
+	if data.versions.Name(j.Version) == "" {
 		return
 	}
 	nodes, err := data.radius.Nodes(socket, data.area)
 	if err != nil {
 		// Only a socket on the tree has a radius; a timeless jewel fits no other.
 		return
-	}
-	if !data.versions.ChangesPassives(j.Version) {
-		c.warnf(TimelessPartial, jewelSubject(socket), "%s conquest of passives other than keystones not modelled; left out", name)
 	}
 	for _, id := range nodes {
 		n := c.node(id)
