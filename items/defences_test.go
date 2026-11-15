@@ -78,12 +78,17 @@ func TestParseDefenceDiffers(t *testing.T) {
 	}
 }
 
-// TestParseArmourBase reads Path of Building's text of armour: its base percentiles as rolls.
+// TestParseArmourBase reads Path of Building's text of armour: its base percentiles as rolls,
+// and the variant of a base of one name by the defences the text prints where the implicits do
+// not tell.
 func TestParseArmourBase(t *testing.T) {
 	t.Parallel()
 	r, _ := realReader(t)
 	fledgling := "Rarity: UNIQUE\nThe Fledgling\nLacquered Helmet\nArmour: 467\nArmourBasePercentile: 0.7553\n" +
 		"Evasion: 467\nEvasionBasePercentile: 0.7553\nQuality: 20\nImplicits: 0\n158% increased Armour and Evasion\n"
+	beacon := "Rarity: UNIQUE\nBeacon of Madness\nTwo-Toned Boots (Armour/Evasion)\nArmour: 458\nArmourBasePercentile: 0.1093\n" +
+		"Evasion: 458\nEvasionBasePercentile: 0.1093\nQuality: 20\nImplicits: 1\n{vestigial}+1 to Maximum Frenzy Charges\n" +
+		"198% increased Armour and Evasion\n"
 	for _, tc := range []struct {
 		name, text, base string
 		rolls            map[build.Defence]float64
@@ -92,6 +97,12 @@ func TestParseArmourBase(t *testing.T) {
 		{
 			name: "The Fledgling", text: fledgling, base: "Metadata/Items/Armours/Helmets/HelmetStrDex7",
 			rolls: map[build.Defence]float64{build.DefenceArmour: 0.7553, build.DefenceEvasion: 0.7553},
+			stat:  "local_armour_and_evasion_+%",
+		},
+		// Its implicit is none of the three Two-Toned Boots'; it prints armour and evasion.
+		{
+			name: "Beacon of Madness", text: beacon, base: "Metadata/Items/Armours/Boots/BootsAtlas2",
+			rolls: map[build.Defence]float64{build.DefenceArmour: 0.1093, build.DefenceEvasion: 0.1093},
 			stat:  "local_armour_and_evasion_+%",
 		},
 	} {

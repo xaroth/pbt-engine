@@ -252,9 +252,10 @@ func (r *Reader) base(p parsed) (*dataset.ItemBase, error) {
 }
 
 // byImplicits returns the base among bases of one name whose implicit mods read the most of the
-// item's implicit lines with their values in range, then the most with any values; the first in
-// the game's order on a tie. Bases of one name differ in their implicits, such as the three
-// Two-Stone Rings, or are kept for another game mode.
+// item's implicit lines with their values in range, then the most with any values, then that has
+// the most of the defences the text prints; the first in the game's order on a tie. Bases of one
+// name differ in their implicits, such as the three Two-Stone Rings, or in their defences too,
+// such as the three Two-Toned Boots, or are kept for another game mode.
 func (r *Reader) byImplicits(bases []*dataset.ItemBase, p parsed) *dataset.ItemBase {
 	var readings [][]statdesc.RangeReading
 	for _, l := range p.lines {
@@ -265,9 +266,10 @@ func (r *Reader) byImplicits(bases []*dataset.ItemBase, p parsed) *dataset.ItemB
 			readings = append(readings, rs)
 		}
 	}
-	best, bestScore := bases[0], [2]int{-1, -1}
+	best, bestScore := bases[0], [3]int{-1, -1, -1}
 	for _, b := range bases {
-		if score := r.implicitsRead(b, readings); score[0] > bestScore[0] || score[0] == bestScore[0] && score[1] > bestScore[1] {
+		read := r.implicitsRead(b, readings)
+		if score := [3]int{read[0], read[1], printedDefences(b, &p.item)}; slices.Compare(score[:], bestScore[:]) > 0 {
 			best, bestScore = b, score
 		}
 	}
