@@ -698,5 +698,23 @@
     "group": "skill",
     "better": "higher",
     "order": 75
+  },
+  {
+    "key": "skill.bleed_dps",
+    "label": "Bleed DPS",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 76
+  },
+  {
+    "key": "skill.poison_dps",
+    "label": "Poison DPS",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 77
   }
 ]
