@@ -56,11 +56,14 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 	if err != nil {
 		return fmt.Errorf("simulator: %w", err)
 	}
+	own := map[build.Slot]int{}
 	for _, slot := range slices.Sorted(maps.Keys(cb.Items)) {
+		own[slot] = len(r.sheet.Items)
 		if err := s.compileItem(r, slot, cb.Items[slot], bases); err != nil {
 			return err
 		}
 	}
+	reflectRings(r.sheet.Items, own)
 	for _, node := range jewels {
 		it := cb.Jewels[node]
 		c, key, err := s.compile(&it, bases)
@@ -70,6 +73,18 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 		r.sheet.Items = append(r.sheet.Items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats})
 	}
 	return nil
+}
+
+// reflectRings applies poe1.ReflectRings to items, where at holds the index of each slot's own
+// item.
+func reflectRings(items []poe1.Item, at map[build.Slot]int) {
+	rings := map[build.Slot]*poe1.Item{}
+	for _, s := range []build.Slot{build.SlotRing1, build.SlotRing2, build.SlotRing3} {
+		if i, ok := at[s]; ok {
+			rings[s] = &items[i]
+		}
+	}
+	poe1.ReflectRings(rings)
 }
 
 // compileItem adds to the items of r's sheet the item it in slot, then its abyss jewels. Each jewel counts
