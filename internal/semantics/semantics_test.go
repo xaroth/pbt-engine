@@ -97,7 +97,10 @@ func TestLoad(t *testing.T) {
 		{Stat: "mana_%_to_add_as_energy_shield", Scope: resolve.Global, Status: semantics.Unknown, Rule: "gain_as_extra", RuleFactor: semantics.Ratio{Num: 1, Den: 1},
 			Sources: []semantics.Source{statID}, Reason: semantics.Reason{Kind: semantics.Rule, Text: "adds a share of maximum mana as energy shield"}},
 		{Stat: "maximum_all_resistances_%", Scope: resolve.Global, Status: semantics.Authored,
-			Mods: []semantics.Mod{{Stat: "maximum_fire_resistance", Op: core.OpBase, Factor: one}, {Stat: "maximum_cold_resistance", Op: core.OpBase, Factor: one}},
+			Mods: []semantics.Mod{
+				{Stat: "maximum_fire_resistance", Op: core.OpBase, Factor: one},
+				{Stat: "maximum_cold_resistance", Op: core.OpBase, Factor: one, While: "life"},
+			},
 			Sources: []semantics.Source{
 				{Kind: semantics.ObjectTemplate, Ref: "Metadata/Characters/Character.ot", Text: "maximum_all_resistances_% = 75"},
 				statID,
@@ -142,6 +145,7 @@ func TestLoadRejects(t *testing.T) {
 		{"authored without mods", authored(`"omitted": "o"`), "authored without mods or rule"},
 		{"count without counter", authored(`"mods": [{"stat": "life", "op": "more", "if": {"atLeast": 6}}]`), "want a counter"},
 		{"count at least 0", authored(`"mods": [{"stat": "life", "op": "more", "if": {"count": "n", "atLeast": 0}}]`), "want a counter"},
+		{"while not a stat", authored(`"mods": [{"stat": "life", "op": "more", "while": "enemy_is_chiled"}]`), `while: unknown engine stat "enemy_is_chiled"`},
 		{"params without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "params": {"from": "life"}`), "params without a rule"},
 		{"rule factor without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "ruleFactor": "100"`), "rule factor without a rule"},
 		{"zero rule factor", authored(`"rule": "gain_as_extra", "params": {"from": "life", "to": "armour"}, "ruleFactor": "0"`), "rule factor 0"},

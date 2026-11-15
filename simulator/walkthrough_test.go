@@ -110,11 +110,7 @@ _ = v.Source // config.Derived`,
 		}},
 		{name: "explain an output", run: explainOutput},
 		{name: "compute only the listed outputs", run: listedOutputs},
-		{name: "force a condition off, then hand it back", pending: &pending{
-			needs: "conditions derived from the build", waitsOn: []string{"poe1.EnemyShocked"},
-			code: `sim.Configure(simulator.Set(poe1.EnemyShocked, false))
-sim.Configure(simulator.Clear(poe1.EnemyShocked))`,
-		}},
+		{name: "force a condition off, then hand it back", run: forceConditionOff},
 		{name: "clear a sim value", run: clearSimValue},
 	}
 }
@@ -562,6 +558,38 @@ func listedOutputs(t *testing.T, w *walk) {
 	}
 	if got, want := get(t, st, poe1.Life), get(t, w.stats, poe1.Life); got != want {
 		t.Errorf("life %v with the outputs listed, %v without", got, want)
+	}
+}
+
+// forceConditionOff: a Shocked enemy takes the Shock's effect as increased damage; a sim value
+// of off wins over the build's on, and clearing it hands the condition back to the build.
+func forceConditionOff(t *testing.T, w *walk) {
+	before := get(t, simulate(t, w.sim, w.next, simulator.Outputs(poe1.AverageHit)), poe1.AverageHit)
+	shocked := w.next.Clone()
+	if err := config.Set(&shocked.Config, poe1.EnemyShocked, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.Set(&shocked.Config, poe1.EnemyShockEffect, 20); err != nil {
+		t.Fatal(err)
+	}
+	checkShocked(t, w.sim, shocked, before*1.2, "true", config.FromBuild)
+	if err := w.sim.Configure(simulator.Set(poe1.EnemyShocked, false)); err != nil {
+		t.Fatal(err)
+	}
+	checkShocked(t, w.sim, shocked, before, "false", config.FromSim)
+	if err := w.sim.Configure(simulator.Clear(poe1.EnemyShocked.Name())); err != nil {
+		t.Fatal(err)
+	}
+	checkShocked(t, w.sim, shocked, before*1.2, "true", config.FromBuild)
+}
+
+// checkShocked checks b's average hit on sim and whether its enemy is Shocked, from where.
+func checkShocked(t *testing.T, sim *simulator.Sim, b *build.Build, hit float64, on string, src config.Source) {
+	t.Helper()
+	st := simulate(t, sim, b, simulator.Outputs(poe1.AverageHit))
+	gotOn, gotSrc := configOf(st, poe1.EnemyShocked)
+	if got := get(t, st, poe1.AverageHit); math.Abs(got-hit) > 1e-9*hit || gotOn != on || gotSrc != src {
+		t.Errorf("average hit %v, shocked %s from %v; want %v, %s from %v", got, gotOn, gotSrc, hit, on, src)
 	}
 }
 

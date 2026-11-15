@@ -148,7 +148,7 @@ func TestFromXML(t *testing.T) {
 	wantWarnings := []build.Warning{
 		{Code: pob.AscendancyIgnored, Subject: "Warlock", Message: "legacy secondary ascendancy 2, which PoB hides and ignores; not imported"},
 		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`},
-		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input not modelled (true)"},
+		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input usePowerCharges not modelled (value true)"},
 		{Code: pob.SkillIgnored, Subject: "RF", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SkillIgnored, Subject: "Flame Dash", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SpecIgnored, Subject: "Leveling", Message: "only the active tree is imported"},

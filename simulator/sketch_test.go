@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/output"
@@ -145,8 +146,7 @@ _ = v.Value  // true
 _ = v.Source // config.Derived`, needs: []need{needDerived("poe1.EnemyShocked", "config.Derived")}},
 		{name: "explain an output in each view", run: sketchExplain},
 		{name: "compute only the listed outputs", run: sketchOutputs},
-		{name: "force a condition off", code: `sim.Configure(simulator.Set(poe1.EnemyShocked, false))`,
-			needs: []need{needDerived("poe1.EnemyShocked")}},
+		{name: "force a condition off", run: sketchConditionOff},
 		{name: "hand a condition back", code: `sim.Configure(simulator.Clear(poe1.EnemyShocked))`,
 			needs: []need{needDerived("poe1.EnemyShocked"), needTypedClear()}},
 	}
@@ -493,6 +493,15 @@ func sketchOutputs(t *testing.T, s *sketchState) {
 	st := simulate(t, s.sim, s.next, simulator.Outputs(poe1.Life, poe1.Mana))
 	if !slices.Equal(st.Keys(), []output.Key{poe1.Life, poe1.Mana}) {
 		t.Errorf("computed %v, want life and mana", st.Keys())
+	}
+}
+
+func sketchConditionOff(t *testing.T, s *sketchState) {
+	if err := s.sim.Configure(simulator.Set(poe1.EnemyShocked, false)); err != nil {
+		t.Fatal(err)
+	}
+	if on, src := configOf(simulate(t, s.sim, s.next, simulator.Outputs(poe1.Life)), poe1.EnemyShocked); on != "false" || src != config.FromSim {
+		t.Errorf("shocked %v from %v, want off from the sim", on, src)
 	}
 }
 

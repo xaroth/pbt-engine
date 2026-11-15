@@ -43,7 +43,7 @@ func TestFromXMLEnemy(t *testing.T) {
 	if diff := cmp.Diff(want, b.Config); diff != "" {
 		t.Errorf("config (-want +got):\n%s", diff)
 	}
-	wantWarnings := []build.Warning{{Code: pob.ConfigIgnored, Subject: "enemyCritChance", Message: "config input not modelled (10)"}}
+	wantWarnings := []build.Warning{{Code: pob.ConfigIgnored, Subject: "enemyCritChance", Message: "config input enemyCritChance not modelled (value 10)"}}
 	if diff := cmp.Diff(wantWarnings, w); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
 	}

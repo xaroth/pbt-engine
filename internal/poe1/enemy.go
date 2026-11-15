@@ -285,6 +285,7 @@ func (sh *Sheet) SetEnemy(e EnemyStats) {
 	_ = sh.session.SetModifierValue(sh.enemy.armour, float64(e.Armour))
 	_ = sh.session.SetModifierValue(sh.enemy.evasion, float64(e.Evasion))
 	_ = sh.session.SetModifierValue(sh.enemy.damageTaken, float64(enemyPresets()[e.Kind].DamageTaken))
+	sh.setEnemyUnique(e.Kind)
 }
 
 // formulaHitEnemyResistance is the formula name shown in explanations.

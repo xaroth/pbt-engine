@@ -229,7 +229,8 @@ func TestConfigKeys(t *testing.T) {
 		}
 		return out
 	}
-	want := []simulator.ConfigKey{
+	want := make([]simulator.ConfigKey, 0, len(keys))
+	want = append(want, []simulator.ConfigKey{
 		{Name: "campaign", Default: raw("complete")[0], Values: raw("complete", "acts-6-10", "acts-1-5")},
 		{Name: "bandits", Default: raw("")[0], Values: raw("", "kill-all", "help-alira", "help-kraityn", "help-oak")},
 		{Name: "enemy", Default: raw("pinnacle")[0], Values: raw("none", "boss", "pinnacle", "uber")},
@@ -240,7 +241,15 @@ func TestConfigKeys(t *testing.T) {
 		{Name: "enemy-chaos-resistance", Default: json.RawMessage("30")},
 		{Name: "enemy-armour", Default: json.RawMessage("61989")},
 		{Name: "enemy-evasion", Default: json.RawMessage("10143")},
+	}...)
+	for _, name := range []string{
+		"enemy-shocked", "enemy-chilled", "enemy-frozen", "enemy-ignited", "enemy-bleeding", "enemy-unnerved",
+		"enemy-intimidated", "enemy-taunted", "enemy-on-consecrated-ground", "full-life", "full-energy-shield",
+		"leeching", "focused", "fortified",
+	} {
+		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false")})
 	}
+	want = append(want, simulator.ConfigKey{Name: "enemy-shock-effect", Default: json.RawMessage("0")})
 	if diff := cmp.Diff(want, keys); diff != "" {
 		t.Errorf("config keys (-want +got):\n%s", diff)
 	}
