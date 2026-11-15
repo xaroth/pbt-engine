@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
@@ -116,6 +117,33 @@ func TestIgniteSources(t *testing.T) {
 				t.Errorf("got %v, want %v", got, c.want)
 			}
 		})
+	}
+}
+
+// Damage with a kind of weapon is the hit's only: of a bow attack dealing 100 to 200 fire
+// damage once a second that always ignites an enemy without defences, 100% increased Damage
+// with Bows doubles the hit and leaves the ignite at 4 applied, the strongest at 4/5 of the
+// range: 180 x 0.9.
+func TestIgniteWeaponDamage(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global,
+		resolve.StatValue{Stat: "always_ignite", Value: 1}, resolve.StatValue{Stat: "global_always_hit", Value: 1},
+		resolve.StatValue{Stat: "bow_damage_+%", Value: 100},
+	)))
+	bow := weapon("Bow", 0, 0, 1000, 0)
+	bow.Damage[poe1.Fire] = poe1.DamageRange{Min: 100, Max: 200}
+	if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Bow", Key: "bow", Weapon: bow}}); err != nil {
+		t.Fatal(err)
+	}
+	sh.SetEnemy(poe1.EnemyStats{})
+	attack := skill(0, "Attack", "Damage", "Projectile")
+	attack.StatSets = []resolve.SkillStatSet{{}}
+	setSkills(t, sh, attack)
+	if got := outputOf(t, sh, poe1.FireMaximum); math.Abs(got-400) > 1e-9 {
+		t.Errorf("fire hit: got %v, want 400", got)
+	}
+	if got, want := outputOf(t, sh, poe1.IgniteDPS), 180*0.9; math.Abs(got-want) > 1e-9 {
+		t.Errorf("ignite: got %v, want %v", got, want)
 	}
 }
 
