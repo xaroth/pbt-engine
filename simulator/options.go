@@ -67,7 +67,8 @@ func Outputs(keys ...output.Key) Option {
 }
 
 // RankBy sorts a sweep's results by the change of output k, largest first; ties keep variant
-// order. The output is computed even when Outputs does not list it.
+// order. The output is computed even when Outputs does not list it. A call fails with
+// ErrUnknownOutput for k.
 func RankBy(k output.Key) Option { return Option{kind: optRankBy, outputs: []output.Key{k}} }
 
 // RankBySkill is RankBy for output k of the skill at ref, an output of the skill group. That
@@ -140,18 +141,17 @@ func readCallOptions(opts []Option) (callOptions, error) {
 	return co, nil
 }
 
-// rank takes a RankBy or RankBySkill option, failing for a RankBySkill key that is not an
-// output of the skill group.
+// rank takes a RankBy or RankBySkill option, failing for an unknown key and for a RankBySkill
+// key that is not an output of the skill group.
 func (co *callOptions) rank(o Option) error {
 	k := o.outputs[0]
 	co.rankBy, co.rankSkill = k, o.skill
-	if o.skill == nil {
-		return nil
-	}
 	out, ok := catalogue()[k]
 	switch {
 	case !ok:
 		return fmt.Errorf("%w %q", ErrUnknownOutput, k)
+	case o.skill == nil:
+		return nil
 	case !out.IsSkill():
 		return fmt.Errorf("%w: %q", ErrNotSkillOutput, k)
 	}
