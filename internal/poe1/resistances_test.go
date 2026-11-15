@@ -108,6 +108,33 @@ func TestResistances(t *testing.T) {
 			want: map[string]float64{"maximum_fire_resistance": 78, "maximum_cold_resistance": 78, "maximum_chaos_resistance": 75},
 		},
 		{
+			// fire (100 - 60) * 0.39 = 15.6 and cold -60 * 0.39 = -23.4, truncated toward 0;
+			// the Kitava penalty is reduced too, chaos is not
+			name: "reduced elemental resistances",
+			extra: []resolve.StatValue{
+				{Stat: "base_fire_damage_resistance_%", Value: 100}, {Stat: "elemental_damage_resistance_+%", Value: -61},
+			},
+			want: map[string]float64{"fire_resistance": 15, "cold_resistance": -23, "chaos_resistance": -60},
+		},
+		{
+			// (100 - 60) * 1.5 + 0
+			name: "increased fire resistance",
+			extra: []resolve.StatValue{
+				{Stat: "base_fire_damage_resistance_%", Value: 100}, {Stat: "fire_damage_resistance_+%", Value: 50},
+			},
+			want: map[string]float64{"fire_resistance": 60, "cold_resistance": -60},
+		},
+		{
+			name:  "increased cold and lightning resistance",
+			extra: []resolve.StatValue{{Stat: "cold_damage_resistance_+%", Value: 50}, {Stat: "lightning_damage_resistance_+%", Value: -50}},
+			want:  map[string]float64{"fire_resistance": -60, "cold_resistance": -90, "lightning_resistance": -30},
+		},
+		{
+			name:  "increased elemental and chaos resistances",
+			extra: []resolve.StatValue{{Stat: "all_damage_resistance_+%", Value: 50}},
+			want:  map[string]float64{"lightning_resistance": -90, "chaos_resistance": -90},
+		},
+		{
 			name:  "at least -200",
 			extra: []resolve.StatValue{{Stat: "base_fire_damage_resistance_%", Value: -300}},
 			want:  map[string]float64{"fire_resistance": -360, "fire_resistance_capped": -200},
