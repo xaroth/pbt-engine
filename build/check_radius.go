@@ -71,13 +71,19 @@ func (c *Checked) findRadiusPassives() error {
 }
 
 func (c *Checked) smallRadius() (*radius.Index, radius.Area, error) {
+	return c.jewelRadius(smallRadius)
+}
+
+// jewelRadius returns the radius index of the build's tree variant and the disc of jewel radius
+// id.
+func (c *Checked) jewelRadius(id string) (*radius.Index, radius.Area, error) {
 	ix, err := radius.Of(c.store, c.build.Variant)
 	if err != nil {
 		return nil, radius.Area{}, fmt.Errorf("build: %w", err)
 	}
-	i := slices.IndexFunc(c.tree.JewelRadii, func(r dataset.JewelRadius) bool { return r.ID == smallRadius })
+	i := slices.IndexFunc(c.tree.JewelRadii, func(r dataset.JewelRadius) bool { return r.ID == id })
 	if i < 0 {
-		return nil, radius.Area{}, fmt.Errorf("build: jewel radius %s in the %s tree: %w", smallRadius, c.build.Variant, dataset.ErrNotInDataset)
+		return nil, radius.Area{}, fmt.Errorf("build: jewel radius %s in the %s tree: %w", id, c.build.Variant, dataset.ErrNotInDataset)
 	}
 	return ix, radius.Disc(c.tree.JewelRadii[i]), nil
 }

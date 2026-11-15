@@ -194,9 +194,9 @@ type CharacterColumn struct {
 // CharacterColumns returns the Characters columns resolve carries as stats, in bundle order.
 func CharacterColumns() []CharacterColumn {
 	return []CharacterColumn{
-		{"BaseStrength", "base_strength", func(c *dataset.Character) int32 { return c.BaseStrength }},
-		{"BaseDexterity", "base_dexterity", func(c *dataset.Character) int32 { return c.BaseDexterity }},
-		{"BaseIntelligence", "base_intelligence", func(c *dataset.Character) int32 { return c.BaseIntelligence }},
+		{"BaseStrength", baseStrengthStat, func(c *dataset.Character) int32 { return c.BaseStrength }},
+		{"BaseDexterity", baseDexterityStat, func(c *dataset.Character) int32 { return c.BaseDexterity }},
+		{"BaseIntelligence", baseIntelligenceStat, func(c *dataset.Character) int32 { return c.BaseIntelligence }},
 		{"BaseMaxLife", "base_maximum_life", func(c *dataset.Character) int32 { return c.BaseMaxLife }},
 		{"BaseMaxMana", "base_maximum_mana", func(c *dataset.Character) int32 { return c.BaseMaxMana }},
 	}
@@ -256,8 +256,8 @@ func QuestBundles(s *dataset.Store) ([]Bundle, error) {
 
 // Resolve turns a checked build into bundles and constants: character, level, every quest
 // reward with stats (the rules pick the ones the build's config grants), then the allocated
-// nodes as the build's overrides and timeless jewels change them (ChangeNode), each followed by
-// its chosen mastery effect, less those a jewel makes grant nothing, then the unallocated
+// nodes as the build's overrides, timeless jewels and attribute-transforming jewels change them
+// (ChangeNode), each followed by its chosen mastery effect, less those a jewel makes grant nothing, then the unallocated
 // passives a jewel grants (RadiusSource), then the unallocated notables items allocate
 // (ItemSource with Passive). It fails when a dataset group fails to load or a stat id resolve
 // uses is not in the dataset's stats.
@@ -316,7 +316,7 @@ func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 
 func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	choices := c.Masteries()
-	changes := nodeChanges(c)
+	changes := nodeChanges(stats, c)
 	nothing, granted := grantedPassives(c)
 	var out []Bundle
 	for _, n := range c.Nodes() {
@@ -343,7 +343,7 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 // allocate: not other ascendancies' nodes or other classes' starts, and the passives its
 // cluster jewels add.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
-	changes := nodeChanges(c)
+	changes := nodeChanges(stats, c)
 	nothing, granted := grantedPassives(c)
 	var out []Bundle
 	for i := range c.Tree().Nodes {

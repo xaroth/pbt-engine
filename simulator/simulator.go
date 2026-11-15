@@ -112,6 +112,8 @@ type shape struct {
 	conquests string
 	// radius lists the passives jewels change by allocation.
 	radius string
+	// transforms lists the passives whose attributes jewels transform.
+	transforms string
 	// itemPassives lists the notables items allocate with their items, which the sheet credits.
 	itemPassives string
 }
@@ -127,7 +129,7 @@ func shapeOf(c *build.Checked) shape {
 	return shape{
 		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
 		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()), conquests: conquestsKey(c.Conquests()),
-		radius: radiusKey(c.RadiusPassives()), itemPassives: itemPassivesKey(c.ItemPassives()),
+		radius: radiusKey(c.RadiusPassives()), transforms: transformsKey(c.AttributeTransforms()), itemPassives: itemPassivesKey(c.ItemPassives()),
 	}
 }
 
@@ -181,6 +183,17 @@ func itemPassivesKey(ps []build.ItemPassive) string {
 	for _, p := range ps {
 		buf = strconv.AppendUint(append(buf, ','), uint64(p.Node.ID), decimal)
 		buf = strconv.AppendQuote(append(append(buf, '@'), p.Slot...), p.Name)
+	}
+	return string(buf)
+}
+
+// transformsKey lists passives with their socket and the attributes transformed.
+func transformsKey(ts []build.AttributeTransform) string {
+	var buf []byte
+	for _, t := range ts {
+		buf = strconv.AppendUint(append(buf, ','), uint64(t.Node.ID), decimal)
+		buf = strconv.AppendUint(append(buf, '@'), uint64(t.Socket), decimal)
+		buf = append(buf, ':', byte('0'+t.From), '>', byte('0'+t.To))
 	}
 	return string(buf)
 }

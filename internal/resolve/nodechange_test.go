@@ -135,8 +135,8 @@ func TestResolveConquest(t *testing.T) {
 	}
 }
 
-// instinctJewel is a jewel with the stats of Unnatural Instinct among stats.
-func instinctJewel(stats ...string) build.Item {
+// jewelWith is a unique jewel with stats, each of value 1.
+func jewelWith(stats ...string) build.Item {
 	svs := make([]build.StatValue, 0, len(stats))
 	for _, st := range stats {
 		svs = append(svs, build.StatValue{Stat: st, Value: 1})
@@ -168,12 +168,12 @@ func TestResolveRadiusPassives(t *testing.T) {
 		jewel build.Item
 		want  []resolve.Bundle
 	}{
-		{"allocated small passive grants nothing", []uint32{1, 3, 4, 7}, instinctJewel(nothing), []resolve.Bundle{node(7, notable)}},
-		{"allocated small passive with only the grant", []uint32{1, 3, 4, 7}, instinctJewel(granted), []resolve.Bundle{node(4, small), node(7, notable)}},
-		{"unallocated small passive granted", []uint32{1, 3, 7}, instinctJewel(granted), []resolve.Bundle{node(7, notable), fromJewel}},
-		{"unallocated small passive with only grant nothing", []uint32{1, 3, 7}, instinctJewel(nothing), []resolve.Bundle{node(7, notable)}},
-		{"Unnatural Instinct", []uint32{1, 3, 7}, instinctJewel(nothing, granted), []resolve.Bundle{node(7, notable), fromJewel}},
-		{"socket not allocated", []uint32{1, 4, 7}, instinctJewel(nothing, granted), []resolve.Bundle{node(4, small), node(7, notable)}},
+		{"allocated small passive grants nothing", []uint32{1, 3, 4, 7}, jewelWith(nothing), []resolve.Bundle{node(7, notable)}},
+		{"allocated small passive with only the grant", []uint32{1, 3, 4, 7}, jewelWith(granted), []resolve.Bundle{node(4, small), node(7, notable)}},
+		{"unallocated small passive granted", []uint32{1, 3, 7}, jewelWith(granted), []resolve.Bundle{node(7, notable), fromJewel}},
+		{"unallocated small passive with only grant nothing", []uint32{1, 3, 7}, jewelWith(nothing), []resolve.Bundle{node(7, notable)}},
+		{"Unnatural Instinct", []uint32{1, 3, 7}, jewelWith(nothing, granted), []resolve.Bundle{node(7, notable), fromJewel}},
+		{"socket not allocated", []uint32{1, 4, 7}, jewelWith(nothing, granted), []resolve.Bundle{node(4, small), node(7, notable)}},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -190,6 +190,91 @@ func TestResolveRadiusPassives(t *testing.T) {
 					return bd.Scope != resolve.Global
 				}
 				return true
+			})
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("node bundles (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// On conquestDataset with notable 7 also giving Strength and Dexterity, a tattoo giving
+// Strength, and a second socket 10, a jewel in socket 3 that transforms an attribute changes it
+// on the passives in its Large radius, 4 and 7, and leaves their other stats and buffs as they
+// are. Passives a tattoo replaces or a timeless jewel conquers keep their attributes.
+func TestResolveAttributeTransforms(t *testing.T) {
+	t.Parallel()
+	d := conquestDataset()
+	hybrid := uint32(len(d.Stats))
+	d.Stats = append(d.Stats, dataset.Stat{ID: "base_strength_and_dexterity"})
+	tree := &d.Trees[0]
+	tree.Nodes[0].Neighbours = append(tree.Nodes[0].Neighbours, 10)
+	tree.Nodes[3].Stats = []dataset.StatValue{{Stat: 3, Value: 20}, {Stat: 4, Value: 8}, {Stat: hybrid, Value: 5}}
+	tree.Nodes = append(tree.Nodes, dataset.Node{ID: 10, Kind: dataset.JewelSocket, Neighbours: []uint32{1}})
+	tree.Overrides[0].Stats = []dataset.StatValue{{Stat: 6, Value: 20}}
+	l := &d.Layouts[0]
+	l.Groups = append(l.Groups, dataset.LayoutGroup{ID: 10, X: 2000})
+	l.Nodes = append(l.Nodes, dataset.LayoutNode{ID: 10, Group: 10, Icon: "n.png"})
+	s := open(t, d)
+	timeless := build.Item{Rarity: build.Unique, Base: "Metadata/Items/Jewels/JewelTimeless", Mods: []build.ModLine{{
+		Kind: build.Explicit, Text: "conquered", Stats: []build.StatValue{
+			{Stat: "local_unique_jewel_alternate_tree_version", Value: 1},
+			{Stat: "local_unique_jewel_alternate_tree_seed", Value: 100},
+			{Stat: "local_unique_jewel_alternate_tree_keystone", Value: 1},
+		},
+	}}}
+	const (
+		strToInt = "local_jewel_nearby_passives_str_to_int"
+		dexToStr = "local_jewel_nearby_passives_dex_to_str"
+		intToDex = "local_jewel_nearby_passives_int_to_dex"
+	)
+	global := func(id uint32, stats ...resolve.StatValue) resolve.Bundle {
+		return resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: id}, Stats: stats}
+	}
+	buff := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Buff, Source: resolve.NodeSource{ID: 7}, Stats: []resolve.StatValue{{"aura_damage_+%", 5}}}
+	small := global(4, resolve.StatValue{"base_strength", 10})
+	notable := global(7, resolve.StatValue{"additional_strength", 20}, resolve.StatValue{"maximum_life_+%", 8},
+		resolve.StatValue{"base_strength_and_dexterity", 5})
+	notableToInt := global(7, resolve.StatValue{"maximum_life_+%", 8}, resolve.StatValue{"base_intelligence", 25}, resolve.StatValue{"base_dexterity", 5})
+	testCases := []struct {
+		name      string
+		nodes     []uint32
+		stat      string
+		overrides map[uint32]string
+		timeless  bool
+		want      []resolve.Bundle
+	}{
+		{name: "Strength to Intelligence", nodes: []uint32{1, 3, 4, 7}, stat: strToInt, want: []resolve.Bundle{
+			global(4, resolve.StatValue{"base_intelligence", 10}), notableToInt, buff,
+		}},
+		{name: "Dexterity to Strength", nodes: []uint32{1, 3, 4, 7}, stat: dexToStr, want: []resolve.Bundle{
+			small, global(7, resolve.StatValue{"additional_strength", 20}, resolve.StatValue{"maximum_life_+%", 8}, resolve.StatValue{"base_strength", 10}), buff,
+		}},
+		{name: "no attribute to transform", nodes: []uint32{1, 3, 4, 7}, stat: intToDex, want: []resolve.Bundle{small, notable, buff}},
+		{name: "socket not allocated", nodes: []uint32{1, 4, 7}, stat: strToInt, want: []resolve.Bundle{small, notable, buff}},
+		{name: "tattoo", nodes: []uint32{1, 3, 4, 7}, stat: strToInt, overrides: map[uint32]string{4: "Valako4"}, want: []resolve.Bundle{
+			global(4, resolve.StatValue{"base_strength", 20}), notableToInt, buff,
+		}},
+		{name: "conquered", nodes: []uint32{1, 3, 4, 7, 10}, stat: strToInt, timeless: true, want: []resolve.Bundle{
+			global(7, resolve.StatValue{"maximum_life_+%", 10}),
+		}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := testBuild(90, testCase.nodes...)
+			b.Overrides = testCase.overrides
+			b.Jewels = build.Jewels{3: jewelWith(testCase.stat)}
+			if testCase.timeless {
+				b.Jewels[10] = timeless
+			}
+			r, err := resolveBuild(t, s, b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := slices.DeleteFunc(r.Bundles, func(bd resolve.Bundle) bool {
+				_, ok := bd.Source.(resolve.NodeSource)
+				return !ok
 			})
 			if diff := cmp.Diff(testCase.want, got); diff != "" {
 				t.Errorf("node bundles (-want +got):\n%s", diff)
