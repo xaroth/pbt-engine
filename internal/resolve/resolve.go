@@ -236,7 +236,7 @@ func QuestBundles(s *dataset.Store) ([]Bundle, error) {
 
 // Resolve turns a checked build into bundles and constants: character, level, every quest
 // reward with stats (the rules pick the ones the build's config grants), then the allocated
-// nodes as the build's overrides change them (ChangeNode), each followed by its chosen mastery
+// nodes as the build's overrides and timeless jewels change them (ChangeNode), each followed by its chosen mastery
 // effect. It fails when a dataset group fails to load or a stat id resolve uses is not in the
 // dataset's stats.
 func Resolve(c *build.Checked) (*Resolved, error) {

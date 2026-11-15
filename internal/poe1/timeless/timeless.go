@@ -3,8 +3,9 @@
 // picks, with the values it rolls for them.
 //
 // It takes the game's alternate tree tables (AlternateTreeVersions, AlternatePassiveSkills,
-// AlternatePassiveAdditions) as plain values and names its picks by their position in them. Which
-// nodes lie in the radius, and what the picks' stats mean, is for the caller.
+// AlternatePassiveAdditions) as plain values and names its picks by their position in them;
+// Versions reads them from a dataset and gives the picks as its stats. Which nodes lie in the
+// radius, and what the stats mean, is for the caller.
 package timeless
 
 import (
@@ -273,19 +274,30 @@ func (t *Tree) checkAdditions(k Kind) error {
 	return nil
 }
 
+// keystone gives the keystone of conqueror c, or of its first version when the version has no
+// keystone of its own: jewels roll the latest revision, which only some conquerors have.
 func (t *Tree) keystone(c Conqueror) Result {
-	for _, i := range t.replacements[Keystone-1] {
-		r := &t.tables.Replacements[i]
-		if r.Conqueror != c {
-			continue
-		}
-		res := Result{Replaced: true, Replacement: i}
-		if len(r.Stats) > 0 {
-			res.Rolls[0] = r.Stats[0].Min
-		}
-		return res
+	at := t.keystoneOf(c)
+	if at < 0 {
+		at = t.keystoneOf(Conqueror{Index: c.Index})
 	}
-	return Result{Replacement: -1}
+	if at < 0 {
+		return Result{Replacement: -1}
+	}
+	res := Result{Replaced: true, Replacement: at}
+	for s, r := range t.tables.Replacements[at].Stats {
+		res.Rolls[s] = r.Min
+	}
+	return res
+}
+
+func (t *Tree) keystoneOf(c Conqueror) int {
+	for _, i := range t.replacements[Keystone-1] {
+		if t.tables.Replacements[i].Conqueror == c {
+			return i
+		}
+	}
+	return -1
 }
 
 func (t *Tree) additionRange(k Kind) Range {

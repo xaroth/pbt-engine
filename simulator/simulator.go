@@ -107,6 +107,8 @@ type shape struct {
 	// clusters lists the passives the cluster jewels add with their stats, since the jewels
 	// decide which there are and what they give.
 	clusters string
+	// conquests lists the passives timeless jewels change with their changes.
+	conquests string
 }
 
 // shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
@@ -119,7 +121,7 @@ func shapeOf(c *build.Checked) shape {
 	}
 	return shape{
 		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
-		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()),
+		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()), conquests: conquestsKey(c.Conquests()),
 	}
 }
 
@@ -128,21 +130,35 @@ const decimal = 10
 // clustersKey lists nodes with their stats and buffs.
 func clustersKey(nodes []*dataset.Node) string {
 	var buf []byte
-	appendStats := func(svs []dataset.StatValue) {
-		for _, sv := range svs {
-			buf = strconv.AppendUint(append(buf, ' '), uint64(sv.Stat), decimal)
-			buf = strconv.AppendInt(append(buf, '='), int64(sv.Value), decimal)
-		}
-	}
 	for _, n := range nodes {
 		buf = strconv.AppendUint(append(buf, ','), uint64(n.ID), decimal)
-		appendStats(n.Stats)
+		buf = appendStats(buf, n.Stats)
 		for _, bf := range n.Buffs {
-			buf = append(buf, '|')
-			appendStats(bf)
+			buf = appendStats(append(buf, '|'), bf)
 		}
 	}
 	return string(buf)
+}
+
+// conquestsKey lists conquests with their stats.
+func conquestsKey(qs []build.Conquest) string {
+	var buf []byte
+	for _, q := range qs {
+		buf = strconv.AppendUint(append(buf, ','), uint64(q.Node.ID), decimal)
+		if q.Replace {
+			buf = append(buf, '!')
+		}
+		buf = appendStats(buf, q.Stats)
+	}
+	return string(buf)
+}
+
+func appendStats(buf []byte, svs []dataset.StatValue) []byte {
+	for _, sv := range svs {
+		buf = strconv.AppendUint(append(buf, ' '), uint64(sv.Stat), decimal)
+		buf = strconv.AppendInt(append(buf, '='), int64(sv.Value), decimal)
+	}
+	return buf
 }
 
 type idleSheet struct {
