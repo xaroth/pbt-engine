@@ -27,14 +27,21 @@ type ConfigKey struct {
 	// Values are the values the key takes, in display order; nil when any value of its type
 	// does.
 	Values []json.RawMessage
+	// Derived says the key is a condition the build can cause itself: where no layer sets it,
+	// a simulation derives it from the build's skills (see Stats.Config).
+	Derived bool
 }
 
 // ConfigKeys returns the config keys of the sim's game.
 func (s *Sim) ConfigKeys() ([]ConfigKey, error) {
 	specs := poe1.ConfigSpecs()
+	derived := map[string]bool{}
+	for _, k := range poe1.DerivedConditions() {
+		derived[k.Name()] = true
+	}
 	out := make([]ConfigKey, 0, len(specs))
 	for _, sp := range specs {
-		k := ConfigKey{Name: sp.Name}
+		k := ConfigKey{Name: sp.Name, Derived: derived[sp.Name]}
 		var err error
 		if k.Default, err = json.Marshal(sp.Default); err != nil {
 			return nil, fmt.Errorf("simulator: config key %s: %w", sp.Name, err)

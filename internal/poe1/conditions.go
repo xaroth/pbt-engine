@@ -239,6 +239,17 @@ func derivables() []derivable {
 	}
 }
 
+// DerivedConditions returns the condition keys the build can cause itself, whose value
+// DeriveConditions derives where no layer sets one.
+func DerivedConditions() []config.Key[bool] {
+	ds := derivables()
+	out := make([]config.Key[bool], 0, len(ds))
+	for _, d := range ds {
+		out = append(out, d.key)
+	}
+	return out
+}
+
 // DeriveConditions derives the conditions the build can cause itself from the skills on the
 // sheet, switched to cfg: one that no layer of cfg sets (its source is Default or Derived) is
 // on, with source Derived, when the hit of a skill of the build (not the default attack) can

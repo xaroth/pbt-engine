@@ -247,7 +247,8 @@ func TestConfigKeys(t *testing.T) {
 		"enemy-intimidated", "enemy-taunted", "enemy-on-consecrated-ground", "full-life", "full-energy-shield",
 		"leeching", "focused", "fortified",
 	} {
-		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false")})
+		derived := name == "enemy-shocked" || name == "enemy-chilled" || name == "enemy-ignited"
+		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false"), Derived: derived})
 	}
 	want = append(want, simulator.ConfigKey{Name: "enemy-shock-effect", Default: json.RawMessage("0")})
 	if diff := cmp.Diff(want, keys); diff != "" {
