@@ -143,7 +143,8 @@ func (st *Stats) Config(k Named) (config.Entry, bool) {
 	return e, ok
 }
 
-// openSheet opens a sheet of the simulated build with its items.
+// openSheet opens a sheet of the simulated build with its items, and the conditions it causes
+// derived again: the config alone does not give the Exposure the build's hits inflict.
 func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	r, err := resolve.Resolve(st.checked)
 	if err != nil {
@@ -165,5 +166,8 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 		}
 	}
 	sh.SetEnemy(st.enemy)
+	if _, _, err := sh.DeriveConditions(st.cfg); err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
 	return sh, nil
 }

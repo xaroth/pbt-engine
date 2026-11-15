@@ -11,6 +11,7 @@ import (
 	gocmp "github.com/google/go-cmp/cmp"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/benchbuilds"
 	"github.com/xaroth/pbt-engine/internal/poe1"
@@ -259,4 +260,48 @@ func TestStatsExplainConcurrent(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+const exposureGloves = `Rarity: RARE
+Doom Grip
+Sorcerer Gloves
+Item Level: 85
+Implicits: 1
+Inflict Lightning Exposure on Hit, applying -12% to Lightning Resistance
++25% to Fire Resistance
+`
+
+// An explanation counts the Exposure the build's hits inflict, as Get does: on the
+// elementalist bench build with gloves that inflict Lightning Exposure.
+func TestStatsExplainCountsExposure(t *testing.T) {
+	t.Parallel()
+	d := benchbuilds.Open(t)
+	var b *build.Build
+	for _, c := range benchbuilds.Builds(t, d) {
+		if c.Name == "elementalist" {
+			b = c.Build
+		}
+	}
+	sim, err := simulator.New(d.Store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gloves, warnings, err := sim.Data().Item(exposureGloves)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the gloves: %v, %v", warnings, err)
+	}
+	if err := b.Apply(build.Equip(build.SlotGloves, gloves)); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, sim, b)
+	if on, src := configOf(st, poe1.EnemyLightningExposure); on != "true" || src != config.Derived {
+		t.Fatalf("lightning exposure %s from %v, want derived on", on, src)
+	}
+	ex, err := st.Explain(poe1.AverageHit, simulator.Tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := get(t, st, poe1.AverageHit); math.Float64bits(ex.Value) != math.Float64bits(v) {
+		t.Errorf("average hit: explained %v, got %v", ex.Value, v)
+	}
 }
