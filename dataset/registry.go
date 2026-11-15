@@ -63,9 +63,9 @@ func OpenRoot(root fs.FS) (*Registry, error) {
 
 // Add opens the dataset in fsys and adds it. It fails when Open does, the manifest has no game
 // or a version that is not numbers separated by dots, or the registry holds that game and
-// version already.
-func (r *Registry) Add(fsys fs.FS) (*Store, error) {
-	s, err := Open(fsys)
+// version already. opts are Open's.
+func (r *Registry) Add(fsys fs.FS, opts ...Option) (*Store, error) {
+	s, err := Open(fsys, opts...)
 	if err != nil {
 		return nil, err
 	}

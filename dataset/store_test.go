@@ -1,8 +1,12 @@
 package dataset_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -131,4 +135,48 @@ func wrap(tb testing.TB, what string, err error) error {
 		return nil
 	}
 	return fmt.Errorf("%s: %w", what, err)
+}
+
+// With SkipHash a Store checks a file's size and not its hash; without, both.
+func TestStoreSkipHash(t *testing.T) {
+	t.Parallel()
+	good := written(t, sample())
+	m, err := dataset.ReadManifest(good)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withConstants := func(edit func(*dataset.File)) fstest.MapFS {
+		m := m
+		m.Files = slices.Clone(m.Files)
+		edit(&m.Files[slices.IndexFunc(m.Files, func(f dataset.File) bool { return f.Name == dataset.ConstantsFile })])
+		return withManifest(t, good, m)
+	}
+	// The manifest's entry is edited, not the file, so the file still decodes.
+	wrongBytes := withConstants(func(f *dataset.File) { sum := sha256.Sum256([]byte("other")); f.SHA256 = hex.EncodeToString(sum[:]) })
+	wrongSize := withConstants(func(f *dataset.File) { f.Size++ })
+
+	testCases := []struct {
+		name    string
+		fsys    fstest.MapFS
+		opts    []dataset.Option
+		wantErr bool
+	}{
+		{name: "wrong bytes, hashed", fsys: wrongBytes, wantErr: true},
+		{name: "wrong size, hashed", fsys: wrongSize, wantErr: true},
+		{name: "wrong bytes, skip hash", fsys: wrongBytes, opts: []dataset.Option{dataset.SkipHash()}},
+		{name: "wrong size, skip hash", fsys: wrongSize, opts: []dataset.Option{dataset.SkipHash()}, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			s, err := dataset.Open(testCase.fsys, testCase.opts...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = s.Constants()
+			if gotErr := err != nil; gotErr != testCase.wantErr || gotErr && !errors.Is(err, dataset.ErrInvalid) {
+				t.Errorf("Constants: got error %v, want error %t", err, testCase.wantErr)
+			}
+		})
+	}
 }

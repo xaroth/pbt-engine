@@ -66,3 +66,47 @@ func TestFSErrors(t *testing.T) {
 		t.Errorf("id not a hash: got %v, want %v", err, dataset.ErrInvalid)
 	}
 }
+
+// With SkipHash FS checks a file's size and not its hash; without, both.
+func TestFSSkipHash(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		blob    func(good []byte) []byte
+		opts    []remote.Option
+		wantErr bool
+	}{
+		{name: "wrong bytes, hashed", blob: flipped, wantErr: true},
+		{name: "wrong size, hashed", blob: grown, wantErr: true},
+		{name: "wrong bytes, skip hash", blob: flipped, opts: []remote.Option{remote.SkipHash()}},
+		{name: "wrong size, skip hash", blob: grown, opts: []remote.Option{remote.SkipHash()}, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			f := &fake{files: map[string][]byte{}}
+			m := f.upload(t, dataset1("3.29.3.6"))
+			want := testCase.blob(f.files[blob(statsSHA(m))])
+			f.files[blob(statsSHA(m))] = want
+			fsys, err := remote.FS(t.Context(), f, m.ID, testCase.opts...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := fs.ReadFile(fsys, "stats.fb")
+			switch {
+			case testCase.wantErr && !errors.Is(err, remote.ErrMismatch):
+				t.Errorf("got %v, want %v", err, remote.ErrMismatch)
+			case !testCase.wantErr && (err != nil || !bytes.Equal(got, want)):
+				t.Errorf("got %d bytes and error %v, want the blob's %d bytes", len(got), err, len(want))
+			}
+		})
+	}
+}
+
+func flipped(b []byte) []byte {
+	out := bytes.Clone(b)
+	out[len(out)-1] ^= 0xff
+	return out
+}
+
+func grown(b []byte) []byte { return append(bytes.Clone(b), 0) }

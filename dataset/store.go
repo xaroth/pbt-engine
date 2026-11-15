@@ -24,6 +24,7 @@ type Store struct {
 	manifest Manifest
 	fsys     fs.FS
 	files    map[string]File
+	skipHash bool
 	// reads holds the files Load is reading, which readGroup takes from there; nil outside Load.
 	reads atomic.Pointer[map[string]*fileRead]
 
@@ -66,11 +67,20 @@ type statsGroup struct {
 	index map[string]uint32
 }
 
+// An Option changes how a Store reads its dataset.
+type Option func(*Store)
+
+// SkipHash makes a Store check each file it reads against its size in the manifest and not its
+// SHA-256. It is for a source that ensures the content itself, such as files fetched over HTTPS
+// from a URL that is their hash, where hashing every file again costs more than it checks:
+// SHA-256 has no hardware support in WebAssembly. The manifest is still checked against its id.
+func SkipHash() Option { return func(s *Store) { s.skipHash = true } }
+
 // Open reads the manifest in fsys and reads no table group yet. It fails when ReadManifest
 // does, or the manifest lists an unknown file, misses stats, characters, constants or quests,
 // lists only one of the items group's two files, lists monsters without skills, or lists a
 // layout without its tree.
-func Open(fsys fs.FS) (*Store, error) {
+func Open(fsys fs.FS, opts ...Option) (*Store, error) {
 	m, err := ReadManifest(fsys)
 	if err != nil {
 		return nil, err
@@ -84,6 +94,9 @@ func Open(fsys fs.FS) (*Store, error) {
 		texts:    map[string]*lazy[*Text]{},
 		names:    map[string]*lazy[*Names]{},
 		layouts:  map[string]*lazy[*Layout]{},
+	}
+	for _, o := range opts {
+		o(s)
 	}
 	for _, f := range m.Files {
 		if err := registerFile(s, f); err != nil {
@@ -104,7 +117,8 @@ func groupTag(name, prefix string) string {
 	return strings.TrimSuffix(strings.TrimPrefix(name, prefix), fbSuffix)
 }
 
-// readGroup reads a file listed in the manifest, checks its size and hash, and decodes it.
+// readGroup reads a file listed in the manifest, checks its size and, unless SkipHash, its
+// hash, and decodes it.
 func readGroup[T any](s *Store, name string, decode func([]byte) (T, error)) (T, error) {
 	var out T
 	f := s.files[name]
@@ -112,7 +126,7 @@ func readGroup[T any](s *Store, name string, decode func([]byte) (T, error)) (T,
 	if err != nil {
 		return out, fmt.Errorf("read %s: %w", name, err)
 	}
-	if len(b) != f.Size || sha256Hex(b) != f.SHA256 {
+	if len(b) != f.Size || !s.skipHash && sha256Hex(b) != f.SHA256 {
 		return out, fmt.Errorf("%s: size or sha256 differs from %s: %w", name, ManifestName, ErrInvalid)
 	}
 	err = decodeSafely(func(b []byte) (err error) { out, err = decode(b); return err }, b)
