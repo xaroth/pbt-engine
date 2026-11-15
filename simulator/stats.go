@@ -135,8 +135,9 @@ type Named interface{ Name() string }
 
 // Config returns the value the key resolved to and its source, and false for a key the game
 // does not have. A condition the build can cause itself (EnemyShocked, EnemyChilled,
-// EnemyIgnited) that no layer sets is on with source config.Derived when a skill of the build
-// inflicts it, else off with source config.Default.
+// EnemyIgnited, EnemyFireExposure, EnemyColdExposure, EnemyLightningExposure) that no layer sets
+// is on with source config.Derived when a skill of the build inflicts it, else off with source
+// config.Default. Exposure a hit inflicts only by chance is no such source.
 func (st *Stats) Config(k Named) (config.Entry, bool) {
 	e, ok := st.cfg[k.Name()]
 	return e, ok

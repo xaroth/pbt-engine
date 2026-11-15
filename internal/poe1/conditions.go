@@ -184,8 +184,10 @@ func (sh *Sheet) addDebuffs() error {
 	return nil
 }
 
-// setConditions switches each condition on or off by cfg, and sets the Shock's effect.
+// setConditions switches each condition on or off by cfg, and sets the Shock's effect and the
+// enemy's Exposure.
 func (sh *Sheet) setConditions(cfg config.Resolved) {
+	sh.setExposure(cfg)
 	for _, c := range conditions() {
 		on, _ := config.Lookup(cfg, c.key)
 		// The sources are this session's, so these cannot fail.
@@ -239,13 +241,16 @@ func derivables() []derivable {
 	}
 }
 
-// DerivedConditions returns the condition keys the build can cause itself, whose value
-// DeriveConditions derives where no layer sets one.
+// DerivedConditions returns the condition keys the build can cause itself, Exposure included,
+// whose value DeriveConditions derives where no layer sets one.
 func DerivedConditions() []config.Key[bool] {
-	ds := derivables()
-	out := make([]config.Key[bool], 0, len(ds))
+	ds, es := derivables(), exposures()
+	out := make([]config.Key[bool], 0, len(ds)+len(es))
 	for _, d := range ds {
 		out = append(out, d.key)
+	}
+	for _, e := range es {
+		out = append(out, e.key)
 	}
 	return out
 }
@@ -255,7 +260,8 @@ func DerivedConditions() []config.Key[bool] {
 // on, with source Derived, when the hit of a skill of the build (not the default attack) can
 // inflict it, and else off with source Default. It switches the sheet's conditions to the
 // result and returns it, with a warning for each condition a layer sets on that no skill can
-// inflict. An explicit value wins, off included.
+// inflict. An explicit value wins, off included. Exposure is derived likewise
+// (deriveExposure).
 func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build.Warning, error) {
 	out := maps.Clone(cfg)
 	var warnings []build.Warning
@@ -271,20 +277,42 @@ func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build
 		case !src.Explicit():
 			out[d.key.Name()] = config.Entry{Value: false, Source: config.Default}
 		case on && !can:
-			warnings = append(warnings, build.Warning{
-				Code: NoConditionSource, Subject: "config " + d.key.Name(),
-				Message: fmt.Sprintf("on from the %s config, but no skill of the build inflicts it; applied as set", src),
-			})
+			warnings = append(warnings, noConditionSource(d.key, src))
 		}
 		v, _ := config.Lookup(out, d.key)
 		_ = sh.session.SetSourceEnabled(sh.conditions.sources[d.stat], v)
 	}
-	return out, warnings, nil
+	exposed, err := sh.deriveExposure(cfg, out)
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, append(warnings, exposed...), nil
+}
+
+// noConditionSource is the warning for condition key k, set on by a layer of source src that
+// no skill of the build inflicts.
+func noConditionSource(k config.Key[bool], src config.Source) build.Warning {
+	return build.Warning{
+		Code: NoConditionSource, Subject: "config " + k.Name(),
+		Message: fmt.Sprintf("on from the %s config, but no skill of the build inflicts it; applied as set", src),
+	}
 }
 
 // inflicted reports whether the hit of a skill on the sheet, but the default attack, inflicts
 // the ailment of engine stat name, with either hand.
 func (sh *Sheet) inflicted(name string) (bool, error) {
+	var found bool
+	err := sh.eachHit(func(i int, read handRead) (bool, error) {
+		v, err := sh.hitValue(i, name, 0, read)
+		found = v != 0
+		return found, err
+	})
+	return found, err
+}
+
+// eachHit calls f for the hit of each skill on the sheet, but the default attack, with each
+// hand it hits with, until f stops or fails.
+func (sh *Sheet) eachHit(f func(i int, read handRead) (stop bool, err error)) error {
 	for i, sl := range sh.skills {
 		sk := &resolve.Skill{Types: sl.types, WeaponRestrictions: sl.restrictions}
 		if sl.source.Default() || !Hit(sk, sh.hands) {
@@ -295,18 +323,28 @@ func (sh *Sheet) inflicted(name string) (bool, error) {
 			reads = append(reads, readOffHand)
 		}
 		for _, read := range reads {
-			n, err := sh.skillHandNode(i, name, nil, formHit, read)
-			if err != nil {
-				return false, err
-			}
-			v, err := sh.session.Get(n)
-			if err != nil {
-				return false, fmt.Errorf("sheet: skill %d %s: %w", i, name, err)
-			}
-			if v != 0 {
-				return true, nil
+			if stop, err := f(i, read); stop || err != nil {
+				return err
 			}
 		}
 	}
-	return false, nil
+	return nil
+}
+
+// hitValue returns engine stat name in the hit context of skill i read with read, for damage
+// type d or, when 0, none.
+func (sh *Sheet) hitValue(i int, name string, d DamageType, read handRead) (float64, error) {
+	var damage []DamageType
+	if d != 0 {
+		damage = []DamageType{d}
+	}
+	n, err := sh.skillHandNode(i, name, damage, formHit, read)
+	if err != nil {
+		return 0, err
+	}
+	v, err := sh.session.Get(n)
+	if err != nil {
+		return 0, fmt.Errorf("sheet: skill %d %s: %w", i, name, err)
+	}
+	return v, nil
 }

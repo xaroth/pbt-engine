@@ -17,13 +17,16 @@ func TestFromXMLConditions(t *testing.T) {
 	b, w := fromXML(t, `className="Marauder"`, `treeVersion="3_29"`, `<ConfigSet id="1">
 	<Input name="conditionEnemyShocked" boolean="true"/>
 	<Input name="conditionShockEffect" number="25"/>
+	<Input name="conditionEnemyColdExposure" boolean="true"/>
 	<Input name="conditionFullLife" boolean="true"/>
 	<Input name="buffFortification" boolean="false"/>
 	<Input name="conditionEnemyChilled" boolean="maybe"/>
 	<Input name="conditionBeenHitRecently" boolean="true"/>
 </ConfigSet>`)
 	want := values(t, poe1.BanditsKillAll, "")
-	for name, v := range map[string]string{"enemy-shocked": "true", "enemy-shock-effect": "25", "full-life": "true", "fortified": "false"} {
+	for name, v := range map[string]string{
+		"enemy-shocked": "true", "enemy-shock-effect": "25", "enemy-cold-exposure": "true", "full-life": "true", "fortified": "false",
+	} {
 		want[name] = json.RawMessage(v)
 	}
 	if diff := cmp.Diff(want, b.Config); diff != "" {
@@ -45,7 +48,9 @@ func TestToXMLConditionsRoundTrip(t *testing.T) {
 	t.Parallel()
 	reg := exportRegistry(t)
 	b := chieftain(t)
-	for k, v := range map[string]string{"enemy-unnerved": "true", "enemy-shocked": "true", "enemy-shock-effect": "30", "leeching": "true"} {
+	for k, v := range map[string]string{
+		"enemy-unnerved": "true", "enemy-shocked": "true", "enemy-shock-effect": "30", "enemy-fire-exposure": "true", "leeching": "true",
+	} {
 		b.Config[k] = json.RawMessage(v)
 	}
 	file, warnings, err := pob.ToXML(b, reg)

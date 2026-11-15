@@ -23,8 +23,8 @@ func righteousFire(stats ...resolve.StatValue) *resolve.Skill {
 // With 1000 life and 200 energy shield the skill burns for 840 fire damage per second, of
 // which the default enemy (50% fire resistance) takes half. Increases and more multipliers
 // to damage over time and the Damage over Time Multiplier scale it; modifiers to spell damage
-// only when the skill says so, and modifiers to hits never. Exposure lowers the resistance it
-// meets, penetration does not.
+// only when the skill says so, and modifiers to hits never. Exposure, here inflicted by the hit
+// of another skill, lowers the resistance it meets, penetration does not.
 func TestDamageOverTime(t *testing.T) {
 	t.Parallel()
 	stat := func(name string, value float64) resolve.StatValue { return resolve.StatValue{Stat: name, Value: value} }
@@ -61,7 +61,8 @@ func TestDamageOverTime(t *testing.T) {
 			}, c.node...)...)))
 			sk := righteousFire(c.own...)
 			sk.Supports = c.supports
-			setSkills(t, sh, sk)
+			setSkills(t, sh, sk, spellOf(1, "fire"))
+			derive(t, sh)
 			if got := outputOf(t, sh, poe1.DotDPS); math.Abs(got-c.want) > 1e-9 {
 				t.Errorf("got %v, want %v", got, c.want)
 			}
@@ -159,7 +160,8 @@ func TestExplainDamageOverTime(t *testing.T) {
 		resolve.StatValue{Stat: "damage_over_time_+%", Value: 50}, resolve.StatValue{Stat: "dot_multiplier_+", Value: 20},
 		resolve.StatValue{Stat: "fire_exposure_on_hit_magnitude", Value: -10},
 	)))
-	setSkills(t, sh, righteousFire())
+	setSkills(t, sh, righteousFire(), spellOf(1, "fire"))
+	derive(t, sh)
 	sh.SetEnemy(poe1.EnemyStats{Kind: poe1.EnemyUber, FireResistance: 50})
 	for _, k := range []output.Key{poe1.DotDPS} {
 		ex := explainOf(t, sh, k, poe1.Proportional)

@@ -57,6 +57,7 @@ func mechanics() []mechanic {
 		costMechanic(),
 		damageMechanic(),
 		enemyMechanic(),
+		exposureMechanic(),
 		conversionMechanic(),
 		accuracyMechanic(),
 		hitMechanic(),

@@ -104,6 +104,9 @@ const (
 	EnemyEvasion             = rules.EnemyEvasion
 	EnemyShocked             = rules.EnemyShocked
 	EnemyShockEffect         = rules.EnemyShockEffect
+	EnemyFireExposure        = rules.EnemyFireExposure
+	EnemyColdExposure        = rules.EnemyColdExposure
+	EnemyLightningExposure   = rules.EnemyLightningExposure
 	EnemyChilled             = rules.EnemyChilled
 	EnemyFrozen              = rules.EnemyFrozen
 	EnemyIgnited             = rules.EnemyIgnited

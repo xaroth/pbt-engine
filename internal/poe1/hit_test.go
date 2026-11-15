@@ -254,6 +254,7 @@ func TestPenetrationAndExposure(t *testing.T) {
 			t.Parallel()
 			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, c.stats...)))
 			setSkills(t, sh, elementalSpell(c.types...))
+			derive(t, sh)
 			for d, want := range c.want {
 				if got := outputOf(t, sh, keys[d]); math.Abs(got-want) > 1e-9 {
 					t.Errorf("%s: got %v, want %v", keys[d], got, want)
@@ -271,6 +272,7 @@ func TestStrongestExposureApplies(t *testing.T) {
 		bundle(resolve.NodeSource{ID: 2}, resolve.Global, resolve.StatValue{Stat: "fire_exposure_on_hit_magnitude", Value: -15}),
 	))
 	setSkills(t, sh, elementalSpell())
+	derive(t, sh)
 	if got := outputOf(t, sh, poe1.FireMinimum); got != 65 {
 		t.Errorf("fire minimum: got %v, want 65, against 50%% less the stronger 15%%", got)
 	}
@@ -285,6 +287,7 @@ func TestHitResistanceLimits(t *testing.T) {
 		resolve.StatValue{Stat: "cold_exposure_on_hit_magnitude", Value: -10},
 	)))
 	setSkills(t, sh, elementalSpell())
+	derive(t, sh)
 	for _, c := range []struct {
 		name       string
 		enemy      poe1.EnemyStats

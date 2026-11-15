@@ -92,6 +92,14 @@ func TestFortified(t *testing.T) {
 	}
 }
 
+// derive derives the conditions the build causes on sh, as a simulation does.
+func derive(t *testing.T, sh *poe1.Sheet) {
+	t.Helper()
+	if _, _, err := sh.DeriveConditions(poe1.DefaultConfig()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // spellOf is a made-up spell that hits for 100 of damage type name (fire, cold, lightning),
 // once a second, with stats added to its stat set.
 func spellOf(group int, name string, stats ...resolve.StatValue) *resolve.Skill {
