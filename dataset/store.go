@@ -7,10 +7,11 @@ import (
 	"io/fs"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // Store holds the table groups of one dataset opened from its manifest. Each group is read,
-// checked against the groups it refers to and decoded on first use, then shared. A Store is
+// checked against the groups it refers to and decoded on first use, or by Load, then shared. A Store is
 // safe for concurrent use. Everything it returns, from the getters and from Dataset, is shared
 // with every other caller and read-only: sorting or editing a returned slice, tree or node
 // changes it for all of them and races with concurrent readers.
@@ -23,6 +24,8 @@ type Store struct {
 	manifest Manifest
 	fsys     fs.FS
 	files    map[string]File
+	// reads holds the files Load is reading, which readGroup takes from there; nil outside Load.
+	reads atomic.Pointer[map[string]*fileRead]
 
 	stats      lazy[statsGroup]
 	characters lazy[[]Character]
@@ -87,21 +90,7 @@ func Open(fsys fs.FS) (*Store, error) {
 			return nil, err
 		}
 	}
-	for _, name := range []string{CharactersFile, ConstantsFile, QuestsFile, StatsFile} {
-		if _, ok := s.files[name]; !ok {
-			return nil, fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
-		}
-	}
-	for v := range s.layouts {
-		if _, ok := s.trees[v]; !ok {
-			return nil, fmt.Errorf("%s: layout %s has no tree of that variant: %w", ManifestName, v, ErrInvalid)
-		}
-	}
-	_, hasItems := s.files[ItemsFile]
-	if _, hasMods := s.files[ModsFile]; hasItems != hasMods {
-		return nil, fmt.Errorf("%s: items group needs both %s and %s: %w", ManifestName, ItemsFile, ModsFile, ErrInvalid)
-	}
-	if err := s.checkMonstersFiles(); err != nil {
+	if err := s.checkFiles(); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -119,12 +108,11 @@ func groupTag(name, prefix string) string {
 func readGroup[T any](s *Store, name string, decode func([]byte) (T, error)) (T, error) {
 	var out T
 	f := s.files[name]
-	b, err := fs.ReadFile(s.fsys, name)
+	b, err := s.readFile(name)
 	if err != nil {
 		return out, fmt.Errorf("read %s: %w", name, err)
 	}
-	sum := sha256.Sum256(b)
-	if len(b) != f.Size || hex.EncodeToString(sum[:]) != f.SHA256 {
+	if len(b) != f.Size || sha256Hex(b) != f.SHA256 {
 		return out, fmt.Errorf("%s: size or sha256 differs from %s: %w", name, ManifestName, ErrInvalid)
 	}
 	err = decodeSafely(func(b []byte) (err error) { out, err = decode(b); return err }, b)
@@ -180,6 +168,41 @@ func (s *Store) Text(language string) (*Text, error) {
 		return nil, fmt.Errorf("dataset %s has no %s text: %w", s.manifest.Version, language, ErrNotInDataset)
 	}
 	return l.get(func() (*Text, error) { return s.loadText(language) })
+}
+
+// readFile reads name from Load's reads while Load runs, else from the Store's fs.FS.
+func (s *Store) readFile(name string) ([]byte, error) {
+	if reads := s.reads.Load(); reads != nil {
+		if r, ok := (*reads)[name]; ok {
+			<-r.done
+			return r.b, r.err
+		}
+	}
+	return fs.ReadFile(s.fsys, name) //nolint:wrapcheck // readGroup wraps it
+}
+
+func sha256Hex(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+// checkFiles checks that the manifest lists the files each group needs.
+func (s *Store) checkFiles() error {
+	for _, name := range []string{CharactersFile, ConstantsFile, QuestsFile, StatsFile} {
+		if _, ok := s.files[name]; !ok {
+			return fmt.Errorf("%s: missing file %s: %w", ManifestName, name, ErrInvalid)
+		}
+	}
+	for v := range s.layouts {
+		if _, ok := s.trees[v]; !ok {
+			return fmt.Errorf("%s: layout %s has no tree of that variant: %w", ManifestName, v, ErrInvalid)
+		}
+	}
+	_, hasItems := s.files[ItemsFile]
+	if _, hasMods := s.files[ModsFile]; hasItems != hasMods {
+		return fmt.Errorf("%s: items group needs both %s and %s: %w", ManifestName, ItemsFile, ModsFile, ErrInvalid)
+	}
+	return s.checkMonstersFiles()
 }
 
 // registerFile records f and, for a file of a group with one file per variant or language, a
