@@ -46,6 +46,12 @@ func TestResistances(t *testing.T) {
 			want:  map[string]float64{"fire_resistance": 10, "cold_resistance": -30, "chaos_resistance": -60},
 		},
 		{
+			// Thread of Hope's "-15% to all Elemental Resistances"
+			name:  "Thread of Hope",
+			extra: []resolve.StatValue{{Stat: "unique_thread_of_hope_base_resist_all_elements_%", Value: -15}},
+			want:  map[string]float64{"fire_resistance": -75, "cold_resistance": -75, "lightning_resistance": -75, "chaos_resistance": -60},
+		},
+		{
 			name:  "capped at the maximum",
 			extra: []resolve.StatValue{{Stat: "base_fire_damage_resistance_%", Value: 200}},
 			want:  map[string]float64{"fire_resistance": 140, "fire_resistance_capped": 75},
