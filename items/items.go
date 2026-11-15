@@ -110,6 +110,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r.index(it.Bases, text.BaseNames)
 	r.classes = newClasses(it.Bases, text.ItemClassNames)
+	set.IndexTexts(statScope)
 	return r, nil
 }
 

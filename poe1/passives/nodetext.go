@@ -57,6 +57,13 @@ func (p *Reader) NodeText(variant string, id uint32, language string) (NodeText,
 	return t.node(&tree.Nodes[i])
 }
 
+// Load makes now the texts of language that NodeText makes on its first call in that language, so
+// that call is as fast as later ones. Texts that cannot be made fail NodeText as they would have
+// without Load.
+func (p *Reader) Load(language string) {
+	_, _ = textsOf(p.store, language)
+}
+
 // texts renders passive nodes in one language.
 type texts struct {
 	set   *statdesc.Set
