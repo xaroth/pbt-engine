@@ -3,6 +3,7 @@ package poe1
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/internal/core"
@@ -24,6 +25,9 @@ var (
 
 // skillSlot is the skill in a slot: its gem, types and weapon restrictions.
 type skillSlot struct {
+	// skill is a copy of the skill SetSkills got, and key its sources' key.
+	skill        *resolve.Skill
+	key          skillKey
 	source       resolve.GemSource
 	types        []string
 	restrictions []string
@@ -33,6 +37,20 @@ type skillSlot struct {
 type skillKey struct {
 	slot int
 	key  string
+}
+
+// skillKeys returns the key of each of skills in its slot. Rendering a skill costs more than
+// comparing it with the one the slot has, so a slot whose skill is unchanged keeps its key.
+func (sh *Sheet) skillKeys(skills []*resolve.Skill) []skillKey {
+	keys := make([]skillKey, len(skills))
+	for i, sk := range skills {
+		if i < len(sh.skills) && reflect.DeepEqual(sh.skills[i].skill, sk) {
+			keys[i] = sh.skills[i].key
+		} else {
+			keys[i] = skillKey{i, fmt.Sprint(*sk)}
+		}
+	}
+	return keys
 }
 
 // SetSkills makes skills the sheet's skills: skill i takes context slot i, and the sources of
@@ -46,20 +64,20 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	if len(skills) > maxSkills {
 		return fmt.Errorf("%w: %d skills, at most %d", ErrSkill, len(skills), maxSkills)
 	}
-	keys := make([]skillKey, len(skills))
+	keys := sh.skillKeys(skills)
 	want := make(map[skillKey]bool, len(skills))
-	for i, sk := range skills {
-		keys[i] = skillKey{i, fmt.Sprint(*sk)}
-		want[keys[i]] = true
+	for _, k := range keys {
+		want[k] = true
 	}
 	for k, srcs := range sh.skillSources {
 		sh.setSources(srcs, want[k])
 	}
 	sh.skills = sh.skills[:0]
-	sh.quietFrom = maxSkills
+	sh.deriveFrom = maxSkills
 	for i, sk := range skills {
+		cp := *sk
 		sh.skills = append(sh.skills, skillSlot{
-			source: sk.Source, types: slices.Clone(sk.Types), restrictions: slices.Clone(sk.WeaponRestrictions),
+			skill: &cp, key: keys[i], source: sk.Source, types: slices.Clone(sk.Types), restrictions: slices.Clone(sk.WeaponRestrictions),
 		})
 		k := keys[i]
 		if _, ok := sh.skillSources[k]; ok {

@@ -84,7 +84,7 @@ func (sh *Sheet) Switch(sw *Switch) error {
 	if err := sh.SetSkills(sw.Skills.Skills); err != nil {
 		return err
 	}
-	sh.QuietSkills(sw.Skills.Noted)
+	sh.DeriveOnly(sw.Skills.Kept)
 	sh.SetConfig(sw.Config)
 	sh.SetEnemy(sw.Enemy)
 	return nil

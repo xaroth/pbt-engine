@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/internal/benchbuilds"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/simulator"
@@ -234,5 +235,63 @@ func TestSweepWarningsAlike(t *testing.T) {
 	}
 	if res[0].Warnings[0].Code != build.NodeUnknown || res[2].Warnings[0].Code != build.MasteryNotAllocated {
 		t.Errorf("codes %v, %v", res[0].Warnings, res[2].Warnings)
+	}
+}
+
+const ignitedRing = `Rarity: RARE
+Doom Loop
+Ruby Ring
+Item Level: 85
+Implicits: 1
++25% to Fire Resistance
+40% increased Damage with Hits against Ignited Enemies
+`
+
+// A variant on the fast path derives the conditions again after switching its nodes: on the
+// elementalist bench build, with a ring that gives damage with hits against Ignited enemies,
+// deallocating node 22088 and allocating it again give what simulating the edited build gives.
+func TestSweepDerivesConditions(t *testing.T) {
+	t.Parallel()
+	d := benchbuilds.Open(t)
+	var b *build.Build
+	for _, c := range benchbuilds.Builds(t, d) {
+		if c.Name == "elementalist" {
+			b = c.Build
+		}
+	}
+	sim, err := simulator.New(d.Store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ring, warnings, err := sim.Data().Item(ignitedRing)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the ring: %v, %v", warnings, err)
+	}
+	if err := b.Apply(build.Equip(build.SlotRing1, ring)); err != nil {
+		t.Fatal(err)
+	}
+	variants := [][]build.Edit{{build.Deallocate(22088)}, {build.Allocate(22088)}}
+	res, err := sim.Sweep(b, variants, simulator.Outputs(poe1.AverageHit))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Without 22088 the build's hits can ignite.
+	wantIgnited := []string{"true", "false"}
+	for i, v := range variants {
+		if fast, err := simulator.FastPath(sim, b, v); err != nil || !fast {
+			t.Fatalf("variant %v: fast path %v, %v", v, fast, err)
+		}
+		e := b.Clone()
+		if err := e.Apply(v...); err != nil {
+			t.Fatal(err)
+		}
+		st := simulate(t, sim, e)
+		if on, _ := configOf(st, poe1.EnemyIgnited); on != wantIgnited[i] {
+			t.Fatalf("variant %v: ignited %s, want %s", v, on, wantIgnited[i])
+		}
+		want := get(t, st, poe1.AverageHit)
+		if got := res[i].Changes[poe1.AverageHit].After; res[i].Err != nil || math.Float64bits(got) != math.Float64bits(want) {
+			t.Errorf("variant %v: sweep %v (%v), simulate %v", v, got, res[i].Err, want)
+		}
 	}
 }

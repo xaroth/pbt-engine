@@ -114,8 +114,9 @@ type Sheet struct {
 	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.
 	skillSources map[skillKey][]core.SourceID
-	// quietFrom is the first skill slot Notes leaves out (QuietSkills).
-	quietFrom int
+	// deriveFrom is the first skill slot whose skill is on the sheet only to derive conditions
+	// (DeriveOnly).
+	deriveFrom int
 	// enemy holds the enemy's values.
 	enemy enemyMods
 	// conditions holds the conditions' sources.
@@ -138,27 +139,29 @@ type sourcedNote struct {
 // checking a condition, in bundle order, for the bundles that are on: a sheet over the whole
 // tree notes only the allocated nodes.
 func (sh *Sheet) Notes() []Note {
-	quiet := map[core.SourceID]bool{}
-	for k, srcs := range sh.skillSources {
-		if k.slot >= sh.quietFrom {
-			for _, src := range srcs {
-				quiet[src] = true
-			}
+	var deriving map[core.SourceID]bool
+	for i := sh.deriveFrom; i < len(sh.skills); i++ {
+		if deriving == nil {
+			deriving = map[core.SourceID]bool{}
+		}
+		for _, src := range sh.skillSources[sh.skills[i].key] {
+			deriving[src] = true
 		}
 	}
 	var out []Note
 	for _, n := range sh.notes {
-		if n.always || sh.session.SourceEnabled(n.src) && !quiet[n.src] {
+		if n.always || sh.session.SourceEnabled(n.src) && !deriving[n.src] {
 			out = append(out, n.note)
 		}
 	}
 	return out
 }
 
-// QuietSkills leaves the notes of the skills in slots from n on out of Notes: they are on the
-// sheet to derive conditions, and their outputs are not read. SetSkills notes every skill
-// again.
-func (sh *Sheet) QuietSkills(n int) { sh.quietFrom = n }
+// DeriveOnly switches off the skills in slots from n on: they are on the sheet only for
+// DeriveConditions, which switches them on while it reads them. Their outputs are not read and
+// Notes leaves them out, and the other skills' outputs are read without their sources. SetSkills
+// switches every skill on again.
+func (sh *Sheet) DeriveOnly(n int) { sh.deriveFrom = n }
 
 // Open builds the sheet of r under config cfg (resolved over ConfigSpecs; keys it lacks take
 // their defaults): each bundle stat goes through t to engine modifiers, one source per bundle,
@@ -185,7 +188,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	}
 	sh := &Sheet{
 		session: s, stats: md.stats, ctx: md.ctx, counters: md.counters, version: r.Version, table: t, gameVersion: v,
-		outputs: outputsByKey(), quietFrom: maxSkills,
+		outputs: outputsByKey(), deriveFrom: maxSkills,
 	}
 	for i := range r.Bundles {
 		if _, err := sh.add(&r.Bundles[i], t, v, -1); err != nil {

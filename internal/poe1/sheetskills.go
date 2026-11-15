@@ -30,9 +30,10 @@ type SheetSkills struct {
 	Skills []*resolve.Skill
 	// Every says the outputs of every skill are read, not only the main skill's.
 	Every bool
-	// Noted is how many of Skills, from the first, the sheet's notes cover (Sheet.QuietSkills):
-	// the main skill, those that reserve and, with Every, the rest.
-	Noted    int
+	// Kept is how many of Skills, from the first, stay switched on: the main skill, those that
+	// reserve and, with Every, the rest. The others are on the sheet only to derive the
+	// conditions they cause (Sheet.DeriveOnly).
+	Kept     int
 	Warnings []build.Warning
 }
 
@@ -68,7 +69,7 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 		}
 	}
 	if skills != nil {
-		out.addOthers(skills.All())
+		out.addOthers(skills.All(), hands)
 	}
 	if w, ok := notSimulated(sk, out.Read(), hands); ok {
 		out.Warnings = append(out.Warnings, w)
@@ -89,8 +90,9 @@ func (s *SheetSkills) Read() []*resolve.Skill {
 
 // addOthers adds the skills of all other than the main skill: those that reserve, then the
 // rest, warning with Every about those that do not resolve or do not fit and with the rest's
-// own warnings, whose outputs are then read.
-func (s *SheetSkills) addOthers(all []resolve.SkillWarnings) {
+// own warnings, whose outputs are then read. Without Every the rest are only those whose hit
+// the sheet gives with hands, the skills that can cause a condition.
+func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands) {
 	var rest []resolve.SkillWarnings
 	for _, sw := range all {
 		switch {
@@ -104,14 +106,14 @@ func (s *SheetSkills) addOthers(all []resolve.SkillWarnings) {
 		case Reserves(sw.Skill):
 			s.Skills = append(s.Skills, sw.Skill)
 			s.Warnings = append(s.Warnings, sw.Warnings...)
-		default:
+		case s.Every || Hit(sw.Skill, hands):
 			rest = append(rest, sw)
 		}
 	}
-	s.Noted = len(s.Skills)
+	s.Kept = len(s.Skills)
 	s.addRest(rest)
 	if s.Every {
-		s.Noted = len(s.Skills)
+		s.Kept = len(s.Skills)
 	}
 }
 
