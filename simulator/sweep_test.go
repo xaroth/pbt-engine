@@ -2,12 +2,14 @@ package simulator_test
 
 import (
 	"cmp"
+	"maps"
 	"math"
 	"math/rand/v2"
 	"slices"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/benchbuilds"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/output"
@@ -305,4 +307,70 @@ func TestSweepDerivesConditions(t *testing.T) {
 			t.Errorf("variant %v: sweep %v (%v), simulate %v", v, got, res[0].Err, want)
 		}
 	}
+}
+
+// On each benchmark build, deallocating each allocated node singly and allocating a sample of
+// the unallocated nodes next to allocated ones give, from Sweep, every output Simulate gives
+// for the edited build.
+func TestSweepMatchesSimulateReal(t *testing.T) {
+	t.Parallel()
+	d := benchbuilds.Open(t)
+	for _, c := range benchbuilds.Builds(t, d) {
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			s, err := simulator.New(d.Store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			variants := nodeVariants(t, d.Store, c.Build)
+			res, err := s.Sweep(c.Build, variants)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i, v := range variants {
+				b := c.Build.Clone()
+				if err := b.Apply(v...); err != nil {
+					t.Fatal(err)
+				}
+				want := simulate(t, s, b)
+				if res[i].Err != nil {
+					t.Fatalf("variant %v: %v", v, res[i].Err)
+				}
+				for _, k := range want.Keys() {
+					got := res[i].Changes[k].After
+					if w := get(t, want, k); math.Float64bits(got) != math.Float64bits(w) {
+						t.Errorf("variant %v %s: sweep %v, simulate %v", v, k, got, w)
+					}
+				}
+			}
+		})
+	}
+}
+
+// nodeVariants returns a deallocation of each allocated node of b, then allocations of every
+// third unallocated node next to an allocated one, by id.
+func nodeVariants(t *testing.T, store *dataset.Store, b *build.Build) [][]build.Edit {
+	t.Helper()
+	c, _, err := build.Check(b, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := make([][]build.Edit, 0, len(b.Nodes))
+	for _, id := range b.Nodes {
+		out = append(out, []build.Edit{build.Deallocate(id)})
+	}
+	adjacent := map[uint32]bool{}
+	for _, n := range c.Nodes() {
+		for _, nb := range n.Neighbours {
+			if !slices.Contains(b.Nodes, nb) {
+				adjacent[nb] = true
+			}
+		}
+	}
+	for i, id := range slices.Sorted(maps.Keys(adjacent)) {
+		if i%3 == 0 {
+			out = append(out, []build.Edit{build.Allocate(id)})
+		}
+	}
+	return out
 }
