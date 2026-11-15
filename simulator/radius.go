@@ -2,7 +2,6 @@ package simulator
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1/radius"
@@ -19,36 +18,6 @@ type Radius struct {
 	Ring bool
 }
 
-// radii index the nodes around jewel sockets per tree variant, each made on first use.
-type radii struct {
-	mu        sync.Mutex
-	byVariant map[string]func() (*radius.Index, error)
-}
-
-func (r *radii) get(store *dataset.Store, variant string) (*radius.Index, error) {
-	r.mu.Lock()
-	f, ok := r.byVariant[variant]
-	if !ok {
-		if r.byVariant == nil {
-			r.byVariant = map[string]func() (*radius.Index, error){}
-		}
-		f = sync.OnceValues(func() (*radius.Index, error) {
-			tree, err := store.Tree(variant)
-			if err != nil {
-				return nil, err //nolint:wrapcheck // wrapped by the caller
-			}
-			layout, err := store.Layout(variant)
-			if err != nil {
-				return nil, err //nolint:wrapcheck // wrapped by the caller
-			}
-			return radius.New(tree, layout), nil
-		})
-		r.byVariant[variant] = f
-	}
-	r.mu.Unlock()
-	return f()
-}
-
 // NodesInRadius returns the passives of the tree variant, such as build.DefaultVariant, that a
 // jewel in socket reaches with r, sorted by id. They are the nodes whose drawn position lies
 // within r of the socket's, bounds included, among the normal passives, notables, keystones and
@@ -57,7 +26,7 @@ func (r *radii) get(store *dataset.Store, variant string) (*radius.Index, error)
 // matching dataset.ErrNotInDataset, and a node that is not a jewel socket on the tree
 // ErrNotSocket.
 func (s *Sim) NodesInRadius(variant string, socket uint32, r Radius) ([]uint32, error) {
-	ix, err := s.radii.get(s.store, variant)
+	ix, err := radius.Of(s.store, variant)
 	if err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}

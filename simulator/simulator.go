@@ -89,8 +89,6 @@ type Sim struct {
 	bases func() (map[string]*dataset.ItemBase, error)
 	// nodeTexts renders passive nodes, per language on first use.
 	nodeTexts nodeTexts
-	// radii find the nodes around jewel sockets, per tree variant on first use.
-	radii radii
 
 	mu  sync.Mutex
 	cfg config.Values

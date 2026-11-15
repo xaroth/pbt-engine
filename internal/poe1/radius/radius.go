@@ -50,6 +50,25 @@ type point struct {
 	x, y float64
 }
 
+// Of returns the index of the tree variant of s, made once per store.
+func Of(s *dataset.Store, variant string) (*Index, error) {
+	//nolint:wrapcheck // the build function wraps its errors
+	return dataset.Derived(s, indexKey{variant}, func(s *dataset.Store) (*Index, error) {
+		tree, err := s.Tree(variant)
+		if err != nil {
+			return nil, fmt.Errorf("radius: %w", err)
+		}
+		layout, err := s.Layout(variant)
+		if err != nil {
+			return nil, fmt.Errorf("radius: %w", err)
+		}
+		return New(tree, layout), nil
+	})
+}
+
+// indexKey keys the index of a tree variant among a store's derived values.
+type indexKey struct{ variant string }
+
 // New indexes tree as layout, the layout of the same variant, draws it.
 func New(tree *dataset.Tree, layout *dataset.Layout) *Index {
 	proxyGroup := map[uint32]bool{}
