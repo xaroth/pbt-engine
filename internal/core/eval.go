@@ -345,7 +345,7 @@ func (s *Session) total(def *StatDef, agg Agg, n Node, deps *[]uint32) float64 {
 	case agg.HasOverride && (def.Formula == nil || !def.FormulaSeesOverride):
 		return agg.Override
 	case def.Formula != nil:
-		return def.Formula(Reader{s: s, deps: deps, actor: n.Actor, ctx: n.Ctx, fam: def.CycleFamily}, agg)
+		return def.Formula(Reader{s: s, deps: deps, actor: n.Actor, stat: n.Stat, ctx: n.Ctx, fam: def.CycleFamily}, agg)
 	case def.Flag:
 		if agg.Flag {
 			return 1
@@ -360,12 +360,16 @@ type Reader struct {
 	s     *Session
 	deps  *[]uint32
 	actor ActorID
+	stat  StatID
 	ctx   CtxID
 	fam   uint8
 }
 
 // Actor returns the actor of the node being evaluated.
 func (r Reader) Actor() ActorID { return r.actor }
+
+// Self returns the stat being evaluated, so a formula can read it in another context.
+func (r Reader) Self() StatID { return r.stat }
 
 // Ctx returns the context of the node being evaluated.
 func (r Reader) Ctx() CtxID { return r.ctx }

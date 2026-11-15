@@ -5,8 +5,6 @@ import (
 	"math"
 	"slices"
 
-	"github.com/xaroth/pbt-engine/build"
-	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
@@ -27,6 +25,7 @@ const (
 	typeCooldown     = "Cooldown"
 	typeProjectile   = "Projectile"
 	typeArea         = "Area"
+	typeMainHandOnly = "MainHandOnly"
 )
 
 // Hit limits. The rate cap is the server tick: a skill used more often than once a tick still
@@ -53,11 +52,18 @@ func SpellHit(sk *resolve.Skill) bool {
 
 // attackHit reports whether the sheet gives sk's hit as an attack's with hands: an attack the
 // character makes with what it holds in the main hand, a weapon or its bare hand, when the skill
-// can be used with it, and nothing in the off hand; not a minion's and not made by a totem, trap
-// or mine.
+// can be used with it and with the off hand weapon, if any, unless it attacks with the main hand
+// only; not a minion's and not made by a totem, trap or mine. A weapon in the off hand the skill
+// cannot be used with keeps it from being used, as PoB has it (CalcActiveSkill.lua).
 func attackHit(sk *resolve.Skill, h Hands) bool {
-	return hasTypes(sk, typeAttack) && h.MainHand != nil && h.MainHand.usableBy(sk) && h.OffHand == nil &&
+	return hasTypes(sk, typeAttack) && h.MainHand != nil && h.MainHand.usableWith(sk.WeaponRestrictions) &&
+		(h.OffHand == nil || h.OffHand.usableWith(sk.WeaponRestrictions) || hasTypes(sk, typeMainHandOnly)) &&
 		!hasAnyType(sk, typeMinion, typeTrapped, typeRemoteMined, typeSummonsTotem)
+}
+
+// bothHandsHit reports whether the sheet gives sk's hit as an attack's with both hands.
+func bothHandsHit(sk *resolve.Skill, h Hands) bool {
+	return attackHit(sk, h) && h.bothHands(sk.Types, sk.WeaponRestrictions)
 }
 
 // Hit reports whether the sheet gives sk's hit with hands: a spell hit, or an attack with one
@@ -72,31 +78,6 @@ func Hit(sk *resolve.Skill, h Hands) bool {
 func selfUsedHit(sk *resolve.Skill, h Hands) bool {
 	return Hit(sk, h) &&
 		!hasAnyType(sk, typeChannel, typeBrand, typeTrapped, typeRemoteMined, typeSummonsTotem, typeTriggered, typeCooldown)
-}
-
-// Hands is what the character attacks with: the weapon in each hand, nil for none, and in the
-// main hand without a weapon the class's unarmed attacks. A shield or quiver is not a weapon.
-type Hands struct {
-	MainHand, OffHand *Weapon
-}
-
-// HandsOf returns what items put in the hands of a character of class ch: without a weapon in
-// the main hand, its unarmed attacks (UnarmedWeapon), as PoB has them (CalcSetup.lua weaponData1).
-func HandsOf(items []Item, ch *dataset.Character) Hands {
-	var h Hands
-	for _, it := range items {
-		switch {
-		case it.Node != 0:
-		case it.Slot == build.SlotWeapon:
-			h.MainHand = it.Weapon
-		case it.Slot == build.SlotOffhand:
-			h.OffHand = it.Weapon
-		}
-	}
-	if h.MainHand == nil && ch != nil {
-		h.MainHand = UnarmedWeapon(ch)
-	}
-	return h
 }
 
 func hasTypes(sk *resolve.Skill, types ...string) bool {

@@ -29,10 +29,32 @@ const (
 	// dimForm holds the form of the damage being read: a hit, damage over time or an ailment.
 	// A modifier to "damage with hits" requires the hit; one to damage in general none.
 	dimForm = "form"
-	// dimWeapon holds what an attack is made with: the main hand weapon's kinds. Spells and a
-	// skill that is not an attack read none.
+	// dimWeapon holds what an attack is made with: the kinds of the weapon of the hand read.
+	// Spells and a skill that is not an attack read none.
 	dimWeapon = "weapon"
+	// dimHand holds the hand an attack is read with, and whether the character dual wields.
+	// Every attack reads one hand: the main hand, and the off hand too when the skill attacks
+	// with both. A weapon's own values require its hand.
+	dimHand = "hand"
+	// dimOffHandWeapon holds the off hand weapon's kinds in the context of an attack with both
+	// hands read with the main hand: the attack's context, from which its off hand's is made
+	// (handBits). Tables never name it.
+	dimOffHandWeapon = "off_hand_weapon"
 )
+
+// hand is a value of the hand dimension.
+type hand uint8
+
+const (
+	handMain hand = iota
+	handOff
+	// handDualWielding is set with either hand while the character holds a weapon in each.
+	handDualWielding
+)
+
+func handNames() []string {
+	return []string{handMain: "main_hand", handOff: "off_hand", handDualWielding: "dual_wielding"}
+}
 
 // damageForm is a form of damage, a value of the form dimension; formNone reads none.
 type damageForm uint8
@@ -87,7 +109,7 @@ func skillTypes() []string {
 
 // contexts are the context dimensions of a sheet model.
 type contexts struct {
-	types, damage, skill, form, weapon core.Dimension
+	types, damage, skill, form, weapon, hand, offHandWeapon core.Dimension
 }
 
 // addContexts registers the context dimensions on b.
@@ -102,6 +124,9 @@ func addContexts(b *core.ModelBuilder) contexts {
 		skill:  mustDimension(b, dimSkill, slots),
 		form:   mustDimension(b, dimForm, damageFormNames()),
 		weapon: mustDimension(b, dimWeapon, weaponKindNames()),
+		hand:   mustDimension(b, dimHand, handNames()),
+		// The same values as the weapon dimension's, so a kind's index is its bit in either.
+		offHandWeapon: mustDimension(b, dimOffHandWeapon, weaponKindNames()),
 	}
 }
 
@@ -127,17 +152,38 @@ func isTableContext(name string) bool {
 		return slices.Contains(damageFormNames(), value)
 	case dim == dimWeapon:
 		return slices.Contains(weaponKindNames(), value)
+	case dim == dimHand:
+		return slices.Contains(handNames(), value)
 	}
 	return false
 }
 
-// skillMask returns the context of the skill in slot with types, made with weapon, reading a
-// part of its damage whose chain is damage, or no part when damage is empty, in form, or none.
-func (c contexts) skillMask(slot int, types []string, weapon weaponKinds, damage []DamageType, form damageForm) core.Mask {
+// wield is what an attack is read with: the hand, the kinds of that hand's weapon, the off
+// hand weapon's kinds when the skill attacks with both hands and the main hand is read, and
+// whether the character dual wields. The zero value is a skill that is not an attack.
+type wield struct {
+	attack            bool
+	hand              hand
+	weapon, offWeapon weaponKinds
+	dualWielding      bool
+}
+
+// skillMask returns the context of the skill in slot with types, made with w, reading a part of
+// its damage whose chain is damage, or no part when damage is empty, in form, or none.
+func (c contexts) skillMask(slot int, types []string, w wield, damage []DamageType, form damageForm) core.Mask {
 	m := core.MaskOf(c.skill.Bit(slot))
 	for k := range weaponKindCount {
-		if weapon&(1<<k) != 0 {
+		if w.weapon&(1<<k) != 0 {
 			m = m.Set(c.weapon.Bit(int(k)))
+		}
+		if w.offWeapon&(1<<k) != 0 {
+			m = m.Set(c.offHandWeapon.Bit(int(k)))
+		}
+	}
+	if w.attack {
+		m = m.Set(c.hand.Bit(int(w.hand)))
+		if w.dualWielding {
+			m = m.Set(c.hand.Bit(int(handDualWielding)))
 		}
 	}
 	for _, t := range types {

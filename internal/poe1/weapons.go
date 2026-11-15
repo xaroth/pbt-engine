@@ -3,11 +3,11 @@ package poe1
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/core"
-	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 // weaponKind is a value of the weapon dimension: one thing an attack can be made with.
@@ -200,10 +200,10 @@ func UnarmedWeapon(ch *dataset.Character) *Weapon {
 	return w
 }
 
-// usableBy reports whether sk can be used with w: w's class is among its weapon restrictions,
-// or it has none.
-func (w *Weapon) usableBy(sk *resolve.Skill) bool {
-	return len(sk.WeaponRestrictions) == 0 || slices.Contains(sk.WeaponRestrictions, w.Class)
+// usableWith reports whether a skill with weapon restrictions can be used with w: w's class is
+// among them, or there are none.
+func (w *Weapon) usableWith(restrictions []string) bool {
+	return len(restrictions) == 0 || slices.Contains(restrictions, w.Class)
 }
 
 // label is how a rule names w.
@@ -241,38 +241,57 @@ func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float
 	return out
 }
 
-// SetHands puts h in the character's hands: the main hand weapon's damage, attacks per second
-// and critical strike chance become the base of every attack's. A weapon not seen yet gets its
-// source added once; adding is refused while a checkpoint is open (ErrCheckpointOpen).
+// weaponKey is a weapon by hand and content.
+type weaponKey struct {
+	hand hand
+	key  string
+}
+
+// SetHands puts h in the character's hands: each hand's weapon's damage, attacks per second
+// and critical strike chance become the base of the attacks read with that hand. A weapon not
+// seen yet in its hand gets its source added once; adding is refused while a checkpoint is open
+// (ErrCheckpointOpen).
 func (sh *Sheet) SetHands(h Hands) error {
-	w := h.MainHand
-	key := ""
-	if w != nil {
-		key = fmt.Sprint(*w)
+	held := map[hand]*Weapon{handMain: h.MainHand, handOff: h.OffHand}
+	want := map[weaponKey]bool{}
+	for hd, w := range held {
+		if w != nil {
+			want[weaponKey{hd, fmt.Sprint(*w)}] = true
+		}
 	}
 	for k, src := range sh.weapons {
-		sh.setSources([]core.SourceID{src}, k == key)
+		sh.setSources([]core.SourceID{src}, want[k])
 	}
-	sh.mainHand = 0
-	if w == nil {
-		return nil
+	sh.hands = h
+	for _, hd := range []hand{handMain, handOff} {
+		w := held[hd]
+		if w == nil {
+			continue
+		}
+		k := weaponKey{hd, fmt.Sprint(*w)}
+		if _, ok := sh.weapons[k]; ok {
+			continue
+		}
+		if sh.marked {
+			return fmt.Errorf("%w: %s weapon %s", ErrCheckpointOpen, handLabel(hd), w.label())
+		}
+		src, err := sh.addWeapon(w, hd)
+		if err != nil {
+			return err
+		}
+		if sh.weapons == nil {
+			sh.weapons = map[weaponKey]core.SourceID{}
+		}
+		sh.weapons[k] = src
 	}
-	sh.mainHand = w.Kinds
-	if _, ok := sh.weapons[key]; ok {
-		return nil
-	}
-	if sh.marked {
-		return fmt.Errorf("%w: main hand weapon %s", ErrCheckpointOpen, w.label())
-	}
-	src, err := sh.addWeapon(w)
-	if err != nil {
-		return err
-	}
-	if sh.weapons == nil {
-		sh.weapons = map[string]core.SourceID{}
-	}
-	sh.weapons[key] = src
 	return nil
+}
+
+func handLabel(h hand) string {
+	if h == handOff {
+		return "off hand"
+	}
+	return "main hand"
 }
 
 // weaponMod is one of a weapon's values as a modifier, in the contexts of req besides attacks.
@@ -306,21 +325,28 @@ func (w *Weapon) mods(dim core.Dimension) []weaponMod {
 	return out
 }
 
-// addWeapon adds w's values as a source whose modifiers reach attacks only.
-func (sh *Sheet) addWeapon(w *Weapon) (core.SourceID, error) {
-	src := sh.newSource(Source{RuleID: "main-hand-weapon", Rule: "main hand weapon " + w.label()})
-	attack, ok := sh.session.Model().Bit(dimType + "." + typeAttack)
+// addWeapon adds w's values as a source whose modifiers reach the attacks read with hand hd
+// only.
+func (sh *Sheet) addWeapon(w *Weapon, hd hand) (core.SourceID, error) {
+	label := handLabel(hd)
+	src := sh.newSource(Source{RuleID: strings.ReplaceAll(label, " ", "-") + "-weapon", Rule: label + " weapon " + w.label()})
+	md := sh.session.Model()
+	attack, ok := md.Bit(dimType + "." + typeAttack)
 	if !ok {
 		panic("poe1: no attack context")
 	}
-	attackMask := core.MaskOf(attack)
+	held, ok := md.Bit(dimHand + "." + handNames()[hd])
+	if !ok {
+		panic("poe1: no hand context")
+	}
 	for _, m := range w.mods(sh.ctx.damage) {
 		if m.value == 0 {
 			continue
 		}
-		mod := core.Modifier{Stat: sh.stats[m.stat], Op: m.op, Value: m.value, Source: src, Pred: core.Predicate{Req: append([]core.Mask{attackMask}, m.req...)}}
+		req := append([]core.Mask{core.MaskOf(attack), core.MaskOf(held)}, m.req...)
+		mod := core.Modifier{Stat: sh.stats[m.stat], Op: m.op, Value: m.value, Source: src, Pred: core.Predicate{Req: req}}
 		if _, err := sh.session.AddModifier(mod); err != nil {
-			return 0, fmt.Errorf("sheet: main hand weapon: %w", err)
+			return 0, fmt.Errorf("sheet: %s weapon: %w", label, err)
 		}
 	}
 	return src, nil

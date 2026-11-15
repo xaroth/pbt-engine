@@ -78,6 +78,7 @@ func statDef(name string, ids map[string]core.StatID) core.StatDef {
 		def.Flag = true
 	}
 	def = dotDef(conversionDef(accuracyDef(hitDef(enemyDef(costDef(reservationDef(def, ids), ids), ids), ids), ids), ids), ids)
+	def = handsDef(def, ids)
 	return spellBlockDef(fortificationDef(chargeDef(regenerationDef(resistanceDef(def, ids), ids), ids), ids), ids)
 }
 
