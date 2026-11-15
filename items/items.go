@@ -59,6 +59,9 @@ type Reader struct {
 	crafting crafting
 	classes  classes
 	version  string
+	// passiveStats are the stats a line shows as a passive's name. Each item has its own
+	// passive, so the value is not a roll in its mod's range.
+	passiveStats map[string]bool
 }
 
 // crafting is where bench crafts and essences put their mods: item classes by mod id.
@@ -100,18 +103,48 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
-	set, err := statdesc.NewSet(text.Descriptions)
+	set, err := statdesc.NewSet(text.Descriptions, statdesc.WithNames(passiveHandler, passiveNames(text.NodeNames)))
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
 		mods: indexMods(mods, stats), crafting: newCrafting(it), version: s.Manifest().Version,
+		passiveStats: passiveStats(text.Descriptions),
 	}
 	r.index(it.Bases, text.BaseNames)
 	r.classes = newClasses(it.Bases, text.ItemClassNames)
 	set.IndexTexts(statScope)
 	return r, nil
+}
+
+// passiveHandler is the stat description handler that shows a passive's name for its node id,
+// as in "Passive Skills in Radius of Supreme Ego can be Allocated".
+const passiveHandler = "passive_hash"
+
+// passiveStats returns the stats some description shows through passiveHandler.
+func passiveStats(scopes []statdesc.Scope) map[string]bool {
+	out := map[string]bool{}
+	for _, sc := range scopes {
+		for _, d := range sc.Descriptions {
+			for _, v := range d.Variants {
+				for _, h := range v.Handlers {
+					if h.Name == passiveHandler {
+						out[d.Stats[h.Stat]] = true
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+func passiveNames(nodes []dataset.NodeName) map[int32]string {
+	out := make(map[int32]string, len(nodes))
+	for _, n := range nodes {
+		out[int32(n.ID)] = n.Name //nolint:gosec // node ids are 16-bit hashes
+	}
+	return out
 }
 
 // Parse reads item text as Path of Building writes and copies it, or as the game copies it

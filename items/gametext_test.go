@@ -34,8 +34,8 @@ func TestParseGameSamples(t *testing.T) {
 		"18-scroll-of-wisdom.txt":                           items.ErrNotEquipable,
 		"19-portal-scroll.txt":                              items.ErrNotEquipable,
 	}
-	// An anoint names a passive node, which no stat description reads.
-	unread := map[string]string{"05-rotmother-s-mutiny.txt": "Allocates Light of Divinity"}
+	// An anoint names a passive, which several stats that allocate one render alike.
+	ambiguous := map[string]string{"05-rotmother-s-mutiny.txt": "Allocates Light of Divinity"}
 	names, err := filepath.Glob(filepath.Join("testdata", "game", "*.txt"))
 	if err != nil || len(names) != 23 {
 		t.Fatalf("%d samples, %v", len(names), err)
@@ -54,8 +54,8 @@ func TestParseGameSamples(t *testing.T) {
 			got = append(got, string(w.Code)+" "+w.Subject)
 		}
 		want := []string{}
-		if line, ok := unread[name]; ok {
-			want = []string{string(items.LineUnread) + " " + line}
+		if line, ok := ambiguous[name]; ok {
+			want = []string{string(items.LineAmbiguous) + " " + line}
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("%s warnings (-want +got):\n%s", name, diff)
