@@ -38,7 +38,7 @@ go test ./...
 
 Each package benchmarks its own pieces with plain Go benchmarks. Each benchmark's doc comment names its target time, where it has one. CI runs every benchmark once, so a broken one fails, and does not judge the times.
 
-The benchmarks of whole operations run on the builds in `internal/benchbuilds`, Path of Building files made for benchmarking: a level 96 Deadeye with Lightning Arrow and a level 97 Elementalist with Arc, each with a full tree, five or six skill groups with supports and auras, and ten items, some adding gem levels. They and the timeless and cluster benchmarks read the pinned current dataset under `$PBT_DATASETS` (see the README) and skip without it.
+The benchmarks of whole operations run on the builds in `internal/benchbuilds`, Path of Building files made for benchmarking: a level 96 Deadeye with Lightning Arrow and a level 97 Elementalist with Arc, each with a full tree, five or six skill groups with supports and auras, and ten items, some adding gem levels; and a level 100 Hierophant with Righteous Fire of Arcane Devotion, with six skill groups, ten items and twelve jewels, four of them cluster jewels (two large, two medium) whose passives are in the tree. They and the timeless and cluster benchmarks read the pinned current dataset under `$PBT_DATASETS` (see the README) and skip without it.
 
 ```sh
 go run ./internal/realdata/fetch /tmp/pbt-datasets
@@ -58,23 +58,23 @@ cd simulator && "$(go env GOROOT)/lib/wasm/go_js_wasm_exec" /tmp/simulator.test.
 
 ### Reference numbers
 
-Median of 6 runs on an AMD Ryzen 5 5600X, Go 1.27.4, Linux, at commit 39bb3e0, on dataset 3.29.3.6. WebAssembly under Node 24.22, one run. Repeated runs differ by up to about 10%.
+Median of 6 runs on an AMD Ryzen 5 5600X, Go 1.27.4, Linux, at commit 23effd2, on dataset 3.29.3.6. WebAssembly under Node 24.22, median of 2 runs. Repeated runs differ by up to about 10%.
 
-| Benchmark | What it measures | Deadeye | Elementalist | Allocated | WebAssembly |
-|---|---|---|---|---|---|
-| `simulator` `SimulateReal` | `Simulate` on a warm sim | 0.63 ms | 0.67 ms | 0.8 to 1.0 MB | 3.1 to 3.3 ms |
-| `simulator` `SweepReal` | One `Sweep` variant, every output: a hover preview | 0.98 ms | 1.09 ms | 1.3 to 1.6 MB | 4.6 to 5.7 ms |
-| `simulator` `CompareReal` | `Compare` with a path allocated: applying a click | 1.75 ms | 1.43 ms | 1.6 to 1.9 MB | 13 to 16 ms |
-| `build` `Check` | `build.Check` | 0.11 ms | 0.10 ms | 39 KB | |
-| `internal/resolve` `Skills` | Resolving the main skill alone / every skill | 0.04 / 0.07 ms | 0.04 / 0.09 ms | 86 to 115 KB | |
-| `pob` `FromXML` | Path of Building import | 46 ms | 47 ms | 41 to 43 MB | |
+| Benchmark | What it measures | Deadeye | Elementalist | Hierophant | Allocated | WebAssembly |
+|---|---|---|---|---|---|---|
+| `simulator` `SimulateReal` | `Simulate` on a warm sim | 0.57 ms | 0.57 ms | 0.87 ms | 0.5 to 0.7 MB | 2.9 to 4.4 ms |
+| `simulator` `SweepReal` | One `Sweep` variant, every output: a hover preview | 1.00 ms | 0.91 ms | 1.31 ms | 0.6 to 0.8 MB | 4.0 to 5.9 ms |
+| `simulator` `CompareReal` | `Compare` with a path allocated: applying a click | 1.24 ms | 1.23 ms | 1.88 ms | 0.9 to 1.4 MB | 5.7 to 8.7 ms |
+| `build` `Check` | `build.Check` | 0.13 ms | 0.12 ms | 0.23 ms | 41 to 89 KB | 0.5 to 1.1 ms |
+| `internal/resolve` `Skills` | Resolving the main skill alone / every skill | 0.06 / 0.08 ms | 0.06 / 0.09 ms | 0.07 / 0.10 ms | 106 to 147 KB | |
+| `pob` `FromXML` | Path of Building import | 48 ms | 50 ms | 31 ms | 24 to 43 MB | |
 
 | Benchmark | What it measures | Time | Allocated |
 |---|---|---|---|
-| `poe1/timeless` `Conquer/<version>/forward` | One seed over the 100 passives of the fullest Large radius | 0.012 to 0.021 ms | 0 |
-| `poe1/timeless` `Conquer/<version>/reverse` | Every seed of the version over that radius | 47 ms (Kalguuran, 3,901 seeds) to 163 ms (Vaal) | 0 |
-| `internal/poe1/cluster` `Generator/setup` | The cluster generator's setup, once per tree variant | 3.1 ms | 2.2 MB |
-| `internal/poe1/cluster` `Generator/generate` | One large cluster jewel | 0.011 ms | 5 KB |
+| `poe1/timeless` `Conquer/<version>/forward` | One seed over the 100 passives of the fullest Large radius | 0.011 to 0.020 ms | 0 |
+| `poe1/timeless` `Conquer/<version>/reverse` | Every seed of the version over that radius | 48 ms (Kalguuran, 3,901 seeds) to 157 ms (Vaal) | 0 |
+| `internal/poe1/cluster` `Generator/setup` | The cluster generator's setup, once per tree variant | 3.0 ms | 2.2 MB |
+| `internal/poe1/cluster` `Generator/generate` | One large cluster jewel | 0.010 ms | 5 KB |
 
 ## Dataset format
 

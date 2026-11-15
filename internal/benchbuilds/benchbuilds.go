@@ -1,6 +1,6 @@
 // Package benchbuilds holds the builds the benchmarks run on: Path of Building files made for
-// benchmarking, with a full tree, skill groups with supports and auras, and items that add gem
-// levels, read on the pinned current dataset under $PBT_DATASETS.
+// benchmarking, with a full tree, skill groups with supports and auras, items that add gem levels
+// and, in one, cluster jewels, read on the pinned current dataset under $PBT_DATASETS.
 package benchbuilds
 
 import (
