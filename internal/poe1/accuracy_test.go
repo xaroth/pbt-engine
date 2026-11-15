@@ -29,7 +29,7 @@ func accuracySheet(t *testing.T, stats ...resolve.StatValue) *poe1.Sheet {
 	))
 	sword := &poe1.Weapon{AttackRate: 1, CriticalChance: 10, Accuracy: 3}
 	sword.Damage[poe1.Physical] = poe1.DamageRange{Min: 10, Max: 10}
-	if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Sword", Key: "sword", Weapon: sword}}); err != nil {
+	if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Sword", Key: "sword", Weapon: sword}}); err != nil {
 		t.Fatal(err)
 	}
 	sh.SetEnemy(poe1.EnemyStats{Evasion: 10143})
@@ -88,7 +88,7 @@ func TestAlwaysHit(t *testing.T) {
 	}
 	sh := accuracySheet(t)
 	unevadable := &poe1.Weapon{AttackRate: 1, CannotBeEvaded: true}
-	if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Sword", Key: "sword", Weapon: unevadable}}); err != nil {
+	if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Sword", Key: "sword", Weapon: unevadable}}); err != nil {
 		t.Fatal(err)
 	}
 	if got := outputOf(t, sh, poe1.HitChance); got != 100 {

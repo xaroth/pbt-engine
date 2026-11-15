@@ -202,6 +202,8 @@ type run struct {
 	cfg     config.Resolved
 	budget  Budget
 	items   []poe1.Item
+	// hands is what the character attacks with.
+	hands poe1.Hands
 	// skills are the skills on the sheet, the main skill first; ask is which of them the call
 	// reads the outputs of besides the main skill's.
 	skills poe1.SheetSkills
@@ -230,7 +232,8 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 		return nil, err
 	}
 	r.ask = co.skills
-	if r.skills, err = poe1.SheetSkillsOf(c, poe1.HandsOf(r.items), co.skills.any()); err != nil {
+	r.hands = poe1.HandsOf(r.items, c.Character())
+	if r.skills, err = poe1.SheetSkillsOf(c, r.hands, co.skills.any()); err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
 	r.warnings = append(r.warnings, r.skills.Warnings...)
@@ -268,8 +271,7 @@ func resolveConfig(co callOptions, sim, b config.Values) (config.Resolved, []con
 // outputs are read, the default enemy otherwise. Only an enemy kind with a normal monster's
 // armour and evasion reads them from the dataset's monsters group, and fails without it.
 func enemyOf(store *dataset.Store, r *run) (poe1.EnemyStats, error) {
-	hands := poe1.HandsOf(r.items)
-	if !slices.ContainsFunc(r.skills.Read(), func(sk *resolve.Skill) bool { return poe1.Hit(sk, hands) }) {
+	if !slices.ContainsFunc(r.skills.Read(), func(sk *resolve.Skill) bool { return poe1.Hit(sk, r.hands) }) {
 		return poe1.DefaultEnemy(), nil
 	}
 	var levels []dataset.MonsterLevel
@@ -299,6 +301,9 @@ func switchTo(r *run, sh *poe1.Sheet) error {
 	if err := sh.SetItems(r.items); err != nil {
 		return fmt.Errorf("simulator: %w", err)
 	}
+	if err := sh.SetHands(r.hands); err != nil {
+		return fmt.Errorf("simulator: %w", err)
+	}
 	if err := sh.SetSkills(r.skills.Skills); err != nil {
 		return fmt.Errorf("simulator: %w", err)
 	}
@@ -314,11 +319,11 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	if err := switchTo(r, sh); err != nil {
 		return nil, err
 	}
-	cat, hands := catalogue(), poe1.HandsOf(r.items)
+	cat, hands := catalogue(), r.hands
 	main := r.skills.Main
 	st := &Stats{
 		keys: skillKeys(keys, cat, main, hands), cfg: r.cfg, budget: r.budget,
-		build: r.build, checked: r.checked, items: r.items, skill: main, sheetSkills: r.skills.Skills, enemy: r.enemy, sim: s,
+		build: r.build, checked: r.checked, items: r.items, hands: r.hands, skill: main, sheetSkills: r.skills.Skills, enemy: r.enemy, sim: s,
 	}
 	var err error
 	if st.values, err = readOutputs(st.keys, func(k output.Key) (float64, error) { return sh.Output(k) }); err != nil {
@@ -352,14 +357,15 @@ func readOutputs(keys []output.Key, read func(output.Key) (float64, error)) (map
 }
 
 // readSkills reads the skill outputs among keys of each skill on sh the run asks for, the main
-// skill's from mainValues, the main skill first.
+// skill's from mainValues, the main skill first. The default attack is no skill of the build, so
+// it has none.
 func readSkills(r *run, sh *poe1.Sheet, keys []output.Key, mainValues map[output.Key]float64) ([]SkillStats, error) {
-	cat, hands := catalogue(), poe1.HandsOf(r.items)
+	cat, hands := catalogue(), r.hands
 	keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !cat[k].IsSkill() })
 	var out []SkillStats
 	for slot, sk := range r.skills.Read() {
 		ref := refOf(sk)
-		if !r.ask.wants(ref) {
+		if sk.Source.Default() || !r.ask.wants(ref) {
 			continue
 		}
 		ss := SkillStats{Ref: ref, GrantedEffect: sk.GrantedEffect, keys: skillKeys(keys, cat, sk, hands)}

@@ -131,9 +131,9 @@
       "additionalProperties": false,
       "required": ["group", "gem", "id", "grantedEffect", "level", "quality", "types"],
       "properties": {
-        "group": { "type": "integer", "description": "The skill group, from 0." },
-        "gem": { "type": "integer", "description": "The gem in the group, from 0." },
-        "id": { "type": "string", "description": "The gem's id." },
+        "group": { "type": "integer", "description": "The skill group, from 0; -1 for the default attack, which a build without a main skill of its own uses." },
+        "gem": { "type": "integer", "description": "The gem in the group, from 0; -1 for the default attack." },
+        "id": { "type": "string", "description": "The gem's id; empty for the default attack." },
         "grantedEffect": { "type": "string" },
         "level": { "type": "integer" },
         "quality": { "type": "integer" },

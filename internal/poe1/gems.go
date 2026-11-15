@@ -28,6 +28,8 @@ func GemRules() resolve.GemRules {
 			{Stat: "support_gems_socketed_in_off_hand_also_support_main_hand_skills", To: build.SlotWeapon},
 			{Stat: "support_gems_socketed_in_amulet_also_support_body_skills", To: build.SlotBodyArmour},
 		},
+		// PoB's default attack (CalcSetup.lua); the dataset's PlayerMelee has the same rows.
+		DefaultAttack: "Melee",
 	}
 }
 

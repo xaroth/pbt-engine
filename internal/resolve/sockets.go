@@ -19,6 +19,9 @@ type GemRules struct {
 	// LinkedSupports are item stats with which the supports socketed in the item also support
 	// the skills socketed in another slot.
 	LinkedSupports []LinkedSupport
+	// DefaultAttack is the GrantedEffect id of the skill the character uses without a skill of
+	// its own (SkillResolver.Default).
+	DefaultAttack string
 }
 
 // LinkedSupport is an item stat with which the supports socketed in the item, the gems' and

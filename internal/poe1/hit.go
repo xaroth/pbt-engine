@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
@@ -51,10 +52,11 @@ func SpellHit(sk *resolve.Skill) bool {
 }
 
 // attackHit reports whether the sheet gives sk's hit as an attack's with hands: an attack the
-// character makes with one weapon in the main hand and none in the off hand, not a minion's
-// and not made by a totem, trap or mine.
+// character makes with what it holds in the main hand, a weapon or its bare hand, when the skill
+// can be used with it, and nothing in the off hand; not a minion's and not made by a totem, trap
+// or mine.
 func attackHit(sk *resolve.Skill, h Hands) bool {
-	return hasTypes(sk, typeAttack) && h.MainHand != nil && h.OffHand == nil &&
+	return hasTypes(sk, typeAttack) && h.MainHand != nil && h.MainHand.usableBy(sk) && h.OffHand == nil &&
 		!hasAnyType(sk, typeMinion, typeTrapped, typeRemoteMined, typeSummonsTotem)
 }
 
@@ -72,14 +74,15 @@ func selfUsedHit(sk *resolve.Skill, h Hands) bool {
 		!hasAnyType(sk, typeChannel, typeBrand, typeTrapped, typeRemoteMined, typeSummonsTotem, typeTriggered, typeCooldown)
 }
 
-// Hands is what the character holds: the weapon in each hand, nil for none. A shield or quiver
-// is not a weapon.
+// Hands is what the character attacks with: the weapon in each hand, nil for none, and in the
+// main hand without a weapon the class's unarmed attacks. A shield or quiver is not a weapon.
 type Hands struct {
 	MainHand, OffHand *Weapon
 }
 
-// HandsOf returns what items put in the character's hands.
-func HandsOf(items []Item) Hands {
+// HandsOf returns what items put in the hands of a character of class ch: without a weapon in
+// the main hand, its unarmed attacks (UnarmedWeapon), as PoB has them (CalcSetup.lua weaponData1).
+func HandsOf(items []Item, ch *dataset.Character) Hands {
 	var h Hands
 	for _, it := range items {
 		switch {
@@ -89,6 +92,9 @@ func HandsOf(items []Item) Hands {
 		case it.Slot == build.SlotOffhand:
 			h.OffHand = it.Weapon
 		}
+	}
+	if h.MainHand == nil && ch != nil {
+		h.MainHand = UnarmedWeapon(ch)
 	}
 	return h
 }
