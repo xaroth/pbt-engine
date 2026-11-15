@@ -9,8 +9,8 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/poe1/passives"
 	"github.com/xaroth/pbt-engine/poe1/timeless"
-	"github.com/xaroth/pbt-engine/simulator"
 )
 
 // TestConquerInGame checks a jewel as the game client showed it on 3.30: Elegant Hubris,
@@ -18,11 +18,8 @@ import (
 func TestConquerInGame(t *testing.T) {
 	t.Parallel()
 	store := realdata.Open(t, realdata.InGame)
-	sim, err := simulator.New(store)
-	if err != nil {
-		t.Fatal(err)
-	}
-	inRadius, err := sim.NodesInRadius(build.DefaultVariant, 26196, simulator.Radius{ID: "Large"})
+	reader := passives.New(store)
+	inRadius, err := reader.NodesInRadius(build.DefaultVariant, 26196, passives.Radius{ID: "Large"})
 	if err != nil {
 		t.Fatal(err)
 	}
