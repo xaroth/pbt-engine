@@ -26,7 +26,6 @@ func capabilities() []string {
 	return []string{
 		"skills on a build",
 		"charges in config",
-		"conditions derived from the build",
 		"minions",
 		"totems",
 		"a party",

@@ -95,7 +95,7 @@
       "description": "The result of one simulation: output values in display order or as asked for, and warnings.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "outputs", "warnings", "skill", "skills"],
+      "required": ["version", "outputs", "warnings", "skill", "skills", "config"],
       "properties": {
         "version": { "type": "string", "description": "The dataset version simulated on." },
         "outputs": { "type": "array", "items": { "$ref": "#/$defs/OutputValue" } },
@@ -111,8 +111,30 @@
           "type": "array",
           "items": { "$ref": "#/$defs/SkillValues" },
           "description": "The skill outputs of each skill the call asked for, the main skill first, then by group, gem and skill; empty unless asked for."
+        },
+        "config": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ConfigEntry" },
+          "description": "Each config key's resolved value and its source, in the order of the sim's config keys."
         }
       }
+    },
+    "ConfigEntry": {
+      "title": "ConfigEntry",
+      "description": "The value a config key resolved to and where it came from.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "value", "source"],
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "$ref": "#/$defs/ConfigValue" },
+        "source": { "$ref": "#/$defs/ConfigSource" }
+      }
+    },
+    "ConfigSource": {
+      "title": "ConfigSource",
+      "description": "Where a config value came from: the call's options, the sim, the build's config, derived from the build (a condition the build causes itself that no layer sets), or the key's default.",
+      "enum": ["call", "sim", "build", "derived", "default"]
     },
     "SkillValues": {
       "title": "SkillValues",

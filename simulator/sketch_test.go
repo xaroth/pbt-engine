@@ -139,11 +139,8 @@ func sketchRun() []sketchPart {
 		{name: "read an output", run: sketchGet},
 		{name: "read a skill's average hit", run: sketchSkillHit},
 		{name: "a gem not in the dataset warns", run: sketchGemWarning},
-		{name: "a condition with no source warns", code: `stats.Warnings() // {Code: NoConditionSource, Subject: "enemy.shocked", ...}`,
-			needs: []need{needDerived("simulator.NoConditionSource")}},
-		{name: "read a derived condition and its source", code: `v, ok := stats.Config(poe1.EnemyShocked)
-_ = v.Value  // true
-_ = v.Source // config.Derived`, needs: []need{needDerived("poe1.EnemyShocked", "config.Derived")}},
+		{name: "a condition with no source warns", run: sketchNoConditionSource},
+		{name: "read a derived condition and its source", run: sketchDerivedCondition},
 		{name: "explain an output in each view", run: sketchExplain},
 		{name: "compute only the listed outputs", run: sketchOutputs},
 		{name: "force a condition off", run: sketchConditionOff},
@@ -472,6 +469,31 @@ func sketchSkillHit(t *testing.T, s *sketchState) {
 	stats := simulate(t, s.sim, s.next, simulator.EverySkill())
 	if _, ok := stats.Skill(simulator.SkillRef{Group: 0, Gem: 0}).Get(poe1.AverageHit); !ok {
 		t.Error("no average hit of Fireball")
+	}
+}
+
+// sketchNoConditionSource: Fireball cannot shock, so a Shocked enemy set in the build applies
+// with a warning.
+func sketchNoConditionSource(t *testing.T, s *sketchState) {
+	b := s.next.Clone()
+	if err := config.Set(&b.Config, poe1.EnemyShocked, true); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, s.sim, b, simulator.Outputs(poe1.Life))
+	if !slices.ContainsFunc(st.Warnings(), func(w build.Warning) bool {
+		return w.Code == simulator.NoConditionSource && w.Subject == "config "+poe1.EnemyShocked.Name()
+	}) {
+		t.Errorf("warnings %v, want no source for the Shocked enemy", st.Warnings())
+	}
+	if on, src := configOf(st, poe1.EnemyShocked); on != "true" || src != config.FromBuild {
+		t.Errorf("shocked %v from %v, want on from the build", on, src)
+	}
+}
+
+// sketchDerivedCondition: Fireball's hits can ignite, so the enemy is Ignited, derived.
+func sketchDerivedCondition(t *testing.T, s *sketchState) {
+	if on, src := configOf(s.stats, poe1.EnemyIgnited); on != "true" || src != config.Derived {
+		t.Errorf("ignited %v from %v, want on, derived", on, src)
 	}
 }
 

@@ -55,7 +55,139 @@
       }
     ],
     "skill": null,
-    "skills": []
+    "skills": [],
+    "config": [
+      {
+        "key": "campaign",
+        "value": "complete",
+        "source": "default"
+      },
+      {
+        "key": "bandits",
+        "value": "",
+        "source": "default"
+      },
+      {
+        "key": "enemy",
+        "value": "pinnacle",
+        "source": "default"
+      },
+      {
+        "key": "enemy-level",
+        "value": 84,
+        "source": "default"
+      },
+      {
+        "key": "enemy-fire-resistance",
+        "value": 50,
+        "source": "default"
+      },
+      {
+        "key": "enemy-cold-resistance",
+        "value": 50,
+        "source": "default"
+      },
+      {
+        "key": "enemy-lightning-resistance",
+        "value": 50,
+        "source": "default"
+      },
+      {
+        "key": "enemy-chaos-resistance",
+        "value": 30,
+        "source": "default"
+      },
+      {
+        "key": "enemy-armour",
+        "value": 61989,
+        "source": "default"
+      },
+      {
+        "key": "enemy-evasion",
+        "value": 10143,
+        "source": "default"
+      },
+      {
+        "key": "enemy-shocked",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-chilled",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-frozen",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-ignited",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-bleeding",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-moving",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-unnerved",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-intimidated",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-taunted",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-on-consecrated-ground",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "full-life",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "full-energy-shield",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "leeching",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "focused",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "fortified",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-shock-effect",
+        "value": 0,
+        "source": "default"
+      }
+    ]
   },
   "after": {
     "version": "3.29.3.3",
@@ -107,7 +239,139 @@
     ],
     "warnings": [],
     "skill": null,
-    "skills": []
+    "skills": [],
+    "config": [
+      {
+        "key": "campaign",
+        "value": "complete",
+        "source": "default"
+      },
+      {
+        "key": "bandits",
+        "value": "",
+        "source": "default"
+      },
+      {
+        "key": "enemy",
+        "value": "pinnacle",
+        "source": "default"
+      },
+      {
+        "key": "enemy-level",
+        "value": 84,
+        "source": "default"
+      },
+      {
+        "key": "enemy-fire-resistance",
+        "value": 50,
+        "source": "default"
+      },
+      {
+        "key": "enemy-cold-resistance",
+        "value": 50,
+        "source": "default"
+      },
+      {
+        "key": "enemy-lightning-resistance",
+        "value": 50,
+        "source": "default"
+      },
+      {
+        "key": "enemy-chaos-resistance",
+        "value": 30,
+        "source": "default"
+      },
+      {
+        "key": "enemy-armour",
+        "value": 61989,
+        "source": "default"
+      },
+      {
+        "key": "enemy-evasion",
+        "value": 10143,
+        "source": "default"
+      },
+      {
+        "key": "enemy-shocked",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-chilled",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-frozen",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-ignited",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-bleeding",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-moving",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-unnerved",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-intimidated",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-taunted",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-on-consecrated-ground",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "full-life",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "full-energy-shield",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "leeching",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "focused",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "fortified",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-shock-effect",
+        "value": 0,
+        "source": "default"
+      }
+    ]
   },
   "changes": [
     {

@@ -36,7 +36,7 @@ const (
 	// Every attack reads one hand: the main hand, and the off hand too when the skill attacks
 	// with both. A weapon's own values require its hand.
 	dimHand = "hand"
-	// dimAilment holds the damaging ailment whose damage or chance is read, with the ailment
+	// dimAilment holds the ailment whose damage or chance is read, with the ailment
 	// form for its damage. A modifier to "damage with ignites" requires ailment.ignite.
 	dimAilment = "ailment"
 	// dimOffHandWeapon holds the off hand weapon's kinds in the context of an attack with both
@@ -71,17 +71,21 @@ const (
 
 func damageFormNames() []string { return []string{"hit", "dot", "ailment"} }
 
-// ailment is a damaging ailment, a value of the ailment dimension.
+// ailment is an ailment a hit inflicts, a value of the ailment dimension: the damaging ones,
+// whose damage the sheet gives, and shock and chill, whether a hit inflicts which decides a
+// condition (DeriveConditions).
 type ailment uint8
 
 const (
 	ailmentIgnite ailment = iota
 	ailmentBleed
 	ailmentPoison
+	ailmentShock
+	ailmentChill
 )
 
 func ailmentNames() []string {
-	return []string{ailmentIgnite: "ignite", ailmentBleed: "bleed", ailmentPoison: "poison"}
+	return []string{ailmentIgnite: "ignite", ailmentBleed: "bleed", ailmentPoison: "poison", ailmentShock: "shock", ailmentChill: "chill"}
 }
 
 // maxSkills is how many skills a sheet holds at once, each with its own dimSkill bit.

@@ -25,6 +25,14 @@ type wireStats struct {
 	Warnings []Warning      `json:"warnings"`
 	Skill    *wireMainSkill `json:"skill"`
 	Skills   []wireSkill    `json:"skills"`
+	Config   []wireConfig   `json:"config"`
+}
+
+// wireConfig is the value a config key resolved to and where it came from.
+type wireConfig struct {
+	Key    string `json:"key"`
+	Value  any    `json:"value"`
+	Source string `json:"source"`
 }
 
 type wireSkill struct {
@@ -88,8 +96,9 @@ type wireResult struct {
 }
 
 // MarshalJSON encodes the values, each with its catalogue entry, the warnings, the main skill
-// (null without one), each skill's values asked for and the dataset version. It leaves out the
-// build and config the Stats keeps for Explain.
+// (null without one), each skill's values asked for, the dataset version and each config key's
+// value and source in the order of Sim.ConfigKeys. It leaves out the build the Stats keeps for
+// Explain.
 func (st *Stats) MarshalJSON() ([]byte, error) { return marshal(st.wire(catalogue())) }
 
 // MarshalJSON encodes both sides, the change of each output computed on both, the edits
@@ -165,7 +174,7 @@ func changeList(outputs []Output, changes map[output.Key]Change) []wireChange {
 func (st *Stats) wire(cat map[output.Key]Output) wireStats {
 	w := wireStats{
 		Version: st.Version(), Outputs: valueList(cat, st.keys, st.values), Warnings: orEmpty(st.warnings),
-		Skills: make([]wireSkill, 0, len(st.perSkill)),
+		Skills: make([]wireSkill, 0, len(st.perSkill)), Config: st.wireConfig(),
 	}
 	for _, ss := range st.perSkill {
 		w.Skills = append(w.Skills, wireSkill{SkillRef: ss.Ref, GrantedEffect: ss.GrantedEffect, Outputs: valueList(cat, ss.keys, ss.values)})
@@ -177,6 +186,16 @@ func (st *Stats) wire(cat map[output.Key]Output) wireStats {
 		}
 	}
 	return w
+}
+
+func (st *Stats) wireConfig() []wireConfig {
+	specs := poe1.ConfigSpecs()
+	out := make([]wireConfig, 0, len(specs))
+	for _, sp := range specs {
+		e := st.cfg[sp.Name]
+		out = append(out, wireConfig{Key: sp.Name, Value: e.Value, Source: e.Source.String()})
+	}
+	return out
 }
 
 func valueList(cat map[output.Key]Output, keys []output.Key, values map[output.Key]float64) []wireValue {
