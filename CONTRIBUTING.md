@@ -6,6 +6,26 @@
 - New behaviour has tests. Engine changes that affect results include a case showing the expected value and its source.
 - One concern per pull request.
 
+## Generated test files after a rebase
+
+The files the README's `-update` commands write are generated, mostly from `internal/poe1/table.json`: the fixtures under `internal/poe1/testdata/fixture`, the reports and goldens beside them, the `statdesc` read goldens and the `simulator` wire and sketch goldens. Two branches that change the table always conflict there. Do not merge them by hand: take main's copy and regenerate. `.gitattributes` marks the fixtures binary, so git neither diffs nor merges them. CI fails on a stale one.
+
+```sh
+git rebase origin/main
+# on a conflict in a generated file, take main's copy (in a rebase, --ours is main), resolve other files as usual
+git checkout --ours -- <generated files>
+git add <generated files>
+git rebase --continue
+# once the rebase is done
+export PBT_DATASETS=/tmp/pbt-datasets
+go test ./internal/poe1 -run '^TestFixtures$' -update   # first: until then main's manifests do not match the branch's .fb files
+go test ./internal/poe1 ./statdesc -update
+go test ./simulator -run 'Wire|Sketch' -update
+git add -A internal/poe1/testdata statdesc/testdata simulator/testdata
+git commit -m "test: regenerate generated test files"
+go test ./...
+```
+
 ## Engine rules
 
 - `internal/core` imports nothing from this module.
