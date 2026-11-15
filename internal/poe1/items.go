@@ -25,6 +25,10 @@ type Item struct {
 	Weapon *Weapon
 	// Shield is true for a shield.
 	Shield bool
+	// Armour is the item's own armour; 0 for an item without.
+	Armour float64
+	// LifeModifiers is true for an item with a Life Modifier (ModTags.LifeModifiers).
+	LifeModifiers bool
 	// MovementPenalty is its armour base's movement speed penalty as an increase, such as -5;
 	// armour_movement_penalties_are_ignored lifts it.
 	MovementPenalty float64
@@ -38,6 +42,8 @@ type CompiledItem struct {
 	Weapon *Weapon
 	// Shield is true for a shield.
 	Shield bool
+	// Armour is its own armour, 0 for an item without.
+	Armour float64
 	// Assumed lists the defences taken at the highest roll of a base whose roll varies.
 	Assumed []string
 	// MovementPenalty is as Item's.
@@ -70,6 +76,7 @@ func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 		c.MovementPenalty = float64(base.Armour.MovementSpeed)
 		if !defenceless(it) {
 			c.Stats, c.Assumed = compileDefences(it, base.Armour)
+			c.Armour = armourOf(c.Stats)
 		}
 	}
 	for _, m := range it.Mods {
@@ -112,6 +119,22 @@ func compileDefences(it *build.Item, a *dataset.ArmourValues) (stats []resolve.S
 	return stats, assumed
 }
 
+// armourOf returns the armour of an item's compiled defences.
+func armourOf(defences []resolve.StatValue) float64 {
+	var armour string
+	for _, d := range itemdefence.All() {
+		if d.Key == build.DefenceArmour {
+			armour = d.Stat
+		}
+	}
+	for _, sv := range defences {
+		if sv.Stat == armour {
+			return sv.Value
+		}
+	}
+	return 0
+}
+
 func defenceless(it *build.Item) bool {
 	return it.Rarity == build.Unique && slices.Contains(defencelessUniques(), it.Name)
 }
@@ -132,8 +155,9 @@ type itemKey struct {
 	key  string
 }
 
-// SetItems equips items and jewels: their sources go on, other items' off; what they put in the
-// character's hands is set apart (SetHands). An item not seen yet in its slot or socket gets
+// SetItems equips items and jewels: their sources go on, other items' off, and the engine stats
+// of the equipped items follow them (setEquipment); what they put in the character's hands is
+// set apart (SetHands). An item not seen yet in its slot or socket gets
 // its source added once; adding is refused while a checkpoint is open
 // (ErrCheckpointOpen).
 func (sh *Sheet) SetItems(items []Item) error {
@@ -144,6 +168,7 @@ func (sh *Sheet) SetItems(items []Item) error {
 	for k, src := range sh.items {
 		sh.setSources([]core.SourceID{src}, want[k])
 	}
+	sh.setEquipment(items)
 	for _, it := range items {
 		k := itemKey{it.Slot, it.Node, it.Key}
 		if _, ok := sh.items[k]; ok {

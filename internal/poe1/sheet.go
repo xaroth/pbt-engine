@@ -125,6 +125,8 @@ type Sheet struct {
 	conditions conditionMods
 	// held holds what the character holds (SetHands).
 	held heldMods
+	// equipment holds what the equipped items are (SetItems).
+	equipment equipmentMods
 	// exposure holds the enemy's Exposure by damage type.
 	exposure map[DamageType]core.ModID
 	// outputs is the catalogue by key.
@@ -356,35 +358,17 @@ func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot
 // addBaseValues adds the rules' base values of movement speed, damage, cast speed and
 // efficiencies, and the enemy.
 func (sh *Sheet) addBaseValues() error {
-	if err := sh.addBaseMovementSpeed(); err != nil {
-		return err
+	// The conditions come before the enemy, which sets one.
+	for _, add := range []func() error{
+		sh.addBaseMovementSpeed, sh.addBaseDamage, sh.addBaseSpeeds, sh.addBaseAilmentValues,
+		sh.addConditions, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
+		sh.addBaseEfficiencies,
+	} {
+		if err := add(); err != nil {
+			return err
+		}
 	}
-	if err := sh.addBaseDamage(); err != nil {
-		return err
-	}
-	if err := sh.addBaseSpeeds(); err != nil {
-		return err
-	}
-	if err := sh.addBaseAilmentValues(); err != nil {
-		return err
-	}
-	// The enemy sets a condition.
-	if err := sh.addConditions(); err != nil {
-		return err
-	}
-	if err := sh.addHeld(); err != nil {
-		return err
-	}
-	if err := sh.addBleedMoving(); err != nil {
-		return err
-	}
-	if err := sh.addEnemy(); err != nil {
-		return err
-	}
-	if err := sh.addExposure(); err != nil {
-		return err
-	}
-	return sh.addBaseEfficiencies()
+	return nil
 }
 
 // addCount adds counter sv to its own stat and to number_of_allocated_masteries.

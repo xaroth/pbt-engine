@@ -31,7 +31,8 @@ func ItemFiles(m dataset.Manifest) []string {
 
 // SimulateFiles returns the files Simulate reads for each of builds: the tree of its variant,
 // the skills group, for its gems or else the default attack, the items group when it has items or jewels, its mods
-// when it has gems and an item with stats in a slot with sockets, which can grant supports, the
+// when it has gems and an item with stats in a slot with sockets, which can grant supports, or
+// a body armour with stats, whose Life Modifiers a mastery looks at (poe1.ModTags), the
 // layout of its variant and the English text when it has a cluster jewel, whose lines say
 // which passives it adds. Compare, Sweep and Stats.Explain read no more than the simulations
 // of the builds they take or make; Stats.Text reads the text of its language.
@@ -42,7 +43,8 @@ func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 		if len(b.Items) > 0 || len(b.Jewels) > 0 {
 			files = append(files, dataset.ItemsFile)
 		}
-		if slices.ContainsFunc(b.Skills.Groups, func(g build.SkillGroup) bool { return len(g.Gems) > 0 }) && socketedStats(b.Items) {
+		if slices.ContainsFunc(b.Skills.Groups, func(g build.SkillGroup) bool { return len(g.Gems) > 0 }) && socketedStats(b.Items) ||
+			hasStats(b.Items[build.SlotBodyArmour]) {
 			files = append(files, dataset.ModsFile)
 		}
 		for _, it := range b.Jewels {
@@ -57,12 +59,10 @@ func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 
 // socketedStats reports whether an item in a slot with sockets has stats.
 func socketedStats(items build.Items) bool {
-	for _, s := range build.Slots() {
-		for _, m := range items[s].Mods {
-			if len(m.Stats) > 0 {
-				return true
-			}
-		}
-	}
-	return false
+	return slices.ContainsFunc(build.Slots(), func(s build.Slot) bool { return hasStats(items[s]) })
+}
+
+// hasStats reports whether a mod line of it has stats.
+func hasStats(it build.Item) bool {
+	return slices.ContainsFunc(it.Mods, func(m build.ModLine) bool { return len(m.Stats) > 0 })
 }

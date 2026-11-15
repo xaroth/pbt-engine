@@ -473,28 +473,6 @@ func TestPoolLimit(t *testing.T) {
 	}
 }
 
-// TestUncheckedWarning: an entry applied without checking its condition warns with its own
-// code, so it is not counted with the stats left out.
-func TestUncheckedWarning(t *testing.T) {
-	t.Parallel()
-	st := simulate(t, newSim(t), marauderBuild(1, 12))
-	want := []build.Warning{{
-		Code: simulator.UncheckedCondition, Subject: "maximum_life_+%_if_no_life_tags_on_body_armour from node 12",
-		Message: "applied without checking: no Life Modifiers on Equipped Body Armour: builds hold no items yet, " +
-			"and an empty body armour slot meets the condition, verified in game",
-		Stat: "maximum_life_+%_if_no_life_tags_on_body_armour",
-	}}
-	var got []build.Warning
-	for _, w := range st.Warnings() {
-		if w.Code == simulator.UncheckedCondition || w.Code == simulator.UnmodelledStat {
-			got = append(got, w)
-		}
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("stat warnings (-want +got):\n%s", diff)
-	}
-}
-
 // Skills are not simulated yet: a build with gems warns once and gives the same outputs. The
 // test dataset has no skills group, so the gems are also unchecked.
 func TestSkillsNotSimulated(t *testing.T) {
