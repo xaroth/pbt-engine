@@ -37,11 +37,15 @@ func ChangeNode(n *dataset.Node, changes ...NodeChange) *dataset.Node {
 	return &out
 }
 
-// nodeChanges returns the changes c's build makes to nodes, by node id.
+// nodeChanges returns the changes c's build makes to nodes, by node id: its tattoo or
+// runegraft first, then what its timeless jewels make of it.
 func nodeChanges(c *build.Checked) map[uint32][]NodeChange {
 	out := map[uint32][]NodeChange{}
 	for _, o := range c.Overrides() {
 		out[o.Node.ID] = append(out[o.Node.ID], NodeChange{Replace: true, Stats: o.Override.Stats})
+	}
+	for _, q := range c.Conquests() {
+		out[q.Node.ID] = append(out[q.Node.ID], NodeChange{Replace: q.Replace, Stats: q.Stats})
 	}
 	return out
 }

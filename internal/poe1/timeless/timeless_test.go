@@ -137,6 +137,43 @@ func TestConquerKeystoneWithoutConqueror(t *testing.T) {
 	}
 }
 
+// A jewel of a conqueror's later revision takes that revision's keystone, or the first one's
+// when the revision has none of its own.
+func TestConquerKeystoneRevision(t *testing.T) {
+	t.Parallel()
+	keystone := func(c timeless.Conqueror, value int32) timeless.Replacement {
+		return timeless.Replacement{
+			Kinds: []timeless.Kind{timeless.Keystone}, Stats: []timeless.Range{{Min: value, Max: value}, {Min: 2, Max: 2}}, Conqueror: c,
+		}
+	}
+	tree := newTree(t, timeless.Tables{Replacements: []timeless.Replacement{
+		keystone(timeless.Conqueror{Index: 1}, 10),
+		keystone(timeless.Conqueror{Index: 2}, 20),
+		keystone(timeless.Conqueror{Index: 2, Version: 1}, 21),
+	}})
+	testCases := []struct {
+		name      string
+		conqueror timeless.Conqueror
+		want      outcome
+	}{
+		{"first revision", timeless.Conqueror{Index: 2}, outcome{Replaced: true, Replacement: 1, Rolls: [4]int32{20, 2}, Additions: []timeless.Rolled{}}},
+		{"later revision", timeless.Conqueror{Index: 2, Version: 1}, outcome{Replaced: true, Replacement: 2, Rolls: [4]int32{21, 2}, Additions: []timeless.Rolled{}}},
+		{
+			"later revision without its own", timeless.Conqueror{Index: 1, Version: 1},
+			outcome{Replaced: true, Replacement: 0, Rolls: [4]int32{10, 2}, Additions: []timeless.Rolled{}},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			got := view(tree.Conquer(timeless.Jewel{Seed: 100, Conqueror: testCase.conqueror}, timeless.Node{ID: 1, Kind: timeless.Keystone}))
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("Conquer (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 // addingTables adds to notables and small passives and replaces notables by chance.
 func addingTables(chance int32) timeless.Tables {
 	return timeless.Tables{

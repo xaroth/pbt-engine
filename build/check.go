@@ -121,6 +121,7 @@ type Checked struct {
 	clusterRead map[uint32][]string
 	masteries   []MasteryChoice
 	overrides   []OverrideChoice
+	conquests   []Conquest
 	warnings    []Warning
 }
 
@@ -155,7 +156,9 @@ type MasteryChoice struct {
 // cluster socket adds its passives, numbered as Path of Building numbers them: they can be
 // allocated, paths run through them and their stats count. It drops a passive or socket that
 // only a cluster jewel adds when no jewel in the build adds it, and warns about a cluster jewel
-// whose lines do not say what it adds. The weapon-swap
+// whose lines do not say what it adds. A timeless jewel in an allocated socket changes the
+// passives in its radius (Conquests); one whose changes are modelled only for keystones warns.
+// The weapon-swap
 // slots are not in use: their items are left out and the gems socketed in them disabled,
 // without a warning, so the skills they grant or hold are disabled too. It returns a
 // *CheckError when the game, tree variant or class does not fit, or the error of a dataset
@@ -203,10 +206,9 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	if err := c.checkSkills(); err != nil {
 		return nil, nil, err
 	}
-	if err := c.checkItems(); err != nil {
+	if err := c.checkGear(); err != nil {
 		return nil, nil, err
 	}
-	c.setAsideSwap()
 	return c, slices.Clone(c.warnings), nil
 }
 
@@ -333,6 +335,16 @@ func (c *Checked) warnf(code Code, subject, format string, args ...any) {
 func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...any) {
 	about.Code, about.Message = code, fmt.Sprintf(format, args...)
 	c.warnings = append(c.warnings, about)
+}
+
+// checkGear checks the items and jewels, sets the weapon swap aside and finds what the
+// timeless jewels conquer.
+func (c *Checked) checkGear() error {
+	if err := c.checkItems(); err != nil {
+		return err
+	}
+	c.setAsideSwap()
+	return c.conquer()
 }
 
 // setClass sets c's class and character, and reports whether both exist.
