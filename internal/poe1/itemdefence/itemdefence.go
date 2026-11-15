@@ -115,6 +115,9 @@ func LocalOf(it *build.Item) Local {
 // Printed is the defence as its text prints it, 0 when it prints none.
 func (d Defence) Printed(it *build.Item) int { return d.printed(it) }
 
+// OnBase reports whether the base has the defence.
+func (d Defence) OnBase(a *dataset.ArmourValues) bool { return d.base(a).Max > 0 }
+
 // Varies reports whether the base's value of the defence rolls in a range.
 func (d Defence) Varies(a *dataset.ArmourValues) bool {
 	r := d.base(a)

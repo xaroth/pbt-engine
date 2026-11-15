@@ -12,6 +12,20 @@ import (
 // at no roll of the base; the printed value is kept.
 const DefenceDiffers build.Code = "item-defence-differs"
 
+// printedDefences counts the defences it prints that base b has.
+func printedDefences(b *dataset.ItemBase, it *build.Item) int {
+	if b.Armour == nil {
+		return 0
+	}
+	n := 0
+	for _, d := range itemdefence.All() {
+		if d.Printed(it) != 0 && d.OnBase(b.Armour) {
+			n++
+		}
+	}
+	return n
+}
+
 // rollDefences gives each defence it prints without a roll the roll that gives the printed value,
 // as Path of Building derives it. On game text the printed value is the check: where the defence
 // at that roll differs from it, the defence keeps no roll, so the printed value is taken, with a
