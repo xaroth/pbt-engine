@@ -104,7 +104,7 @@ type Sheet struct {
 	gameVersion dataset.GameVersion
 	// nodes maps a node, or a mastery node and effect, to its sources (global and buff bundles).
 	nodes map[resolve.NodeSource][]core.SourceID
-	// granted maps a node to the sources of a jewel granting it, on while the node is not.
+	// granted maps a node to the sources of a jewel or item granting it, on while the node is not.
 	granted map[uint32][]core.SourceID
 	// items maps an item, by slot and content, to its source.
 	items map[itemKey]core.SourceID
@@ -238,13 +238,22 @@ func (sh *Sheet) newSource(d Source) core.SourceID {
 			}
 			sh.nodes[n] = append(sh.nodes[n], id)
 		case resolve.RadiusSource:
-			if sh.granted == nil {
-				sh.granted = map[uint32][]core.SourceID{}
+			sh.grant(n.Node, id)
+		case resolve.ItemSource:
+			if n.Passive != 0 {
+				sh.grant(n.Passive, id)
 			}
-			sh.granted[n.Node] = append(sh.granted[n.Node], id)
 		}
 	}
 	return id
+}
+
+// grant records src as granting node while the node is not allocated.
+func (sh *Sheet) grant(node uint32, src core.SourceID) {
+	if sh.granted == nil {
+		sh.granted = map[uint32][]core.SourceID{}
+	}
+	sh.granted[node] = append(sh.granted[node], src)
 }
 
 // proportion returns the proportional view of engine stat name.

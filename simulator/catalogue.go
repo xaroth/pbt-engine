@@ -103,7 +103,8 @@ type (
 	RadiusSource = resolve.RadiusSource
 	// QuestSource is a quest reward.
 	QuestSource = resolve.QuestSource
-	// ItemSource is an equipped item by slot, with its name.
+	// ItemSource is an equipped item by slot, with its name; with Passive, the notable it
+	// allocates.
 	ItemSource = resolve.ItemSource
 	// JewelSource is a jewel by its socket node, with its name.
 	JewelSource = resolve.JewelSource

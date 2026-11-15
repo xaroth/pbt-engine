@@ -524,3 +524,73 @@ func TestLifeModifiersOnBodyArmour(t *testing.T) {
 		t.Errorf("life with a body armour with a Life Modifier %v, want less than %v without", with, without)
 	}
 }
+
+// anointedAmulet is a rare amulet anointed with Might (node 5456, +30 to Strength), as Path of
+// Building writes it.
+const anointedAmulet = `Rarity: RARE
+Rune Choker
+Onyx Amulet
+Implicits: 1
+{crafted}Allocates Might
++10 to all Attributes
+`
+
+// mightNode is the notable Might.
+const mightNode = 5456
+
+// An amulet's anointment gives its notable's stats to a level 1 Marauder without passives,
+// credited to the amulet, and the notable stays out of the build's nodes. Allocating the notable
+// on the tree as well gives its stats once.
+func TestAnointOnSheet(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	bare := marauderBuild(1)
+	it, ws, err := s.Data().Item(anointedAmulet)
+	if err != nil || len(ws) != 0 {
+		t.Fatalf("read the amulet: %v, %v", ws, err)
+	}
+	with := withItem(t, bare.Clone(), build.SlotAmulet, it)
+	before, st := simulate(t, s, bare), simulate(t, s, with)
+	for _, w := range st.Warnings() {
+		if w.Slot != "" {
+			t.Errorf("%s: %s, want no warning about the amulet", w.Subject, w.Message)
+		}
+	}
+	if nodes := st.Build().Nodes; len(nodes) != 0 {
+		t.Errorf("nodes %v, want none: the anointment allocates no node of the tree", nodes)
+	}
+	// 10 from the amulet's own line, 30 from Might
+	if got, want := get(t, st, poe1.Strength), get(t, before, poe1.Strength)+40; got != want {
+		t.Errorf("strength %v, want %v", got, want)
+	}
+	ex, err := st.Explain(poe1.Strength, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	share := math.NaN()
+	for _, l := range ex.Lines {
+		if l.Source.Bundle != nil && l.Source.Bundle.Source == (simulator.ItemSource{Slot: build.SlotAmulet, Name: "Rune Choker", Passive: mightNode}) {
+			share = l.Value
+		}
+	}
+	if share != 30 {
+		t.Errorf("Might's share by the amulet %v, want 30 (lines %+v)", share, ex.Lines)
+	}
+
+	allocated := with.Clone()
+	if err := allocated.Apply(build.Allocate(mightNode)); err != nil {
+		t.Fatal(err)
+	}
+	results, err := s.Sweep(with, [][]build.Edit{{build.Allocate(mightNode)}}, simulator.Outputs(poe1.Strength))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, got := range map[string]float64{
+		"fresh": get(t, simulate(t, realSim(t), allocated), poe1.Strength),
+		"swept": results[0].Changes[poe1.Strength].After,
+	} {
+		if want := get(t, st, poe1.Strength); got != want {
+			t.Errorf("strength with Might allocated too, %s: %v, want %v", name, got, want)
+		}
+	}
+}

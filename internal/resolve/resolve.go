@@ -103,19 +103,27 @@ func (s RadiusSource) String() string {
 }
 func (s QuestSource) String() string { return "quest " + s.ID }
 
-// ItemSource is an equipped item. Resolve returns none; the rules compile items themselves. A
-// skill's support an item grants has it.
+// ItemSource is an equipped item. Resolve returns only the notables items allocate, with
+// Passive (build.ItemPassive); the rules compile items themselves. A skill's support an item
+// grants has it.
 type ItemSource struct {
 	Slot build.Slot
 	// Name is a rare or unique item's name, or a magic item's full name; empty for others.
 	Name string
+	// Passive is the node id of the notable the item allocates whose stats these are; 0 for the
+	// item's own.
+	Passive uint32
 }
 
 func (s ItemSource) String() string {
+	out := "item " + string(s.Slot)
 	if s.Name != "" {
-		return "item " + string(s.Slot) + ": " + s.Name
+		out += ": " + s.Name
 	}
-	return "item " + string(s.Slot)
+	if s.Passive != 0 {
+		out += fmt.Sprintf(", allocating node %d", s.Passive)
+	}
+	return out
 }
 
 // JewelSource is a jewel in a tree socket. Resolve returns none; the rules compile jewels as
@@ -248,17 +256,18 @@ func QuestBundles(s *dataset.Store) ([]Bundle, error) {
 
 // Resolve turns a checked build into bundles and constants: character, level, every quest
 // reward with stats (the rules pick the ones the build's config grants), then the allocated
-// nodes as the build's overrides and timeless jewels change them (ChangeNode), each followed by its chosen mastery
-// effect, less those a jewel makes grant nothing, then the unallocated passives a jewel grants
-// (RadiusSource). It fails when a dataset group fails to load or a stat id resolve uses is not in the
-// dataset's stats.
+// nodes as the build's overrides and timeless jewels change them (ChangeNode), each followed by
+// its chosen mastery effect, less those a jewel makes grant nothing, then the unallocated
+// passives a jewel grants (RadiusSource), then the unallocated notables items allocate
+// (ItemSource with Passive). It fails when a dataset group fails to load or a stat id resolve
+// uses is not in the dataset's stats.
 func Resolve(c *build.Checked) (*Resolved, error) {
 	return resolve(c, false)
 }
 
 // Tree is Resolve with the bundles of every node the build's class and ascendancy can
 // allocate, and of every mastery effect, allocated or not, in tree order, then of every passive
-// its cluster jewels add, then of every passive a jewel grants while not allocated. A sheet over it turns sources on and off to match an allocation, so
+// its cluster jewels add, then of every passive a jewel or item grants while not allocated. A sheet over it turns sources on and off to match an allocation, so
 // edits and what-ifs need no new bundles.
 func Tree(c *build.Checked) (*Resolved, error) {
 	return resolve(c, true)
@@ -308,7 +317,7 @@ func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	choices := c.Masteries()
 	changes := nodeChanges(c)
-	nothing, granted := radiusChanges(c)
+	nothing, granted := grantedPassives(c)
 	var out []Bundle
 	for _, n := range c.Nodes() {
 		if ch, ok := changes[n.ID]; ok {
@@ -335,7 +344,7 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 // cluster jewels add.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	changes := nodeChanges(c)
-	nothing, granted := radiusChanges(c)
+	nothing, granted := grantedPassives(c)
 	var out []Bundle
 	for i := range c.Tree().Nodes {
 		n := &c.Tree().Nodes[i]

@@ -50,9 +50,9 @@ func nodeChanges(c *build.Checked) map[uint32][]NodeChange {
 	return out
 }
 
-// grantedPassive is a passive a jewel grants while it is not allocated.
+// grantedPassive is a passive a jewel or an item grants while it is not allocated.
 type grantedPassive struct {
-	source RadiusSource
+	source Source
 	node   *dataset.Node
 	// changes are what timeless jewels make of the node.
 	changes []NodeChange
@@ -62,26 +62,32 @@ func (g grantedPassive) bundles(stats []dataset.Stat) []Bundle {
 	return sourcedBundles(stats, ChangeNode(g.node, g.changes...), g.source)
 }
 
-// radiusChanges returns the passives c's jewels make grant nothing while allocated, by node id,
-// and those they grant while not allocated, by socket then node id.
-func radiusChanges(c *build.Checked) (map[uint32]bool, []grantedPassive) {
+// grantedPassives returns the passives c's jewels make grant nothing while allocated, by node
+// id, and those jewels then items grant while not allocated: by socket then node id, then by
+// slot.
+func grantedPassives(c *build.Checked) (map[uint32]bool, []grantedPassive) {
 	nothing := map[uint32]bool{}
 	var granted []grantedPassive
 	conquests := c.Conquests()
-	for _, p := range c.RadiusPassives() {
-		if p.Nothing {
-			nothing[p.Node.ID] = true
-		}
-		if !p.Granted {
-			continue
-		}
-		g := grantedPassive{source: RadiusSource{Socket: p.Socket, Node: p.Node.ID}, node: p.Node}
+	grant := func(src Source, n *dataset.Node) {
+		g := grantedPassive{source: src, node: n}
 		for _, q := range conquests {
-			if q.Node.ID == p.Node.ID {
+			if q.Node.ID == n.ID {
 				g.changes = append(g.changes, NodeChange{Replace: q.Replace, Stats: q.Stats})
 			}
 		}
 		granted = append(granted, g)
+	}
+	for _, p := range c.RadiusPassives() {
+		if p.Nothing {
+			nothing[p.Node.ID] = true
+		}
+		if p.Granted {
+			grant(RadiusSource{Socket: p.Socket, Node: p.Node.ID}, p.Node)
+		}
+	}
+	for _, p := range c.ItemPassives() {
+		grant(ItemSource{Slot: p.Slot, Name: p.Name, Passive: p.Node.ID}, p.Node)
 	}
 	return nothing, granted
 }

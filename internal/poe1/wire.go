@@ -161,10 +161,11 @@ func (s Source) MarshalJSON() ([]byte, error) {
 		}{gemOf(src), "gem"})
 	case resolve.ItemSource:
 		return marshal(struct {
-			Kind string `json:"kind"`
-			Slot string `json:"slot"`
-			Name string `json:"name"`
-		}{"item", string(src.Slot), src.Name})
+			Kind    string `json:"kind"`
+			Slot    string `json:"slot"`
+			Name    string `json:"name"`
+			Passive uint32 `json:"passive,omitempty"`
+		}{"item", string(src.Slot), src.Name, src.Passive})
 	case resolve.JewelSource:
 		return marshal(struct {
 			Kind string `json:"kind"`

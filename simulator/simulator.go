@@ -112,6 +112,8 @@ type shape struct {
 	conquests string
 	// radius lists the passives jewels change by allocation.
 	radius string
+	// itemPassives lists the notables items allocate with their items, which the sheet credits.
+	itemPassives string
 }
 
 // shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
@@ -125,7 +127,7 @@ func shapeOf(c *build.Checked) shape {
 	return shape{
 		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
 		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()), conquests: conquestsKey(c.Conquests()),
-		radius: radiusKey(c.RadiusPassives()),
+		radius: radiusKey(c.RadiusPassives()), itemPassives: itemPassivesKey(c.ItemPassives()),
 	}
 }
 
@@ -169,6 +171,16 @@ func radiusKey(ps []build.RadiusPassive) string {
 		if p.Granted {
 			buf = append(buf, '+')
 		}
+	}
+	return string(buf)
+}
+
+// itemPassivesKey lists notables with the slot and name of the item that allocates them.
+func itemPassivesKey(ps []build.ItemPassive) string {
+	var buf []byte
+	for _, p := range ps {
+		buf = strconv.AppendUint(append(buf, ','), uint64(p.Node.ID), decimal)
+		buf = strconv.AppendQuote(append(append(buf, '@'), p.Slot...), p.Name)
 	}
 	return string(buf)
 }
