@@ -20,7 +20,7 @@ const (
 // a jewel in one of the tree's own cluster sockets, then a jewel in a socket an added jewel
 // adds, and so on. The socket a jewel is in links to the first passive it adds. A jewel that
 // does not fit its socket adds nothing, as checkJewels leaves it out; one whose lines do not
-// say what it adds warns. The generator is made only when a cluster jewel is in a cluster
+// say what it adds warns. The generator is read only when a cluster jewel is in a cluster
 // socket.
 func (c *Checked) generateClusters() error {
 	var g *cluster.Generator
@@ -36,8 +36,14 @@ func (c *Checked) generateClusters() error {
 			continue
 		}
 		if g == nil {
+			// Making a generator indexes every stat description, which costs far more than a
+			// Check, so the store keeps one per variant.
+			variant := c.build.Variant
 			var err error
-			if g, err = cluster.NewGenerator(c.store, c.build.Variant); errors.Is(err, cluster.ErrNoClusterData) {
+			g, err = dataset.Derived(c.store, generatorKey{variant}, func(s *dataset.Store) (*cluster.Generator, error) {
+				return cluster.NewGenerator(s, variant)
+			})
+			if errors.Is(err, cluster.ErrNoClusterData) {
 				return nil
 			} else if err != nil {
 				return fmt.Errorf("build: %w", err)
@@ -46,6 +52,9 @@ func (c *Checked) generateClusters() error {
 		c.addSubgraph(g, id, &it)
 	}
 }
+
+// generatorKey keys the cluster generator of a tree variant among a store's derived values.
+type generatorKey struct{ variant string }
 
 // nextClusterSocket returns the lowest socket not done that holds a jewel and is a cluster
 // socket on the tree: one of the tree's own, or one a jewel added.
