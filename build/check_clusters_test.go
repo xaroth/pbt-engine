@@ -46,30 +46,30 @@ Implicits: 2
 {enchant}Added Small Passive Skills grant: 12% increased Burning Damage
 `
 
-func readJewel(t *testing.T, r *items.Reader, text string) build.Item {
-	t.Helper()
+func readJewel(tb testing.TB, r *items.Reader, text string) build.Item {
+	tb.Helper()
 	it, _, err := r.Parse(text)
 	if err != nil {
-		t.Fatalf("Parse: %v", err)
+		tb.Fatalf("Parse: %v", err)
 	}
 	return it
 }
 
 // clusterBuild is a level 90 Marauder with the path to the large socket allocated and the large
 // jewel in it.
-func clusterBuild(t *testing.T, s *dataset.Store, jewel build.Item) *build.Build {
-	t.Helper()
+func clusterBuild(tb testing.TB, s *dataset.Store, jewel build.Item) *build.Build {
+	tb.Helper()
 	b := &build.Build{Format: build.Format, Game: "poe1", Version: "3.29", Variant: "standard", Class: marauder, Level: 90}
 	c, _, err := build.Check(b, s)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	toSocket, ok := c.AllocatePath(largeSocket)
 	if !ok {
-		t.Fatal("no path to the socket")
+		tb.Fatal("no path to the socket")
 	}
 	if err := b.Apply(toSocket, build.SocketJewel(largeSocket, jewel)); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return b
 }

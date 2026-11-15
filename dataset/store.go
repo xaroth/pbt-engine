@@ -42,6 +42,8 @@ type Store struct {
 	texts   map[string]*lazy[*Text]
 	names   map[string]*lazy[*Names]
 	layouts map[string]*lazy[*Layout]
+	// derived holds what Derived builds, by key.
+	derived sync.Map
 }
 
 // lazy holds a group loaded on first use. The load function is given at each call rather than
