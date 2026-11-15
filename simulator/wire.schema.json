@@ -698,7 +698,7 @@
           }
         },
         {
-          "description": "An equipped item.",
+          "description": "An equipped item, or with passive the notable it allocates.",
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "slot", "name"],
@@ -708,6 +708,11 @@
             "name": {
               "type": "string",
               "description": "A rare or unique item's name, or a magic item's full name; empty for others."
+            },
+            "passive": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The node of the notable the item allocates, whose stats these are; absent for the item's own."
             }
           }
         },

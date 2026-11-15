@@ -23,7 +23,7 @@ func gameSample(t *testing.T, name string) string {
 }
 
 // TestParseGameSamples reads items copied from the game with Ctrl+Alt+C: those no slot takes and
-// flasks are refused, every other item reads without a warning but those listed.
+// flasks are refused, every other item reads without a warning.
 func TestParseGameSamples(t *testing.T) {
 	t.Parallel()
 	r, _ := realReader(t)
@@ -34,8 +34,6 @@ func TestParseGameSamples(t *testing.T) {
 		"18-scroll-of-wisdom.txt":                           items.ErrNotEquipable,
 		"19-portal-scroll.txt":                              items.ErrNotEquipable,
 	}
-	// An anoint names a passive, which several stats that allocate one render alike.
-	ambiguous := map[string]string{"05-rotmother-s-mutiny.txt": "Allocates Light of Divinity"}
 	names, err := filepath.Glob(filepath.Join("testdata", "game", "*.txt"))
 	if err != nil || len(names) != 23 {
 		t.Fatalf("%d samples, %v", len(names), err)
@@ -53,11 +51,7 @@ func TestParseGameSamples(t *testing.T) {
 		for _, w := range warnings {
 			got = append(got, string(w.Code)+" "+w.Subject)
 		}
-		want := []string{}
-		if line, ok := ambiguous[name]; ok {
-			want = []string{string(items.LineAmbiguous) + " " + line}
-		}
-		if diff := cmp.Diff(want, got); diff != "" {
+		if diff := cmp.Diff([]string{}, got); diff != "" {
 			t.Errorf("%s warnings (-want +got):\n%s", name, diff)
 		}
 		if it.Name == "" || len(it.Mods) == 0 {

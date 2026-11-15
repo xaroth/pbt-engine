@@ -124,6 +124,7 @@ type Checked struct {
 	conquests   []Conquest
 	// radiusPassives are the small passives jewels change by allocation.
 	radiusPassives []RadiusPassive
+	itemPassives   []ItemPassive
 	// unconnected are the passives each socket's jewel lets be allocated without a connection.
 	unconnected map[uint32][]uint32
 	warnings    []Warning
@@ -164,7 +165,9 @@ type MasteryChoice struct {
 // only a cluster jewel adds when no jewel in the build adds it, and warns about a cluster jewel
 // whose lines do not say what it adds. A timeless jewel in an allocated socket changes the
 // passives in its radius (Conquests), and Unnatural Instinct in an allocated socket those whose
-// effect depends on allocation (RadiusPassives).
+// effect depends on allocation (RadiusPassives). An equipped item's line "Allocates <notable>"
+// gives the notable without a point or a path (ItemPassives); one naming a node that is no
+// notable of the tree is left out with a warning.
 // The weapon-swap
 // slots are not in use: their items are left out and the gems socketed in them disabled,
 // without a warning, so the skills they grant or hold are disabled too. It returns a
@@ -344,14 +347,15 @@ func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...an
 	c.warnings = append(c.warnings, about)
 }
 
-// checkGear checks the items and jewels, sets the weapon swap aside and finds what the
-// timeless jewels conquer, the small passives jewels change by allocation and the passives
-// jewels let be allocated without a connection.
+// checkGear checks the items and jewels, sets the weapon swap aside and finds the notables the
+// items allocate, what the timeless jewels conquer, the small passives jewels change by
+// allocation and the passives jewels let be allocated without a connection.
 func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
 	}
 	c.setAsideSwap()
+	c.findItemPassives()
 	if err := c.conquer(); err != nil {
 		return err
 	}

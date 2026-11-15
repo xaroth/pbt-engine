@@ -243,10 +243,11 @@ func (r *Reader) sources(t target, kind build.ModKind) lineSources {
 			retired: func(m *dataset.Mod) bool { return r.formerImplicit(m, t) },
 		}
 	case build.Crafted:
-		return lineSources{current: craft, craft: none, given: none, retired: former}
+		// Path of Building marks an anointment as crafted.
+		return lineSources{current: craft, craft: none, given: r.anointment, retired: former}
 	case build.Enchant:
 		return lineSources{
-			current: func(m *dataset.Mod) bool { return enchant(m, t) || r.enchantCraft(m, t) },
+			current: func(m *dataset.Mod) bool { return r.enchantment(m, t) },
 			craft:   none,
 			given:   none,
 			retired: func(m *dataset.Mod) bool { return retiredEnchant(m, t) },
@@ -443,6 +444,21 @@ func enchant(m *dataset.Mod, t target) bool {
 		return t.base.Class == anointClass
 	}
 	return false
+}
+
+// enchantment is an enchantment of t: a labyrinth or flask enchantment, a bench enchantment or
+// an anointment.
+func (r *Reader) enchantment(m *dataset.Mod, t target) bool {
+	return enchant(m, t) || r.enchantCraft(m, t) || r.anointment(m)
+}
+
+// anointStat is the stat of an anointment: the node id of the passive it allocates.
+const anointStat = "mod_granted_passive_hash"
+
+// anointment is the mod that stands for an anointment, which the game files have none for: the
+// one with anointStat alone. Several stats that allocate a passive render alike.
+func (r *Reader) anointment(m *dataset.Mod) bool {
+	return slices.Equal(r.mods.stats[m], []string{anointStat})
 }
 
 // retiredEnchant is a labyrinth enchantment that spawns nowhere now.
