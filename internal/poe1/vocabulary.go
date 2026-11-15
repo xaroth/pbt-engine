@@ -116,6 +116,7 @@ const (
 	statHitEnemyResistance                               = "hit_enemy_resistance"
 	statEnemyDamageTaken                                 = "enemy_damage_taken"
 	statEnemyArmour                                      = "enemy_armour"
+	statEnemyEvasion                                     = "enemy_evasion"
 	statBaseMinimumDamage                                = "base_minimum_damage"
 	statBaseMaximumDamage                                = "base_maximum_damage"
 	statAddedMinimumDamage                               = "added_minimum_damage"
@@ -130,8 +131,11 @@ const (
 	statEffectiveMaximumHitDamage                        = "effective_maximum_hit_damage"
 	statCriticalStrikeChance                             = "critical_strike_chance"
 	statCriticalStrikeMultiplier                         = "critical_strike_multiplier"
-	statAverageHit                                       = "average_hit"
+	statAccuracyRating                                   = "accuracy_rating"
+	statHitsCannotBeEvaded                               = "hits_cannot_be_evaded"
 	statHitChance                                        = "hit_chance"
+	statEffectiveCriticalStrikeChance                    = "effective_critical_strike_chance"
+	statAverageHit                                       = "average_hit"
 	statCastTime                                         = "cast_time"
 	statSkillStages                                      = "skill_stages"
 	statCastSpeed                                        = "cast_speed"
@@ -207,17 +211,21 @@ const (
 // extra_exposure what is added to Exposure the character inflicts. penetration is how much of
 // the resistance the character's hits of the type penetrate. hit_enemy_resistance is the
 // resistance a hit of the type meets after all of these. enemy_damage_taken is the damage the
-// enemy takes of the type in percent, 100 before modifiers; enemy_armour is its armour. base_minimum_damage and
-// base_maximum_damage, read for one damage type, are the skill's own base damage of that type,
-// and added_minimum_damage and added_maximum_damage the damage added to it; the skill's
-// base_damage_multiplier scales the first and its damage_effectiveness the second, both in
-// percent. minimum_hit_damage and maximum_hit_damage are the hit of that type after damage, and
-// effective_minimum_hit_damage and effective_maximum_hit_damage what the enemy takes of a hit
-// that is not critical. critical_strike_chance and critical_strike_multiplier are in percent;
+// enemy takes of the type in percent, 100 before modifiers; enemy_armour and enemy_evasion are
+// its armour and evasion rating. base_minimum_damage and base_maximum_damage, read for one
+// damage type, are the skill's own base damage of that type, and added_minimum_damage and
+// added_maximum_damage the damage added to it; the skill's base_damage_multiplier scales the
+// first and its damage_effectiveness the second, both in percent. minimum_hit_damage and
+// maximum_hit_damage are the hit of that type after damage, and effective_minimum_hit_damage
+// and effective_maximum_hit_damage what the enemy takes of a hit that is not critical.
+// critical_strike_chance and critical_strike_multiplier are in percent.
+// accuracy_rating is an attack's accuracy rating; hits_cannot_be_evaded is a flag that makes
+// its hits always land. hit_chance is the chance to hit in percent, and
+// effective_critical_strike_chance the chance that a use of the skill hits and is critical.
 // average_hit is what the enemy takes from an average hit of every type, critical strikes
-// weighed in. hit_chance is the chance to hit in percent. cast_time is the skill's in seconds
-// and cast_speed its speed in percent of it, 100 before modifiers; hits_per_second follows, and
-// hit_dps is the damage the enemy takes per second from hits.
+// weighed in by that chance. cast_time is the skill's in seconds and cast_speed its speed in
+// percent of it, 100 before modifiers; hits_per_second follows, and hit_dps is the damage the
+// enemy takes per second from hits.
 //
 // A skill's damage over time is read in its context for damage over time, which has the
 // skill's types but Attack and Area, and but Spell and Projectile unless
@@ -340,6 +348,7 @@ func hitStats() []string {
 		statHitEnemyResistance,
 		statEnemyDamageTaken,
 		statEnemyArmour,
+		statEnemyEvasion,
 		statBaseMinimumDamage,
 		statBaseMaximumDamage,
 		statAddedMinimumDamage,
@@ -357,8 +366,11 @@ func hitStats() []string {
 		statEffectiveMaximumHitDamage,
 		statCriticalStrikeChance,
 		statCriticalStrikeMultiplier,
-		statAverageHit,
+		statAccuracyRating,
+		statHitsCannotBeEvaded,
 		statHitChance,
+		statEffectiveCriticalStrikeChance,
+		statAverageHit,
 		statCastTime,
 		statCastSpeed,
 		statAttackRate,

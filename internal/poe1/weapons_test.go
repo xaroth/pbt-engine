@@ -15,7 +15,8 @@ import (
 
 // axe is a made-up two handed axe: 10 to 20 base physical damage, 800 ms per attack, 5%
 // critical strike chance, 20% quality, with local added physical and lightning damage, increased
-// physical damage, attack speed and critical strike chance, and a global stat.
+// physical damage, attack speed and critical strike chance, accuracy, hits that can't be
+// evaded, and a global stat.
 func axe() (*build.Item, *dataset.ItemBase) {
 	line := func(stats ...build.StatValue) build.ModLine { return build.ModLine{Kind: build.Explicit, Stats: stats} }
 	it := &build.Item{Name: "Axe", Quality: 20, Mods: []build.ModLine{
@@ -24,6 +25,8 @@ func axe() (*build.Item, *dataset.ItemBase) {
 		line(build.StatValue{Stat: "local_physical_damage_+%", Value: 50}),
 		line(build.StatValue{Stat: "local_attack_speed_+%", Value: 10}),
 		line(build.StatValue{Stat: "local_critical_strike_chance_+%", Value: 20}),
+		line(build.StatValue{Stat: "local_accuracy_rating", Value: 50}, build.StatValue{Stat: "local_accuracy_rating_+%", Value: 20}),
+		line(build.StatValue{Stat: "local_always_hit", Value: 1}),
 		line(build.StatValue{Stat: "additional_strength", Value: 10}),
 	}}
 	base := &dataset.ItemBase{Class: "Two Hand Axe", Weapon: &dataset.WeaponValues{
@@ -49,6 +52,9 @@ func TestCompileWeapon(t *testing.T) {
 	}
 	if w.AttackRate != 1.38 || w.CriticalChance != 6 {
 		t.Errorf("attack rate %v and critical strike chance %v, want 1.38 and 6", w.AttackRate, w.CriticalChance)
+	}
+	if w.Accuracy != 50 || w.IncreasedAccuracy != 20 || !w.CannotBeEvaded {
+		t.Errorf("accuracy %v, increased %v, can't be evaded %v; want 50, 20, true", w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded)
 	}
 	if diff := cmp.Diff([]resolve.StatValue{{Stat: "additional_strength", Value: 10}}, got.Stats); diff != "" {
 		t.Errorf("stats (-want +got):\n%s", diff)

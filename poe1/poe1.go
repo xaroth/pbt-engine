@@ -47,6 +47,7 @@ const (
 	ManaCost                    = rules.ManaCost
 	LifeCost                    = rules.LifeCost
 	AverageHit                  = rules.AverageHit
+	AccuracyRating              = rules.AccuracyRating
 	HitChance                   = rules.HitChance
 	CriticalStrikeChance        = rules.CriticalStrikeChance
 	HitsPerSecond               = rules.HitsPerSecond

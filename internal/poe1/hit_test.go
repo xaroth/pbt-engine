@@ -90,8 +90,8 @@ func TestPhysicalHitAgainstArmour(t *testing.T) {
 	}
 }
 
-// The sheet gives a hit's damage for a spell or an attack with one weapon, its rate of hits
-// only when the character uses it itself, and its chance to hit and hit DPS for a spell only.
+// The sheet gives a hit's damage for a spell or an attack with one weapon, an attack's
+// accuracy, and its rate of hits and hit DPS only when the character uses it itself.
 func TestHitOutputsGiven(t *testing.T) {
 	t.Parallel()
 	byKey := map[output.Key]poe1.Output{}
@@ -101,24 +101,25 @@ func TestHitOutputsGiven(t *testing.T) {
 	sword := &poe1.Weapon{}
 	oneWeapon, twoWeapons := poe1.Hands{MainHand: sword}, poe1.Hands{MainHand: sword, OffHand: sword}
 	for _, c := range []struct {
-		name                 string
-		skill                *resolve.Skill
-		hands                poe1.Hands
-		hit, rate, spellRate bool
+		name                string
+		skill               *resolve.Skill
+		hands               poe1.Hands
+		hit, accuracy, rate bool
 	}{
 		{"none", nil, oneWeapon, false, false, false},
-		{"spell", skill(0, "Spell", "Damage"), poe1.Hands{}, true, true, true},
+		{"spell", skill(0, "Spell", "Damage"), poe1.Hands{}, true, false, true},
 		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), poe1.Hands{}, true, false, false},
 		{"spell of a mine", skill(0, "Spell", "Damage", "RemoteMined"), poe1.Hands{}, true, false, false},
-		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, false},
-		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, false, false},
+		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, true},
+		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, true, false},
 		{"attack of a totem", skill(0, "Attack", "Damage", "SummonsTotem"), oneWeapon, false, false, false},
 		{"attack unarmed", skill(0, "Attack", "Damage"), poe1.Hands{}, false, false, false},
 		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, false, false, false},
 		{"spell without a hit", skill(0, "Spell", "DamageOverTime"), poe1.Hands{}, false, false, false},
 	} {
 		for k, want := range map[output.Key]bool{
-			poe1.AverageHit: c.hit, poe1.HitsPerSecond: c.rate, poe1.HitDPS: c.spellRate, poe1.Life: true,
+			poe1.AverageHit: c.hit, poe1.HitChance: c.hit, poe1.AccuracyRating: c.accuracy,
+			poe1.HitsPerSecond: c.rate, poe1.HitDPS: c.rate, poe1.Life: true,
 		} {
 			if got := poe1.Gives(byKey[k], c.skill, c.hands); got != want {
 				t.Errorf("%s: %s given %v, want %v", c.name, k, got, want)

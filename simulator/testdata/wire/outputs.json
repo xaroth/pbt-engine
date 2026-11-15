@@ -333,13 +333,22 @@
     "order": 36
   },
   {
+    "key": "skill.accuracy_rating",
+    "label": "Accuracy Rating",
+    "unit": "",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 37
+  },
+  {
     "key": "skill.hit_chance",
     "label": "Chance to Hit",
     "unit": "%",
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 37
+    "order": 38
   },
   {
     "key": "skill.critical_strike_chance",
@@ -348,7 +357,7 @@
     "places": 2,
     "group": "skill",
     "better": "higher",
-    "order": 38
+    "order": 39
   },
   {
     "key": "skill.hits_per_second",
@@ -357,7 +366,7 @@
     "places": 2,
     "group": "skill",
     "better": "higher",
-    "order": 39
+    "order": 40
   },
   {
     "key": "skill.hit_dps",
@@ -366,7 +375,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 40
+    "order": 41
   },
   {
     "key": "skill.physical_minimum",
@@ -375,7 +384,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 41
+    "order": 42
   },
   {
     "key": "skill.physical_maximum",
@@ -384,7 +393,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 42
+    "order": 43
   },
   {
     "key": "skill.fire_minimum",
@@ -393,7 +402,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 43
+    "order": 44
   },
   {
     "key": "skill.fire_maximum",
@@ -402,7 +411,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 44
+    "order": 45
   },
   {
     "key": "skill.cold_minimum",
@@ -411,7 +420,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 45
+    "order": 46
   },
   {
     "key": "skill.cold_maximum",
@@ -420,7 +429,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 46
+    "order": 47
   },
   {
     "key": "skill.lightning_minimum",
@@ -429,7 +438,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 47
+    "order": 48
   },
   {
     "key": "skill.lightning_maximum",
@@ -438,7 +447,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 48
+    "order": 49
   },
   {
     "key": "skill.chaos_minimum",
@@ -447,7 +456,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 49
+    "order": 50
   },
   {
     "key": "skill.chaos_maximum",
@@ -456,7 +465,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 50
+    "order": 51
   },
   {
     "key": "skill.dot_dps",
@@ -465,6 +474,6 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 51
+    "order": 52
   }
 ]

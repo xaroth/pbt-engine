@@ -135,10 +135,10 @@ func attackMask() core.Mask {
 // (metResistance), or for physical damage by the enemy's armour against a hit of that size,
 // then scaled by the enemy's damage taken. A critical strike multiplies the hit before the
 // enemy reduces it. The average hit weighs the non-critical and critical averages of every
-// type by the critical strike chance. Hits per second are the cast time divided by the cast
-// speed, rounded to hundredths, at most one per server tick; hit DPS is the average hit times
-// the chance to hit times hits per second. The order, roundings and cap follow PoB
-// (CalcOffence.lua); the game text gives none of them.
+// type by the chance that a use strikes critically (accuracyDef). Hits per second are the cast
+// time divided by the cast speed, rounded to hundredths, at most one per server tick; hit DPS
+// is the average hit times the chance to hit times hits per second. The order, roundings and
+// cap follow PoB (CalcOffence.lua); the game text gives none of them.
 func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
 	case statEffectiveMinimumHitDamage, statEffectiveMaximumHitDamage:
@@ -350,7 +350,7 @@ func resistanceMultiplier(res float64) float64 {
 
 // averageHit is the average hit of a skill, read in its context: per damage type, the average of
 // its minimum and maximum hit without and with a critical strike, each reduced by the enemy,
-// weighed by the critical strike chance.
+// weighed by the chance that a use strikes critically.
 type averageHit struct {
 	minimum, maximum, chance, multiplier core.StatID
 	enemy                                enemyReduction
@@ -360,7 +360,7 @@ type averageHit struct {
 func newAverageHit(ids map[string]core.StatID) averageHit {
 	return averageHit{
 		minimum: mustID(ids, statMinimumHitDamage), maximum: mustID(ids, statMaximumHitDamage),
-		chance: mustID(ids, statCriticalStrikeChance), multiplier: mustID(ids, statCriticalStrikeMultiplier),
+		chance: mustID(ids, statEffectiveCriticalStrikeChance), multiplier: mustID(ids, statCriticalStrikeMultiplier),
 		enemy: newEnemyReduction(ids), dim: damageDimension(),
 	}
 }
