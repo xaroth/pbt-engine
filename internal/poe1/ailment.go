@@ -3,8 +3,10 @@ package poe1
 import (
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 // Engine stats every damaging ailment shares. A hit's chance to inflict an ailment is read in the
@@ -21,7 +23,9 @@ import (
 // faster_ailment_damage how much faster in percent the ailment deals its damage, shortening it.
 // critical_ailment_damage_over_time_multiplier is what an ailment from a critical strike adds to
 // its Damage over Time Multiplier, and ailments_never_from_critical_strikes makes a critical
-// strike inflict ailments as a hit that is not critical does.
+// strike inflict ailments as a hit that is not critical does. ailment_maximum_instances is how
+// many instances of an ailment of which only the strongest deal damage do so at once, 1 before
+// modifiers.
 const (
 	statAilmentChance                         = "ailment_chance"
 	statCannotInflictAilment                  = "cannot_inflict_ailment"
@@ -34,6 +38,7 @@ const (
 	statFasterAilmentDamage                   = "faster_ailment_damage"
 	statCriticalAilmentDamageOverTimeMultiple = "critical_ailment_damage_over_time_multiplier"
 	statAilmentsNeverFromCriticalStrikes      = "ailments_never_from_critical_strikes"
+	statAilmentMaximumInstances               = "ailment_maximum_instances"
 )
 
 // mechanicAilment names the ailment mechanic for those that come after it.
@@ -54,6 +59,7 @@ func ailmentMechanic() mechanic {
 			statFasterAilmentDamage,
 			statCriticalAilmentDamageOverTimeMultiple,
 			statAilmentsNeverFromCriticalStrikes,
+			statAilmentMaximumInstances,
 		},
 		def:      ailmentDef,
 		complete: func(b *core.ModelBuilder, r registered) { addAilmentSourceFormulas(b, r.ids) },
@@ -111,12 +117,13 @@ func addAilmentSourceFormulas(b *core.ModelBuilder, ids map[string]core.StatID) 
 }
 
 // ailmentMasks turns a hit's context with an ailment into the ailment's context and back. The
-// ailment's context keeps the skill's types but Area, Projectile and Melee, whose damage
-// modifiers apply to hits only, the hit's weapon and hand, the ailment and the damage types
-// read; its form is the ailment's. Attack and Spell stay: damage with Attack or Spell Skills
-// reaches ailments, while modifiers to Attack or Spell Damage do not (the table keeps those off
-// the ailment form). This follows PoB (CalcOffence.lua, the ailments' configurations); the game
-// text says only which modifiers apply.
+// ailment's context keeps the skill's types but Area and Projectile, whose damage modifiers
+// apply to hits only, the hit's weapon and hand, the ailment and the damage types read; its
+// form is the ailment's. Attack, Spell and Melee stay: damage with Attack or Spell Skills and
+// with ailments from Melee Hits reaches ailments, while modifiers to Attack, Spell or Melee
+// Damage do not (the table keeps those off the ailment form). This follows PoB
+// (CalcOffence.lua, the ailments' configurations); the game text says only which modifiers
+// apply.
 type ailmentMasks struct {
 	dropped, ailments, form, damage core.Mask
 	// bits are each ailment's.
@@ -127,7 +134,7 @@ type ailmentMasks struct {
 func newAilmentMasks() ailmentMasks {
 	c := modelContexts()
 	m := ailmentMasks{form: core.MaskOf(c.form.Bit(int(formAilment) - 1)), dim: c.damage}
-	for _, t := range []string{typeArea, typeProjectile, typeMelee} {
+	for _, t := range []string{typeArea, typeProjectile} {
 		m.dropped = m.dropped.Or(typeMask(c, t))
 	}
 	for _, f := range []damageForm{formHit, formDot, formAilment} {
@@ -155,12 +162,22 @@ func (m ailmentMasks) parts() partMasks { return partMasks{hit: m.hit, scale: m.
 
 // ailmentKind is what a damaging ailment is: its type of damage, which its multipliers and the
 // enemy's resistance are read for, its damage per second as a share of the damage it starts
-// from, and its base duration. Each follows the game text, as PoB has them (Data.lua misc).
+// from, and its base duration, as PoB has them (Data.lua misc).
+// onCrit is set for an ailment a critical strike always inflicts; inherent are the types whose
+// damage counts toward it besides its own without damage_can_inflict_ailment.
 type ailmentKind struct {
 	ailment  ailment
 	damage   DamageType
 	share    float64
 	duration float64
+	onCrit   bool
+	inherent []DamageType
+}
+
+// ailmentSkill reports whether the sheet gives sk's damaging ailments with hands: a hit the
+// character uses itself, with one hand, since its rate of hits decides how many it applies.
+func ailmentSkill(sk *resolve.Skill, h Hands) bool {
+	return selfUsedHit(sk, h) && !bothHandsHit(sk, h)
 }
 
 // ailmentReads are the stats an ailment's damage reads.
@@ -203,10 +220,11 @@ func (k ailmentKind) at(masks ailmentMasks, m core.Mask) (withAilment, ofType co
 }
 
 // sources returns the damage chains of the hit damage the ailment starts from, with flag
-// reading a flag at a mask: its own type, and each type with damage_can_inflict_ailment that
-// comes before it in conversion order, read with the ailment's type in its chain so modifiers
-// to either apply once. A type after it cannot be read so, as a chain is read as its earliest
-// type; PoB lets chaos damage ignite, which this leaves out.
+// reading a flag at a mask: its own type, and each inherent type or type with
+// damage_can_inflict_ailment that comes before it in conversion order, read with the
+// ailment's type in its chain so modifiers to either apply once. A type after it cannot be
+// read so, as a chain is read as its earliest type; PoB lets chaos damage ignite, which this
+// leaves out.
 func (k ailmentKind) sources(masks ailmentMasks, withAilment core.Mask, flag func(core.StatID, core.Mask) float64, canInflict core.StatID) []core.Mask {
 	own := damageBit(masks.dim, k.damage)
 	out := []core.Mask{withAilment.Or(own)}
@@ -214,7 +232,7 @@ func (k ailmentKind) sources(masks ailmentMasks, withAilment core.Mask, flag fun
 		if d == k.damage {
 			break
 		}
-		if bit := damageBit(masks.dim, d); flag(canInflict, withAilment.Or(bit)) != 0 {
+		if bit := damageBit(masks.dim, d); slices.Contains(k.inherent, d) || flag(canInflict, withAilment.Or(bit)) != 0 {
 			out = append(out, withAilment.Or(bit).Or(own))
 		}
 	}
@@ -226,7 +244,7 @@ func (k ailmentKind) sources(masks ailmentMasks, withAilment core.Mask, flag fun
 func (k ailmentKind) read(r ailmentReads, masks ailmentMasks, m core.Mask, stat func(core.StatID, core.Mask) float64) inflicted {
 	withAilment, ofType := k.at(masks, m)
 	in := inflicted{
-		onHit: min(max(stat(r.chance, withAilment), 0), percentScale) / percentScale, onCrit: 1,
+		onHit:      min(max(stat(r.chance, withAilment), 0), percentScale) / percentScale,
 		crit:       stat(r.critChance, m) / percentScale,
 		multiplier: 1 + stat(r.multiplier, ofType)/percentScale,
 		faster:     1 + stat(r.faster, ofType)/percentScale,
@@ -236,6 +254,10 @@ func (k ailmentKind) read(r ailmentReads, masks ailmentMasks, m core.Mask, stat 
 		taken:      stat(r.taken, ofType) / percentScale,
 	}
 	in.criticalMultiplier = in.multiplier + stat(r.criticalMultiplier, ofType)/percentScale
+	in.onCrit = in.onHit
+	if k.onCrit {
+		in.onCrit = 1
+	}
 	if stat(r.neverFromCrit, m) != 0 {
 		in.onCrit, in.criticalMultiplier = in.onHit, in.multiplier
 	}
@@ -275,6 +297,29 @@ func (in inflicted) weighted(k ailmentKind, source, crit float64) float64 {
 // lowers, and the damage it takes.
 func (in inflicted) enemy() float64 { return resistanceMultiplier(in.resistance) * in.taken }
 
+// enemySteps credits, from the damage per second v of one instance at its source damage, what
+// the Damage over Time Multiplier (to multiplied), critical strikes (to weighted), the enemy's
+// resistance and the damage it takes change, each to its sources.
+func (r ailmentReads) enemySteps(a *core.Attributor, ofType core.Mask, in inflicted, v, multiplied, weighted float64) []core.Part {
+	steps := []struct {
+		ref  core.Ref
+		next float64
+	}{
+		{a.RefAt(r.multiplier, ofType), multiplied},
+		{a.RefAt(r.criticalMultiplier, ofType), weighted},
+		{a.RefAt(r.resistance, ofType), weighted * resistanceMultiplier(in.resistance)},
+		{a.RefAt(r.taken, ofType), weighted * in.enemy()},
+	}
+	var parts []core.Part
+	for _, s := range steps {
+		if delta := s.next - v; delta != 0 {
+			parts = append(parts, a.Spread(s.ref, delta, core.OpMore)...)
+		}
+		v = s.next
+	}
+	return parts
+}
+
 // critOfStrongest is the chance that the strongest of n instances came from a critical strike,
 // each with chance crit: PoB's expected value for an ailment of which only the strongest
 // applies (CalcOffence.lua).
@@ -283,13 +328,21 @@ func critOfStrongest(crit, n float64) float64 { return 1 - math.Pow(1-crit, max(
 // baseAilmentDuration is an ailment's duration before modifiers: all of its base duration.
 const baseAilmentDuration = 100
 
-// addBaseAilmentDuration adds the base ailment duration as a rule's source, so increases and
-// more multipliers apply to it by the default rule.
-func (sh *Sheet) addBaseAilmentDuration() error {
-	src := sh.newSource(Source{RuleID: "base-ailment-duration", Rule: "base ailment duration (100%)"})
-	mod := core.Modifier{Stat: sh.stats[statAilmentDuration], Op: core.OpBase, Value: baseAilmentDuration, Source: src}
-	if _, err := sh.session.AddModifier(mod); err != nil {
-		return fmt.Errorf("sheet: base ailment duration: %w", err)
+// addBaseAilmentValues adds the base ailment duration and the one instance of an ailment that
+// deals damage at once as rules' sources, so modifiers apply to them by the default rule.
+func (sh *Sheet) addBaseAilmentValues() error {
+	for _, b := range []struct {
+		stat, id, rule string
+		value          float64
+	}{
+		{statAilmentDuration, "base-ailment-duration", "base ailment duration (100%)", baseAilmentDuration},
+		{statAilmentMaximumInstances, "base-ailment-instances", "one instance of an ailment deals damage at once", 1},
+	} {
+		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
+		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: b.value, Source: src}
+		if _, err := sh.session.AddModifier(mod); err != nil {
+			return fmt.Errorf("sheet: %s: %w", b.rule, err)
+		}
 	}
 	return nil
 }

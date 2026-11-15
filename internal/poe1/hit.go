@@ -44,7 +44,6 @@ const (
 	typeCooldown     = "Cooldown"
 	typeProjectile   = "Projectile"
 	typeArea         = "Area"
-	typeMelee        = "Melee"
 	typeMainHandOnly = "MainHandOnly"
 )
 

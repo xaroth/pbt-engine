@@ -243,7 +243,7 @@ func TestConfigKeys(t *testing.T) {
 		{Name: "enemy-evasion", Default: json.RawMessage("10143")},
 	}...)
 	for _, name := range []string{
-		"enemy-shocked", "enemy-chilled", "enemy-frozen", "enemy-ignited", "enemy-bleeding", "enemy-unnerved",
+		"enemy-shocked", "enemy-chilled", "enemy-frozen", "enemy-ignited", "enemy-bleeding", "enemy-moving", "enemy-unnerved",
 		"enemy-intimidated", "enemy-taunted", "enemy-on-consecrated-ground", "full-life", "full-energy-shield",
 		"leeching", "focused", "fortified",
 	} {

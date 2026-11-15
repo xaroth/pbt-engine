@@ -31,8 +31,10 @@ type attributeBonus struct {
 	constant, attribute, target, off string
 	op                               core.Op
 	label                            string
-	// in are the contexts the bonus requires, as a table modifier's: one of each term.
-	in [][]string
+	// in are the contexts the bonus requires, as a table modifier's: one of each term; notIn
+	// those it excludes.
+	in    [][]string
+	notIn []string
 }
 
 // attributeBonuses are the inherent bonuses on the sheet. The constants' notes say each is
@@ -66,12 +68,13 @@ func attributeBonuses() []attributeBonus {
 			off: statNoIntelligenceBonusToMaximumEnergyShield,
 		},
 		{
-			// PoB applies it to melee skills (CalcPerform.lua, ModFlag.Melee); the constant names
-			// melee physical damage.
+			// PoB applies it to melee skills' hits (CalcPerform.lua, ModFlag.Melee), not to their
+			// ailments; the constant names melee physical damage.
 			id:       "strength-bonus-melee-physical-damage",
 			constant: "melee_physical_damage_+%_per_strength", label: "Strength bonus to melee physical damage",
 			attribute: statStrength, target: statDamage, op: core.OpInc,
-			in: [][]string{{dimType + "." + "Melee"}, {dimDamage + "." + Physical.String()}},
+			in:    [][]string{{dimType + "." + "Melee"}, {dimDamage + "." + Physical.String()}},
+			notIn: []string{dimForm + "." + damageFormNames()[formAilment-1]},
 		},
 	}
 }
@@ -84,7 +87,7 @@ func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
 		if err != nil {
 			return err
 		}
-		pred, err := predicate(sh.session.Model(), semantics.ContextFilter{In: b.in}, sh.ctx, -1)
+		pred, err := predicate(sh.session.Model(), semantics.ContextFilter{In: b.in, NotIn: b.notIn}, sh.ctx, -1)
 		if err != nil {
 			return err
 		}
