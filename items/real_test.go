@@ -87,6 +87,37 @@ func TestParseHelmet(t *testing.T) {
 	}
 }
 
+// A line naming a passive reads as the passive's node id: Impossible Escape as Path of
+// Building writes it, around The Impaler (node 57257).
+func TestParsePassiveName(t *testing.T) {
+	t.Parallel()
+	r, _ := realReader(t)
+	it, warnings, err := r.Parse(`Rarity: UNIQUE
+Impossible Escape
+Viridian Jewel
+Radius: Small
+Limited to: 1
+Implicits: 0
+Passive Skills in Radius of The Impaler can be Allocated
+without being connected to your tree
+Passage
+Corrupted
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("warnings: %v", warnings)
+	}
+	want := []build.ModLine{{
+		Kind: build.Explicit, Text: "Passive Skills in Radius of The Impaler can be Allocated\nwithout being connected to your tree\nPassage",
+		Stats: []build.StatValue{{Stat: "local_unique_jewel_disconnected_passives_can_be_allocated_around_keystone_hash", Value: 57257}},
+	}}
+	if diff := cmp.Diff(want, it.Mods); diff != "" {
+		t.Errorf("mods (-want +got):\n%s", diff)
+	}
+}
+
 // TestSampleReadings parses every item of the statdesc sample and checks the stats and values
 // each line is read as: a line with one reading whose text shows every value is read as it; any
 // other line as the hand-written golden file says. The golden file lists exactly those other

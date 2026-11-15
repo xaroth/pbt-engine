@@ -3,6 +3,7 @@ package statdesc_test
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -201,6 +202,46 @@ func TestReadAmbiguous(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			if diff := cmp.Diff(testCase.want, read(t, s, "child", testCase.lines...)); diff != "" {
+				t.Errorf("Read (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// A handler given names shows a value's name and reads each name back to its value; a value
+// without a name shows as the number.
+func TestReadNames(t *testing.T) {
+	t.Parallel()
+	passive := statdesc.Handler{Name: "passive_hash"}
+	s, err := statdesc.NewSet([]statdesc.Scope{{Name: "s", Descriptions: []statdesc.Description{
+		one("keystone_hash", "Passive Skills in Radius of {} can be Allocated\\nwithout being connected to your tree", passive),
+	}}}, statdesc.WithNames("passive_hash", map[int32]string{100: "Supreme Ego", 200: "The Impaler"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	testCases := []struct {
+		name  string
+		value int32
+		lines []string
+		want  []statdesc.Reading
+	}{
+		{
+			name: "named", value: 200, lines: []string{"Passive Skills in Radius of The Impaler can be Allocated", "without being connected to your tree"},
+			want: []statdesc.Reading{{Stats: []string{"keystone_hash"}, Values: []int32{200}, Lines: 2}},
+		},
+		{name: "unnamed", value: 300, lines: []string{"Passive Skills in Radius of 300 can be Allocated", "without being connected to your tree"}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			lines, err := s.Describe("s", map[string]int32{"keystone_hash": testCase.value})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := strings.Join(testCase.lines, "\n"); len(lines) != 1 || lines[0].Text != want {
+				t.Fatalf("Describe: got %v, want %q", lines, want)
+			}
+			if diff := cmp.Diff(testCase.want, read(t, s, "s", testCase.lines...)); diff != "" {
 				t.Errorf("Read (-want +got):\n%s", diff)
 			}
 		})

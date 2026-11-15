@@ -58,6 +58,21 @@ type Handler struct {
 type Set struct {
 	scopes   map[string]*scope
 	handlers map[string]handler
+	// names maps a handler that shows a name in place of the value to the name of each value,
+	// and values to the value of each name.
+	names  map[string]map[int32]string
+	values map[string]map[string]int32
+}
+
+// Option configures a Set.
+type Option func(*Set)
+
+// WithNames makes handler show the name names gives a value in place of the value, and Read
+// take each of those names back to its value, the lowest where values share a name. The game's
+// passive_hash handler, for one, names a passive by its node id. A value without a name shows
+// as the number.
+func WithNames(handler string, names map[int32]string) Option {
+	return func(s *Set) { s.names[handler] = names }
 }
 
 type scope struct {
@@ -65,19 +80,24 @@ type scope struct {
 
 	parent *scope
 	index  map[string]int
-	// texts indexes the variants by the skeleton of their first line, for Read; built on first
-	// use.
-	texts func() map[string][]textEntry
+	// texts indexes the variants for Read; built on first use.
+	texts func() textIndex
 }
 
 // NewSet indexes scopes. Every parent must be in scopes.
-func NewSet(scopes []Scope) (*Set, error) {
-	s := &Set{scopes: make(map[string]*scope, len(scopes)), handlers: handlers()}
+func NewSet(scopes []Scope, opts ...Option) (*Set, error) {
+	s := &Set{scopes: make(map[string]*scope, len(scopes)), handlers: handlers(), names: map[string]map[int32]string{}, values: map[string]map[string]int32{}}
+	for _, o := range opts {
+		o(s)
+	}
+	for h, names := range s.names {
+		s.values[h] = byName(names)
+	}
 	for _, sc := range scopes {
 		if _, dup := s.scopes[sc.Name]; dup {
 			return nil, fmt.Errorf("scope %s defined twice: %w", sc.Name, ErrInvalid)
 		}
-		x, err := newScope(sc)
+		x, err := newScope(sc, s.named)
 		if err != nil {
 			return nil, err
 		}
@@ -92,9 +112,20 @@ func NewSet(scopes []Scope) (*Set, error) {
 	return s, nil
 }
 
-func newScope(sc Scope) (*scope, error) {
+// byName returns the value of each name, the lowest where values share one.
+func byName(names map[int32]string) map[string]int32 {
+	out := make(map[string]int32, len(names))
+	for v, n := range names {
+		if old, ok := out[n]; !ok || v < old {
+			out[n] = v
+		}
+	}
+	return out
+}
+
+func newScope(sc Scope, named func(string) bool) (*scope, error) {
 	x := &scope{Scope: sc, index: map[string]int{}}
-	x.texts = sync.OnceValue(x.indexTexts)
+	x.texts = sync.OnceValue(func() textIndex { return x.indexTexts(named) })
 	for i, d := range sc.Descriptions {
 		if err := checkDescription(d); err != nil {
 			return nil, fmt.Errorf("scope %s description %d: %w", sc.Name, i, err)
@@ -180,6 +211,12 @@ func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error)
 	return out, nil
 }
 
+// named reports whether handler shows a name.
+func (s *Set) named(handler string) bool {
+	_, ok := s.names[handler]
+	return ok
+}
+
 func (s *Set) render(d Description, stats map[string]int32) (string, bool, error) {
 	vals := make([]int32, len(d.Stats))
 	for i, st := range d.Stats {
@@ -194,6 +231,10 @@ func (s *Set) render(d Description, stats map[string]int32) (string, bool, error
 		nums[i] = number{v: float64(x)}
 	}
 	for _, h := range v.Handlers {
+		if names, ok := s.names[h.Name]; ok {
+			nums[h.Stat].name = names[vals[h.Stat]]
+			continue
+		}
 		f, ok := s.handlers[h.Name]
 		if !ok {
 			return "", false, fmt.Errorf("%w %s", ErrUnknownHandler, h.Name)
@@ -261,15 +302,20 @@ func match(variants []Variant, vals []int32) (Variant, bool) {
 }
 
 // number is a display value. dp < 0 prints the shortest exact form; otherwise the value is
-// rounded to dp decimals and trailing zeros are dropped unless fixed is set.
+// rounded to dp decimals and trailing zeros are dropped unless fixed is set. A name, when set,
+// shows in place of the value.
 type number struct {
 	v     float64
 	dp    int
 	fixed bool
 	set   bool // dp was set by a handler
+	name  string
 }
 
 func (n number) String() string {
+	if n.name != "" {
+		return n.name
+	}
 	v := n.rounded()
 	if n.set && n.fixed {
 		return strconv.FormatFloat(v, 'f', n.dp, 64)

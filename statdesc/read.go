@@ -72,7 +72,8 @@ func (s *Set) matches(scopeName string, lines []string) ([]variantMatch, error) 
 	key := skeleton(lines[0])
 	var out []variantMatch
 	for sc := root; sc != nil; sc = sc.parent {
-		for _, e := range sc.texts()[key] {
+		ix := sc.texts()
+		for _, e := range slices.Concat(ix.byKey[key], ix.named) {
 			if e.lines > len(lines) {
 				continue
 			}
@@ -120,7 +121,7 @@ func (s *Set) read(d Description, e textEntry, text string) ([]int32, bool) {
 		if shown[i] == "" {
 			continue
 		}
-		if vals[i], ok = s.invert(v.Handlers, i, shown[i], false); !ok {
+		if vals[i], ok = s.shownValue(v.Handlers, i, shown[i]); !ok {
 			return nil, false
 		}
 	}
@@ -131,6 +132,18 @@ func (s *Set) read(d Description, e textEntry, text string) ([]int32, bool) {
 	}
 	got, ok, err := s.render(d, stats)
 	return vals, ok && err == nil && got == text
+}
+
+// shownValue returns the value of stat i that handlers display as shown: a name's value, or
+// else as invert reads it.
+func (s *Set) shownValue(handlers []Handler, i int, shown string) (int32, bool) {
+	for _, h := range handlers {
+		if values, ok := s.values[h.Name]; ok && h.Stat == i {
+			v, ok := values[shown]
+			return v, ok
+		}
+	}
+	return s.invert(handlers, i, shown, false)
 }
 
 // avoidZeros sets the values of stats the text does not show. Stats that are all 0 render
@@ -242,30 +255,46 @@ type textEntry struct {
 	lines         int
 }
 
-// indexTexts indexes the variants with text by the skeleton of their first line, in scope
-// order. Variants whose text does not parse are left out: Describe fails on them too.
-func (x *scope) indexTexts() map[string][]textEntry {
-	out := map[string][]textEntry{}
+// textIndex is a scope's variants as Read finds them.
+type textIndex struct {
+	// byKey holds the variants by the skeleton of their first line, in scope order.
+	byKey map[string][]textEntry
+	// named holds the variants that show a name, in scope order: a name has no skeleton, so
+	// every read tries them.
+	named []textEntry
+}
+
+// indexTexts indexes the variants with text. A variant showing a stat through a handler in
+// named has a name slot for it. Variants whose text does not parse are left out: Describe
+// fails on them too.
+func (x *scope) indexTexts(named func(string) bool) textIndex {
+	out := textIndex{byKey: map[string][]textEntry{}}
 	for i, d := range x.Descriptions {
 		for j, v := range d.Variants {
 			t, err := compile(v.Text, len(d.Stats))
 			if err != nil {
 				continue
 			}
+			e := textEntry{desc: i, variant: j, tmpl: t, lines: strings.Count(t.String(), "\n") + 1}
+			if t.nameSlots(v.Handlers, named) {
+				out.named = append(out.named, e)
+				continue
+			}
 			key, _, _ := strings.Cut(t.skeleton(), "\n")
-			out[key] = append(out[key], textEntry{desc: i, variant: j, tmpl: t, lines: strings.Count(t.String(), "\n") + 1})
+			out.byKey[key] = append(out.byKey[key], e)
 		}
 	}
 	return out
 }
 
-// template is a variant's text as literal parts and number slots.
+// template is a variant's text as literal parts and slots.
 type template []segment
 
-// segment is literal text, or with stat >= 0 the number of that stat.
+// segment is literal text, or with stat >= 0 the number of that stat, or with name its name.
 type segment struct {
 	lit  string
 	stat int
+	name bool
 }
 
 // compile parses text as format reads it: tags become their display text, placeholders slots.
@@ -329,6 +358,23 @@ func (t template) String() string {
 	return b.String()
 }
 
+// nameSlots marks the slots of the stats a handler in named shows, and reports whether there
+// are any.
+func (t template) nameSlots(handlers []Handler, named func(string) bool) bool {
+	found := false
+	for _, h := range handlers {
+		if !named(h.Name) {
+			continue
+		}
+		for k := range t {
+			if t[k].stat == h.Stat {
+				t[k].name, found = true, true
+			}
+		}
+	}
+	return found
+}
+
 // skeleton returns the template's text as skeleton returns a line it renders.
 func (t template) skeleton() string {
 	var b strings.Builder
@@ -342,11 +388,12 @@ func (t template) skeleton() string {
 	return skeleton(b.String())
 }
 
-// match returns the number text of each stat's first slot in text ("" for a stat with none),
-// or false when text does not have the template's shape.
+// match returns the text of each stat's first slot in text ("" for a stat with none), a number
+// or a name, or false when text does not have the template's shape. A name runs to the next
+// literal part's first occurrence, or to the end.
 func (t template) match(text string, stats int) ([]string, bool) {
 	shown := make([]string, stats)
-	for _, s := range t {
+	for k, s := range t {
 		if s.stat < 0 {
 			if !strings.HasPrefix(text, s.lit) {
 				return nil, false
@@ -355,7 +402,13 @@ func (t template) match(text string, stats int) ([]string, bool) {
 			continue
 		}
 		n := numberLen(text)
-		if n == 0 {
+		if s.name {
+			n = len(text)
+			if k+1 < len(t) && t[k+1].stat < 0 {
+				n = strings.Index(text, t[k+1].lit)
+			}
+		}
+		if n <= 0 {
 			return nil, false
 		}
 		if shown[s.stat] == "" {
