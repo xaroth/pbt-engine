@@ -11,11 +11,18 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
+// An Option changes how FS reads a dataset.
+type Option func(*blobFS)
+
+// SkipHash makes FS check each file it reads against its size in the manifest and not its
+// SHA-256, as dataset.SkipHash does for a Store. The manifest is still checked against id.
+func SkipHash() Option { return func(b *blobFS) { b.skipHash = true } }
+
 // FS reads the dataset with id from f without a local copy. It fetches the manifest now and
 // checks it against id; each file the manifest lists is fetched from its blob when read, and
-// checked against its size and SHA-256. Nothing is cached: read each file once, as a
-// dataset.Store does. Every read uses ctx.
-func FS(ctx context.Context, f Fetcher, id string) (fs.FS, error) {
+// checked against its size and, unless SkipHash, its SHA-256. Nothing is cached: read each file
+// once, as a dataset.Store does. Every read uses ctx.
+func FS(ctx context.Context, f Fetcher, id string, opts ...Option) (fs.FS, error) {
 	if !validHash(id) {
 		return nil, fmt.Errorf("dataset id %q: %w", id, dataset.ErrInvalid)
 	}
@@ -24,6 +31,9 @@ func FS(ctx context.Context, f Fetcher, id string) (fs.FS, error) {
 		return nil, fmt.Errorf("manifest %s: %w", id, err)
 	}
 	b := &blobFS{ctx: ctx, f: f, manifest: mb}
+	for _, o := range opts {
+		o(b)
+	}
 	// ReadManifest checks the id against the content, so a manifest with the right id is the right one.
 	m, err := dataset.ReadManifest(b)
 	if err != nil {
@@ -48,6 +58,7 @@ type blobFS struct {
 	f        Fetcher
 	manifest []byte
 	files    map[string]dataset.File
+	skipHash bool
 }
 
 func (b *blobFS) ReadFile(name string) ([]byte, error) {
@@ -62,7 +73,7 @@ func (b *blobFS) ReadFile(name string) ([]byte, error) {
 	if err != nil {
 		return nil, readError(name, err)
 	}
-	if !matches(c, file) {
+	if len(c) != file.Size || !b.skipHash && !matches(c, file) {
 		return nil, readError(name, ErrMismatch)
 	}
 	return c, nil
