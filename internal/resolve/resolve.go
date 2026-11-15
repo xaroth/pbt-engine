@@ -244,8 +244,9 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 }
 
 // Tree is Resolve with the bundles of every node the build's class and ascendancy can
-// allocate, and of every mastery effect, allocated or not, in tree order. A sheet over it
-// turns sources on and off to match an allocation, so edits and what-ifs need no new bundles.
+// allocate, and of every mastery effect, allocated or not, in tree order, then of every passive
+// its cluster jewels add. A sheet over it turns sources on and off to match an allocation, so
+// edits and what-ifs need no new bundles.
 func Tree(c *build.Checked) (*Resolved, error) {
 	return resolve(c, true)
 }
@@ -308,7 +309,8 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 }
 
 // treeBundles returns the bundles of every node c's class, ascendancy and bloodline can
-// allocate: not other ascendancies' nodes or other classes' starts.
+// allocate: not other ascendancies' nodes or other classes' starts, and the passives its
+// cluster jewels add.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	changes := nodeChanges(c)
 	var out []Bundle
@@ -324,6 +326,9 @@ func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 		for _, e := range n.MasteryEffects {
 			out = append(out, masteryBundle(stats, n, e))
 		}
+	}
+	for _, n := range c.ClusterNodes() {
+		out = append(out, nodeBundles(stats, n)...)
 	}
 	return out
 }

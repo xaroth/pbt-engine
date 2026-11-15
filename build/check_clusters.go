@@ -100,6 +100,18 @@ func (c *Checked) addSubgraph(g *cluster.Generator, socket uint32, it *Item) {
 	c.generated[socket] = &in
 }
 
+// ClusterNodes returns the passives the build's cluster jewels add, sorted by id. Tree does not
+// have them; they do not depend on which nodes are allocated.
+func (c *Checked) ClusterNodes() []*dataset.Node {
+	var out []*dataset.Node
+	for _, id := range slices.Sorted(maps.Keys(c.generated)) {
+		if cluster.IsGenerated(id) {
+			out = append(out, c.generated[id])
+		}
+	}
+	return out
+}
+
 // clusterJewel returns the cluster jewel layout of base, or nil when base is no cluster jewel.
 func (c *Checked) clusterJewel(base string) *dataset.ClusterJewel {
 	for i := range c.tree.Clusters.Jewels {
