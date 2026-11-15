@@ -123,6 +123,8 @@ type Sheet struct {
 	enemy enemyMods
 	// conditions holds the conditions' sources.
 	conditions conditionMods
+	// held holds what the character holds (SetHands).
+	held heldMods
 	// exposure holds the enemy's Exposure by damage type.
 	exposure map[DamageType]core.ModID
 	// outputs is the catalogue by key.
@@ -368,6 +370,9 @@ func (sh *Sheet) addBaseValues() error {
 	}
 	// The enemy sets a condition.
 	if err := sh.addConditions(); err != nil {
+		return err
+	}
+	if err := sh.addHeld(); err != nil {
 		return err
 	}
 	if err := sh.addBleedMoving(); err != nil {

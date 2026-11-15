@@ -12,9 +12,11 @@ import (
 const statDoubleHitsWhenDualWielding = "double_hits_when_dual_wielding"
 
 // Hands is what the character attacks with: the weapon in each hand, nil for none, and in the
-// main hand without a weapon the class's unarmed attacks. A shield or quiver is not a weapon.
+// main hand without a weapon the class's unarmed attacks. A shield or quiver is not a weapon;
+// Shield says whether the off hand holds a shield.
 type Hands struct {
 	MainHand, OffHand *Weapon
+	Shield            bool
 }
 
 // HandsOf returns what items put in the hands of a character of class ch: without a weapon in
@@ -27,7 +29,7 @@ func HandsOf(items []Item, ch *dataset.Character) Hands {
 		case it.Slot == build.SlotWeapon:
 			h.MainHand = it.Weapon
 		case it.Slot == build.SlotOffhand:
-			h.OffHand = it.Weapon
+			h.OffHand, h.Shield = it.Weapon, it.Shield
 		}
 	}
 	if h.MainHand == nil && ch != nil {

@@ -1,5 +1,5 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 310 authored, 111 unknown, 1 display-only, 0 gaps, 1487 outside
-unknown by reason: condition 68, items 26, event 7, reservation 4, context 3, scale 2, unestablished 1
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 329 authored, 104 unknown, 1 display-only, 0 gaps, 1475 outside
+unknown by reason: condition 68, items 19, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unchecked maximum_life_+%_if_no_life_tags_on_body_armour global, uses 14: no Life Modifiers on Equipped Body Armour: builds hold no items yet, and an empty body armour slot meets the condition, verified in game
@@ -9,12 +9,10 @@ unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
 omitted base_all_ailment_duration_+% global, uses 9: the duration of non-damaging ailments, which the sheet does not give
 unvalidated life_per_level global, uses 9: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum life in game would validate it
 unknown shield_armour_+% global, uses 9: items: depends on equipped items, which an entry cannot check yet
-unknown spell_block_with_staff_% global, uses 9: items: depends on equipped items, which an entry cannot check yet
 unknown additional_maximum_all_elemental_resistances_%_with_reserved_life_and_mana global, uses 8: reservation: depends on reserved life or mana, which needs skills
 unvalidated base_physical_damage_%_to_convert_to_fire global, uses 8: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unvalidated fire_exposure_you_inflict_applies_extra_fire_resistance_+% global, uses 8: applied to any Exposure the enemy has, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
 unvalidated life_regeneration_per_minute_per_1%_uncapped_fire_damage_resistance global, uses 8: fire_resistance is the uncapped value; the text does not say how a negative or fractional uncapped resistance counts. Whole steps, negative below 0, as in PoB (ModStore.lua PerStat)
-unknown shield_spell_block_% global, uses 8: items: depends on equipped items, which an entry cannot check yet
 unvalidated base_maximum_all_resistances_% global, uses 7: no description text; 'all resistances' read from the stat id as fire, cold, lightning and chaos, which include maximum_all_resistances. A new character's maximum resistances in game would validate it
 unvalidated dexterity_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unvalidated dual_wield_inherent_attack_speed_+%_final global, uses 7: no description text; read from the stat id as the character's more attack speed while dual wielding, as PoB does
@@ -38,12 +36,10 @@ unknown armour_+%_per_second_while_stationary_up_to_100 global, uses 5: conditio
 unknown armour_from_gloves_and_boots_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unvalidated base_physical_damage_%_to_convert_to_lightning global, uses 5: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unknown body_armour_evasion_rating_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
+omitted defences_+%_while_wielding_staff global, uses 5: Ward, which is not a sheet value
 unknown evasion_rating_+%_while_tincture_active global, uses 5: condition: active Tincture
 unknown life_regeneration_%_per_minute_if_detonated_mine_recently global, uses 5: condition: detonated a mine recently
-unknown maximum_life_and_mana_+%_if_red_and_blue_socket_on_staff global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unknown movement_speed_+%_if_have_not_taken_damage_recently global, uses 5: condition: not taken damage recently
-unknown resist_all_elements_+%_while_holding_shield global, uses 5: items: depends on equipped items, which an entry cannot check yet
-unknown spell_block_chance_%_while_holding_staff_or_shield global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unknown armour_and_evasion_+%_if_red_and_green_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which an entry cannot check yet
 unknown guardian_gain_life_regeneration_per_minute_%_for_1_second_every_10_seconds global, uses 4: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown movement_speed_+%_per_5_rage global, uses 4: condition: per Rage
@@ -86,7 +82,6 @@ unknown banner_resist_all_elements_% global, uses 1: condition: a placed Banner
 unvalidated base_cold_damage_%_to_convert_to_chaos global, uses 1: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unvalidated base_fire_damage_%_to_convert_to_chaos global, uses 1: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unvalidated base_lightning_damage_%_to_convert_to_chaos global, uses 1: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
-unknown block_spells_chance_%_while_holding_shield global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown body_armour_defences_doubled_while_no_gems_in_body_armour global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown chance_to_block_spells_%_if_cast_a_spell_recently global, uses 1: condition: cast a spell recently
 unknown chance_to_block_spells_%_if_used_retaliation_recently global, uses 1: condition: used a Retaliation Skill recently
@@ -155,7 +150,6 @@ unknown movement_speed_+%_if_crit_recently global, uses 1: condition: dealt a cr
 unknown movement_speed_+%_if_enemy_hit_with_off_hand_weapon_recently global, uses 1: condition: hit with the off hand weapon recently
 unknown movement_speed_+%_if_placed_trap_or_mine_recently global, uses 1: condition: thrown a trap or mine recently
 unknown movement_speed_+%_per_summoned_phantasm global, uses 1: condition: per summoned Phantasm
-unknown movement_speed_+%_while_holding_shield global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown movement_speed_+%_while_not_using_flask global, uses 1: condition: under no flask effects
 unknown movement_speed_+%_while_you_have_two_linked_targets global, uses 1: condition: at least two linked targets
 unknown movement_velocity_+%_per_totem global, uses 1: condition: per summoned Totem
