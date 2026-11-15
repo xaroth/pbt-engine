@@ -6,7 +6,8 @@ import "github.com/xaroth/pbt-engine/internal/core"
 // the character has: its minimum, at most its maximum, as PoB counts them by default (charges
 // not in use). fortification is the character's Fortification: its maximum while
 // has_maximum_fortification is set, else none, as PoB counts it by default (not Fortified);
-// fortification_above_20 is the part above 20. inspiration_charges are the Inspiration Charges
+// fortification_above_20 is the part above 20. The character also has its maximum while the
+// config says it is Fortified (is_fortified). inspiration_charges are the Inspiration Charges
 // the character has: its maximum_inspiration_charges, as PoB counts them by default.
 const (
 	statMaximumEnduranceChargesAreMaximumFrenzyCharges = "maximum_endurance_charges_are_maximum_frenzy_charges"
@@ -47,7 +48,7 @@ const fortificationThreshold = 20
 const (
 	formulaDefaultCharges              = "minimum charges, capped by the maximum"
 	formulaMaximumEnduranceCharges     = "maximum endurance charges"
-	formulaDefaultFortification        = "maximum fortification while you have it"
+	formulaDefaultFortification        = "maximum fortification while fortified"
 	formulaFortificationAboveThreshold = "fortification above 20"
 	formulaDefaultInspirationCharges   = "maximum inspiration charges"
 )
@@ -112,8 +113,9 @@ func maximumEnduranceCharges(ids map[string]core.StatID) (core.Formula, core.Att
 }
 
 // fortificationDef completes def when it is a Fortification stat. The character has its
-// maximum Fortification while "You have your maximum Fortification" is set, else none: PoB's
-// default, which leaves Fortify gained in combat out (CalcPerform.lua, Fortify).
+// maximum Fortification while "You have your maximum Fortification" is set or the config says
+// it is Fortified, else none: PoB's default, which leaves Fortify gained in combat out
+// (CalcPerform.lua, Fortify).
 func fortificationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
 	case statHasMaximumFortification:
@@ -121,16 +123,17 @@ func fortificationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef
 	case statMaximumFortification:
 		def.HasMin = true
 	case statFortification:
-		has, maximum := mustID(ids, statHasMaximumFortification), mustID(ids, statMaximumFortification)
+		has, fortified := mustID(ids, statHasMaximumFortification), mustID(ids, statIsFortified)
+		maximum := mustID(ids, statMaximumFortification)
 		def.Formula = func(rd core.Reader, _ core.Agg) float64 {
-			if rd.Stat(has) == 0 {
+			if rd.Stat(has) == 0 && rd.Stat(fortified) == 0 {
 				return 0
 			}
 			return rd.Stat(maximum)
 		}
 		def.FormulaName = formulaDefaultFortification
 		def.Attribute = func(a *core.Attributor) core.Attribution {
-			if a.Stat(has) == 0 {
+			if a.Stat(has) == 0 && a.Stat(fortified) == 0 {
 				return core.Attribution{}
 			}
 			parts, amount := a.Of(core.SelfRef(maximum))
@@ -155,7 +158,7 @@ func fortificationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef
 
 func chargeMechanic() mechanic {
 	return mechanic{
-		name: "charges", stats: []string{
+		name: "charges", after: []string{mechanicConditions}, stats: []string{
 			statMaximumEnduranceChargesAreMaximumFrenzyCharges,
 			statHasMaximumFortification,
 			statMaximumPowerCharges,

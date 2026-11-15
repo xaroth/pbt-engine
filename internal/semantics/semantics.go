@@ -247,14 +247,18 @@ type ContextFilter struct {
 func (c ContextFilter) IsZero() bool { return len(c.In) == 0 && len(c.NotIn) == 0 }
 
 // Mod is one engine modifier a stat gives: engine stat, op and value as the game stat value
-// times Factor, scaled by Per when set, held only while If holds when set, in the contexts
-// Context matches. Only an override has a zero Factor, for effects such as "Removes all Mana".
+// times Factor, scaled by Per when set, held only while If holds and While is not zero when
+// set, in the contexts Context matches. Only an override has a zero Factor, for effects such
+// as "Removes all Mana".
 type Mod struct {
-	Stat    string
-	Op      core.Op
-	Factor  Ratio
-	Per     *Per
-	If      *Count
+	Stat   string
+	Op     core.Op
+	Factor Ratio
+	Per    *Per
+	If     *Count
+	// While is an engine stat the modifier holds on while it is not zero, such as a condition
+	// ("against Chilled Enemies") or a count ("while Fortified"). Empty means always.
+	While   string
 	Context ContextFilter
 }
 
@@ -360,6 +364,7 @@ type fileMod struct {
 	Factor string     `json:"factor"`
 	Per    *filePer   `json:"per"`
 	If     *fileCount `json:"if"`
+	While  string     `json:"while"`
 	In     [][]string `json:"in"`
 	NotIn  []string   `json:"notIn"`
 }
@@ -676,6 +681,9 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 	if m.If, err = parseCount(f.If); err != nil {
 		return Mod{}, err
 	}
+	if m.While, err = parseWhile(f.While, vocab); err != nil {
+		return Mod{}, err
+	}
 	if m.Context, err = parseContext(f.In, f.NotIn, vocab); err != nil {
 		return Mod{}, err
 	}
@@ -716,6 +724,13 @@ func parsePer(f *filePer, vocab Vocabulary) (*Per, error) {
 		return nil, fmt.Errorf("per %s: step %d, %w", f.Stat, f.Step, errStepPositive)
 	}
 	return &Per{Stat: f.Stat, Step: f.Step}, nil
+}
+
+func parseWhile(stat string, vocab Vocabulary) (string, error) {
+	if stat != "" && !vocab.IsEngineStat(stat) {
+		return "", fmt.Errorf("while: %w engine stat %q", errUnknown, stat)
+	}
+	return stat, nil
 }
 
 func parseCount(f *fileCount) (*Count, error) {

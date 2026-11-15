@@ -54,7 +54,7 @@ const (
 	maxTreeNode = 0xFFFF
 	// none is PoB's value for no choice.
 	none = "None"
-	// penaltyInput is PoB's resistance penalty input, the only config input imported.
+	// penaltyInput is PoB's resistance penalty input.
 	penaltyInput = "resistancePenalty"
 	banditInput  = "bandit"
 )
@@ -249,7 +249,8 @@ func (im *importer) masteries() map[uint32]uint32 {
 	return out
 }
 
-// config is the bandit choice, the campaign stage and the enemy; other inputs give warnings.
+// config is the bandit choice, the campaign stage, the enemy and the conditions; other inputs
+// give warnings.
 func (im *importer) config() (config.Values, error) {
 	var v config.Values
 	if bandit, ok := banditOf(im.file.Build.Bandit); ok {
@@ -263,14 +264,14 @@ func (im *importer) config() (config.Values, error) {
 		if mirrorsBuild(in.Name) {
 			continue
 		}
-		if known, imported := enemyInput(&v, in.Name, in.Value); known {
+		if known, imported := heldInput(&v, in.Name, in.Value); known {
 			if !imported {
-				im.warnf(ConfigIgnored, in.Name, "enemy input %q is not a value the config takes; not imported", in.Value)
+				im.warnf(ConfigIgnored, in.Name, "config input %s value %q is not a value the config takes; not imported", in.Name, in.Value)
 			}
 			continue
 		}
 		if in.Name != penaltyInput {
-			im.warnf(ConfigIgnored, in.Name, "config input not modelled (%s)", in.Value)
+			im.warnf(ConfigIgnored, in.Name, "config input %s not modelled (value %s)", in.Name, in.Value)
 			continue
 		}
 		stage, ok := stageOf(in.Value)
@@ -283,6 +284,15 @@ func (im *importer) config() (config.Values, error) {
 		}
 	}
 	return v, nil
+}
+
+// heldInput imports PoB's input name with value into v when it is an enemy or condition input
+// the config holds. It reports whether it is one, and whether its value was read.
+func heldInput(v *config.Values, name, value string) (known, imported bool) {
+	if known, imported = enemyInput(v, name, value); known {
+		return known, imported
+	}
+	return conditionOf(v, name, value)
 }
 
 // mirrorsBuild reports a config input that repeats a <Build> attribute, read from there.

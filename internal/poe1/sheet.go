@@ -116,6 +116,8 @@ type Sheet struct {
 	skillSources map[skillKey][]core.SourceID
 	// enemy holds the enemy's values.
 	enemy enemyMods
+	// conditions holds the conditions' sources.
+	conditions conditionMods
 	// outputs is the catalogue by key.
 	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
@@ -337,6 +339,10 @@ func (sh *Sheet) addBaseValues() error {
 	if err := sh.addBaseAilmentDuration(); err != nil {
 		return err
 	}
+	// The enemy sets a condition.
+	if err := sh.addConditions(); err != nil {
+		return err
+	}
 	if err := sh.addEnemy(); err != nil {
 		return err
 	}
@@ -351,6 +357,22 @@ func (sh *Sheet) addCount(sv resolve.StatValue, src core.SourceID) error {
 		}
 	}
 	return nil
+}
+
+// conds returns the conditions m holds under, and false when it can never hold.
+func (sh *Sheet) conds(m *semantics.Mod) ([]core.Cond, bool) {
+	var out []core.Cond
+	if m.If != nil {
+		if !sh.counters[m.If.Stat] {
+			// A counter the tree lacks stays 0, below any AtLeast.
+			return nil, false
+		}
+		out = append(out, core.Cond{Ref: core.SelfRef(sh.stats[m.If.Stat]), Cmp: core.CmpGE, Threshold: float64(m.If.AtLeast)})
+	}
+	if m.While != "" {
+		out = append(out, core.Cond{Ref: core.SelfRef(sh.stats[m.While]), Cmp: core.CmpNE})
+	}
+	return out, true
 }
 
 // notesFor returns the notes, kind and text only, for a stat whose lookup gave e and ok, none
@@ -398,12 +420,9 @@ func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, s
 		if m.Per != nil {
 			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
 		}
-		if m.If != nil {
-			if !sh.counters[m.If.Stat] {
-				// A counter the tree lacks stays 0, below any AtLeast.
-				continue
-			}
-			mod.Conds = []core.Cond{{Ref: core.SelfRef(sh.stats[m.If.Stat]), Cmp: core.CmpGE, Threshold: float64(m.If.AtLeast)}}
+		var holds bool
+		if mod.Conds, holds = sh.conds(&m); !holds {
+			continue
 		}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return fmt.Errorf("sheet: %s: %w", e.Stat, err)

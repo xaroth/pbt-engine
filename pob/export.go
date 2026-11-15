@@ -215,7 +215,7 @@ func joinMasteries(m map[uint32]uint32) string {
 }
 
 // config writes the bandit choice into f's <Build> and its config set, the campaign stage as
-// the resistance penalty, and the enemy keys as PoB's enemy inputs. Without a bandit choice
+// the resistance penalty, and the enemy and condition keys as PoB's inputs. Without a bandit choice
 // PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
@@ -223,6 +223,11 @@ func (ex *exporter) config(f *outFile) error {
 	if err != nil {
 		return err
 	}
+	conditions, conditionKeys, err := conditionOutputs(v)
+	if err != nil {
+		return err
+	}
+	maps.Copy(enemyKeys, conditionKeys)
 	ex.warnConfigLeftOut(v, enemyKeys)
 	for _, name := range unwritable {
 		ex.warnf(ConfigNotExported, name, "PoB reads 0 in this input as empty and uses its boss preset; not exported")
@@ -248,16 +253,18 @@ func (ex *exporter) config(f *outFile) error {
 		inputs = append(inputs, outInput{Name: penaltyInput, Number: pobPenalty(stage)})
 	}
 	inputs = append(inputs, enemy...)
+	inputs = append(inputs, conditions...)
 	if len(inputs) > 0 {
 		f.Config = &outConfig{Active: "1", Sets: []outConfigSet{{ID: "1", Inputs: inputs}}}
 	}
 	return nil
 }
 
-// warnConfigLeftOut warns of each config key of v that config does not export.
-func (ex *exporter) warnConfigLeftOut(v config.Values, enemyKeys map[string]bool) {
+// warnConfigLeftOut warns of each config key of v that config does not export: not the
+// bandits, the campaign or one of exported.
+func (ex *exporter) warnConfigLeftOut(v config.Values, exported map[string]bool) {
 	for _, name := range v.Names() {
-		if name != string(poe1.Bandits) && name != string(poe1.Campaign) && !enemyKeys[name] {
+		if name != string(poe1.Bandits) && name != string(poe1.Campaign) && !exported[name] {
 			ex.warnf(ConfigNotExported, name, "config value not exported")
 		}
 	}
@@ -431,9 +438,10 @@ type outConfigSet struct {
 }
 
 type outInput struct {
-	Name   string `xml:"name,attr"`
-	Number string `xml:"number,attr,omitempty"`
-	String string `xml:"string,attr,omitempty"`
+	Name    string `xml:"name,attr"`
+	Number  string `xml:"number,attr,omitempty"`
+	String  string `xml:"string,attr,omitempty"`
+	Boolean string `xml:"boolean,attr,omitempty"`
 }
 
 type outSkills struct {

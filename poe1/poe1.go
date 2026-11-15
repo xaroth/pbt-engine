@@ -100,6 +100,21 @@ const (
 	EnemyChaosResistance     = rules.EnemyChaosResistance
 	EnemyArmour              = rules.EnemyArmour
 	EnemyEvasion             = rules.EnemyEvasion
+	EnemyShocked             = rules.EnemyShocked
+	EnemyShockEffect         = rules.EnemyShockEffect
+	EnemyChilled             = rules.EnemyChilled
+	EnemyFrozen              = rules.EnemyFrozen
+	EnemyIgnited             = rules.EnemyIgnited
+	EnemyBleeding            = rules.EnemyBleeding
+	EnemyUnnerved            = rules.EnemyUnnerved
+	EnemyIntimidated         = rules.EnemyIntimidated
+	EnemyTaunted             = rules.EnemyTaunted
+	EnemyOnConsecratedGround = rules.EnemyOnConsecratedGround
+	OnFullLife               = rules.OnFullLife
+	OnFullEnergyShield       = rules.OnFullEnergyShield
+	Leeching                 = rules.Leeching
+	Focused                  = rules.Focused
+	Fortified                = rules.Fortified
 )
 
 // CampaignStage is how far the character is through the story campaign: the value of
@@ -144,3 +159,6 @@ type MonsterLevel = rules.MonsterLevel
 
 // Rating is an armour or evasion rating, from 0: the value of EnemyArmour and EnemyEvasion.
 type Rating = rules.Rating
+
+// ShockEffect is the effect of a Shock in percent, from 0: the value of EnemyShockEffect.
+type ShockEffect = rules.ShockEffect
