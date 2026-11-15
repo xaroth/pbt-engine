@@ -36,7 +36,7 @@ type Result struct {
 
 // Sweep simulates each variant (edits applied to a clone of base) and returns the results in
 // variant order, or ranked with RankBy. One config snapshot serves the whole sweep. It fails
-// only for the base build (ErrUnreconcilable) or a bad option.
+// only for the base build (ErrUnreconcilable, ErrNoSkill) or a bad option.
 func (s *Sim) Sweep(base *build.Build, variants [][]build.Edit, opts ...Option) ([]Result, error) {
 	seq, err := s.SweepEach(base, variants, opts...)
 	if err != nil {
@@ -127,11 +127,7 @@ func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
 	if err != nil {
 		return nil, err
 	}
-	asked := co.outputs
-	if co.rankBy != "" && len(asked) > 0 && !slices.Contains(asked, co.rankBy) {
-		asked = append(slices.Clone(asked), co.rankBy)
-	}
-	keys, err := outputKeys(asked)
+	keys, err := sweepKeys(co)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +145,9 @@ func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ref := co.rankSkill; ref != nil && !slices.ContainsFunc(st.perSkill, func(ss SkillStats) bool { return ss.Ref == *ref }) {
+		return nil, fmt.Errorf("%w: group %d, gem %d, skill %d", ErrNoSkill, ref.Group, ref.Gem, ref.Skill)
+	}
 	workers := co.workers
 	if workers <= 0 {
 		workers = runtime.GOMAXPROCS(0)
@@ -157,6 +156,15 @@ func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
 		sim: s, base: r, keys: st.keys, before: st.values, skills: baseSkills(r, st.perSkill),
 		co: co, snapshot: snapshot, workers: workers, tree: r.checked.Tree(),
 	}, nil
+}
+
+// sweepKeys returns the outputs a sweep reads: those asked for and the one it ranks by.
+func sweepKeys(co callOptions) ([]output.Key, error) {
+	asked := co.outputs
+	if co.rankBy != "" && len(asked) > 0 && !slices.Contains(asked, co.rankBy) {
+		asked = append(slices.Clone(asked), co.rankBy)
+	}
+	return outputKeys(asked)
 }
 
 // baseSkill is a skill's outputs on the base sheet, and its slot there.

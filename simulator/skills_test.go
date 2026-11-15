@@ -2,8 +2,10 @@ package simulator_test
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
@@ -317,6 +319,34 @@ func TestSkillChanges(t *testing.T) {
 			t.Fatal(err)
 		}
 		validate(t, def, data)
+	}
+}
+
+// A sweep ranked by a skill's output fails, naming what is wrong, for a key that is not a skill
+// output and for a ref that names no skill of the base.
+func TestRankBySkillErrors(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	b := chieftainWithHelmet(t, s)
+	variants := [][]build.Edit{{build.Deallocate(b.Nodes[len(b.Nodes)-1])}}
+	main := simulator.SkillRef{}
+	for _, c := range []struct {
+		name string
+		opt  simulator.Option
+		want error
+		text string
+	}{
+		{"unknown key", simulator.RankBySkill(main, "noSuchOutput"), simulator.ErrUnknownOutput, "noSuchOutput"},
+		{"not a skill output", simulator.RankBySkill(main, poe1.Life), simulator.ErrNotSkillOutput, string(poe1.Life)},
+		{"no skill at ref", simulator.RankBySkill(simulator.SkillRef{Group: 99}, poe1.AverageHit), simulator.ErrNoSkill, "group 99"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := s.Sweep(b, variants, c.opt)
+			if !errors.Is(err, c.want) || !strings.Contains(err.Error(), c.text) {
+				t.Errorf("err %v, want %v naming %q", err, c.want, c.text)
+			}
+		})
 	}
 }
 
