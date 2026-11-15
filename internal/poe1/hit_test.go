@@ -1,6 +1,7 @@
 package poe1_test
 
 import (
+	"fmt"
 	"maps"
 	"math"
 	"testing"
@@ -98,8 +99,13 @@ func TestHitOutputsGiven(t *testing.T) {
 	for _, o := range poe1.Outputs() {
 		byKey[o.Key] = o
 	}
-	sword := &poe1.Weapon{}
+	sword := &poe1.Weapon{Class: "One Hand Sword"}
 	oneWeapon, twoWeapons := poe1.Hands{MainHand: sword}, poe1.Hands{MainHand: sword, OffHand: sword}
+	bareHanded := poe1.Hands{MainHand: &poe1.Weapon{Class: "Unarmed"}}
+	restricted := func(sk *resolve.Skill, classes ...string) *resolve.Skill {
+		sk.WeaponRestrictions = classes
+		return sk
+	}
 	for _, c := range []struct {
 		name                string
 		skill               *resolve.Skill
@@ -113,7 +119,11 @@ func TestHitOutputsGiven(t *testing.T) {
 		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, true},
 		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, true, false},
 		{"attack of a totem", skill(0, "Attack", "Damage", "SummonsTotem"), oneWeapon, false, false, false},
-		{"attack unarmed", skill(0, "Attack", "Damage"), poe1.Hands{}, false, false, false},
+		{"attack with nothing to attack with", skill(0, "Attack", "Damage"), poe1.Hands{}, false, false, false},
+		{"attack unarmed", skill(0, "Attack", "Damage"), bareHanded, true, true, true},
+		{"attack that can be made unarmed", restricted(skill(0, "Attack", "Damage"), "Claw", "Unarmed"), bareHanded, true, true, true},
+		{"bow attack unarmed", restricted(skill(0, "Attack", "Damage"), "Bow"), bareHanded, false, false, false},
+		{"bow attack with a sword", restricted(skill(0, "Attack", "Damage"), "Bow"), oneWeapon, false, false, false},
 		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, false, false, false},
 		{"spell without a hit", skill(0, "Spell", "DamageOverTime"), poe1.Hands{}, false, false, false},
 	} {
@@ -300,7 +310,7 @@ func TestAttackPenetration(t *testing.T) {
 				resolve.StatValue{Stat: name, Value: 10},
 			)))
 			c := poe1.CompileItem(axe())
-			if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
+			if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
 				t.Fatal(err)
 			}
 			sh.SetEnemy(poe1.EnemyStats{})
@@ -312,4 +322,15 @@ func TestAttackPenetration(t *testing.T) {
 			}
 		})
 	}
+}
+
+// equip equips items on sh and puts their weapons in its hands.
+func equip(sh *poe1.Sheet, items []poe1.Item) error {
+	if err := sh.SetItems(items); err != nil {
+		return fmt.Errorf("equip: %w", err)
+	}
+	if err := sh.SetHands(poe1.HandsOf(items, nil)); err != nil {
+		return fmt.Errorf("equip: %w", err)
+	}
+	return nil
 }

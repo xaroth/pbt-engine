@@ -32,8 +32,9 @@ type SheetSkills struct {
 	Warnings []build.Warning
 }
 
-// SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, none
-// when the build has no group with an active gem to resolve or the dataset has no skills group
+// SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, the
+// default attack when the build's main group has no active gem (resolve.SkillResolver.Default),
+// as when it has no groups, none when the dataset has no skills group or lacks the main gem
 // (the build check warns about that), the other skills that reserve life or mana and, with
 // every, each other skill of the build (resolve.SkillResolver.All), so the sheet gives each
 // skill's outputs. It warns about the gems whose hits the sheet does not give and, with every,
@@ -41,9 +42,6 @@ type SheetSkills struct {
 func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, error) {
 	out := SheetSkills{Every: every}
 	sk := c.Build().Skills
-	if len(sk.Groups) == 0 {
-		return out, nil
-	}
 	skills, err := resolve.NewSkillResolver(c, GemRules())
 	switch {
 	case errors.Is(err, dataset.ErrNotInDataset):
@@ -52,6 +50,9 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 		return out, fmt.Errorf("sheet skills: %w", err)
 	default:
 		main, warnings, err := skills.Group(sk.MainGroup)
+		if errors.Is(err, resolve.ErrNoActiveSkill) {
+			main, err = skills.Default()
+		}
 		switch {
 		case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
 		case err != nil:

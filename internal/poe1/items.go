@@ -194,8 +194,8 @@ type itemKey struct {
 	key  string
 }
 
-// SetItems equips items and jewels: their sources go on, other items' off; the weapon in the
-// weapon slot is the main hand's (setMainHand). An item not seen yet in its slot or socket gets
+// SetItems equips items and jewels: their sources go on, other items' off; what they put in the
+// character's hands is set apart (SetHands). An item not seen yet in its slot or socket gets
 // its source added once; adding is refused while a checkpoint is open
 // (ErrCheckpointOpen).
 func (sh *Sheet) SetItems(items []Item) error {
@@ -231,7 +231,7 @@ func (sh *Sheet) SetItems(items []Item) error {
 		}
 		sh.items[k] = src
 	}
-	return sh.setMainHand(mainHandOf(items))
+	return nil
 }
 
 // addMovementPenalty adds an armour base's movement speed penalty to src, unless armour
@@ -248,14 +248,4 @@ func (sh *Sheet) addMovementPenalty(penalty float64, src core.SourceID) error {
 		return fmt.Errorf("sheet: movement penalty: %w", err)
 	}
 	return nil
-}
-
-// mainHandOf returns the weapon in the weapon slot among items and its name; nil for none.
-func mainHandOf(items []Item) (*Weapon, string) {
-	for _, it := range items {
-		if it.Slot == build.SlotWeapon && it.Node == 0 {
-			return it.Weapon, it.Name
-		}
-	}
-	return nil, ""
 }

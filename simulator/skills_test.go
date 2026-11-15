@@ -16,7 +16,7 @@ import (
 
 // Fireball with Added Fire Damage at 20% quality, whose quality gives 10% increased Fire
 // Damage to the skill it supports: the main skill's fire part takes it, its cold part does not,
-// and the sheet without the skill has no skill outputs.
+// and the sheet without the skill reads the default attack, which it does not support.
 func TestMainSkillOutputs(t *testing.T) {
 	t.Parallel()
 	s := realSim(t)
@@ -37,8 +37,12 @@ func TestMainSkillOutputs(t *testing.T) {
 	if got := get(t, st, poe1.ColdDamageModifier); got != 100 {
 		t.Errorf("cold damage modifier %v, want 100", got)
 	}
-	if _, ok := simulate(t, s, bare).Get(poe1.FireDamageModifier); ok {
-		t.Error("a build without skills has a fire damage modifier")
+	st0 := simulate(t, s, bare)
+	if sk, ok := st0.MainSkill(); !ok || sk.GrantedEffect != "Melee" || sk.Group != -1 {
+		t.Errorf("main skill without skills %+v, %v; want the default attack", sk, ok)
+	}
+	if got := get(t, st0, poe1.FireDamageModifier); got != 100 {
+		t.Errorf("default attack's fire damage modifier %v, want 100", got)
 	}
 	data, err := json.Marshal(st)
 	if err != nil {
@@ -389,5 +393,27 @@ func TestSkillMovedByEdit(t *testing.T) {
 	}
 	if _, ok := results[0].SkillChanges[moved]; ok || results[0].SkillChanges[fireball] == nil {
 		t.Errorf("sweep skill changes %v, want Fireball's alone", results[0].SkillChanges)
+	}
+}
+
+// A build without skills attacks with the default attack, and without a weapon with the class's
+// unarmed attacks: a Marauder's 2 to 8 physical damage at 833 ms per attack (Characters), 1.2
+// per second. Strength's 6% (32 Strength) rounds back to 2 to 8; the default enemy's armour
+// takes the most it can, 75%. A bow skill cannot be used unarmed, so it has no hit.
+func TestUnarmedAttack(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	st := simulate(t, s, marauderBuild(1))
+	for k, want := range map[output.Key]float64{
+		poe1.PhysicalMinimum: 0.5, poe1.PhysicalMaximum: 2, poe1.HitsPerSecond: 1.2, poe1.CriticalStrikeChance: 0,
+	} {
+		if got := get(t, st, k); math.Abs(got-want) > 1e-9 {
+			t.Errorf("%s: got %v, want %v", k, got, want)
+		}
+	}
+	b := marauderBuild(1)
+	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemSplitArrow", Level: 1}}})
+	if _, ok := simulate(t, s, b).Get(poe1.AverageHit); ok {
+		t.Error("a bow skill unarmed has an average hit")
 	}
 }

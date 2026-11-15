@@ -2,10 +2,12 @@ package poe1
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 // weaponKind is a value of the weapon dimension: one thing an attack can be made with.
@@ -26,17 +28,26 @@ const (
 	weaponOneHanded
 	weaponTwoHanded
 	weaponMelee
+	// weaponUnarmed is an attack made without a weapon: it sets no other kind.
+	weaponUnarmed
 	weaponKindCount
 )
 
 // bow is the bow weapon kind and the gem tag of bow skills.
 const bow = "bow"
 
+// unarmed is the weapon kind of an attack made without a weapon; unarmedClass is how a skill's
+// weapon restrictions name it.
+const (
+	unarmed      = "unarmed"
+	unarmedClass = "Unarmed"
+)
+
 func weaponKindNames() []string {
 	return []string{
 		weaponAxe: "axe", weaponBow: bow, weaponClaw: "claw", weaponDagger: "dagger", weaponMace: "mace",
 		weaponSceptre: "sceptre", weaponStaff: "staff", weaponSword: "sword", weaponWand: "wand",
-		weaponOneHanded: "one_handed", weaponTwoHanded: "two_handed", weaponMelee: "melee",
+		weaponOneHanded: "one_handed", weaponTwoHanded: "two_handed", weaponMelee: "melee", weaponUnarmed: unarmed,
 	}
 }
 
@@ -74,8 +85,14 @@ func weaponClasses() map[string]weaponKinds {
 	}
 }
 
-// Weapon is a weapon's own values, its local stats and quality applied.
+// Weapon is a weapon's own values, its local stats and quality applied, or the values of the
+// class's unarmed attacks.
 type Weapon struct {
+	// Name is the item's name, empty for unarmed attacks.
+	Name string
+	// Class is the item's ItemClass id, the way skills' weapon restrictions name it: "Unarmed"
+	// for unarmed attacks.
+	Class string
 	// Kinds are what the weapon counts as for modifiers that name a kind of weapon.
 	Kinds weaponKinds
 	// Damage is the weapon's damage range per type, indexed by DamageType; 0 to 0 for a type
@@ -151,15 +168,50 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 		return nil
 	}
 	b := base.Weapon
-	w := &Weapon{Kinds: ks, Damage: weaponDamage(it, b, sums)}
-	if b.AttackTime > 0 {
-		rate := roundHundredths(millisecondsPerSecond / float64(b.AttackTime))
-		w.AttackRate = roundHundredths(rate * (1 + sums[localAttackSpeedInc]/percentScale))
-	}
+	w := &Weapon{Name: it.Name, Class: base.Class, Kinds: ks, Damage: weaponDamage(it, b, sums)}
+	w.AttackRate = roundHundredths(attackRate(b.AttackTime) * (1 + sums[localAttackSpeedInc]/percentScale))
 	crit := float64(b.CriticalChance)/critPermyriadToPercent + sums[localCriticalChance]/critPermyriadToPercent
 	w.CriticalChance = roundHundredths(crit * (1 + sums[localCriticalChanceInc]/percentScale))
 	w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded = sums[localAccuracy], sums[localAccuracyInc], sums[localAlwaysHit] != 0
 	return w
+}
+
+// attackRate returns the attacks per second of an attack time in milliseconds, rounded to
+// hundredths; 0 for none.
+func attackRate(ms int32) float64 {
+	if ms <= 0 {
+		return 0
+	}
+	return roundHundredths(millisecondsPerSecond / float64(ms))
+}
+
+// UnarmedWeapon returns the values of the unarmed attacks of class ch: its physical damage and
+// attacks per second, no critical strike chance; nil when the dataset has no unarmed attack
+// time for it. The game data has no critical strike chance for unarmed attacks; PoB gives them
+// 0 (Data.lua unarmedWeaponData).
+func UnarmedWeapon(ch *dataset.Character) *Weapon {
+	if ch.UnarmedAttackTime <= 0 {
+		return nil
+	}
+	w := &Weapon{Class: unarmedClass, Kinds: kinds(weaponUnarmed), AttackRate: attackRate(ch.UnarmedAttackTime)}
+	if d := ch.UnarmedDamage; d.Min > 0 && d.Max > 0 {
+		w.Damage[Physical] = DamageRange{Min: float64(d.Min), Max: float64(d.Max)}
+	}
+	return w
+}
+
+// usableBy reports whether sk can be used with w: w's class is among its weapon restrictions,
+// or it has none.
+func (w *Weapon) usableBy(sk *resolve.Skill) bool {
+	return len(sk.WeaponRestrictions) == 0 || slices.Contains(sk.WeaponRestrictions, w.Class)
+}
+
+// label is how a rule names w.
+func (w *Weapon) label() string {
+	if w.Class == unarmedClass {
+		return "unarmed"
+	}
+	return w.Name
 }
 
 // weaponDamage returns the damage per type of it on a weapon base with values b, given sums of
@@ -189,10 +241,11 @@ func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float
 	return out
 }
 
-// setMainHand makes w the main hand weapon, nil for none: its damage, attacks per second and
-// critical strike chance become the base of every attack's. A weapon not seen yet gets its
+// SetHands puts h in the character's hands: the main hand weapon's damage, attacks per second
+// and critical strike chance become the base of every attack's. A weapon not seen yet gets its
 // source added once; adding is refused while a checkpoint is open (ErrCheckpointOpen).
-func (sh *Sheet) setMainHand(w *Weapon, name string) error {
+func (sh *Sheet) SetHands(h Hands) error {
+	w := h.MainHand
 	key := ""
 	if w != nil {
 		key = fmt.Sprint(*w)
@@ -209,9 +262,9 @@ func (sh *Sheet) setMainHand(w *Weapon, name string) error {
 		return nil
 	}
 	if sh.marked {
-		return fmt.Errorf("%w: main hand weapon %s", ErrCheckpointOpen, name)
+		return fmt.Errorf("%w: main hand weapon %s", ErrCheckpointOpen, w.label())
 	}
-	src, err := sh.addWeapon(w, name)
+	src, err := sh.addWeapon(w)
 	if err != nil {
 		return err
 	}
@@ -254,8 +307,8 @@ func (w *Weapon) mods(dim core.Dimension) []weaponMod {
 }
 
 // addWeapon adds w's values as a source whose modifiers reach attacks only.
-func (sh *Sheet) addWeapon(w *Weapon, name string) (core.SourceID, error) {
-	src := sh.newSource(Source{RuleID: "main-hand-weapon", Rule: "main hand weapon " + name})
+func (sh *Sheet) addWeapon(w *Weapon) (core.SourceID, error) {
+	src := sh.newSource(Source{RuleID: "main-hand-weapon", Rule: "main hand weapon " + w.label()})
 	attack, ok := sh.session.Model().Bit(dimType + "." + typeAttack)
 	if !ok {
 		panic("poe1: no attack context")

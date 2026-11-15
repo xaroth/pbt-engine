@@ -89,7 +89,7 @@ func TestAttackHit(t *testing.T) {
 		resolve.StatValue{Stat: "unique_ryuslathas_clutches_maximum_physical_attack_damage_+%_final", Value: 30},
 	)))
 	c := poe1.CompileItem(axe())
-	if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
+	if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
 		t.Fatal(err)
 	}
 	sh.SetEnemy(poe1.EnemyStats{})

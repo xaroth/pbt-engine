@@ -32,8 +32,18 @@ type GemSource struct {
 }
 
 func (s GemSource) String() string {
+	if s.Default() {
+		return "default attack"
+	}
 	return fmt.Sprintf("skill group %d gem %d (%s)", s.Group+1, s.Gem+1, s.ID)
 }
+
+// defaultSource returns the source of the default attack (SkillResolver.Default), which no gem
+// grants.
+func defaultSource() GemSource { return GemSource{Group: -1, Gem: -1} }
+
+// Default reports whether s is the default attack's, not a gem's.
+func (s GemSource) Default() bool { return s == defaultSource() }
 
 func (GemSource) source() {}
 
@@ -50,6 +60,9 @@ type Skill struct {
 	// Types are the skill's ActiveSkillType ids, with those the applied supports add, in the
 	// dataset's order.
 	Types []string
+	// WeaponRestrictions are the ItemClasses ids of the weapons the skill can be used with, and
+	// "Unarmed" when it can be used without one; empty when it can be used with any.
+	WeaponRestrictions []string
 	// CastTime is the skill's in milliseconds; AttackTime and AttackSpeedMultiplier are its
 	// level row's.
 	CastTime, AttackTime, AttackSpeedMultiplier int32
@@ -139,6 +152,8 @@ type Support struct {
 type SkillResolver struct {
 	r    *skillResolver
 	done map[skillKey]resolved
+	// defaultAttack is GemRules.DefaultAttack.
+	defaultAttack string
 }
 
 // skillKey is skill which (0 the first, 1 the second) of gem j of group i.
@@ -157,7 +172,28 @@ func NewSkillResolver(c *build.Checked, rules GemRules) (*SkillResolver, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &SkillResolver{r: r, done: map[skillKey]resolved{}}, nil
+	return &SkillResolver{r: r, done: map[skillKey]resolved{}, defaultAttack: rules.DefaultAttack}, nil
+}
+
+// Default resolves the default attack, the skill the character uses without a skill of its own
+// (GemRules.DefaultAttack), at level 1 and unsupported. It fails with ErrNoActiveSkill when the
+// rules name none or the dataset does not have it as an active skill with levels.
+func (s *SkillResolver) Default() (*Skill, error) {
+	ge := s.r.data.GrantedEffect(s.defaultAttack)
+	if ge == nil || ge.Support || s.r.data.ActiveSkill(ge.ActiveSkill) == nil || len(ge.Levels) == 0 {
+		return nil, fmt.Errorf("%w: default attack %q", ErrNoActiveSkill, s.defaultAttack)
+	}
+	active := s.r.data.ActiveSkill(ge.ActiveSkill)
+	sk := &Skill{
+		Source: defaultSource(), GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime, Level: 1,
+		Types: s.r.typeNames(s.r.typeSet(active.Types)), WeaponRestrictions: slices.Clone(active.WeaponRestrictions),
+	}
+	row := ge.Levels[0]
+	sk.AttackTime, sk.AttackSpeedMultiplier = row.AttackTime, row.AttackSpeedMultiplier
+	for _, id := range ge.StatSets {
+		sk.StatSets = append(sk.StatSets, s.r.statSet(s.r.data.StatSet(id), sk.Level))
+	}
+	return sk, nil
 }
 
 // Group resolves the active skill of skill group i: the group's active gem and which of its
@@ -238,7 +274,10 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 		return nil, fmt.Errorf("group %d: %w", i+1, err)
 	}
 	src := GemSource{Group: i, Gem: j, ID: gem.ID}
-	sk := &Skill{Source: src, Which: which, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime}
+	sk := &Skill{
+		Source: src, Which: which, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime,
+		WeaponRestrictions: slices.Clone(r.data.ActiveSkill(ge.ActiveSkill).WeaponRestrictions),
+	}
 	types := r.supportedTypes(src, ge, sk)
 
 	tags := r.tags(gem)
@@ -318,6 +357,10 @@ func newSkillResolver(c *build.Checked, rules GemRules) (*skillResolver, error) 
 		sockets: socketColours(b.Skills.Groups, b.Items), alwaysMatching: alwaysMatching(b.Items, rules.AlwaysMatchingStat),
 		matchingQuality: rules.MatchingSocketQuality,
 		linked:          linkedSlots(b.Items, rules.LinkedSupports),
+	}
+	if len(r.groups) == 0 {
+		// No gem for an item's supports to support: the default attack is unsupported.
+		return r, nil
 	}
 	if r.itemSupports, err = r.socketedSupports(c.Store(), b.Items); err != nil {
 		return nil, err

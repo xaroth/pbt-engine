@@ -49,7 +49,7 @@ func TestMoreRoundsAttackSpeed(t *testing.T) {
 		resolve.StatValue{Stat: "attack_speed_+%", Value: 10},
 	)))
 	c := poe1.CompileItem(axe())
-	if err := sh.SetItems([]poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
+	if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Axe", Key: "axe", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
 		t.Fatal(err)
 	}
 	attack := skill(0, "Attack", "Damage", "Melee")

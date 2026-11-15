@@ -30,18 +30,15 @@ func ItemFiles(m dataset.Manifest) []string {
 }
 
 // SimulateFiles returns the files Simulate reads for each of builds: the tree of its variant,
-// the skills group when it has gems, the items group when it has items or jewels, its mods
+// the skills group, for its gems or else the default attack, the items group when it has items or jewels, its mods
 // when it has gems and an item with stats in a slot with sockets, which can grant supports, the
 // layout of its variant and the English text when it has a cluster jewel, whose lines say
 // which passives it adds. Compare, Sweep and Stats.Explain read no more than the simulations
 // of the builds they take or make; Stats.Text reads the text of its language.
 func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
-	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile}
+	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile, dataset.SkillsFile}
 	for _, b := range builds {
 		files = append(files, dataset.TreeFile(cmp.Or(b.Variant, build.DefaultVariant)))
-		if slices.ContainsFunc(b.Skills.Groups, func(g build.SkillGroup) bool { return len(g.Gems) > 0 }) {
-			files = append(files, dataset.SkillsFile)
-		}
 		if len(b.Items) > 0 || len(b.Jewels) > 0 {
 			files = append(files, dataset.ItemsFile)
 		}

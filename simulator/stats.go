@@ -24,6 +24,7 @@ type Stats struct {
 	build    *build.Build
 	checked  *build.Checked
 	items    []poe1.Item
+	hands    poe1.Hands
 	skill    *resolve.Skill
 	// sheetSkills are the sheet's skills, the main skill first.
 	sheetSkills []*resolve.Skill
@@ -86,7 +87,8 @@ func (st *Stats) Keys() []output.Key { return slices.Clone(st.keys) }
 // level and quality with what items and supports add, and its ActiveSkillType ids with those
 // its supports add.
 type MainSkill struct {
-	// Group and Gem index the gem in build.Skills, from 0.
+	// Group and Gem index the gem in build.Skills, from 0; both are -1, and ID empty, for the
+	// default attack, which a build without a main skill of its own uses.
 	Group, Gem     int
 	ID             string
 	GrantedEffect  string
@@ -149,6 +151,9 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
 	if err := sh.SetItems(st.items); err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
+	}
+	if err := sh.SetHands(st.hands); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
 	if len(st.sheetSkills) > 0 {
