@@ -296,8 +296,8 @@ func TestSmallKind(t *testing.T) {
 		stats []string
 		want  timeless.Kind
 	}{
-		{stats: []string{"additional_dexterity"}, want: timeless.SmallAttribute},
-		{stats: []string{"additional_strength", "additional_intelligence"}, want: timeless.SmallNormal},
+		{stats: []string{"base_dexterity"}, want: timeless.SmallAttribute},
+		{stats: []string{"base_strength", "base_intelligence"}, want: timeless.SmallNormal},
 		{stats: []string{"maximum_life_+%"}, want: timeless.SmallNormal},
 	}
 	for _, testCase := range testCases {

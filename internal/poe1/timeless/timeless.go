@@ -29,7 +29,7 @@ const (
 func SmallKind(statIDs []string) Kind {
 	if len(statIDs) == 1 {
 		switch statIDs[0] {
-		case "additional_strength", "additional_dexterity", "additional_intelligence":
+		case "base_strength", "base_dexterity", "base_intelligence":
 			return SmallAttribute
 		}
 	}
