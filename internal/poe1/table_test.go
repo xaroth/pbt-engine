@@ -189,7 +189,7 @@ func wantedStats(tbl *semantics.Table) map[string]bool {
 	for _, e := range tbl.Entries {
 		wanted[e.Stat] = true
 		for _, m := range e.Mods {
-			if m.If != nil {
+			if m.If != nil && m.If.Counter {
 				wanted[m.If.Stat] = true
 			}
 		}

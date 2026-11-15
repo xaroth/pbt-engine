@@ -145,6 +145,14 @@ func TestLoadRejects(t *testing.T) {
 		{"authored without mods", authored(`"omitted": "o"`), "authored without mods or rule"},
 		{"count without counter", authored(`"mods": [{"stat": "life", "op": "more", "if": {"atLeast": 6}}]`), "want a counter"},
 		{"count at least 0", authored(`"mods": [{"stat": "life", "op": "more", "if": {"count": "n", "atLeast": 0}}]`), "want a counter"},
+		{
+			"count of a counter and a stat", authored(`"mods": [{"stat": "life", "op": "more", "if": {"count": "n", "stat": "strength", "atLeast": 6}}]`),
+			"want a counter or an engine stat",
+		},
+		{
+			"count of no engine stat", authored(`"mods": [{"stat": "life", "op": "more", "if": {"stat": "devotion", "atLeast": 150}}]`),
+			`if: unknown engine stat "devotion"`,
+		},
 		{"while not a stat", authored(`"mods": [{"stat": "life", "op": "more", "while": "enemy_is_chiled"}]`), `while: unknown engine stat "enemy_is_chiled"`},
 		{"params without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "params": {"from": "life"}`), "params without a rule"},
 		{"rule factor without rule", authored(`"mods": [{"stat": "life", "op": "base"}], "ruleFactor": "100"`), "rule factor without a rule"},
