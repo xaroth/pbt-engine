@@ -45,9 +45,16 @@ func TestOutputKeys(t *testing.T) {
 		poe1.LifeRegeneration, poe1.ManaRegeneration, poe1.EnergyShieldRegeneration, poe1.MovementSpeed, poe1.SpellBlockChance,
 		poe1.PhysicalDamageModifier, poe1.FireDamageModifier, poe1.ColdDamageModifier, poe1.LightningDamageModifier,
 		poe1.ChaosDamageModifier, poe1.ManaCost, poe1.LifeCost,
-		poe1.AverageHit, poe1.AccuracyRating, poe1.HitChance, poe1.CriticalStrikeChance, poe1.HitsPerSecond, poe1.HitDPS,
+		poe1.AverageHit, poe1.MainHandAverageHit, poe1.OffHandAverageHit, poe1.AccuracyRating, poe1.HitChance,
+		poe1.CriticalStrikeChance, poe1.HitsPerSecond, poe1.HitDPS,
 		poe1.PhysicalMinimum, poe1.PhysicalMaximum, poe1.FireMinimum, poe1.FireMaximum, poe1.ColdMinimum, poe1.ColdMaximum,
-		poe1.LightningMinimum, poe1.LightningMaximum, poe1.ChaosMinimum, poe1.ChaosMaximum, poe1.DotDPS,
+		poe1.LightningMinimum, poe1.LightningMaximum, poe1.ChaosMinimum, poe1.ChaosMaximum,
+		poe1.MainHandPhysicalMinimum, poe1.MainHandPhysicalMaximum, poe1.MainHandFireMinimum, poe1.MainHandFireMaximum,
+		poe1.MainHandColdMinimum, poe1.MainHandColdMaximum, poe1.MainHandLightningMinimum, poe1.MainHandLightningMaximum,
+		poe1.MainHandChaosMinimum, poe1.MainHandChaosMaximum, poe1.OffHandPhysicalMinimum, poe1.OffHandPhysicalMaximum,
+		poe1.OffHandFireMinimum, poe1.OffHandFireMaximum, poe1.OffHandColdMinimum, poe1.OffHandColdMaximum,
+		poe1.OffHandLightningMinimum, poe1.OffHandLightningMaximum, poe1.OffHandChaosMinimum, poe1.OffHandChaosMaximum,
+		poe1.DotDPS,
 	}
 	outputs := poe1.Outputs()
 	if len(outputs) != len(keys) {

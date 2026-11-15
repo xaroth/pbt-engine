@@ -18,10 +18,11 @@ var (
 	ErrDamageType = errors.New("unknown damage type")
 )
 
-// skillSlot is the skill in a slot: its gem and types.
+// skillSlot is the skill in a slot: its gem, types and weapon restrictions.
 type skillSlot struct {
-	source resolve.GemSource
-	types  []string
+	source       resolve.GemSource
+	types        []string
+	restrictions []string
 	// areaDot is set for a skill whose damage over time is area damage (areaDotSkill).
 	areaDot bool
 }
@@ -52,7 +53,9 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	}
 	sh.skills = sh.skills[:0]
 	for i, sk := range skills {
-		sh.skills = append(sh.skills, skillSlot{source: sk.Source, types: slices.Clone(sk.Types), areaDot: areaDotSkill(sk)})
+		sh.skills = append(sh.skills, skillSlot{
+			source: sk.Source, types: slices.Clone(sk.Types), restrictions: slices.Clone(sk.WeaponRestrictions), areaDot: areaDotSkill(sk),
+		})
 		k := skillKey{i, fmt.Sprint(*sk)}
 		if _, ok := sh.skillSources[k]; ok {
 			continue
@@ -89,7 +92,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 		}
 		srcs = append(srcs, src)
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, 0, nil, formNone))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, wield{}, nil, formNone))
 	src, err := sh.addSkillRules(sk, slot, ctx)
 	if err != nil {
 		return nil, err
@@ -142,9 +145,26 @@ func (sh *Sheet) SkillValue(i int, name string, damage ...DamageType) (float64, 
 	return val, nil
 }
 
+// handRead is which hand's values a skill's output reads.
+type handRead uint8
+
+const (
+	// readSkill reads the skill's: for an attack with both hands, the combined values where a
+	// stat combines them (handBits.hands), else the main hand's.
+	readSkill handRead = iota
+	readMainHand
+	readOffHand
+)
+
 // skillNode returns the node of engine stat name in skill i's context for the damage chain
 // damage in form.
 func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageForm) (core.Node, error) {
+	return sh.skillHandNode(i, name, damage, form, readSkill)
+}
+
+// skillHandNode returns the node of engine stat name in skill i's context for the damage chain
+// damage in form, read with the hand read says.
+func (sh *Sheet) skillHandNode(i int, name string, damage []DamageType, form damageForm, read handRead) (core.Node, error) {
 	id, ok := sh.stats[name]
 	switch {
 	case !ok:
@@ -157,28 +177,46 @@ func (sh *Sheet) skillNode(i int, name string, damage []DamageType, form damageF
 			return core.Node{}, fmt.Errorf("%w %d", ErrDamageType, d)
 		}
 	}
-	var weapon weaponKinds
-	if slices.Contains(sh.skills[i].types, typeAttack) {
-		weapon = sh.mainHand
-	}
+	w := sh.wieldOf(i, read)
 	types := sh.skills[i].types
 	if form == formDot {
 		var err error
-		if types, err = sh.dotTypes(i, weapon); err != nil {
+		if types, err = sh.dotTypes(i, w); err != nil {
 			return core.Node{}, err
 		}
 	}
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, weapon, damage, form))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, w, damage, form))
 	return core.Node{Stat: id, Ctx: ctx}, nil
 }
 
-// dotTypes returns the types skill i's damage over time is read with, made with weapon: its
-// own, without Attack, without Area unless its damage over time is area damage, and without
-// Spell or Projectile unless its spell or projectile damage modifiers apply to its damage over
-// time.
-func (sh *Sheet) dotTypes(i int, weapon weaponKinds) ([]string, error) {
+// wieldOf returns what skill i is read with for read: none when it is not an attack or the
+// character has nothing to attack with, else the main hand, or the off hand for readOffHand
+// when the skill attacks with both.
+func (sh *Sheet) wieldOf(i int, read handRead) wield {
+	sl, h := sh.skills[i], sh.hands
+	if !slices.Contains(sl.types, typeAttack) || h.MainHand == nil {
+		return wield{}
+	}
+	w := wield{attack: true, hand: handMain, weapon: h.MainHand.Kinds, dualWielding: h.dualWielding()}
+	if !h.bothHands(sl.types, sl.restrictions) {
+		return w
+	}
+	switch read {
+	case readSkill:
+		w.offWeapon = h.OffHand.Kinds
+	case readOffHand:
+		w.hand, w.weapon = handOff, h.OffHand.Kinds
+	case readMainHand:
+	}
+	return w
+}
+
+// dotTypes returns the types skill i's damage over time is read with, made with w: its own,
+// without Attack, without Area unless its damage over time is area damage, and without Spell
+// or Projectile unless its spell or projectile damage modifiers apply to its damage over time.
+func (sh *Sheet) dotTypes(i int, w wield) ([]string, error) {
 	types := sh.skills[i].types
-	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, weapon, nil, formNone))
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, types, w, nil, formNone))
 	keep := map[string]bool{typeArea: sh.skills[i].areaDot}
 	for t, flag := range map[string]string{
 		typeSpell:      statSpellDamageModifiersApplyToSkillDot,

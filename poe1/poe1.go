@@ -47,6 +47,8 @@ const (
 	ManaCost                    = rules.ManaCost
 	LifeCost                    = rules.LifeCost
 	AverageHit                  = rules.AverageHit
+	MainHandAverageHit          = rules.MainHandAverageHit
+	OffHandAverageHit           = rules.OffHandAverageHit
 	AccuracyRating              = rules.AccuracyRating
 	HitChance                   = rules.HitChance
 	CriticalStrikeChance        = rules.CriticalStrikeChance
@@ -63,6 +65,26 @@ const (
 	LightningMaximum            = rules.LightningMaximum
 	ChaosMinimum                = rules.ChaosMinimum
 	ChaosMaximum                = rules.ChaosMaximum
+	MainHandPhysicalMinimum     = rules.MainHandPhysicalMinimum
+	MainHandPhysicalMaximum     = rules.MainHandPhysicalMaximum
+	OffHandPhysicalMinimum      = rules.OffHandPhysicalMinimum
+	OffHandPhysicalMaximum      = rules.OffHandPhysicalMaximum
+	MainHandFireMinimum         = rules.MainHandFireMinimum
+	MainHandFireMaximum         = rules.MainHandFireMaximum
+	OffHandFireMinimum          = rules.OffHandFireMinimum
+	OffHandFireMaximum          = rules.OffHandFireMaximum
+	MainHandColdMinimum         = rules.MainHandColdMinimum
+	MainHandColdMaximum         = rules.MainHandColdMaximum
+	OffHandColdMinimum          = rules.OffHandColdMinimum
+	OffHandColdMaximum          = rules.OffHandColdMaximum
+	MainHandLightningMinimum    = rules.MainHandLightningMinimum
+	MainHandLightningMaximum    = rules.MainHandLightningMaximum
+	OffHandLightningMinimum     = rules.OffHandLightningMinimum
+	OffHandLightningMaximum     = rules.OffHandLightningMaximum
+	MainHandChaosMinimum        = rules.MainHandChaosMinimum
+	MainHandChaosMaximum        = rules.MainHandChaosMaximum
+	OffHandChaosMinimum         = rules.OffHandChaosMinimum
+	OffHandChaosMaximum         = rules.OffHandChaosMaximum
 )
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.

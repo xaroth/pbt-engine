@@ -99,8 +99,9 @@ func TestHitOutputsGiven(t *testing.T) {
 	for _, o := range poe1.Outputs() {
 		byKey[o.Key] = o
 	}
-	sword := &poe1.Weapon{Class: "One Hand Sword"}
+	sword, wand := &poe1.Weapon{Class: "One Hand Sword"}, &poe1.Weapon{Class: "Wand"}
 	oneWeapon, twoWeapons := poe1.Hands{MainHand: sword}, poe1.Hands{MainHand: sword, OffHand: sword}
+	swordAndWand := poe1.Hands{MainHand: sword, OffHand: wand}
 	bareHanded := poe1.Hands{MainHand: &poe1.Weapon{Class: "Unarmed"}}
 	restricted := func(sk *resolve.Skill, classes ...string) *resolve.Skill {
 		sk.WeaponRestrictions = classes
@@ -111,25 +112,34 @@ func TestHitOutputsGiven(t *testing.T) {
 		skill               *resolve.Skill
 		hands               poe1.Hands
 		hit, accuracy, rate bool
+		// types and bothHands: per damage type, per hand.
+		types, bothHands bool
 	}{
-		{"none", nil, oneWeapon, false, false, false},
-		{"spell", skill(0, "Spell", "Damage"), poe1.Hands{}, true, false, true},
-		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), poe1.Hands{}, true, false, false},
-		{"spell of a mine", skill(0, "Spell", "Damage", "RemoteMined"), poe1.Hands{}, true, false, false},
-		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, true},
-		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, true, false},
-		{"attack of a totem", skill(0, "Attack", "Damage", "SummonsTotem"), oneWeapon, false, false, false},
-		{"attack with nothing to attack with", skill(0, "Attack", "Damage"), poe1.Hands{}, false, false, false},
-		{"attack unarmed", skill(0, "Attack", "Damage"), bareHanded, true, true, true},
-		{"attack that can be made unarmed", restricted(skill(0, "Attack", "Damage"), "Claw", "Unarmed"), bareHanded, true, true, true},
-		{"bow attack unarmed", restricted(skill(0, "Attack", "Damage"), "Bow"), bareHanded, false, false, false},
-		{"bow attack with a sword", restricted(skill(0, "Attack", "Damage"), "Bow"), oneWeapon, false, false, false},
-		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, false, false, false},
-		{"spell without a hit", skill(0, "Spell", "DamageOverTime"), poe1.Hands{}, false, false, false},
+		{"none", nil, oneWeapon, false, false, false, false, false},
+		{"spell", skill(0, "Spell", "Damage"), poe1.Hands{}, true, false, true, true, false},
+		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), poe1.Hands{}, true, false, false, true, false},
+		{"spell of a mine", skill(0, "Spell", "Damage", "RemoteMined"), poe1.Hands{}, true, false, false, true, false},
+		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, true, true, false},
+		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, true, false, true, false},
+		{"attack of a totem", skill(0, "Attack", "Damage", "SummonsTotem"), oneWeapon, false, false, false, false, false},
+		{"attack with nothing to attack with", skill(0, "Attack", "Damage"), poe1.Hands{}, false, false, false, false, false},
+		{"attack unarmed", skill(0, "Attack", "Damage"), bareHanded, true, true, true, true, false},
+		{"attack that can be made unarmed", restricted(skill(0, "Attack", "Damage"), "Claw", "Unarmed"), bareHanded, true, true, true, true, false},
+		{"bow attack unarmed", restricted(skill(0, "Attack", "Damage"), "Bow"), bareHanded, false, false, false, false, false},
+		{"bow attack with a sword", restricted(skill(0, "Attack", "Damage"), "Bow"), oneWeapon, false, false, false, false, false},
+		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, true, true, true, false, true},
+		{"main hand attack dual wielding", skill(0, "Attack", "Damage", "MainHandOnly"), twoWeapons, true, true, true, true, false},
+		{"sword attack with a wand in the off hand", restricted(skill(0, "Attack", "Damage"), "One Hand Sword"), swordAndWand, false, false, false, false, false},
+		{
+			"main hand sword attack with a wand in the off hand", restricted(skill(0, "Attack", "Damage", "MainHandOnly"), "One Hand Sword"), swordAndWand,
+			true, true, true, true, false,
+		},
+		{"spell without a hit", skill(0, "Spell", "DamageOverTime"), poe1.Hands{}, false, false, false, false, false},
 	} {
 		for k, want := range map[output.Key]bool{
 			poe1.AverageHit: c.hit, poe1.HitChance: c.hit, poe1.AccuracyRating: c.accuracy,
 			poe1.HitsPerSecond: c.rate, poe1.HitDPS: c.rate, poe1.Life: true,
+			poe1.PhysicalMinimum: c.types, poe1.MainHandAverageHit: c.bothHands, poe1.OffHandAverageHit: c.bothHands,
 		} {
 			if got := poe1.Gives(byKey[k], c.skill, c.hands); got != want {
 				t.Errorf("%s: %s given %v, want %v", c.name, k, got, want)

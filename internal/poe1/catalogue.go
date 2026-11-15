@@ -57,6 +57,8 @@ type Output struct {
 	damage DamageType
 	// needs is what the main skill must be for the sheet to give the output.
 	needs skillNeed
+	// hand is which hand's value an output of the skill group reads.
+	hand handRead
 }
 
 // skillNeed is what a main skill must be for the sheet to give an output of it.
@@ -71,6 +73,10 @@ const (
 	needsRate
 	// needsAttackHit is an attack's hit.
 	needsAttackHit
+	// needsOneHandHit is a hit that is not an attack's with both hands.
+	needsOneHandHit
+	// needsBothHandsHit is an attack's hit with both hands.
+	needsBothHandsHit
 	// needsDot is a skill that deals damage over time (dotSkill).
 	needsDot
 )
@@ -80,8 +86,10 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 
 // Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, with
 // hands: an output of the sheet always, one of the skill group for a main skill; its hit only
-// for a hit, its accuracy only for an attack's, its rate of hits and hit damage per second
-// only for a hit the character uses itself, and its damage over time only for a skill that deals it.
+// for a hit, its accuracy only for an attack's, its hit per damage type only for a hit with one
+// hand, its hit per hand only for an attack's with both, its rate of hits and hit damage per
+// second only for a hit the character uses itself, and its damage over time only for a skill
+// that deals it.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -89,13 +97,22 @@ func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	case sk == nil:
 		return false
 	}
-	switch o.needs {
+	return o.needs.met(sk, hands)
+}
+
+// met reports whether sk with hands is what n needs.
+func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
+	switch n {
 	case needsHit:
 		return Hit(sk, hands)
 	case needsRate:
 		return selfUsedHit(sk, hands)
 	case needsAttackHit:
 		return attackHit(sk, hands)
+	case needsOneHandHit:
+		return Hit(sk, hands) && !bothHandsHit(sk, hands)
+	case needsBothHandsHit:
+		return bothHandsHit(sk, hands)
 	case needsDot:
 		return dotSkill(sk)
 	case needsSkill:
@@ -164,33 +181,22 @@ const (
 	ratePlaces = 2
 )
 
-// hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, an
-// attack's accuracy, the chance to hit and that a use strikes critically, hits per second and
-// hit damage per second, and per damage type the smallest and largest hit that is not critical.
+// hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, and
+// from each hand's of an attack with both, an attack's accuracy, the chance to hit and that a
+// use strikes critically, hits per second and hit damage per second, and per damage type the
+// smallest and largest hit that is not critical, of a hit with one hand or of each hand of an
+// attack with both.
 func hitOutputs() []Output {
-	types := []struct {
-		t        DamageType
-		min, max output.Key
-	}{
-		{Physical, PhysicalMinimum, PhysicalMaximum}, {Fire, FireMinimum, FireMaximum}, {Cold, ColdMinimum, ColdMaximum},
-		{Lightning, LightningMinimum, LightningMaximum}, {Chaos, ChaosMinimum, ChaosMaximum},
-	}
-	perType := make([]Output, 0, len(types)*len([]string{"minimum", "maximum"}))
-	for _, d := range types {
-		name := strings.ToUpper(d.t.String()[:1]) + d.t.String()[1:]
-		perType = append(perType,
-			Output{
-				Key: d.min, Label: "Minimum " + name + " Hit", Better: output.Higher, Places: hitPlaces,
-				stat: statEffectiveMinimumHitDamage, damage: d.t, needs: needsHit,
-			},
-			Output{
-				Key: d.max, Label: "Maximum " + name + " Hit", Better: output.Higher, Places: hitPlaces,
-				stat: statEffectiveMaximumHitDamage, damage: d.t, needs: needsHit,
-			},
-		)
-	}
 	return append([]Output{
 		{Key: AverageHit, Label: "Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsHit},
+		{
+			Key: MainHandAverageHit, Label: "Main Hand Average Hit", Better: output.Higher, Places: hitPlaces,
+			stat: statAverageHit, needs: needsBothHandsHit, hand: readMainHand,
+		},
+		{
+			Key: OffHandAverageHit, Label: "Off Hand Average Hit", Better: output.Higher, Places: hitPlaces,
+			stat: statAverageHit, needs: needsBothHandsHit, hand: readOffHand,
+		},
 		{Key: AccuracyRating, Label: "Accuracy Rating", Better: output.Higher, stat: statAccuracyRating, needs: needsAttackHit},
 		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsHit},
 		{
@@ -202,7 +208,54 @@ func hitOutputs() []Output {
 			stat: statHitsPerSecond, needs: needsRate,
 		},
 		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsRate},
-	}, perType...)
+	}, hitTypeOutputs()...)
+}
+
+// hitTypeOutputs are the smallest and largest hit per damage type that is not critical, of a
+// hit with one hand and of each hand of an attack with both.
+func hitTypeOutputs() []Output {
+	type hitType struct {
+		t        DamageType
+		min, max output.Key
+	}
+	hands := []struct {
+		label string
+		needs skillNeed
+		hand  handRead
+		types []hitType
+	}{
+		{"", needsOneHandHit, readSkill, []hitType{
+			{Physical, PhysicalMinimum, PhysicalMaximum}, {Fire, FireMinimum, FireMaximum}, {Cold, ColdMinimum, ColdMaximum},
+			{Lightning, LightningMinimum, LightningMaximum}, {Chaos, ChaosMinimum, ChaosMaximum},
+		}},
+		{"Main Hand ", needsBothHandsHit, readMainHand, []hitType{
+			{Physical, MainHandPhysicalMinimum, MainHandPhysicalMaximum}, {Fire, MainHandFireMinimum, MainHandFireMaximum},
+			{Cold, MainHandColdMinimum, MainHandColdMaximum}, {Lightning, MainHandLightningMinimum, MainHandLightningMaximum},
+			{Chaos, MainHandChaosMinimum, MainHandChaosMaximum},
+		}},
+		{"Off Hand ", needsBothHandsHit, readOffHand, []hitType{
+			{Physical, OffHandPhysicalMinimum, OffHandPhysicalMaximum}, {Fire, OffHandFireMinimum, OffHandFireMaximum},
+			{Cold, OffHandColdMinimum, OffHandColdMaximum}, {Lightning, OffHandLightningMinimum, OffHandLightningMaximum},
+			{Chaos, OffHandChaosMinimum, OffHandChaosMaximum},
+		}},
+	}
+	var out []Output
+	for _, h := range hands {
+		for _, d := range h.types {
+			name := strings.ToUpper(d.t.String()[:1]) + d.t.String()[1:]
+			out = append(out,
+				Output{
+					Key: d.min, Label: h.label + "Minimum " + name + " Hit", Better: output.Higher, Places: hitPlaces,
+					stat: statEffectiveMinimumHitDamage, damage: d.t, needs: h.needs, hand: h.hand,
+				},
+				Output{
+					Key: d.max, Label: h.label + "Maximum " + name + " Hit", Better: output.Higher, Places: hitPlaces,
+					stat: statEffectiveMaximumHitDamage, damage: d.t, needs: h.needs, hand: h.hand,
+				},
+			)
+		}
+	}
+	return out
 }
 
 // group returns outputs with their group set to g.
@@ -252,10 +305,10 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 		form = formNone
 	case needsDot:
 		form = formDot
-	case needsHit, needsRate, needsAttackHit:
+	case needsHit, needsRate, needsAttackHit, needsOneHandHit, needsBothHandsHit:
 		form = formHit
 	}
-	return sh.skillNode(i, o.stat, damage, form)
+	return sh.skillHandNode(i, o.stat, damage, form, o.hand)
 }
 
 // outputsByKey returns the catalogue by key.

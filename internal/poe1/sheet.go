@@ -106,10 +106,10 @@ type Sheet struct {
 	nodes map[resolve.NodeSource][]core.SourceID
 	// items maps an item, by slot and content, to its source.
 	items map[itemKey]core.SourceID
-	// weapons maps a main hand weapon, by content, to its source; mainHand is the kinds of the
-	// one held, 0 for none.
-	weapons  map[string]core.SourceID
-	mainHand weaponKinds
+	// weapons maps a weapon, by hand and content, to its source; hands is what the character
+	// holds.
+	weapons map[weaponKey]core.SourceID
+	hands   Hands
 	// skills holds the skills of SetSkills, by slot.
 	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.

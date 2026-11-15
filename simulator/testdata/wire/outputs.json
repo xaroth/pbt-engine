@@ -333,13 +333,31 @@
     "order": 36
   },
   {
+    "key": "skill.main_hand_average_hit",
+    "label": "Main Hand Average Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 37
+  },
+  {
+    "key": "skill.off_hand_average_hit",
+    "label": "Off Hand Average Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 38
+  },
+  {
     "key": "skill.accuracy_rating",
     "label": "Accuracy Rating",
     "unit": "",
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 37
+    "order": 39
   },
   {
     "key": "skill.hit_chance",
@@ -348,7 +366,7 @@
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 38
+    "order": 40
   },
   {
     "key": "skill.critical_strike_chance",
@@ -357,7 +375,7 @@
     "places": 2,
     "group": "skill",
     "better": "higher",
-    "order": 39
+    "order": 41
   },
   {
     "key": "skill.hits_per_second",
@@ -366,7 +384,7 @@
     "places": 2,
     "group": "skill",
     "better": "higher",
-    "order": 40
+    "order": 42
   },
   {
     "key": "skill.hit_dps",
@@ -375,7 +393,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 41
+    "order": 43
   },
   {
     "key": "skill.physical_minimum",
@@ -384,7 +402,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 42
+    "order": 44
   },
   {
     "key": "skill.physical_maximum",
@@ -393,7 +411,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 43
+    "order": 45
   },
   {
     "key": "skill.fire_minimum",
@@ -402,7 +420,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 44
+    "order": 46
   },
   {
     "key": "skill.fire_maximum",
@@ -411,7 +429,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 45
+    "order": 47
   },
   {
     "key": "skill.cold_minimum",
@@ -420,7 +438,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 46
+    "order": 48
   },
   {
     "key": "skill.cold_maximum",
@@ -429,7 +447,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 47
+    "order": 49
   },
   {
     "key": "skill.lightning_minimum",
@@ -438,7 +456,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 48
+    "order": 50
   },
   {
     "key": "skill.lightning_maximum",
@@ -447,7 +465,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 49
+    "order": 51
   },
   {
     "key": "skill.chaos_minimum",
@@ -456,7 +474,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 50
+    "order": 52
   },
   {
     "key": "skill.chaos_maximum",
@@ -465,7 +483,187 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 51
+    "order": 53
+  },
+  {
+    "key": "skill.main_hand_physical_minimum",
+    "label": "Main Hand Minimum Physical Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 54
+  },
+  {
+    "key": "skill.main_hand_physical_maximum",
+    "label": "Main Hand Maximum Physical Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 55
+  },
+  {
+    "key": "skill.main_hand_fire_minimum",
+    "label": "Main Hand Minimum Fire Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 56
+  },
+  {
+    "key": "skill.main_hand_fire_maximum",
+    "label": "Main Hand Maximum Fire Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 57
+  },
+  {
+    "key": "skill.main_hand_cold_minimum",
+    "label": "Main Hand Minimum Cold Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 58
+  },
+  {
+    "key": "skill.main_hand_cold_maximum",
+    "label": "Main Hand Maximum Cold Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 59
+  },
+  {
+    "key": "skill.main_hand_lightning_minimum",
+    "label": "Main Hand Minimum Lightning Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 60
+  },
+  {
+    "key": "skill.main_hand_lightning_maximum",
+    "label": "Main Hand Maximum Lightning Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 61
+  },
+  {
+    "key": "skill.main_hand_chaos_minimum",
+    "label": "Main Hand Minimum Chaos Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 62
+  },
+  {
+    "key": "skill.main_hand_chaos_maximum",
+    "label": "Main Hand Maximum Chaos Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 63
+  },
+  {
+    "key": "skill.off_hand_physical_minimum",
+    "label": "Off Hand Minimum Physical Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 64
+  },
+  {
+    "key": "skill.off_hand_physical_maximum",
+    "label": "Off Hand Maximum Physical Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 65
+  },
+  {
+    "key": "skill.off_hand_fire_minimum",
+    "label": "Off Hand Minimum Fire Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 66
+  },
+  {
+    "key": "skill.off_hand_fire_maximum",
+    "label": "Off Hand Maximum Fire Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 67
+  },
+  {
+    "key": "skill.off_hand_cold_minimum",
+    "label": "Off Hand Minimum Cold Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 68
+  },
+  {
+    "key": "skill.off_hand_cold_maximum",
+    "label": "Off Hand Maximum Cold Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 69
+  },
+  {
+    "key": "skill.off_hand_lightning_minimum",
+    "label": "Off Hand Minimum Lightning Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 70
+  },
+  {
+    "key": "skill.off_hand_lightning_maximum",
+    "label": "Off Hand Maximum Lightning Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 71
+  },
+  {
+    "key": "skill.off_hand_chaos_minimum",
+    "label": "Off Hand Minimum Chaos Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 72
+  },
+  {
+    "key": "skill.off_hand_chaos_maximum",
+    "label": "Off Hand Maximum Chaos Hit",
+    "unit": "",
+    "places": 1,
+    "group": "skill",
+    "better": "higher",
+    "order": 73
   },
   {
     "key": "skill.dot_dps",
@@ -474,6 +672,6 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 52
+    "order": 74
   }
 ]

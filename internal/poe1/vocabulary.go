@@ -133,6 +133,7 @@ const (
 	statCriticalStrikeMultiplier                         = "critical_strike_multiplier"
 	statAccuracyRating                                   = "accuracy_rating"
 	statHitsCannotBeEvaded                               = "hits_cannot_be_evaded"
+	statDoubleHitsWhenDualWielding                       = "double_hits_when_dual_wielding"
 	statHitChance                                        = "hit_chance"
 	statEffectiveCriticalStrikeChance                    = "effective_critical_strike_chance"
 	statAverageHit                                       = "average_hit"
@@ -368,6 +369,7 @@ func hitStats() []string {
 		statCriticalStrikeMultiplier,
 		statAccuracyRating,
 		statHitsCannotBeEvaded,
+		statDoubleHitsWhenDualWielding,
 		statHitChance,
 		statEffectiveCriticalStrikeChance,
 		statAverageHit,
