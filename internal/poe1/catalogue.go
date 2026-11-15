@@ -26,21 +26,36 @@ const (
 	UnitPerSecond = "/s"
 )
 
-// Groups of outputs: the panel a consumer shows an output in.
+// Groups of outputs: the topic a consumer shows an output under, in the catalogue's order.
 const (
-	// GroupSheet is the character sheet: attributes, pools, armour and evasion, resistances,
-	// regeneration and movement speed.
-	GroupSheet = "sheet"
-	// GroupDefence is how the character avoids or mitigates hits: block.
-	GroupDefence = "defence"
+	// GroupAttributes is strength, dexterity and intelligence.
+	GroupAttributes = "attributes"
+	// GroupLife is life with its reserved and unreserved parts and its regeneration.
+	GroupLife = "life"
+	// GroupMana is mana with its reserved and unreserved parts and its regeneration.
+	GroupMana = "mana"
+	// GroupEnergyShield is energy shield and its regeneration.
+	GroupEnergyShield = "energy-shield"
+	// GroupResistances is each resistance with its maximum and its uncapped value.
+	GroupResistances = "resistances"
+	// GroupDefences is how the character avoids or mitigates hits, and movement speed.
+	GroupDefences = "defences"
 	// GroupSkill is the main skill's values, read in its context. A build without a main
 	// skill has none of them.
 	GroupSkill = "skill"
 )
 
+// Relations of an output to others, the keys of Output.Related.
+const (
+	// RelationMaximum is the output's maximum, such as a resistance's cap.
+	RelationMaximum = "maximum"
+	// RelationUncapped is the output's value before its maximum applies.
+	RelationUncapped = "uncapped"
+)
+
 // Output is a named value of the sheet a consumer can ask for and render without knowing the
 // engine stats: its engine stat, a label, a unit, the decimal places it shows, its group, which
-// way is better and its display order.
+// way is better, its display order and the outputs it relates to.
 type Output struct {
 	Key    output.Key `json:"key"`
 	Label  string     `json:"label"`
@@ -51,7 +66,10 @@ type Output struct {
 	Better output.Better `json:"better"`
 	// Order is the output's position in the catalogue; lower shows first.
 	Order int `json:"order"`
-	stat  string
+	// Related are other outputs of the catalogue by their relation to this one, such as a
+	// resistance's maximum; nil for none.
+	Related map[string]output.Key `json:"related,omitempty"`
+	stat    string
 	// damage, for an output of the skill group, is the damage type of the part of the main
 	// skill's damage it reads.
 	damage DamageType
@@ -122,43 +140,40 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 
 // Outputs returns the catalogue of outputs, in display order.
 func Outputs() []Output {
-	out := slices.Concat(group(GroupSheet, []Output{
+	out := slices.Concat(group(GroupAttributes, []Output{
 		{Key: Strength, Label: "Strength", Better: output.Higher, stat: statStrength},
 		{Key: Dexterity, Label: "Dexterity", Better: output.Higher, stat: statDexterity},
 		{Key: Intelligence, Label: "Intelligence", Better: output.Higher, stat: statIntelligence},
+	}), group(GroupLife, []Output{
 		{Key: Life, Label: "Life", Better: output.Higher, stat: statMaximumLife},
 		{Key: ReservedLife, Label: "Reserved Life", Better: output.Lower, stat: statReservedLife},
 		{Key: UnreservedLife, Label: "Unreserved Life", Better: output.Higher, stat: statUnreservedLife},
+		{Key: LifeRegeneration, Label: "Life Regeneration", Better: output.Higher, Unit: UnitPerSecond, Places: regenerationPlaces, stat: statLifeRegeneration},
+	}), group(GroupMana, []Output{
 		{Key: Mana, Label: "Mana", Better: output.Higher, stat: statMaximumMana},
 		{Key: ReservedMana, Label: "Reserved Mana", Better: output.Lower, stat: statReservedMana},
 		{Key: UnreservedMana, Label: "Unreserved Mana", Better: output.Higher, stat: statUnreservedMana},
-		{Key: EnergyShield, Label: "Energy Shield", Better: output.Higher, stat: statMaximumEnergyShield},
-		{Key: Armour, Label: "Armour", Better: output.Higher, stat: statArmour},
-		{Key: EvasionRating, Label: "Evasion Rating", Better: output.Higher, stat: statEvasionRating},
-		{Key: FireResistance, Label: "Fire Resistance", Better: output.Higher, Unit: UnitPercent, stat: statFireResistanceCapped},
-		{Key: ColdResistance, Label: "Cold Resistance", Better: output.Higher, Unit: UnitPercent, stat: statColdResistanceCapped},
-		{Key: LightningResistance, Label: "Lightning Resistance", Better: output.Higher, Unit: UnitPercent, stat: statLightningResistanceCapped},
-		{Key: ChaosResistance, Label: "Chaos Resistance", Better: output.Higher, Unit: UnitPercent, stat: statChaosResistanceCapped},
-		{Key: MaximumFireResistance, Label: "Maximum Fire Resistance", Better: output.Higher, Unit: UnitPercent, stat: statEffectiveMaximumFireResistance},
-		{Key: MaximumColdResistance, Label: "Maximum Cold Resistance", Better: output.Higher, Unit: UnitPercent, stat: statEffectiveMaximumColdResistance},
-		{
-			Key: MaximumLightningResistance, Label: "Maximum Lightning Resistance", Better: output.Higher, Unit: UnitPercent,
-			stat: statEffectiveMaximumLightningResistance,
-		},
-		{Key: MaximumChaosResistance, Label: "Maximum Chaos Resistance", Better: output.Higher, Unit: UnitPercent, stat: statMaximumChaosResistance},
-		{Key: UncappedFireResistance, Label: "Uncapped Fire Resistance", Better: output.Higher, Unit: UnitPercent, stat: statFireResistance},
-		{Key: UncappedColdResistance, Label: "Uncapped Cold Resistance", Better: output.Higher, Unit: UnitPercent, stat: statColdResistance},
-		{Key: UncappedLightningResistance, Label: "Uncapped Lightning Resistance", Better: output.Higher, Unit: UnitPercent, stat: statLightningResistance},
-		{Key: UncappedChaosResistance, Label: "Uncapped Chaos Resistance", Better: output.Higher, Unit: UnitPercent, stat: statChaosResistance},
-		{Key: LifeRegeneration, Label: "Life Regeneration", Better: output.Higher, Unit: UnitPerSecond, Places: regenerationPlaces, stat: statLifeRegeneration},
 		{Key: ManaRegeneration, Label: "Mana Regeneration", Better: output.Higher, Unit: UnitPerSecond, Places: regenerationPlaces, stat: statManaRegeneration},
+	}), group(GroupEnergyShield, []Output{
+		{Key: EnergyShield, Label: "Energy Shield", Better: output.Higher, stat: statMaximumEnergyShield},
 		{
 			Key: EnergyShieldRegeneration, Label: "Energy Shield Regeneration", Better: output.Higher, Unit: UnitPerSecond, Places: regenerationPlaces,
 			stat: statEnergyShieldRegeneration,
 		},
-		{Key: MovementSpeed, Label: "Movement Speed", Better: output.Higher, Unit: UnitPercent, stat: statMovementSpeed},
-	}), group(GroupDefence, []Output{
+	}), group(GroupResistances, slices.Concat(
+		resistanceOutputs("Fire", FireResistance, MaximumFireResistance, UncappedFireResistance,
+			statFireResistanceCapped, statEffectiveMaximumFireResistance, statFireResistance),
+		resistanceOutputs("Cold", ColdResistance, MaximumColdResistance, UncappedColdResistance,
+			statColdResistanceCapped, statEffectiveMaximumColdResistance, statColdResistance),
+		resistanceOutputs("Lightning", LightningResistance, MaximumLightningResistance, UncappedLightningResistance,
+			statLightningResistanceCapped, statEffectiveMaximumLightningResistance, statLightningResistance),
+		resistanceOutputs("Chaos", ChaosResistance, MaximumChaosResistance, UncappedChaosResistance,
+			statChaosResistanceCapped, statMaximumChaosResistance, statChaosResistance),
+	)), group(GroupDefences, []Output{
+		{Key: Armour, Label: "Armour", Better: output.Higher, stat: statArmour},
+		{Key: EvasionRating, Label: "Evasion Rating", Better: output.Higher, stat: statEvasionRating},
 		{Key: SpellBlockChance, Label: "Chance to Block Spell Damage", Better: output.Higher, Unit: UnitPercent, stat: statSpellBlockChanceCapped},
+		{Key: MovementSpeed, Label: "Movement Speed", Better: output.Higher, Unit: UnitPercent, stat: statMovementSpeed},
 	}), group(GroupSkill, []Output{
 		// The increased and more multiplier of one damage type's part of the main skill's damage.
 		{Key: PhysicalDamageModifier, Label: "Physical Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Physical},
@@ -173,6 +188,19 @@ func Outputs() []Output {
 		out[i].Order = i
 	}
 	return out
+}
+
+// resistanceOutputs are a resistance, which relates to its maximum and its uncapped value,
+// then those two; name is the element as labels show it.
+func resistanceOutputs(name string, capped, maximum, uncapped output.Key, cappedStat, maximumStat, uncappedStat string) []Output {
+	return []Output{
+		{
+			Key: capped, Label: name + " Resistance", Better: output.Higher, Unit: UnitPercent, stat: cappedStat,
+			Related: map[string]output.Key{RelationMaximum: maximum, RelationUncapped: uncapped},
+		},
+		{Key: maximum, Label: "Maximum " + name + " Resistance", Better: output.Higher, Unit: UnitPercent, stat: maximumStat},
+		{Key: uncapped, Label: "Uncapped " + name + " Resistance", Better: output.Higher, Unit: UnitPercent, stat: uncappedStat},
+	}
 }
 
 // Decimal places of hit outputs: damage, and chances and rates.
