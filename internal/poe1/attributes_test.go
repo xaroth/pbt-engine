@@ -1,9 +1,15 @@
 package poe1_test
 
 import (
+	"slices"
 	"testing"
 
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/output"
 )
 
 // marauder returns the bundles of a Marauder at level with extra stats on one node, from the
@@ -94,5 +100,101 @@ func TestAttributes(t *testing.T) {
 				t.Errorf("%s: got %v, want %v", testCase.stat, got, testCase.want)
 			}
 		})
+	}
+}
+
+// A Scion at level 90 with an Elegant Hubris of Caspiro's second revision in socket 61834, whose
+// Large radius holds keystone 35255, gains no inherent bonus from attributes once the keystone,
+// conquered into Supreme Ostentation, is allocated: each output loses its bonus and explains
+// none; without it, each explains its bonus. 100 energy shield on the body armour slot gives the
+// intelligence bonus something to increase; the default attack, unarmed, reads the accuracy and
+// melee physical damage.
+func TestSupremeOstentation(t *testing.T) {
+	t.Parallel()
+	const (
+		version  = "3.29.3.6"
+		scion    = "Metadata/Characters/StrDexInt/StrDexInt"
+		socket   = 61834
+		keystone = 35255
+	)
+	bonuses := []string{
+		"strength-bonus-life", "strength-bonus-melee-physical-damage", "dexterity-bonus-accuracy",
+		"dexterity-bonus-evasion", "intelligence-bonus-mana", "intelligence-bonus-energy-shield",
+	}
+	s := realdata.Open(t, version)
+	chars, err := s.Characters()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch := &chars[slices.IndexFunc(chars, func(c dataset.Character) bool { return c.ID == scion })]
+	sheet := func(nodes ...uint32) *poe1.Sheet {
+		b := build.Build{
+			Format: 1, Game: "poe1", Version: version, Class: scion, Level: 90, Nodes: nodes,
+			Jewels: build.Jewels{socket: {
+				Rarity: build.Unique, Base: "Metadata/Items/Jewels/JewelTimeless", Mods: []build.ModLine{{
+					Kind: build.Explicit, Text: "Caspiro", Stats: []build.StatValue{
+						{Stat: "local_unique_jewel_alternate_tree_version", Value: 5},
+						{Stat: "local_unique_jewel_alternate_tree_seed", Value: 2000},
+						{Stat: "local_unique_jewel_alternate_tree_keystone", Value: 3},
+						{Stat: "local_unique_jewel_alternate_tree_internal_revision", Value: 1},
+					},
+				}},
+			}},
+		}
+		c, _, err := build.Check(&b, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := resolve.Resolve(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sh := open(t, r)
+		setItems(t, sh, poe1.Item{
+			Slot: build.SlotBodyArmour, Name: "robe", Key: "robe",
+			Stats: []resolve.StatValue{{Stat: "base_maximum_energy_shield", Value: 100}},
+		})
+		hands := poe1.HandsOf(nil, ch)
+		if err := sh.SetHands(hands); err != nil {
+			t.Fatal(err)
+		}
+		skills, err := poe1.SheetSkillsOf(c, hands, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		setSkills(t, sh, skills.Skills...)
+		return sh
+	}
+	without, with := sheet(socket), sheet(socket, keystone)
+	// 20 of each attribute: 10 life, 4% melee physical damage, 40 accuracy rating, 4% evasion
+	// rating, 10 mana, 2% energy shield.
+	testCases := []struct {
+		key          output.Key
+		before, want float64
+	}{
+		{key: poe1.Life, before: 1128, want: 1118},
+		{key: poe1.PhysicalDamageModifier, before: 104, want: 100},
+		{key: poe1.AccuracyRating, before: 218, want: 178},
+		{key: poe1.EvasionRating, before: 16, want: 15},
+		{key: poe1.Mana, before: 584, want: 574},
+		{key: poe1.EnergyShield, before: 102, want: 100},
+	}
+	for _, testCase := range testCases {
+		bonus := func(sh *poe1.Sheet) (float64, []string) {
+			ex := explainOf(t, sh, testCase.key, poe1.Proportional)
+			var ids []string
+			for _, l := range ex.Lines {
+				if slices.Contains(bonuses, l.Source.RuleID) {
+					ids = append(ids, l.Source.RuleID)
+				}
+			}
+			return ex.Value, ids
+		}
+		if got, ids := bonus(without); got != testCase.before || len(ids) != 1 {
+			t.Errorf("%s without the keystone: got %v from bonuses %v, want %v from one", testCase.key, got, ids, testCase.before)
+		}
+		if got, ids := bonus(with); got != testCase.want || len(ids) != 0 {
+			t.Errorf("%s with the keystone: got %v from bonuses %v, want %v from none", testCase.key, got, ids, testCase.want)
+		}
 	}
 }
