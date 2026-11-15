@@ -51,7 +51,7 @@ func (s Scope) String() string {
 }
 
 // Source is where a bundle came from: a CharacterSource, LevelSource, NodeSource,
-// QuestSource, ItemSource or JewelSource.
+// RadiusSource, QuestSource, ItemSource or JewelSource.
 type Source interface {
 	String() string
 	source()
@@ -73,6 +73,14 @@ type NodeSource struct {
 	Effect uint32
 }
 
+// RadiusSource is a small passive in a jewel's radius whose stats the jewel grants while the
+// passive is not allocated (build.RadiusPassive.Granted).
+type RadiusSource struct {
+	// Socket is the jewel's socket.
+	Socket uint32
+	Node   uint32
+}
+
 // QuestSource is a quest reward from the dataset. Resolve returns every reward with stats; the
 // rules decide from the build's config which ones the character has.
 type QuestSource struct {
@@ -89,6 +97,9 @@ func (s NodeSource) String() string {
 		return fmt.Sprintf("node %d effect %d", s.ID, s.Effect)
 	}
 	return fmt.Sprintf("node %d", s.ID)
+}
+func (s RadiusSource) String() string {
+	return fmt.Sprintf("node %d granted by jewel %d", s.Node, s.Socket)
 }
 func (s QuestSource) String() string { return "quest " + s.ID }
 
@@ -128,6 +139,7 @@ func (ItemSource) source()      {}
 func (JewelSource) source()     {}
 func (LevelSource) source()     {}
 func (NodeSource) source()      {}
+func (RadiusSource) source()    {}
 func (QuestSource) source()     {}
 
 // StatValue is a game stat id and its value.
@@ -237,7 +249,8 @@ func QuestBundles(s *dataset.Store) ([]Bundle, error) {
 // Resolve turns a checked build into bundles and constants: character, level, every quest
 // reward with stats (the rules pick the ones the build's config grants), then the allocated
 // nodes as the build's overrides and timeless jewels change them (ChangeNode), each followed by its chosen mastery
-// effect. It fails when a dataset group fails to load or a stat id resolve uses is not in the
+// effect, less those a jewel makes grant nothing, then the unallocated passives a jewel grants
+// (RadiusSource). It fails when a dataset group fails to load or a stat id resolve uses is not in the
 // dataset's stats.
 func Resolve(c *build.Checked) (*Resolved, error) {
 	return resolve(c, false)
@@ -245,7 +258,7 @@ func Resolve(c *build.Checked) (*Resolved, error) {
 
 // Tree is Resolve with the bundles of every node the build's class and ascendancy can
 // allocate, and of every mastery effect, allocated or not, in tree order, then of every passive
-// its cluster jewels add. A sheet over it turns sources on and off to match an allocation, so
+// its cluster jewels add, then of every passive a jewel grants while not allocated. A sheet over it turns sources on and off to match an allocation, so
 // edits and what-ifs need no new bundles.
 func Tree(c *build.Checked) (*Resolved, error) {
 	return resolve(c, true)
@@ -295,14 +308,23 @@ func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	choices := c.Masteries()
 	changes := nodeChanges(c)
+	nothing, granted := radiusChanges(c)
 	var out []Bundle
 	for _, n := range c.Nodes() {
 		if ch, ok := changes[n.ID]; ok {
 			n = ChangeNode(n, ch...)
 		}
-		out = append(out, nodeBundles(stats, n)...)
+		if !nothing[n.ID] {
+			out = append(out, nodeBundles(stats, n)...)
+		}
 		if i := slices.IndexFunc(choices, func(m build.MasteryChoice) bool { return m.Node.ID == n.ID }); i >= 0 {
 			out = append(out, masteryBundle(stats, n, choices[i].Effect))
+		}
+	}
+	allocated := c.Build().Nodes
+	for _, g := range granted {
+		if _, on := slices.BinarySearch(allocated, g.node.ID); !on {
+			out = append(out, g.bundles(stats)...)
 		}
 	}
 	return out
@@ -313,6 +335,7 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 // cluster jewels add.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	changes := nodeChanges(c)
+	nothing, granted := radiusChanges(c)
 	var out []Bundle
 	for i := range c.Tree().Nodes {
 		n := &c.Tree().Nodes[i]
@@ -322,13 +345,18 @@ func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 		if ch, ok := changes[n.ID]; ok {
 			n = ChangeNode(n, ch...)
 		}
-		out = append(out, nodeBundles(stats, n)...)
+		if !nothing[n.ID] {
+			out = append(out, nodeBundles(stats, n)...)
+		}
 		for _, e := range n.MasteryEffects {
 			out = append(out, masteryBundle(stats, n, e))
 		}
 	}
 	for _, n := range c.ClusterNodes() {
 		out = append(out, nodeBundles(stats, n)...)
+	}
+	for _, g := range granted {
+		out = append(out, g.bundles(stats)...)
 	}
 	return out
 }
@@ -424,7 +452,11 @@ func counters(stats []dataset.Stat, tree *dataset.Tree) []string {
 
 // nodeBundles is NodeBundles of n, whose stat handles index stats.
 func nodeBundles(stats []dataset.Stat, n *dataset.Node) []Bundle {
-	src := NodeSource{ID: n.ID}
+	return sourcedBundles(stats, n, NodeSource{ID: n.ID})
+}
+
+// sourcedBundles is nodeBundles credited to src.
+func sourcedBundles(stats []dataset.Stat, n *dataset.Node, src Source) []Bundle {
 	var out []Bundle
 	if len(n.Stats) > 0 {
 		out = append(out, Bundle{Actor: Player, Scope: Global, Source: src, Stats: statValues(stats, n.Stats)})

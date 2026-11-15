@@ -134,3 +134,66 @@ func TestResolveConquest(t *testing.T) {
 		})
 	}
 }
+
+// instinctJewel is a jewel with the stats of Unnatural Instinct among stats.
+func instinctJewel(stats ...string) build.Item {
+	svs := make([]build.StatValue, 0, len(stats))
+	for _, st := range stats {
+		svs = append(svs, build.StatValue{Stat: st, Value: 1})
+	}
+	return build.Item{Rarity: build.Unique, Base: "Metadata/Items/Jewels/JewelDex", Mods: []build.ModLine{{Kind: build.Explicit, Text: "instinct", Stats: svs}}}
+}
+
+// On conquestDataset with a Small radius around socket 3 that reaches small passive 4 and
+// notable 7 but not mastery 9, allocated small passives in it grant nothing and the jewel grants
+// unallocated ones; notables keep what they give.
+func TestResolveRadiusPassives(t *testing.T) {
+	t.Parallel()
+	d := conquestDataset()
+	d.Trees[0].JewelRadii = append(d.Trees[0].JewelRadii, dataset.JewelRadius{ID: "Small", Radius: 700})
+	s := open(t, d)
+	const (
+		nothing = "local_jewel_allocated_non_notable_passives_in_radius_grant_nothing"
+		granted = "local_jewel_copy_stats_from_unallocated_non_notable_passives_in_radius"
+	)
+	small := []resolve.StatValue{{"base_strength", 10}}
+	notable := []resolve.StatValue{{"additional_strength", 20}, {"maximum_life_+%", 8}}
+	node := func(id uint32, stats []resolve.StatValue) resolve.Bundle {
+		return resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.NodeSource{ID: id}, Stats: stats}
+	}
+	fromJewel := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: resolve.RadiusSource{Socket: 3, Node: 4}, Stats: small}
+	testCases := []struct {
+		name  string
+		nodes []uint32
+		jewel build.Item
+		want  []resolve.Bundle
+	}{
+		{"allocated small passive grants nothing", []uint32{1, 3, 4, 7}, instinctJewel(nothing), []resolve.Bundle{node(7, notable)}},
+		{"allocated small passive with only the grant", []uint32{1, 3, 4, 7}, instinctJewel(granted), []resolve.Bundle{node(4, small), node(7, notable)}},
+		{"unallocated small passive granted", []uint32{1, 3, 7}, instinctJewel(granted), []resolve.Bundle{node(7, notable), fromJewel}},
+		{"unallocated small passive with only grant nothing", []uint32{1, 3, 7}, instinctJewel(nothing), []resolve.Bundle{node(7, notable)}},
+		{"Unnatural Instinct", []uint32{1, 3, 7}, instinctJewel(nothing, granted), []resolve.Bundle{node(7, notable), fromJewel}},
+		{"socket not allocated", []uint32{1, 4, 7}, instinctJewel(nothing, granted), []resolve.Bundle{node(4, small), node(7, notable)}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := testBuild(90, testCase.nodes...)
+			b.Jewels = build.Jewels{3: testCase.jewel}
+			r, err := resolveBuild(t, s, b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := slices.DeleteFunc(r.Bundles, func(bd resolve.Bundle) bool {
+				switch bd.Source.(type) {
+				case resolve.NodeSource, resolve.RadiusSource:
+					return bd.Scope != resolve.Global
+				}
+				return true
+			})
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("node bundles (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

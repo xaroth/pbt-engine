@@ -104,6 +104,8 @@ type Sheet struct {
 	gameVersion dataset.GameVersion
 	// nodes maps a node, or a mastery node and effect, to its sources (global and buff bundles).
 	nodes map[resolve.NodeSource][]core.SourceID
+	// granted maps a node to the sources of a jewel granting it, on while the node is not.
+	granted map[uint32][]core.SourceID
 	// items maps an item, by slot and content, to its source.
 	items map[itemKey]core.SourceID
 	// weapons maps a weapon, by hand and content, to its source; hands is what the character
@@ -225,11 +227,17 @@ func (sh *Sheet) newSource(d Source) core.SourceID {
 	sh.sources = append(sh.sources, d)
 	id := sh.session.NewSource()
 	if d.Bundle != nil {
-		if n, ok := d.Bundle.Source.(resolve.NodeSource); ok {
+		switch n := d.Bundle.Source.(type) {
+		case resolve.NodeSource:
 			if sh.nodes == nil {
 				sh.nodes = map[resolve.NodeSource][]core.SourceID{}
 			}
 			sh.nodes[n] = append(sh.nodes[n], id)
+		case resolve.RadiusSource:
+			if sh.granted == nil {
+				sh.granted = map[uint32][]core.SourceID{}
+			}
+			sh.granted[n.Node] = append(sh.granted[n.Node], id)
 		}
 	}
 	return id

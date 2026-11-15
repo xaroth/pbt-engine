@@ -8,7 +8,8 @@ import (
 )
 
 // SetNodes turns node sources on for the allocated nodes and the chosen mastery effects and off
-// for the rest, for a sheet opened over resolve.Tree. Other sources are left as they are.
+// for the rest, and the sources a jewel grants a node by (resolve.RadiusSource) the other way,
+// for a sheet opened over resolve.Tree. Other sources are left as they are.
 func (sh *Sheet) SetNodes(nodes []uint32, masteries map[uint32]uint32) {
 	on := make(map[uint32]bool, len(nodes))
 	for _, n := range nodes {
@@ -17,15 +18,20 @@ func (sh *Sheet) SetNodes(nodes []uint32, masteries map[uint32]uint32) {
 	for n, srcs := range sh.nodes {
 		sh.setSources(srcs, on[n.ID] && (n.Effect == 0 || masteries[n.ID] == n.Effect))
 	}
+	for n, srcs := range sh.granted {
+		sh.setSources(srcs, !on[n])
+	}
 }
 
-// SetNode turns node id's own sources on or off, and reports whether the sheet has the node.
-// A node without stats has no sources: the sheet does not have it, and switching it changes
-// nothing.
+// SetNode turns node id's own sources on or off and those a jewel grants it by the other way,
+// and reports whether the sheet has the node. A node without stats has no sources: the sheet
+// does not have it, and switching it changes nothing.
 func (sh *Sheet) SetNode(id uint32, on bool) bool {
 	srcs, ok := sh.nodes[resolve.NodeSource{ID: id}]
 	sh.setSources(srcs, on)
-	return ok
+	granted, isGranted := sh.granted[id]
+	sh.setSources(granted, !on)
+	return ok || isGranted
 }
 
 // SetMasteryEffect turns effect of mastery node on or off, and reports whether the sheet has it.

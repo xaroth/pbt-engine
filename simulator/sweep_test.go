@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
@@ -373,4 +374,104 @@ func nodeVariants(t *testing.T, store *dataset.Store, b *build.Build) [][]build.
 		}
 	}
 	return out
+}
+
+// With Unnatural Instinct in place of each jewel but cluster jewels of the benchmark builds,
+// allocating or deallocating each small passive in its radius gives, from Sweep on the fast
+// path, every output Simulate gives for the edited build, and changes some.
+func TestSweepRadiusPassivesReal(t *testing.T) {
+	t.Parallel()
+	d := benchbuilds.Open(t)
+	for _, c := range benchbuilds.Builds(t, d) {
+		base, ok := withInstinct(c.Build)
+		if !ok {
+			continue
+		}
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			s, err := simulator.New(d.Store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			variants := radiusVariants(t, d.Store, base)
+			for _, v := range variants {
+				if fast, err := simulator.FastPath(s, base, v); err != nil || !fast {
+					t.Fatalf("variant %v: not on the fast path (%v)", v, err)
+				}
+			}
+			if !sweepMatchesSimulate(t, s, base, variants) {
+				t.Error("no variant changes an output")
+			}
+		})
+	}
+}
+
+// withInstinct returns b with Unnatural Instinct in place of each jewel but cluster jewels,
+// and whether it replaced any.
+func withInstinct(b *build.Build) (*build.Build, bool) {
+	jewel := build.Item{Rarity: build.Unique, Name: "Unnatural Instinct", Base: "Metadata/Items/Jewels/JewelDex", Mods: []build.ModLine{{
+		Kind: build.Explicit, Text: "instinct", Stats: []build.StatValue{
+			{Stat: "local_jewel_allocated_non_notable_passives_in_radius_grant_nothing", Value: 1},
+			{Stat: "local_jewel_copy_stats_from_unallocated_non_notable_passives_in_radius", Value: 1},
+		},
+	}}}
+	out := b.Clone()
+	replaced := false
+	for socket, it := range out.Jewels {
+		if !strings.HasPrefix(it.Base, "Metadata/Items/Jewels/JewelPassiveTreeExpansion") {
+			out.Jewels[socket], replaced = jewel, true
+		}
+	}
+	return out, replaced
+}
+
+// radiusVariants returns a deallocation of each allocated small passive of b's radius passives
+// and an allocation of each other.
+func radiusVariants(t *testing.T, store *dataset.Store, b *build.Build) [][]build.Edit {
+	t.Helper()
+	c, _, err := build.Check(b, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out [][]build.Edit
+	for _, p := range c.RadiusPassives() {
+		if slices.Contains(b.Nodes, p.Node.ID) {
+			out = append(out, []build.Edit{build.Deallocate(p.Node.ID)})
+		} else {
+			out = append(out, []build.Edit{build.Allocate(p.Node.ID)})
+		}
+	}
+	if len(out) == 0 {
+		t.Fatal("no small passive in an Unnatural Instinct radius")
+	}
+	return out
+}
+
+// sweepMatchesSimulate checks that Sweep of base gives each variant every output Simulate gives
+// for the edited build, and reports whether any variant changes one.
+func sweepMatchesSimulate(t *testing.T, s *simulator.Sim, base *build.Build, variants [][]build.Edit) bool {
+	t.Helper()
+	res, err := s.Sweep(base, variants)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := false
+	for i, v := range variants {
+		b := base.Clone()
+		if err := b.Apply(v...); err != nil {
+			t.Fatal(err)
+		}
+		want := simulate(t, s, b)
+		if res[i].Err != nil {
+			t.Fatalf("variant %v: %v", v, res[i].Err)
+		}
+		for _, k := range want.Keys() {
+			ch := res[i].Changes[k]
+			if w := get(t, want, k); math.Float64bits(ch.After) != math.Float64bits(w) {
+				t.Errorf("variant %v %s: sweep %v, simulate %v", v, k, ch.After, w)
+			}
+			changed = changed || ch.After != ch.Before
+		}
+	}
+	return changed
 }

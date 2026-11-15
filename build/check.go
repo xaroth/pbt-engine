@@ -122,7 +122,9 @@ type Checked struct {
 	masteries   []MasteryChoice
 	overrides   []OverrideChoice
 	conquests   []Conquest
-	warnings    []Warning
+	// radiusPassives are the small passives jewels change by allocation.
+	radiusPassives []RadiusPassive
+	warnings       []Warning
 }
 
 // MasteryChoice is an allocated mastery node and its chosen effect.
@@ -157,7 +159,8 @@ type MasteryChoice struct {
 // allocated, paths run through them and their stats count. It drops a passive or socket that
 // only a cluster jewel adds when no jewel in the build adds it, and warns about a cluster jewel
 // whose lines do not say what it adds. A timeless jewel in an allocated socket changes the
-// passives in its radius (Conquests); one whose changes are modelled only for keystones warns.
+// passives in its radius (Conquests), and Unnatural Instinct in an allocated socket those whose
+// effect depends on allocation (RadiusPassives).
 // The weapon-swap
 // slots are not in use: their items are left out and the gems socketed in them disabled,
 // without a warning, so the skills they grant or hold are disabled too. It returns a
@@ -338,13 +341,16 @@ func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...an
 }
 
 // checkGear checks the items and jewels, sets the weapon swap aside and finds what the
-// timeless jewels conquer.
+// timeless jewels conquer and the small passives jewels change by allocation.
 func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
 	}
 	c.setAsideSwap()
-	return c.conquer()
+	if err := c.conquer(); err != nil {
+		return err
+	}
+	return c.findRadiusPassives()
 }
 
 // setClass sets c's class and character, and reports whether both exist.

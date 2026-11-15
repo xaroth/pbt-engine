@@ -87,7 +87,7 @@ type TreeNode = poe1.TreeNode
 type TreeTerm = poe1.TreeTerm
 
 // Source is what a value is credited to. Bundle.Source is one of CharacterSource,
-// LevelSource, NodeSource, QuestSource, ItemSource or JewelSource; a rule's own source has no
+// LevelSource, NodeSource, RadiusSource, QuestSource, ItemSource or JewelSource; a rule's own source has no
 // Bundle and names itself in Rule.
 type Source = poe1.Source
 
@@ -99,6 +99,8 @@ type (
 	LevelSource = resolve.LevelSource
 	// NodeSource is a passive node, or with Effect one of a mastery's effects.
 	NodeSource = resolve.NodeSource
+	// RadiusSource is an unallocated small passive whose stats the jewel in Socket grants.
+	RadiusSource = resolve.RadiusSource
 	// QuestSource is a quest reward.
 	QuestSource = resolve.QuestSource
 	// ItemSource is an equipped item by slot, with its name.
