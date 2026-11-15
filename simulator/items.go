@@ -25,7 +25,7 @@ func indexBases(s *dataset.Store) (map[string]*dataset.ItemBase, error) {
 	return out, nil
 }
 
-// compileItems sets r's items from the checked build's items with their abyss jewels and the
+// compileItems sets the items of r's sheet from the checked build's items with their abyss jewels and the
 // jewels in its allocated sockets, each compiled once per content. On a dataset without the
 // items group they are left out with a warning.
 func (s *Sim) compileItems(r *run, cb *build.Build) error {
@@ -55,12 +55,12 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 		if err != nil {
 			return fmt.Errorf("simulator: jewel %d: %w", node, err)
 		}
-		r.items = append(r.items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats})
+		r.sheet.Items = append(r.sheet.Items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats})
 	}
 	return nil
 }
 
-// compileItem adds to r's items the item it in slot, then its abyss jewels. Each jewel counts
+// compileItem adds to the items of r's sheet the item it in slot, then its abyss jewels. Each jewel counts
 // as part of its item: it shares the item's slot and weapon, so the hands read the same
 // whichever of the two they meet last, and its index keeps two equal jewels apart.
 func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[string]*dataset.ItemBase) error {
@@ -70,7 +70,7 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 	if err != nil {
 		return fmt.Errorf("simulator: item %s: %w", slot, err)
 	}
-	r.items = append(r.items, poe1.Item{
+	r.sheet.Items = append(r.sheet.Items, poe1.Item{
 		Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, MovementPenalty: c.MovementPenalty,
 	})
 	if len(c.Assumed) > 0 {
@@ -85,7 +85,7 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 		if err != nil {
 			return fmt.Errorf("simulator: abyss jewel %s %d: %w", slot, i, err)
 		}
-		r.items = append(r.items, poe1.Item{
+		r.sheet.Items = append(r.sheet.Items, poe1.Item{
 			Slot: slot, Name: j.Name, Key: fmt.Sprintf("abyss %d %s", i, jkey), Stats: jc.Stats, Weapon: c.Weapon,
 		})
 	}

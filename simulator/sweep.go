@@ -169,7 +169,7 @@ type baseSkill struct {
 func baseSkills(r *run, skills []SkillStats) []baseSkill {
 	out := make([]baseSkill, 0, len(skills))
 	for _, ss := range skills {
-		slot := slices.IndexFunc(r.skills.Skills, func(sk *resolve.Skill) bool { return refOf(sk) == ss.Ref })
+		slot := slices.IndexFunc(r.sheet.Skills.Skills, func(sk *resolve.Skill) bool { return refOf(sk) == ss.Ref })
 		out = append(out, baseSkill{SkillStats: ss, slot: slot})
 	}
 	return out
@@ -179,7 +179,9 @@ func baseSkills(r *run, skills []SkillStats) []baseSkill {
 func (sw *sweep) work(variants [][]build.Edit, jobs <-chan int, results chan<- Result, done <-chan struct{}) {
 	sh, err := sw.sim.checkout(sw.base.checked)
 	if err == nil {
-		err = switchTo(sw.base, sh)
+		if err = sh.Switch(&sw.base.sheet); err != nil {
+			err = fmt.Errorf("simulator: %w", err)
+		}
 	}
 	clean := true
 	defer func() {
