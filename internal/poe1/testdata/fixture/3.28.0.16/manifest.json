@@ -2,15 +2,15 @@
   "format": 1,
   "game": "poe1",
   "version": "3.28.0.16",
-  "id": "c3100b0b78dee5a837a80b1892b9917f1ce99ca72c58f201484234eb97989d9f",
+  "id": "abbf6fa31b2978d9b518fcf2dcd5254ebc537282418fcaa1ea663bf08e827644",
   "source": {
     "fixtureOf": "5f14cda3263e1d93da9969242fe91c41b0fbb5145ca4864b405947ddc1b13427"
   },
   "files": [
     {
       "name": "stats.fb",
-      "size": 38188,
-      "sha256": "98547082226198daa951f16e58980bfd299f0ab87ae724a4ab00d65717950378"
+      "size": 38232,
+      "sha256": "d45d2b5015f91139384b55826271fb02e52c9c8097fe39cd3450eebdd8ed4fe0"
     },
     {
       "name": "characters.fb",
@@ -34,8 +34,8 @@
     },
     {
       "name": "text-en.fb",
-      "size": 117736,
-      "sha256": "fe469dbaf90388a46b8e50b0af20a6c8d688f206406f409e69664dee966ca38c"
+      "size": 117912,
+      "sha256": "eee2d9651b2a3193b68d4a8c572ce3cf49d81762cdfbe4e31b5ed484f610f985"
     },
     {
       "name": "names-en.fb",

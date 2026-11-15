@@ -21,6 +21,8 @@ const (
 	statNoIntelligenceBonusToMaximumMana         = "no_intelligence_bonus_to_maximum_mana"
 	statNoDexterityBonusToEvasionRating          = "no_dexterity_bonus_to_evasion_rating"
 	statNoIntelligenceBonusToMaximumEnergyShield = "no_intelligence_bonus_to_maximum_energy_shield"
+	statNoDexterityBonusToAccuracyRating         = "no_dexterity_bonus_to_accuracy_rating"
+	statNoStrengthBonusToMeleePhysicalDamage     = "no_strength_bonus_to_melee_physical_damage"
 )
 
 // attributeBonus is an inherent bonus of an attribute: the constant's Value per Per points of
@@ -55,6 +57,7 @@ func attributeBonuses() []attributeBonus {
 			id:       "dexterity-bonus-accuracy",
 			constant: "accuracy_rating_per_dexterity", label: "Dexterity bonus to accuracy rating",
 			attribute: statDexterity, target: statAccuracyRating, op: core.OpBase,
+			off: statNoDexterityBonusToAccuracyRating,
 		},
 		{
 			id:       "dexterity-bonus-evasion",
@@ -75,6 +78,7 @@ func attributeBonuses() []attributeBonus {
 			attribute: statStrength, target: statDamage, op: core.OpInc,
 			in:    [][]string{{dimType + "." + "Melee"}, {dimDamage + "." + Physical.String()}},
 			notIn: []string{dimForm + "." + damageFormNames()[formAilment-1]},
+			off:   statNoStrengthBonusToMeleePhysicalDamage,
 		},
 	}
 }
@@ -127,6 +131,8 @@ func attributeMechanic() mechanic {
 		statNoIntelligenceBonusToMaximumMana,
 		statNoDexterityBonusToEvasionRating,
 		statNoIntelligenceBonusToMaximumEnergyShield,
+		statNoDexterityBonusToAccuracyRating,
+		statNoStrengthBonusToMeleePhysicalDamage,
 	}, def: attributeDef}
 }
 
@@ -138,7 +144,8 @@ func attributeDef(def core.StatDef, _ map[string]core.StatID) core.StatDef {
 	case statStrength, statDexterity, statIntelligence:
 		def.Round, def.HasMin, def.CycleFamily = core.RoundHalf, true, attributeFamily
 	case statNoStrengthBonusToMaximumLife, statNoIntelligenceBonusToMaximumMana,
-		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield:
+		statNoDexterityBonusToEvasionRating, statNoIntelligenceBonusToMaximumEnergyShield,
+		statNoDexterityBonusToAccuracyRating, statNoStrengthBonusToMeleePhysicalDamage:
 		def.Flag = true
 	}
 	return def
