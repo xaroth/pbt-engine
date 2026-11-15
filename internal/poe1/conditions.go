@@ -2,10 +2,13 @@ package poe1
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
@@ -216,3 +219,83 @@ func conditionMechanic() mechanic {
 
 // mechanicConditions names the conditions mechanic for those that come after it.
 const mechanicConditions = "conditions"
+
+// NoConditionSource is a condition the config sets on that the build could cause itself
+// but no enabled skill of it does: it applies as set.
+const NoConditionSource build.Code = "no-condition-source"
+
+// derivable is a condition the build can cause itself: its key and engine stat, and the engine
+// stat that says whether a skill's hit inflicts it.
+type derivable struct {
+	key            config.Key[bool]
+	stat, inflicts string
+}
+
+func derivables() []derivable {
+	return []derivable{
+		{EnemyShocked, statEnemyIsShocked, statInflictsShock},
+		{EnemyChilled, statEnemyIsChilled, statInflictsChill},
+		{EnemyIgnited, statEnemyIsIgnited, statInflictsIgnite},
+	}
+}
+
+// DeriveConditions derives the conditions the build can cause itself from the skills on the
+// sheet, switched to cfg: one that no layer of cfg sets (its source is Default or Derived) is
+// on, with source Derived, when the hit of a skill of the build (not the default attack) can
+// inflict it, and else off with source Default. It switches the sheet's conditions to the
+// result and returns it, with a warning for each condition a layer sets on that no skill can
+// inflict. An explicit value wins, off included.
+func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build.Warning, error) {
+	out := maps.Clone(cfg)
+	var warnings []build.Warning
+	for _, d := range derivables() {
+		can, err := sh.inflicted(d.inflicts)
+		if err != nil {
+			return nil, nil, err
+		}
+		on, src := config.Lookup(cfg, d.key)
+		switch {
+		case !src.Explicit() && can:
+			out[d.key.Name()] = config.Entry{Value: true, Source: config.Derived}
+		case !src.Explicit():
+			out[d.key.Name()] = config.Entry{Value: false, Source: config.Default}
+		case on && !can:
+			warnings = append(warnings, build.Warning{
+				Code: NoConditionSource, Subject: "config " + d.key.Name(),
+				Message: fmt.Sprintf("on from the %s config, but no skill of the build inflicts it; applied as set", src),
+			})
+		}
+		v, _ := config.Lookup(out, d.key)
+		_ = sh.session.SetSourceEnabled(sh.conditions.sources[d.stat], v)
+	}
+	return out, warnings, nil
+}
+
+// inflicted reports whether the hit of a skill on the sheet, but the default attack, inflicts
+// the ailment of engine stat name, with either hand.
+func (sh *Sheet) inflicted(name string) (bool, error) {
+	for i, sl := range sh.skills {
+		sk := &resolve.Skill{Types: sl.types, WeaponRestrictions: sl.restrictions}
+		if sl.source.Default() || !Hit(sk, sh.hands) {
+			continue
+		}
+		reads := []handRead{readMainHand}
+		if bothHandsHit(sk, sh.hands) {
+			reads = append(reads, readOffHand)
+		}
+		for _, read := range reads {
+			n, err := sh.skillHandNode(i, name, nil, formHit, read)
+			if err != nil {
+				return false, err
+			}
+			v, err := sh.session.Get(n)
+			if err != nil {
+				return false, fmt.Errorf("sheet: skill %d %s: %w", i, name, err)
+			}
+			if v != 0 {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}

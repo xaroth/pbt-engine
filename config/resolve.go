@@ -8,9 +8,11 @@ import (
 // Source says where a resolved value came from.
 type Source uint8
 
-// Sources, from lowest to highest priority.
+// Sources, from lowest to highest priority. Resolve gives only Default and the layers' sources;
+// Derived is a value the game's rules take from the build itself where no layer has one.
 const (
 	Default Source = iota
+	Derived
 	FromBuild
 	FromSim
 	FromCall
@@ -20,6 +22,8 @@ func (s Source) String() string {
 	switch s {
 	case Default:
 		return "default"
+	case Derived:
+		return "derived"
 	case FromBuild:
 		return "build"
 	case FromSim:
@@ -106,6 +110,9 @@ func Resolve(specs []Spec, layers ...Layer) (Resolved, []Problem) {
 	}
 	return out, problems
 }
+
+// Explicit reports whether s is a value a layer gave.
+func (s Source) Explicit() bool { return s >= FromBuild }
 
 // Lookup returns k's resolved value and source; a key r does not hold gives T's zero value
 // and Default.

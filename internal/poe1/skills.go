@@ -46,19 +46,22 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	if len(skills) > maxSkills {
 		return fmt.Errorf("%w: %d skills, at most %d", ErrSkill, len(skills), maxSkills)
 	}
+	keys := make([]skillKey, len(skills))
 	want := make(map[skillKey]bool, len(skills))
 	for i, sk := range skills {
-		want[skillKey{i, fmt.Sprint(*sk)}] = true
+		keys[i] = skillKey{i, fmt.Sprint(*sk)}
+		want[keys[i]] = true
 	}
 	for k, srcs := range sh.skillSources {
 		sh.setSources(srcs, want[k])
 	}
 	sh.skills = sh.skills[:0]
+	sh.quietFrom = maxSkills
 	for i, sk := range skills {
 		sh.skills = append(sh.skills, skillSlot{
 			source: sk.Source, types: slices.Clone(sk.Types), restrictions: slices.Clone(sk.WeaponRestrictions),
 		})
-		k := skillKey{i, fmt.Sprint(*sk)}
+		k := keys[i]
 		if _, ok := sh.skillSources[k]; ok {
 			continue
 		}

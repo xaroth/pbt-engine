@@ -360,21 +360,11 @@ func (sw *sweep) node(id uint32) *dataset.Node {
 // fast switches the plan on sh in a checkpoint, reads the outputs and reverts.
 func (sw *sweep) fast(sh *poe1.Sheet, p switchPlan) Result {
 	cp := sh.Mark()
-	for _, id := range p.nodesOff {
-		sh.SetNode(id, false)
-	}
-	for _, ne := range p.effectsOff {
-		sh.SetMasteryEffect(ne[0], ne[1], false)
-	}
-	for _, id := range p.nodesOn {
-		sh.SetNode(id, true)
-	}
-	for _, ne := range p.effectsOn {
-		sh.SetMasteryEffect(ne[0], ne[1], true)
-	}
 	r := Result{Warnings: p.warnings}
-	var err error
-	r.Changes, err = readChanges(sw.keys, sw.before, sh.Output)
+	err := sw.switchTo(sh, p)
+	if err == nil {
+		r.Changes, err = readChanges(sw.keys, sw.before, sh.Output)
+	}
 	for _, bs := range sw.skills {
 		if err != nil {
 			break
@@ -391,6 +381,27 @@ func (sw *sweep) fast(sh *poe1.Sheet, p switchPlan) Result {
 		return Result{Warnings: p.warnings, Err: err}
 	}
 	return r
+}
+
+// switchTo switches the plan's nodes and mastery effects on sh, and the conditions the build
+// causes, which the nodes can change.
+func (sw *sweep) switchTo(sh *poe1.Sheet, p switchPlan) error {
+	for _, id := range p.nodesOff {
+		sh.SetNode(id, false)
+	}
+	for _, ne := range p.effectsOff {
+		sh.SetMasteryEffect(ne[0], ne[1], false)
+	}
+	for _, id := range p.nodesOn {
+		sh.SetNode(id, true)
+	}
+	for _, ne := range p.effectsOn {
+		sh.SetMasteryEffect(ne[0], ne[1], true)
+	}
+	if _, _, err := sh.DeriveConditions(sw.base.sheet.Config); err != nil {
+		return fmt.Errorf("simulator: %w", err)
+	}
+	return nil
 }
 
 // withSkill returns all with the changes of the skill at ref added, made when nil.

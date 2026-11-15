@@ -25,19 +25,23 @@ type SheetSkills struct {
 	// Main is the main skill, nil when the build has none.
 	Main *resolve.Skill
 	// Skills are in slot order: the main skill first, if any, then the other skills that
-	// reserve life or mana, then, when every skill was asked for, the other skills.
+	// reserve life or mana, then the other skills, as many as the sheet holds. Every skill is
+	// on the sheet so the conditions it causes can be derived (Sheet.DeriveConditions).
 	Skills []*resolve.Skill
-	// Every says Skills holds every skill of the build the sheet can hold.
-	Every    bool
+	// Every says the outputs of every skill are read, not only the main skill's.
+	Every bool
+	// Noted is how many of Skills, from the first, the sheet's notes cover (Sheet.QuietSkills):
+	// the main skill, those that reserve and, with Every, the rest.
+	Noted    int
 	Warnings []build.Warning
 }
 
 // SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, the
 // default attack when the build's main group has no active gem (resolve.SkillResolver.Default),
 // as when it has no groups, none when the dataset has no skills group or lacks the main gem
-// (the build check warns about that), the other skills that reserve life or mana and, with
-// every, each other skill of the build (resolve.SkillResolver.All), so the sheet gives each
-// skill's outputs. It warns about the gems whose hits the sheet does not give and, with every,
+// (the build check warns about that), the other skills that reserve life or mana and each
+// other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
+// skill are read. It warns about the gems whose hits the sheet does not give and, with every,
 // about the skills that do not resolve or do not fit the sheet.
 func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, error) {
 	out := SheetSkills{Every: every}
@@ -83,8 +87,9 @@ func (s *SheetSkills) Read() []*resolve.Skill {
 	return s.Skills[:1]
 }
 
-// addOthers adds the skills of all other than the main skill: those that reserve, then with
-// Every the rest, warning about those that do not resolve or do not fit.
+// addOthers adds the skills of all other than the main skill: those that reserve, then the
+// rest, warning with Every about those that do not resolve or do not fit and with the rest's
+// own warnings, whose outputs are then read.
 func (s *SheetSkills) addOthers(all []resolve.SkillWarnings) {
 	var rest []resolve.SkillWarnings
 	for _, sw := range all {
@@ -99,18 +104,32 @@ func (s *SheetSkills) addOthers(all []resolve.SkillWarnings) {
 		case Reserves(sw.Skill):
 			s.Skills = append(s.Skills, sw.Skill)
 			s.Warnings = append(s.Warnings, sw.Warnings...)
-		case s.Every:
+		default:
 			rest = append(rest, sw)
 		}
 	}
+	s.Noted = len(s.Skills)
+	s.addRest(rest)
+	if s.Every {
+		s.Noted = len(s.Skills)
+	}
+}
+
+// addRest adds the skills of rest as long as the sheet has slots, with Every with their
+// warnings and one about those that do not fit.
+func (s *SheetSkills) addRest(rest []resolve.SkillWarnings) {
 	for i, sw := range rest {
 		if len(s.Skills) == maxSkills {
-			msg := fmt.Sprintf("%d skills beyond the sheet's %d not simulated", len(rest)-i, maxSkills)
-			s.Warnings = append(s.Warnings, build.Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg})
+			if s.Every {
+				msg := fmt.Sprintf("%d skills beyond the sheet's %d not simulated", len(rest)-i, maxSkills)
+				s.Warnings = append(s.Warnings, build.Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg})
+			}
 			return
 		}
 		s.Skills = append(s.Skills, sw.Skill)
-		s.Warnings = append(s.Warnings, sw.Warnings...)
+		if s.Every {
+			s.Warnings = append(s.Warnings, sw.Warnings...)
+		}
 	}
 }
 

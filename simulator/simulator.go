@@ -51,6 +51,10 @@ const (
 	// SkillUnresolved is a skill asked for (EverySkill) that the dataset does not resolve: it
 	// has no outputs.
 	SkillUnresolved = poe1.SkillUnresolved
+	// NoConditionSource is a condition the build can cause itself (EnemyShocked,
+	// EnemyChilled, EnemyIgnited) that the config sets on while no skill of the build
+	// inflicts it: it applies as set.
+	NoConditionSource = poe1.NoConditionSource
 	// ItemsNotSimulated is a build with items on a dataset without the items group: outputs
 	// leave them out.
 	ItemsNotSimulated build.Code = "items-not-simulated"
@@ -170,9 +174,10 @@ func (s *Sim) Config() config.Values {
 }
 
 // Simulate computes the outputs of b. Config resolves per key from the call's options, the
-// sim, the build, then the default. What the dataset cannot take in b is fixed and warned
-// about (see build.Check); it fails only with ErrUnreconcilable, or for an unknown output or
-// a fault of the dataset or engine.
+// sim, the build, then the default; a condition the build can cause itself that no layer sets
+// is derived from the build's skills (see Stats.Config). What the dataset cannot take in b is
+// fixed and warned about (see build.Check); it fails only with ErrUnreconcilable, or for an
+// unknown output or a fault of the dataset or engine.
 func (s *Sim) Simulate(b *build.Build, opts ...Option) (*Stats, error) {
 	co, err := readCallOptions(opts)
 	if err != nil {
@@ -256,13 +261,18 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	if err := sh.Switch(&r.sheet); err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
+	// The derived config is kept on the run, so a sweep's sheets switch to it.
+	cfg, derived, err := sh.DeriveConditions(r.sheet.Config)
+	if err != nil {
+		return nil, fmt.Errorf("simulator: %w", err)
+	}
+	r.sheet.Config = cfg
 	cat, hands := catalogue(), r.sheet.Hands
 	main := r.sheet.Skills.Main
 	st := &Stats{
 		keys: skillKeys(keys, cat, main, hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
 		build: r.build, checked: r.checked, items: r.sheet.Items, hands: hands, skill: main, sheetSkills: r.sheet.Skills.Skills, enemy: r.sheet.Enemy, sim: s,
 	}
-	var err error
 	if st.values, err = readOutputs(st.keys, func(k output.Key) (float64, error) { return sh.Output(k) }); err != nil {
 		return nil, err
 	}
@@ -271,7 +281,7 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 			return nil, err
 		}
 	}
-	st.warnings = slices.Concat(r.warnings, noteWarnings(sh.Notes()))
+	st.warnings = slices.Concat(r.warnings, derived, noteWarnings(sh.Notes()))
 	return st, nil
 }
 

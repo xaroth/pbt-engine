@@ -97,17 +97,9 @@ func readSteps() []step {
 		{name: "read a skill's average hit", run: readSkillHit},
 		{name: "read the warnings", run: readWarnings},
 		{name: "warn about a gem the dataset lacks", run: unknownGem},
-		{name: "warn about a condition whose source the build lacks", pending: &pending{
-			needs: "conditions derived from the build", waitsOn: []string{"simulator.NoConditionSource"},
-			code: `stats.Warnings() // {Code: NoConditionSource, Subject: "enemy.shocked", Message: "could not detect source, assuming external"}`,
-		}},
+		{name: "warn about a condition whose source the build lacks", run: noConditionSource},
 		{name: "read where a config value came from", run: readConfigSource},
-		{name: "read whether the enemy is shocked, and why", pending: &pending{
-			needs: "conditions derived from the build", waitsOn: []string{"poe1.EnemyShocked", "config.Derived"},
-			code: `v, _ := stats.Config(poe1.EnemyShocked)
-_ = v.Value  // true
-_ = v.Source // config.Derived`,
-		}},
+		{name: "read whether the enemy is shocked or ignited, and why", run: derivedConditions},
 		{name: "explain an output", run: explainOutput},
 		{name: "compute only the listed outputs", run: listedOutputs},
 		{name: "force a condition off, then hand it back", run: forceConditionOff},
@@ -531,6 +523,31 @@ func readConfigSource(t *testing.T, w *walk) {
 	}
 	if v, src := configOf(w.stats, poe1.Campaign); src != config.Default {
 		t.Errorf("campaign %s from %v, want the default", v, src)
+	}
+}
+
+// noConditionSource: Fireball cannot shock, so a Shocked enemy set in the build applies with a
+// warning that says so.
+func noConditionSource(t *testing.T, w *walk) {
+	b := w.next.Clone()
+	if err := config.Set(&b.Config, poe1.EnemyShocked, true); err != nil {
+		t.Fatal(err)
+	}
+	st := simulate(t, w.sim, b, simulator.Outputs(poe1.Life))
+	i := slices.IndexFunc(st.Warnings(), func(x build.Warning) bool { return x.Code == simulator.NoConditionSource })
+	if i < 0 || st.Warnings()[i].Subject != "config "+poe1.EnemyShocked.Name() {
+		t.Errorf("warnings %v, want no source for the Shocked enemy", st.Warnings())
+	}
+}
+
+// derivedConditions: Fireball's hits can ignite and cannot shock, so the enemy is Ignited,
+// derived from the build, and not Shocked, by default.
+func derivedConditions(t *testing.T, w *walk) {
+	if on, src := configOf(w.stats, poe1.EnemyIgnited); on != "true" || src != config.Derived {
+		t.Errorf("ignited %s from %v, want on, derived", on, src)
+	}
+	if on, src := configOf(w.stats, poe1.EnemyShocked); on != "false" || src != config.Default {
+		t.Errorf("shocked %s from %v, want off by default", on, src)
 	}
 }
 

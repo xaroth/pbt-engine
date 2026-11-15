@@ -127,7 +127,7 @@ func addAilmentSourceFormulas(b *core.ModelBuilder, ids map[string]core.StatID) 
 type ailmentMasks struct {
 	dropped, ailments, form, damage core.Mask
 	// bits are each ailment's.
-	bits [ailmentPoison + 1]core.Mask
+	bits [ailmentChill + 1]core.Mask
 	dim  core.Dimension
 }
 
@@ -163,14 +163,16 @@ func (m ailmentMasks) parts() partMasks { return partMasks{hit: m.hit, scale: m.
 // ailmentKind is what a damaging ailment is: its type of damage, which its multipliers and the
 // enemy's resistance are read for, its damage per second as a share of the damage it starts
 // from, and its base duration, as PoB has them (Data.lua misc).
-// onCrit is set for an ailment a critical strike always inflicts; inherent are the types whose
-// damage counts toward it besides its own without damage_can_inflict_ailment.
+// onCrit is set for an ailment a critical strike always inflicts, always for one every hit
+// with its damage inflicts; inherent are the types whose damage counts toward it besides its
+// own without damage_can_inflict_ailment.
 type ailmentKind struct {
 	ailment  ailment
 	damage   DamageType
 	share    float64
 	duration float64
 	onCrit   bool
+	always   bool
 	inherent []DamageType
 }
 
@@ -244,7 +246,6 @@ func (k ailmentKind) sources(masks ailmentMasks, withAilment core.Mask, flag fun
 func (k ailmentKind) read(r ailmentReads, masks ailmentMasks, m core.Mask, stat func(core.StatID, core.Mask) float64) inflicted {
 	withAilment, ofType := k.at(masks, m)
 	in := inflicted{
-		onHit:      min(max(stat(r.chance, withAilment), 0), percentScale) / percentScale,
 		crit:       stat(r.critChance, m) / percentScale,
 		multiplier: 1 + stat(r.multiplier, ofType)/percentScale,
 		faster:     1 + stat(r.faster, ofType)/percentScale,
@@ -254,15 +255,10 @@ func (k ailmentKind) read(r ailmentReads, masks ailmentMasks, m core.Mask, stat 
 		taken:      stat(r.taken, ofType) / percentScale,
 	}
 	in.criticalMultiplier = in.multiplier + stat(r.criticalMultiplier, ofType)/percentScale
-	in.onCrit = in.onHit
-	if k.onCrit {
-		in.onCrit = 1
-	}
-	if stat(r.neverFromCrit, m) != 0 {
-		in.onCrit, in.criticalMultiplier = in.onHit, in.multiplier
-	}
-	if stat(r.cannot, withAilment) != 0 {
-		in.onHit, in.onCrit = 0, 0
+	var neverFromCrit bool
+	in.onHit, in.onCrit, neverFromCrit = k.chances(r, m, withAilment, stat)
+	if neverFromCrit {
+		in.criticalMultiplier = in.multiplier
 	}
 	if in.faster > 0 {
 		in.duration = k.duration * max(stat(r.duration, ofType), 0) / percentScale / in.faster
@@ -272,6 +268,27 @@ func (k ailmentKind) read(r ailmentReads, masks ailmentMasks, m core.Mask, stat 
 		in.maximum += stat(r.maximum, src)
 	}
 	return in
+}
+
+// chances returns the chance that a hit inflicts ailment k without and with a critical strike,
+// read in m, the hit's context, and withAilment, it with the ailment, and whether critical
+// strikes inflict it as hits that are not critical do.
+func (k ailmentKind) chances(r ailmentReads, m, withAilment core.Mask, stat func(core.StatID, core.Mask) float64) (onHit, onCrit float64, neverFromCrit bool) {
+	if stat(r.cannot, withAilment) != 0 {
+		return 0, 0, stat(r.neverFromCrit, m) != 0
+	}
+	onHit = min(max(stat(r.chance, withAilment), 0), percentScale) / percentScale
+	if k.always {
+		onHit = 1
+	}
+	onCrit = onHit
+	if k.onCrit {
+		onCrit = 1
+	}
+	if neverFromCrit = stat(r.neverFromCrit, m) != 0; neverFromCrit {
+		onCrit = onHit
+	}
+	return onHit, onCrit, neverFromCrit
 }
 
 // perHit is the chance that a hit inflicts the ailment.
