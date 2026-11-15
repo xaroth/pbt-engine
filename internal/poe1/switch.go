@@ -1,0 +1,90 @@
+package poe1
+
+import (
+	"errors"
+	"slices"
+
+	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
+	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/resolve"
+)
+
+// Switch is what a sheet is switched to for one checked build (Sheet.Switch): its level,
+// nodes, masteries, items, hands, skills, config and enemy, with its point budget.
+type Switch struct {
+	Checked *build.Checked
+	Config  config.Resolved
+	Items   []Item
+	// Hands is what the character attacks with.
+	Hands  Hands
+	Skills SheetSkills
+	Budget Budget
+	// Enemy is what the main skill's hits are measured against.
+	Enemy EnemyStats
+	// Warnings are the skills' (SheetSkillsOf), then the budget's (PointBudget).
+	Warnings []build.Warning
+}
+
+// SwitchOf returns what a sheet is switched to for c under cfg with its compiled items; with
+// every, each skill of the build goes on the sheet (SheetSkillsOf). The enemy is the default
+// one unless the sheet gives the hit of a skill whose outputs are read; it reads the monsters
+// group of c's dataset only when its kind takes a normal monster's armour and evasion.
+func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, every bool) (Switch, error) {
+	sw := Switch{Checked: c, Config: cfg, Items: items, Hands: HandsOf(items, c.Character())}
+	var err error
+	if sw.Skills, err = SheetSkillsOf(c, sw.Hands, every); err != nil {
+		return sw, err
+	}
+	sw.Warnings = append(sw.Warnings, sw.Skills.Warnings...)
+	var over []build.Warning
+	if sw.Budget, over, err = PointBudget(c, cfg); err != nil {
+		return sw, err
+	}
+	sw.Warnings = append(sw.Warnings, over...)
+	if sw.Enemy, err = enemyOf(&sw); err != nil {
+		return sw, err
+	}
+	return sw, nil
+}
+
+// enemyOf resolves the enemy of sw's config when the sheet gives the hit of a skill whose
+// outputs are read, the default enemy otherwise. Only an enemy kind with a normal monster's
+// armour and evasion reads them from the dataset's monsters group, and fails without it.
+func enemyOf(sw *Switch) (EnemyStats, error) {
+	if !slices.ContainsFunc(sw.Skills.Read(), func(sk *resolve.Skill) bool { return Hit(sk, sw.Hands) }) {
+		return DefaultEnemy(), nil
+	}
+	var levels []dataset.MonsterLevel
+	if enemyReadsMonsters(sw.Config) {
+		m, err := sw.Checked.Store().Monsters()
+		switch {
+		case err == nil:
+			levels = m.Levels
+		case !errors.Is(err, dataset.ErrNotInDataset):
+			return EnemyStats{}, err //nolint:wrapcheck // wrapped by the caller
+		}
+	}
+	return EnemyOf(sw.Config, sw.Checked.Build().Level, levels)
+}
+
+// Switch switches sh to sw's level, nodes, masteries, items, hands, skills, config and enemy.
+func (sh *Sheet) Switch(sw *Switch) error {
+	cb := sw.Checked.Build()
+	if err := sh.SetLevel(cb.Level); err != nil {
+		return err
+	}
+	sh.SetNodes(cb.Nodes, cb.Masteries)
+	if err := sh.SetItems(sw.Items); err != nil {
+		return err
+	}
+	if err := sh.SetHands(sw.Hands); err != nil {
+		return err
+	}
+	if err := sh.SetSkills(sw.Skills.Skills); err != nil {
+		return err
+	}
+	sh.SetConfig(sw.Config)
+	sh.SetEnemy(sw.Enemy)
+	return nil
+}

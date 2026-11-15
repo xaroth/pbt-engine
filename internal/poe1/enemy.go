@@ -129,9 +129,9 @@ type EnemyStats struct {
 	Armour, Evasion                                                      int
 }
 
-// EnemyReadsMonsters reports whether EnemyOf reads the monster values per level for cfg: its
+// enemyReadsMonsters reports whether EnemyOf reads the monster values per level for cfg: its
 // enemy kind takes a normal monster's armour and evasion.
-func EnemyReadsMonsters(cfg config.Resolved) bool {
+func enemyReadsMonsters(cfg config.Resolved) bool {
 	kind, src := config.Lookup(cfg, Enemy)
 	if src == config.Default {
 		kind = EnemyPinnacle

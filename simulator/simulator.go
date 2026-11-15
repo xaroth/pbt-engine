@@ -194,22 +194,15 @@ func (s *Sim) Simulate(b *build.Build, opts ...Option) (*Stats, error) {
 	return s.statsOf(run, sh, keys)
 }
 
-// run is one build prepared for a sheet: checked, its config resolved, its warnings so far.
+// run is one build prepared for a sheet: checked, what its sheet is switched to, its warnings
+// so far.
 type run struct {
 	build   *build.Build
 	checked *build.Checked
 	shape   shape
-	cfg     config.Resolved
-	budget  Budget
-	items   []poe1.Item
-	// hands is what the character attacks with.
-	hands poe1.Hands
-	// skills are the skills on the sheet, the main skill first; ask is which of them the call
-	// reads the outputs of besides the main skill's.
-	skills poe1.SheetSkills
-	ask    skillAsk
-	// enemy is what the main skill's hits are measured against.
-	enemy    poe1.EnemyStats
+	sheet   poe1.Switch
+	// ask is which skills the call reads the outputs of besides the main skill's.
+	ask      skillAsk
 	warnings []Warning
 }
 
@@ -232,25 +225,14 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 		return nil, err
 	}
 	r.ask = co.skills
-	r.hands = poe1.HandsOf(r.items, c.Character())
-	if r.skills, err = poe1.SheetSkillsOf(c, r.hands, co.skills.any()); err != nil {
-		return nil, fmt.Errorf("simulator: %w", err)
-	}
-	r.warnings = append(r.warnings, r.skills.Warnings...)
-	var problems []config.Problem
-	r.cfg, problems = resolveConfig(co, sim, cb.Config)
+	cfg, problems := resolveConfig(co, sim, cb.Config)
 	for _, p := range problems {
 		r.warnings = append(r.warnings, configWarning(p))
 	}
-	var over []Warning
-	r.budget, over, err = poe1.PointBudget(c, r.cfg)
-	if err != nil {
+	if r.sheet, err = poe1.SwitchOf(c, cfg, r.sheet.Items, co.skills.any()); err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
-	r.warnings = append(r.warnings, over...)
-	if r.enemy, err = enemyOf(s.store, r); err != nil {
-		return nil, err
-	}
+	r.warnings = append(r.warnings, r.sheet.Warnings...)
 	return r, nil
 }
 
@@ -267,63 +249,18 @@ func resolveConfig(co callOptions, sim, b config.Values) (config.Resolved, []con
 		config.Layer{Source: config.FromBuild, Values: b})
 }
 
-// enemyOf resolves the enemy of r's config when the sheet gives the hit of a skill whose
-// outputs are read, the default enemy otherwise. Only an enemy kind with a normal monster's
-// armour and evasion reads them from the dataset's monsters group, and fails without it.
-func enemyOf(store *dataset.Store, r *run) (poe1.EnemyStats, error) {
-	if !slices.ContainsFunc(r.skills.Read(), func(sk *resolve.Skill) bool { return poe1.Hit(sk, r.hands) }) {
-		return poe1.DefaultEnemy(), nil
-	}
-	var levels []dataset.MonsterLevel
-	if poe1.EnemyReadsMonsters(r.cfg) {
-		m, err := store.Monsters()
-		switch {
-		case err == nil:
-			levels = m.Levels
-		case !errors.Is(err, dataset.ErrNotInDataset):
-			return poe1.EnemyStats{}, fmt.Errorf("simulator: %w", err)
-		}
-	}
-	e, err := poe1.EnemyOf(r.cfg, r.checked.Build().Level, levels)
-	if err != nil {
-		return poe1.EnemyStats{}, fmt.Errorf("simulator: %w", err)
-	}
-	return e, nil
-}
-
-// switchTo switches sh to the run's level, nodes, masteries, items, skills and config.
-func switchTo(r *run, sh *poe1.Sheet) error {
-	cb := r.checked.Build()
-	if err := sh.SetLevel(cb.Level); err != nil {
-		return fmt.Errorf("simulator: %w", err)
-	}
-	sh.SetNodes(cb.Nodes, cb.Masteries)
-	if err := sh.SetItems(r.items); err != nil {
-		return fmt.Errorf("simulator: %w", err)
-	}
-	if err := sh.SetHands(r.hands); err != nil {
-		return fmt.Errorf("simulator: %w", err)
-	}
-	if err := sh.SetSkills(r.skills.Skills); err != nil {
-		return fmt.Errorf("simulator: %w", err)
-	}
-	sh.SetConfig(r.cfg)
-	sh.SetEnemy(r.enemy)
-	return nil
-}
-
 // statsOf reads keys from sh after switching it to the run's nodes and config. Skill outputs
 // the run's main skill has none of (poe1.Gives) are left out, and so are those of each other
 // skill read.
 func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error) {
-	if err := switchTo(r, sh); err != nil {
-		return nil, err
+	if err := sh.Switch(&r.sheet); err != nil {
+		return nil, fmt.Errorf("simulator: %w", err)
 	}
-	cat, hands := catalogue(), r.hands
-	main := r.skills.Main
+	cat, hands := catalogue(), r.sheet.Hands
+	main := r.sheet.Skills.Main
 	st := &Stats{
-		keys: skillKeys(keys, cat, main, hands), cfg: r.cfg, budget: r.budget,
-		build: r.build, checked: r.checked, items: r.items, hands: r.hands, skill: main, sheetSkills: r.skills.Skills, enemy: r.enemy, sim: s,
+		keys: skillKeys(keys, cat, main, hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
+		build: r.build, checked: r.checked, items: r.sheet.Items, hands: hands, skill: main, sheetSkills: r.sheet.Skills.Skills, enemy: r.sheet.Enemy, sim: s,
 	}
 	var err error
 	if st.values, err = readOutputs(st.keys, func(k output.Key) (float64, error) { return sh.Output(k) }); err != nil {
@@ -360,16 +297,16 @@ func readOutputs(keys []output.Key, read func(output.Key) (float64, error)) (map
 // skill's from mainValues, the main skill first. The default attack is no skill of the build, so
 // it has none.
 func readSkills(r *run, sh *poe1.Sheet, keys []output.Key, mainValues map[output.Key]float64) ([]SkillStats, error) {
-	cat, hands := catalogue(), r.hands
+	cat, hands := catalogue(), r.sheet.Hands
 	keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !cat[k].IsSkill() })
 	var out []SkillStats
-	for slot, sk := range r.skills.Read() {
+	for slot, sk := range r.sheet.Skills.Read() {
 		ref := refOf(sk)
 		if sk.Source.Default() || !r.ask.wants(ref) {
 			continue
 		}
 		ss := SkillStats{Ref: ref, GrantedEffect: sk.GrantedEffect, keys: skillKeys(keys, cat, sk, hands)}
-		if sk == r.skills.Main {
+		if sk == r.sheet.Skills.Main {
 			ss.values = make(map[output.Key]float64, len(ss.keys))
 			for _, k := range ss.keys {
 				ss.values[k] = mainValues[k]
@@ -384,7 +321,7 @@ func readSkills(r *run, sh *poe1.Sheet, keys []output.Key, mainValues map[output
 	}
 	// The main skill is in the first slot; the others go by address.
 	others := out
-	if main := r.skills.Main; len(out) > 0 && main != nil && out[0].Ref == refOf(main) {
+	if main := r.sheet.Skills.Main; len(out) > 0 && main != nil && out[0].Ref == refOf(main) {
 		others = out[1:]
 	}
 	slices.SortFunc(others, func(a, b SkillStats) int { return compareRefs(a.Ref, b.Ref) })
