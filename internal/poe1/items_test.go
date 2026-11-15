@@ -24,6 +24,8 @@ func TestCompileItem(t *testing.T) {
 	}}
 	given := helmet
 	given.Armour = 767
+	rolled := given
+	rolled.DefenceRolls = map[build.Defence]float64{build.DefenceArmour: 0.5}
 	hybrid := build.Item{Mods: []build.ModLine{
 		line("local_evasion_and_energy_shield_+%", 50), line("local_energy_shield", 10), line("local_armour_and_evasion_+%", 7),
 	}}
@@ -50,9 +52,17 @@ func TestCompileItem(t *testing.T) {
 			},
 		},
 		{
-			name: "armour the text gives", item: given, base: strBase,
+			name: "armour the text prints, without a roll", item: given, base: strBase,
 			want: []resolve.StatValue{
 				{Stat: "base_physical_damage_reduction_rating", Value: 767}, {Stat: "base_maximum_life", Value: 101},
+				{Stat: "base_fire_damage_resistance_%", Value: 33},
+			},
+		},
+		// The roll wins over the printed value: (501 + 37.5 + 68) * 1.82 * 1.2 = 1324.626
+		{
+			name: "armour at its roll", item: rolled, base: strBase,
+			want: []resolve.StatValue{
+				{Stat: "base_physical_damage_reduction_rating", Value: 1325}, {Stat: "base_maximum_life", Value: 101},
 				{Stat: "base_fire_damage_resistance_%", Value: 33},
 			},
 		},

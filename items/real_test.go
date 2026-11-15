@@ -72,6 +72,8 @@ func TestParseHelmet(t *testing.T) {
 	want := build.Item{
 		Rarity: build.Rare, Name: "Foe Horn", Base: "Metadata/Items/Armours/Helmets/HelmetStr13", ItemLevel: 85,
 		Quality: 20, Sockets: "R-R-R-R", Armour: 767,
+		// 767 is below the lowest roll: (501 + 68) * 1.82 * 1.2 = 1243.
+		DefenceRolls: map[build.Defence]float64{build.DefenceArmour: 0},
 		Mods: []build.ModLine{
 			stat(build.Explicit, "+68 to Armour", "local_base_physical_damage_reduction_rating", 68),
 			stat(build.Explicit, "+101 to maximum Life", "base_maximum_life", 101),

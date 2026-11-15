@@ -77,12 +77,17 @@ type Item struct {
 	Quality   int    `json:"quality,omitzero"`
 	// Sockets as the text writes them, such as "R-R-B G".
 	Sockets string `json:"sockets,omitzero"`
-	// Armour, Evasion, EnergyShield and Ward are the item's own defences where its text gives
-	// them, local modifiers and quality included; 0 when it gives none.
+	// Armour, Evasion, EnergyShield and Ward are the item's own defences as its text prints them,
+	// local modifiers and quality included; 0 when it prints none. A defence is computed from
+	// its roll (DefenceRolls); one without a roll is taken as printed, or at the base's highest
+	// roll when it is not printed either.
 	Armour       int `json:"armour,omitzero"`
 	Evasion      int `json:"evasion,omitzero"`
 	EnergyShield int `json:"energyShield,omitzero"`
 	Ward         int `json:"ward,omitzero"`
+	// DefenceRolls are where the base's defences rolled in their ranges, from 0 at the lowest to
+	// 1 at the highest, as Path of Building's ArmourBasePercentile and the like.
+	DefenceRolls map[Defence]float64 `json:"defenceRolls,omitempty"`
 	// Flags are the item's other properties as the text names them, such as "Corrupted" or
 	// "Shaper Item".
 	Flags []string `json:"flags,omitzero"`
@@ -92,6 +97,17 @@ type Item struct {
 	// Sockets.
 	AbyssJewels map[int]Item `json:"abyssJewels,omitempty"`
 }
+
+// Defence is one of an armour item's own defences.
+type Defence string
+
+// Defences.
+const (
+	DefenceArmour       Defence = "armour"
+	DefenceEvasion      Defence = "evasion"
+	DefenceEnergyShield Defence = "energy-shield"
+	DefenceWard         Defence = "ward"
+)
 
 // ModLine is one mod line of an item, or the lines of one description that spans several.
 type ModLine struct {
@@ -118,6 +134,7 @@ func (it *Item) Clone() *Item {
 	for i := range c.Mods {
 		c.Mods[i].Stats = slices.Clone(c.Mods[i].Stats)
 	}
+	c.DefenceRolls = maps.Clone(it.DefenceRolls)
 	c.AbyssJewels = cloneItems(it.AbyssJewels)
 	return &c
 }

@@ -45,7 +45,7 @@ const unusable = "You cannot use this item. Its stats will be ignored"
 // section after the item level holds the explicit mods. Sections after the mods, such as flavour
 // text, are left out.
 func splitGame(text string) (parsed, error) {
-	var p parsed
+	p := parsed{game: true}
 	sections, err := p.gameHeader(gameSections(text))
 	if err != nil {
 		return p, err

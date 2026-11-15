@@ -426,7 +426,8 @@ func TestParse(t *testing.T) {
 				"Implicits: 1\n{enchant}+20 to maximum Life\n+30 to maximum Life\n{crafted}+40 to maximum Life\n{fractured}{range:0.5}+12 to maximum Life\nCorrupted\n",
 			build.Item{
 				Rarity: build.Rare, Name: "Doom Cap", Base: hatBase, ItemLevel: 70, Quality: 20, Sockets: "R-R", Armour: 80,
-				Flags: []string{"Shaper Item", "Corrupted"},
+				DefenceRolls: map[build.Defence]float64{build.DefenceArmour: 1},
+				Flags:        []string{"Shaper Item", "Corrupted"},
 				Mods: []build.ModLine{
 					line(build.Enchant, "+20 to maximum Life", "base_maximum_life", 20),
 					line(build.Explicit, "+30 to maximum Life", "base_maximum_life", 30),
