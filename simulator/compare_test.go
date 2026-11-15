@@ -12,6 +12,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/benchbuilds"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/simulator"
@@ -151,6 +152,37 @@ func TestStatsExplain(t *testing.T) {
 	}
 	if _, err := st.Explain("player.nothing", simulator.Tree); err == nil {
 		t.Error("unknown output: no error")
+	}
+}
+
+// On the benchmark builds every output's explanation gives the value Get gives. The cluster
+// jewels' passives count in both, also after a sim's pooled sheet served the build without its
+// jewels.
+func TestStatsExplainAgreesReal(t *testing.T) {
+	t.Parallel()
+	d := benchbuilds.Open(t)
+	for _, c := range benchbuilds.Builds(t, d) {
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			s, err := simulator.New(d.Store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bare := c.Build.Clone()
+			bare.Jewels = nil
+			for _, b := range []*build.Build{bare, c.Build} {
+				st := simulate(t, s, b)
+				for _, k := range st.Keys() {
+					ex, err := st.Explain(k, simulator.Tree)
+					if err != nil {
+						t.Fatalf("%s: %v", k, err)
+					}
+					if v := get(t, st, k); math.Float64bits(ex.Value) != math.Float64bits(v) {
+						t.Errorf("%d jewels, %s: explained %v, got %v", len(b.Jewels), k, ex.Value, v)
+					}
+				}
+			}
+		})
 	}
 }
 

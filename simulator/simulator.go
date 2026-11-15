@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -105,6 +106,9 @@ type shape struct {
 	variant, class, ascendancy, bloodline string
 	// overrides lists node:override pairs by node, since they change the nodes' bundles.
 	overrides string
+	// clusters lists the passives the cluster jewels add with their stats, since the jewels
+	// decide which there are and what they give.
+	clusters string
 }
 
 // shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
@@ -115,7 +119,30 @@ func shapeOf(c *build.Checked) shape {
 	for _, o := range c.Overrides() {
 		fmt.Fprintf(&overrides, "%d:%s,", o.Node.ID, o.Override.ID)
 	}
-	return shape{variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline, overrides: overrides.String()}
+	return shape{
+		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
+		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()),
+	}
+}
+
+// clustersKey lists nodes with their stats and buffs.
+func clustersKey(nodes []*dataset.Node) string {
+	var buf []byte
+	appendStats := func(svs []dataset.StatValue) {
+		for _, sv := range svs {
+			buf = strconv.AppendUint(append(buf, ' '), uint64(sv.Stat), 10)
+			buf = strconv.AppendInt(append(buf, '='), int64(sv.Value), 10)
+		}
+	}
+	for _, n := range nodes {
+		buf = strconv.AppendUint(append(buf, ','), uint64(n.ID), 10)
+		appendStats(n.Stats)
+		for _, bf := range n.Buffs {
+			buf = append(buf, '|')
+			appendStats(bf)
+		}
+	}
+	return string(buf)
 }
 
 type idleSheet struct {
