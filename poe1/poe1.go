@@ -56,6 +56,8 @@ const (
 	HitDPS                      = rules.HitDPS
 	DotDPS                      = rules.DotDPS
 	IgniteDPS                   = rules.IgniteDPS
+	BleedDPS                    = rules.BleedDPS
+	PoisonDPS                   = rules.PoisonDPS
 	PhysicalMinimum             = rules.PhysicalMinimum
 	PhysicalMaximum             = rules.PhysicalMaximum
 	FireMinimum                 = rules.FireMinimum
@@ -106,6 +108,7 @@ const (
 	EnemyFrozen              = rules.EnemyFrozen
 	EnemyIgnited             = rules.EnemyIgnited
 	EnemyBleeding            = rules.EnemyBleeding
+	EnemyMoving              = rules.EnemyMoving
 	EnemyUnnerved            = rules.EnemyUnnerved
 	EnemyIntimidated         = rules.EnemyIntimidated
 	EnemyTaunted             = rules.EnemyTaunted

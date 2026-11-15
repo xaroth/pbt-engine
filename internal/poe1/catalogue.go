@@ -95,10 +95,10 @@ const (
 	needsOneHandHit
 	// needsBothHandsHit is an attack's hit with both hands.
 	needsBothHandsHit
-	// needsDot is a skill whose total damage over time the sheet gives (dotOrIgniteSkill).
+	// needsDot is a skill whose total damage over time the sheet gives (dotOrAilmentSkill).
 	needsDot
-	// needsIgnite is a hit whose ignite the sheet gives (igniteSkill).
-	needsIgnite
+	// needsAilment is a hit whose damaging ailments the sheet gives (ailmentSkill).
+	needsAilment
 )
 
 // IsSkill reports whether o is read in the main skill's context.
@@ -109,8 +109,8 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 // for a hit, its accuracy only for an attack's, its hit per damage type only for a hit with one
 // hand, its hit per hand only for an attack's with both, its rate of hits and hit damage per
 // second only for a hit the character uses itself, its damage over time only for a skill that
-// deals it or a hit whose ignite it gives, and its ignite only for a hit the character uses
-// itself with one hand.
+// deals it or a hit whose ailments it gives, and its ignite, bleeding and poison only for a
+// hit the character uses itself with one hand.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -135,9 +135,9 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 	case needsBothHandsHit:
 		return bothHandsHit(sk, hands)
 	case needsDot:
-		return dotOrIgniteSkill(sk, hands)
-	case needsIgnite:
-		return igniteSkill(sk, hands)
+		return dotOrAilmentSkill(sk, hands)
+	case needsAilment:
+		return ailmentSkill(sk, hands)
 	case needsSkill:
 	}
 	return true
@@ -188,7 +188,8 @@ func Outputs() []Output {
 		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
 		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost},
 		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost},
-	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()), group(GroupSkill, igniteOutputs()))
+	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()), group(GroupSkill, igniteOutputs()),
+		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()))
 	for i := range out {
 		out[i].Order = i
 	}
@@ -336,7 +337,7 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	switch o.needs {
 	case needsSkill, needsDot:
 		form = formNone
-	case needsHit, needsRate, needsAttackHit, needsOneHandHit, needsBothHandsHit, needsIgnite:
+	case needsHit, needsRate, needsAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
 		form = formHit
 	}
 	return sh.skillHandNode(i, o.stat, damage, form, o.hand)

@@ -19,6 +19,7 @@ const (
 	statEnemyIsFrozen              = "enemy_is_frozen"
 	statEnemyIsIgnited             = "enemy_is_ignited"
 	statEnemyIsBleeding            = "enemy_is_bleeding"
+	statEnemyIsMoving              = "enemy_is_moving"
 	statEnemyIsUnnerved            = "enemy_is_unnerved"
 	statEnemyIsIntimidated         = "enemy_is_intimidated"
 	statEnemyIsTaunted             = "enemy_is_taunted"
@@ -41,6 +42,7 @@ const (
 	EnemyFrozen              config.Key[bool] = "enemy-frozen"
 	EnemyIgnited             config.Key[bool] = "enemy-ignited"
 	EnemyBleeding            config.Key[bool] = "enemy-bleeding"
+	EnemyMoving              config.Key[bool] = "enemy-moving"
 	EnemyUnnerved            config.Key[bool] = "enemy-unnerved"
 	EnemyIntimidated         config.Key[bool] = "enemy-intimidated"
 	EnemyTaunted             config.Key[bool] = "enemy-taunted"
@@ -87,6 +89,7 @@ func conditions() []condition {
 		{EnemyFrozen, statEnemyIsFrozen, "the enemy is Frozen"},
 		{EnemyIgnited, statEnemyIsIgnited, "the enemy is Ignited"},
 		{EnemyBleeding, statEnemyIsBleeding, "the enemy is Bleeding"},
+		{EnemyMoving, statEnemyIsMoving, "the enemy is moving"},
 		{EnemyUnnerved, statEnemyIsUnnerved, "the enemy is Unnerved"},
 		{EnemyIntimidated, statEnemyIsIntimidated, "the enemy is Intimidated"},
 		{EnemyTaunted, statEnemyIsTaunted, "the enemy is Taunted"},

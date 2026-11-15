@@ -1,4 +1,4 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 269 authored, 114 unknown, 1 display-only, 0 gaps, 1458 outside
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 293 authored, 114 unknown, 1 display-only, 0 gaps, 1434 outside
 unknown by reason: condition 67, items 30, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -112,6 +112,7 @@ omitted global_defences_+% global, uses 1: Ward, which is not a sheet value
 unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_energy_shield global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
 omitted keystone_chaos_inoculation global, uses 1: Immune to Chaos Damage
+omitted keystone_crimson_dance global, uses 1: that bleeding cannot be Aggravated, which the sheet does not model
 unknown keystone_divine_shield global, uses 1: condition: physical damage prevented from hits recently
 omitted keystone_elemental_overload global, uses 1: 40% more Elemental Damage with Hits and Ailments for Skills that have dealt a Critical Strike in the past 8 seconds, which PoB counts for any skill that can strike critically
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life

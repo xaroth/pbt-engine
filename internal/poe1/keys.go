@@ -129,6 +129,8 @@ const (
 	HitDPS                      output.Key = "skill.hit_dps"
 	DotDPS                      output.Key = "skill.dot_dps"
 	IgniteDPS                   output.Key = "skill.ignite_dps"
+	BleedDPS                    output.Key = "skill.bleed_dps"
+	PoisonDPS                   output.Key = "skill.poison_dps"
 	PhysicalMinimum             output.Key = "skill.physical_minimum"
 	PhysicalMaximum             output.Key = "skill.physical_maximum"
 	FireMinimum                 output.Key = "skill.fire_minimum"

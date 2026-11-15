@@ -336,11 +336,14 @@ func (sh *Sheet) addBaseValues() error {
 	if err := sh.addBaseSpeeds(); err != nil {
 		return err
 	}
-	if err := sh.addBaseAilmentDuration(); err != nil {
+	if err := sh.addBaseAilmentValues(); err != nil {
 		return err
 	}
 	// The enemy sets a condition.
 	if err := sh.addConditions(); err != nil {
+		return err
+	}
+	if err := sh.addBleedMoving(); err != nil {
 		return err
 	}
 	if err := sh.addEnemy(); err != nil {
