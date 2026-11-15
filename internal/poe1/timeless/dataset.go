@@ -82,15 +82,10 @@ func (v *Versions) Name(version int) string {
 	return v.rows[version].ID
 }
 
-// ChangesPassives reports whether the jewels of version change passives other than keystones
-// here. Only Elegant Hubris's do so far; the others' replacements and additions need rules of
-// their own.
-func (v *Versions) ChangesPassives(version int) bool { return v.Name(version) == eternalID }
-
 // Conquer gives what j makes of passive n, or reports false when it leaves n as it is: an
-// unknown version, a passive it does not change, or a kind ChangesPassives leaves out.
+// unknown version or a passive it does not change.
 func (v *Versions) Conquer(j ModJewel, n Node) (Change, bool) {
-	if v.Name(j.Version) == "" || (n.Kind != Keystone && !v.ChangesPassives(j.Version)) {
+	if v.Name(j.Version) == "" {
 		return Change{}, false
 	}
 	rows, seed := &v.rows[j.Version], j.Seed
