@@ -4,9 +4,13 @@
     "label": "Fire Resistance",
     "unit": "%",
     "places": 0,
-    "group": "sheet",
+    "group": "resistances",
     "better": "higher",
-    "order": 12
+    "order": 13,
+    "related": {
+      "maximum": "player.maximum_fire_resistance",
+      "uncapped": "player.uncapped_fire_resistance"
+    }
   },
   "view": "proportional",
   "version": "3.29.3.3",

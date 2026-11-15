@@ -7,7 +7,7 @@
         "label": "Dexterity",
         "unit": "",
         "places": 0,
-        "group": "sheet",
+        "group": "attributes",
         "better": "higher",
         "order": 1,
         "value": 0
@@ -17,7 +17,7 @@
         "label": "Life",
         "unit": "",
         "places": 0,
-        "group": "sheet",
+        "group": "life",
         "better": "higher",
         "order": 3,
         "value": 66
@@ -27,9 +27,13 @@
         "label": "Fire Resistance",
         "unit": "%",
         "places": 0,
-        "group": "sheet",
+        "group": "resistances",
         "better": "higher",
-        "order": 12,
+        "order": 13,
+        "related": {
+          "maximum": "player.maximum_fire_resistance",
+          "uncapped": "player.uncapped_fire_resistance"
+        },
         "value": 0
       },
       {
@@ -37,9 +41,9 @@
         "label": "Life Regeneration",
         "unit": "/s",
         "places": 1,
-        "group": "sheet",
+        "group": "life",
         "better": "higher",
-        "order": 24,
+        "order": 6,
         "value": 0
       }
     ],
@@ -55,7 +59,7 @@
         "label": "Dexterity",
         "unit": "",
         "places": 0,
-        "group": "sheet",
+        "group": "attributes",
         "better": "higher",
         "order": 1,
         "value": 0
@@ -65,7 +69,7 @@
         "label": "Life",
         "unit": "",
         "places": 0,
-        "group": "sheet",
+        "group": "life",
         "better": "higher",
         "order": 3,
         "value": 1154
@@ -75,9 +79,13 @@
         "label": "Fire Resistance",
         "unit": "%",
         "places": 0,
-        "group": "sheet",
+        "group": "resistances",
         "better": "higher",
-        "order": 12,
+        "order": 13,
+        "related": {
+          "maximum": "player.maximum_fire_resistance",
+          "uncapped": "player.uncapped_fire_resistance"
+        },
         "value": 0
       },
       {
@@ -85,9 +93,9 @@
         "label": "Life Regeneration",
         "unit": "/s",
         "places": 1,
-        "group": "sheet",
+        "group": "life",
         "better": "higher",
-        "order": 24,
+        "order": 6,
         "value": 0
       }
     ],
@@ -107,7 +115,7 @@
       "label": "Dexterity",
       "unit": "",
       "places": 0,
-      "group": "sheet",
+      "group": "attributes",
       "better": "higher",
       "order": 1,
       "before": 0,
@@ -121,7 +129,7 @@
       "label": "Life",
       "unit": "",
       "places": 0,
-      "group": "sheet",
+      "group": "life",
       "better": "higher",
       "order": 3,
       "before": 66,
@@ -135,9 +143,13 @@
       "label": "Fire Resistance",
       "unit": "%",
       "places": 0,
-      "group": "sheet",
+      "group": "resistances",
       "better": "higher",
-      "order": 12,
+      "order": 13,
+      "related": {
+        "maximum": "player.maximum_fire_resistance",
+        "uncapped": "player.uncapped_fire_resistance"
+      },
       "before": 0,
       "after": 0,
       "abs": 0,
@@ -149,9 +161,9 @@
       "label": "Life Regeneration",
       "unit": "/s",
       "places": 1,
-      "group": "sheet",
+      "group": "life",
       "better": "higher",
-      "order": 24,
+      "order": 6,
       "before": 0,
       "after": 0,
       "abs": 0,
