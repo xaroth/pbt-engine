@@ -36,13 +36,8 @@ func (c *Checked) generateClusters() error {
 			continue
 		}
 		if g == nil {
-			// Making a generator indexes every stat description, which costs far more than a
-			// Check, so the store keeps one per variant.
-			variant := c.build.Variant
 			var err error
-			g, err = dataset.Derived(c.store, generatorKey{variant}, func(s *dataset.Store) (*cluster.Generator, error) {
-				return cluster.NewGenerator(s, variant)
-			})
+			g, err = clusterGenerator(c.store, c.build.Variant)
 			if errors.Is(err, cluster.ErrNoClusterData) {
 				return nil
 			} else if err != nil {
@@ -55,6 +50,15 @@ func (c *Checked) generateClusters() error {
 
 // generatorKey keys the cluster generator of a tree variant among a store's derived values.
 type generatorKey struct{ variant string }
+
+// clusterGenerator returns the cluster generator of the tree variant of s, made once per store:
+// making one indexes every stat description, which costs far more than a Check.
+func clusterGenerator(s *dataset.Store, variant string) (*cluster.Generator, error) {
+	//nolint:wrapcheck // NewGenerator wraps its errors
+	return dataset.Derived(s, generatorKey{variant}, func(s *dataset.Store) (*cluster.Generator, error) {
+		return cluster.NewGenerator(s, variant)
+	})
+}
 
 // nextClusterSocket returns the lowest socket not done that holds a jewel and is a cluster
 // socket on the tree: one of the tree's own, or one a jewel added.

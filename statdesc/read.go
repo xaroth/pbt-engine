@@ -44,6 +44,15 @@ func (s *Set) Read(scopeName string, lines []string) ([]Reading, error) {
 	return out, nil
 }
 
+// IndexTexts makes now the index Read and ReadRange make of the texts of scope and its parents on
+// their first read, so that read is as fast as later ones. An unknown scope is left to the read
+// to report.
+func (s *Set) IndexTexts(scopeName string) {
+	for sc := s.scopes[scopeName]; sc != nil; sc = sc.parent {
+		sc.texts()
+	}
+}
+
 // variantMatch is a reading with the variant that gave it.
 type variantMatch struct {
 	reading       Reading

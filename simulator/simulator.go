@@ -203,6 +203,16 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 	return s, nil
 }
 
+// Load makes now what the sim makes on the first call that needs it, so that call is as fast as
+// later ones: the item reader, the index of item bases, and what build.Load makes. One that fails
+// to be made fails the call that needs it, as it would have without Load. It reads the groups of
+// the dataset it needs, which dataset.Store.Load can read first.
+func (s *Sim) Load() {
+	build.Load(s.store)
+	_, _ = s.items()
+	_, _ = s.bases()
+}
+
 // Store returns the sim's dataset.
 func (s *Sim) Store() *dataset.Store { return s.store }
 
