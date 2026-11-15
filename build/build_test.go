@@ -93,12 +93,13 @@ func juggernaut() *build.Build {
 }
 
 // A build encodes as its file, and the file parses back to the build; an empty optional field
-// such as the bloodline is left out of the file.
+// such as the name or the bloodline is left out of the file.
 func TestEncodeParse(t *testing.T) {
 	t.Parallel()
-	const head = `{
+	const format = `{
   "format": 1,
-  "game": "poe1",
+`
+	const head = `  "game": "poe1",
   "version": "3.29",
   "variant": "standard",
   "class": "Metadata/Characters/Str/Str",
@@ -117,16 +118,17 @@ func TestEncodeParse(t *testing.T) {
 }
 `
 	testCases := []struct {
-		name, bloodline, file string
+		name, buildName, bloodline, file string
 	}{
-		{"without a bloodline", "", head + tail},
-		{"with a bloodline", "Oshabi", head + `  "bloodline": "Oshabi",` + "\n" + tail},
+		{"without a name or bloodline", "", "", format + head + tail},
+		{"with a name", "Boneshatter", "", format + `  "name": "Boneshatter",` + "\n" + head + tail},
+		{"with a bloodline", "", "Oshabi", format + head + `  "bloodline": "Oshabi",` + "\n" + tail},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			b := juggernaut()
-			b.Bloodline = testCase.bloodline
+			b.Name, b.Bloodline = testCase.buildName, testCase.bloodline
 			data, err := b.Encode()
 			if err != nil {
 				t.Fatal(err)
@@ -377,6 +379,32 @@ func TestCheckWarnings(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			checkWarnings(t, s, testCase.edit, testCase.codes, testCase.check)
+		})
+	}
+}
+
+// Check trims the name and cuts a long one, by characters, warning only about the cut.
+func TestCheckName(t *testing.T) {
+	t.Parallel()
+	s := testStore(t)
+	testCases := []struct {
+		name, buildName, want string
+		codes                 []build.Code
+	}{
+		{"spaces around", "  Boneshatter\t", "Boneshatter", nil},
+		{"too long", " " + strings.Repeat("é", build.MaxNameLength-1) + " xyz", strings.Repeat("é", build.MaxNameLength-1),
+			[]build.Code{build.NameTooLong}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			checkWarnings(t, s, func(b *build.Build) { b.Name = testCase.buildName }, testCase.codes,
+				func(t *testing.T, b build.Build) {
+					t.Helper()
+					if b.Name != testCase.want {
+						t.Errorf("name %q, want %q", b.Name, testCase.want)
+					}
+				})
 		})
 	}
 }

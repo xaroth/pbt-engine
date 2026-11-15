@@ -2,7 +2,7 @@
 // stored form; Check turns it into a Checked build whose ids exist in one dataset version.
 // A build file looks like this:
 //
-//	{"format": 1, "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
+//	{"format": 1, "name": "Boneshatter", "game": "poe1", "version": "3.29", "class": "Metadata/Characters/Str/Str",
 //	 "ascendancy": "Juggernaut", "level": 90, "nodes": [47175, 17765, 31628], "config": {"bandits": "help-oak"}}
 package build
 
@@ -39,6 +39,9 @@ const DefaultVariant = "standard"
 // Build is a character build as stored and exchanged.
 type Build struct {
 	Format int `json:"format"`
+	// Name is what the player calls the build, or empty. Check trims it and caps it at
+	// MaxNameLength characters.
+	Name string `json:"name,omitzero"`
 	// Game is the edition, such as "poe1".
 	Game string `json:"game"`
 	// Version is the requested game version, resolved by dataset.Registry.Resolve.

@@ -8,12 +8,16 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
 // MaxLevel is the highest character level.
 const MaxLevel = 100
+
+// MaxNameLength is the most characters (runes) a build's name keeps.
+const MaxNameLength = 100
 
 // Kinds of ProblemError: what keeps a build from being checked at all. Check returns a
 // *CheckError, and errors.Is matches each of its problems' kinds.
@@ -30,6 +34,7 @@ type Code string
 const (
 	AscendancyNotOfClass  Code = "ascendancy-not-of-class"
 	BloodlineUnknown      Code = "bloodline-unknown"
+	NameTooLong           Code = "name-too-long"
 	LevelOutOfRange       Code = "level-out-of-range"
 	NodeUnknown           Code = "node-unknown"
 	NodeRepeated          Code = "node-repeated"
@@ -125,7 +130,8 @@ type MasteryChoice struct {
 	Effect dataset.MasteryEffect
 }
 
-// Check checks b against the dataset s and fixes what it can: it clears an ascendancy of
+// Check checks b against the dataset s and fixes what it can: it trims spaces around the name
+// and cuts a longer one to MaxNameLength characters, clears an ascendancy of
 // another class and a bloodline not among the tree's alternate ascendancies, clamps the level
 // to 1 to 100, drops unknown, repeated and proxy nodes, other classes' nodes, nodes of
 // ascendancies other than the build's ascendancy and bloodline, mastery choices that do not
@@ -186,9 +192,7 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 		ps.addf(ErrClass, 0, "%q", b.Class)
 		return nil, nil, ps.err()
 	}
-	c.checkAscendancy()
-	c.checkBloodline()
-	c.checkLevel()
+	c.checkCharacter()
 	if err := c.checkNodes(); err != nil {
 		return nil, nil, err
 	}
@@ -298,7 +302,7 @@ func (c *Checked) editWarnings(e Edit, allocated map[uint32]bool) []Warning {
 		w, bad = c.overrideProblem(e.Node, e.Override, allocated[e.Node])
 	case OpSocketJewel:
 		w, bad = c.socketProblem(e.Node)
-	case OpClearMastery, OpClearOverride, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
+	case OpSetName, OpClearMastery, OpClearOverride, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
 		OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
 		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpEquip, OpUnequip, OpUnsocketJewel:
 	}
@@ -367,6 +371,23 @@ func (c *Checked) checkBloodline() {
 		return
 	}
 	c.bloodStart = c.ascendancyStart(b.Bloodline)
+}
+
+// checkCharacter checks the name, ascendancy, bloodline and level.
+func (c *Checked) checkCharacter() {
+	c.checkName()
+	c.checkAscendancy()
+	c.checkBloodline()
+	c.checkLevel()
+}
+
+func (c *Checked) checkName() {
+	name := strings.TrimSpace(c.build.Name)
+	if n := utf8.RuneCountInString(name); n > MaxNameLength {
+		name = strings.TrimSpace(string([]rune(name)[:MaxNameLength]))
+		c.warnf(NameTooLong, "name", "%d characters, more than %d; cut to %d", n, MaxNameLength, utf8.RuneCountInString(name))
+	}
+	c.build.Name = name
 }
 
 func (c *Checked) checkLevel() {
