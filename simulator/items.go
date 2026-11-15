@@ -11,6 +11,7 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 func indexBases(s *dataset.Store) (map[string]*dataset.ItemBase, error) {
@@ -64,14 +65,29 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 		}
 	}
 	reflectRings(r.sheet.Items, own)
-	for _, node := range jewels {
+	return s.compileJewels(r, cb, jewels, bases)
+}
+
+// compileJewels adds to the items of r's sheet the jewels of cb in the allocated sockets, each
+// with the effect the others give it (poe1.SocketJewelEffect).
+func (s *Sim) compileJewels(r *run, cb *build.Build, sockets []uint32, bases map[string]*dataset.ItemBase) error {
+	jewels := make([]poe1.Item, len(sockets))
+	stats := make([][]resolve.StatValue, len(sockets))
+	for i, node := range sockets {
 		it := cb.Jewels[node]
 		c, key, err := s.compile(&it, bases)
 		if err != nil {
 			return fmt.Errorf("simulator: jewel %d: %w", node, err)
 		}
-		r.sheet.Items = append(r.sheet.Items, poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats})
+		jewels[i] = poe1.Item{Node: node, Name: it.Name, Key: key, Stats: c.Stats}
+		stats[i] = c.Stats
 	}
+	adorned := poe1.AdornedEffect(stats...)
+	for i, node := range sockets {
+		it := cb.Jewels[node]
+		poe1.ScaleJewel(&jewels[i], poe1.SocketJewelEffect(&it, adorned))
+	}
+	r.sheet.Items = append(r.sheet.Items, jewels...)
 	return nil
 }
 
@@ -87,7 +103,8 @@ func reflectRings(items []poe1.Item, at map[build.Slot]int) {
 	poe1.ReflectRings(rings)
 }
 
-// compileItem adds to the items of r's sheet the item it in slot, then its abyss jewels. Each jewel counts
+// compileItem adds to the items of r's sheet the item it in slot, then its abyss jewels with the
+// effect the item gives them (poe1.AbyssJewelEffect). Each jewel counts
 // as part of its item: it shares the item's slot, weapon and shield, so the hands read the same
 // whichever of the two they meet last, and its index keeps two equal jewels apart. Only a
 // body armour with stats is told whether it has Life Modifiers: only the body armour is asked,
@@ -123,9 +140,11 @@ func (s *Sim) compileItem(r *run, slot build.Slot, it build.Item, bases map[stri
 		if err != nil {
 			return fmt.Errorf("simulator: abyss jewel %s %d: %w", slot, i, err)
 		}
-		r.sheet.Items = append(r.sheet.Items, poe1.Item{
+		jewel := poe1.Item{
 			Slot: slot, Name: j.Name, Key: fmt.Sprintf("abyss %d %s", i, jkey), Stats: jc.Stats, Weapon: c.Weapon, Shield: c.Shield,
-		})
+		}
+		poe1.ScaleJewel(&jewel, poe1.AbyssJewelEffect(c.Stats))
+		r.sheet.Items = append(r.sheet.Items, jewel)
 	}
 	return nil
 }
