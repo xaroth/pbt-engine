@@ -731,6 +731,11 @@
             "name": {
               "type": "string",
               "description": "As an item's."
+            },
+            "passives": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "For a jewel whose effect grows with them, the allocated passives between its socket and the class start; absent for others."
             }
           }
         },

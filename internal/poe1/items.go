@@ -18,6 +18,9 @@ type Item struct {
 	// Node is a jewel's socket node; 0 for an equipped item, which has a Slot instead.
 	Node uint32
 	Name string
+	// Passives is, for a jewel whose effect grows with them, the allocated passives between its
+	// socket and the class start; 0 for others.
+	Passives int
 	// Key identifies the item's content; a sheet keeps one source per slot and key.
 	Key   string
 	Stats []resolve.StatValue
@@ -176,7 +179,7 @@ func (sh *Sheet) SetItems(items []Item) error {
 		}
 		var source resolve.Source = resolve.ItemSource{Slot: it.Slot, Name: it.Name}
 		if it.Node != 0 {
-			source = resolve.JewelSource{Node: it.Node, Name: it.Name}
+			source = resolve.JewelSource{Node: it.Node, Name: it.Name, Passives: it.Passives}
 		}
 		if sh.marked {
 			return fmt.Errorf("%w: %s", ErrCheckpointOpen, source)

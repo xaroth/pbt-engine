@@ -16,6 +16,9 @@ const (
 	// statCorruptedMagicJewelEffect is The Adorned's "increased Effect of Jewel Socket Passive
 	// Skills containing Corrupted Magic Jewels".
 	statCorruptedMagicJewelEffect = "local_unique_jewel_passive_jewel_socket_mod_effect_+%_with_corrupted_magic_jewel_socketed"
+	// statEffectPerPassiveToStart is Split Personality's "increased effect per Allocated Passive
+	// Skill between it and your Class' starting location".
+	statEffectPerPassiveToStart = "local_jewel_+%_effect_per_passive_between_jewel_and_class_start" //nolint:gosec // a stat id, not a credential
 )
 
 // corruptedFlag is the item flag of a corrupted item.
@@ -45,6 +48,13 @@ func AdornedEffect(stats ...[]resolve.StatValue) float64 {
 		sum += sumStat(s, statCorruptedMagicJewelEffect)
 	}
 	return sum
+}
+
+// EffectPerPassiveToStart returns the increased effect, in percent, that a jewel with stats in a
+// passive socket gains per allocated passive between the socket and the class start; 0 for a
+// jewel without.
+func EffectPerPassiveToStart(stats []resolve.StatValue) float64 {
+	return sumStat(stats, statEffectPerPassiveToStart)
 }
 
 // ScaleJewel scales the stats of jewel it by inc percent increased effect and makes its key follow
