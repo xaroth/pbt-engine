@@ -126,6 +126,7 @@ type Checked struct {
 	radiusPassives []RadiusPassive
 	transforms     []AttributeTransform
 	itemPassives   []ItemPassive
+	jewelPassives  []JewelPassive
 	// unconnected are the passives each socket's jewel lets be allocated without a connection.
 	unconnected map[uint32][]uint32
 	warnings    []Warning
@@ -170,6 +171,10 @@ type MasteryChoice struct {
 // an attribute of the passives in its radius to another changes them (AttributeTransforms). An
 // equipped item's line "Allocates <notable>" gives the notable without a point or a path
 // (ItemPassives); one naming a node that is no notable of the tree is left out with a warning.
+// A Forbidden Flame and a Forbidden Flesh in allocated sockets that name the same ascendancy
+// passive of the class give it the same way, even when it is of another ascendancy
+// (JewelPassives); a line without a match in an allocated socket, or naming no ascendancy
+// passive of the class, is left out with a warning.
 // The weapon-swap
 // slots are not in use: their items are left out and the gems socketed in them disabled,
 // without a warning, so the skills they grant or hold are disabled too. It returns a
@@ -350,15 +355,16 @@ func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...an
 }
 
 // checkGear checks the items and jewels, sets the weapon swap aside and finds the notables the
-// items allocate, what the timeless jewels conquer, the small passives jewels change by
-// allocation, the passives whose attributes jewels transform and the passives jewels let be
-// allocated without a connection.
+// items and jewel pairs allocate, what the timeless jewels conquer, the small passives jewels
+// change by allocation, the passives whose attributes jewels transform and the passives jewels
+// let be allocated without a connection.
 func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
 	}
 	c.setAsideSwap()
 	c.findItemPassives()
+	c.findJewelPassives()
 	if err := c.conquer(); err != nil {
 		return err
 	}

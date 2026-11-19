@@ -17,16 +17,19 @@ import (
 
 // ImportFiles returns the files pob.FromXML reads from the dataset it resolves the file's
 // version to, for a file of the tree variant pob.FileVersion gives: the English text for class
-// names, the tree of variant for the bloodline, the skills group for gems, and the items group
-// and its mods for the equipped items. A file without a bloodline reads no tree, and one
-// without equipped items reads no items or mods.
+// names, the tree of variant for the bloodline, the skills group for gems, and the items group,
+// its mods and the standard tree for the equipped items (ItemFiles). A file without a
+// bloodline reads no tree of its variant, and one without equipped items reads no items, mods
+// or standard tree.
 func ImportFiles(m dataset.Manifest, variant string) []string {
-	return m.Needs(dataset.TextFile("en"), dataset.TreeFile(variant), dataset.SkillsFile, dataset.ItemsFile, dataset.ModsFile)
+	return m.Needs(dataset.TextFile("en"), dataset.TreeFile(variant), dataset.SkillsFile, dataset.ItemsFile, dataset.ModsFile,
+		dataset.TreeFile(build.DefaultVariant))
 }
 
-// ItemFiles returns the files Data.Item reads: the items group, its mods and the English text.
+// ItemFiles returns the files Data.Item reads: the items group, its mods, the English text and
+// the standard tree, for the names of the passives lines allocate.
 func ItemFiles(m dataset.Manifest) []string {
-	return m.Needs(dataset.ItemsFile, dataset.ModsFile, dataset.TextFile("en"))
+	return m.Needs(dataset.ItemsFile, dataset.ModsFile, dataset.TextFile("en"), dataset.TreeFile(build.DefaultVariant))
 }
 
 // SimulateFiles returns the files Simulate reads for each of builds: the tree of its variant,

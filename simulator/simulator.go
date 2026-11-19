@@ -116,6 +116,8 @@ type shape struct {
 	transforms string
 	// itemPassives lists the notables items allocate with their items, which the sheet credits.
 	itemPassives string
+	// jewelPassives lists the notables jewels allocate together with their jewels.
+	jewelPassives string
 }
 
 // shapeOf returns the shape of the sheet c's build needs: the tree nodes it can allocate
@@ -130,6 +132,7 @@ func shapeOf(c *build.Checked) shape {
 		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
 		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()), conquests: conquestsKey(c.Conquests()),
 		radius: radiusKey(c.RadiusPassives()), transforms: transformsKey(c.AttributeTransforms()), itemPassives: itemPassivesKey(c.ItemPassives()),
+		jewelPassives: jewelPassivesKey(c.JewelPassives()),
 	}
 }
 
@@ -183,6 +186,19 @@ func itemPassivesKey(ps []build.ItemPassive) string {
 	for _, p := range ps {
 		buf = strconv.AppendUint(append(buf, ','), uint64(p.Node.ID), decimal)
 		buf = strconv.AppendQuote(append(append(buf, '@'), p.Slot...), p.Name)
+	}
+	return string(buf)
+}
+
+// jewelPassivesKey lists notables with the sockets of the jewels that allocate them and the
+// first jewel's name.
+func jewelPassivesKey(ps []build.JewelPassive) string {
+	var buf []byte
+	for _, p := range ps {
+		buf = strconv.AppendUint(append(buf, ','), uint64(p.Node.ID), decimal)
+		buf = strconv.AppendUint(append(buf, '@'), uint64(p.Socket), decimal)
+		buf = strconv.AppendUint(append(buf, '+'), uint64(p.With), decimal)
+		buf = strconv.AppendQuote(buf, p.Name)
 	}
 	return string(buf)
 }

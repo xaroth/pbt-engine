@@ -62,6 +62,11 @@ type Reader struct {
 	// passiveStats are the stats a line shows as a passive's name. Each item has its own
 	// passive, so the value is not a roll in its mod's range.
 	passiveStats map[string]bool
+	// passiveNames names nodes by id; ascendancyPassives gives the ascendancy passive, not a
+	// start, of a name, which a line of build.AscendancyPassiveStats names where nodes of other
+	// kinds share its name.
+	passiveNames       map[int32]string
+	ascendancyPassives map[string]int32
 }
 
 // crafting is where bench crafts and essences put their mods: item classes by mod id.
@@ -80,9 +85,10 @@ func newCrafting(it *dataset.Items) crafting {
 	return c
 }
 
-// NewReader indexes the items group, the stats and the English stat descriptions of s. A
-// dataset without the items group returns a *dataset.MissingGroupError, and one whose items
-// group lacks the mod domains, bench crafts and essence mods fails with ErrNoCrafting.
+// NewReader indexes the items group, the stats, the English stat descriptions and the
+// ascendancy passives of the standard tree of s. A dataset without the items group returns a
+// *dataset.MissingGroupError, and one whose items group lacks the mod domains, bench crafts and
+// essence mods fails with ErrNoCrafting.
 func NewReader(s *dataset.Store) (*Reader, error) {
 	it, err := s.Items()
 	if err != nil {
@@ -103,14 +109,19 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
-	set, err := statdesc.NewSet(text.Descriptions, statdesc.WithNames(passiveHandler, passiveNames(text.NodeNames)))
+	names := passiveNames(text.NodeNames)
+	ascendancy, err := ascendancyPassives(s, names)
+	if err != nil {
+		return nil, err
+	}
+	set, err := statdesc.NewSet(text.Descriptions, statdesc.WithNames(passiveHandler, names))
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
 		mods: indexMods(mods, stats), crafting: newCrafting(it), version: s.Manifest().Version,
-		passiveStats: passiveStats(text.Descriptions),
+		passiveStats: passiveStats(text.Descriptions), passiveNames: names, ascendancyPassives: ascendancy,
 	}
 	r.index(it.Bases, text.BaseNames)
 	r.classes = newClasses(it.Bases, text.ItemClassNames)
@@ -145,6 +156,33 @@ func passiveNames(nodes []dataset.NodeName) map[int32]string {
 		out[int32(n.ID)] = n.Name //nolint:gosec // node ids are 16-bit hashes
 	}
 	return out
+}
+
+// ascendancyPassives returns the lowest ascendancy passive of each name in s's standard tree,
+// other than the starts, by name; none without the tree. An Ascendant passive shares its name
+// with an ascendancy's start, such as Guardian, or with a cluster jewel notable, such as
+// Saboteur.
+func ascendancyPassives(s *dataset.Store, names map[int32]string) (map[string]int32, error) {
+	out := map[string]int32{}
+	t, err := s.Tree(build.DefaultVariant)
+	if errors.Is(err, dataset.ErrNotInDataset) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("items: %w", err)
+	}
+	for _, n := range t.Nodes {
+		if n.Ascendancy == "" || n.Kind == dataset.AscendancyStart {
+			continue
+		}
+		id := int32(n.ID) //nolint:gosec // node ids are 16-bit hashes
+		if name, ok := names[id]; ok {
+			if old, seen := out[name]; !seen || id < old {
+				out[name] = id
+			}
+		}
+	}
+	return out, nil
 }
 
 // Parse reads item text as Path of Building writes and copies it, or as the game copies it
@@ -257,12 +295,24 @@ func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.Mod
 			continue
 		}
 		ranged = ranged || rd.Min[k] != rd.Max[k]
-		line.Stats = append(line.Stats, build.StatValue{Stat: st, Value: rd.Max[k]})
+		line.Stats = append(line.Stats, build.StatValue{Stat: st, Value: r.ascendancyPassive(st, rd.Max[k])})
 	}
 	if ranged {
 		warnings = append(warnings, build.Warning{Code: RollAssumed, Subject: line.Text, Message: "a range of values; the highest used"})
 	}
 	return line, warnings, rd.Lines, nil
+}
+
+// ascendancyPassive returns the ascendancy passive of the name the reading gave as node v, for a
+// stat that names one, else v.
+func (r *Reader) ascendancyPassive(stat string, v int32) int32 {
+	if !slices.Contains(build.AscendancyPassiveStats(), stat) {
+		return v
+	}
+	if id, ok := r.ascendancyPassives[r.passiveNames[v]]; ok {
+		return id
+	}
+	return v
 }
 
 // base returns the item's base by the name in its text.

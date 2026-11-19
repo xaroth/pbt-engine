@@ -766,3 +766,105 @@ func TestSplitPersonalityReal(t *testing.T) {
 		})
 	}
 }
+
+// A Forbidden Flame and a Forbidden Flesh in allocated sockets that name the same notable of
+// another ascendancy of the class give its stats on a level 1 Berserker: Juggernaut's
+// Unstoppable adds 10% movement speed, credited to the jewels, and stays out of the build's
+// nodes. One jewel alone, a pair naming different notables, a jewel whose partner's socket is
+// not allocated, and a pair naming another class's notable give nothing and warn.
+func TestForbiddenJewelsAllocateNotable(t *testing.T) {
+	t.Parallel()
+	const (
+		otherSocket = 61834
+		unstoppable = 5819
+	)
+	s := realSim(t)
+	jewel := func(name, base, notable, other string) build.Item {
+		t.Helper()
+		it, ws, err := s.Data().Item("Rarity: UNIQUE\n" + name + "\n" + base + "\nImplicits: 0\nAllocates " + notable +
+			" if you have the matching modifier on " + other + "\nCorrupted\n")
+		if err != nil || len(ws) != 0 {
+			t.Fatalf("read %s: %v, %v", name, ws, err)
+		}
+		return it
+	}
+	flame := func(notable string) build.Item {
+		return jewel("Forbidden Flame", "Crimson Jewel", notable, "Forbidden Flesh")
+	}
+	flesh := func(notable string) build.Item {
+		return jewel("Forbidden Flesh", "Cobalt Jewel", notable, "Forbidden Flame")
+	}
+	berserker := func(jewels map[uint32]build.Item, nodes ...uint32) *build.Build {
+		b := marauderBuild(1, nodes...)
+		b.Ascendancy = "Berserker"
+		for socket, it := range jewels {
+			if err := b.Apply(build.SocketJewel(socket, it)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return b
+	}
+	pairCodes := func(st *simulator.Stats) []build.Code {
+		var out []build.Code
+		for _, w := range st.Warnings() {
+			if strings.HasPrefix(string(w.Code), "jewel-") || strings.HasPrefix(w.Stat, "unique_jewel_grants_notable_hash") {
+				out = append(out, w.Code)
+			}
+		}
+		return out
+	}
+	bare := get(t, simulate(t, s, berserker(nil, jewelSocket, otherSocket)), poe1.MovementSpeed)
+
+	st := simulate(t, s, berserker(map[uint32]build.Item{jewelSocket: flame("Unstoppable"), otherSocket: flesh("Unstoppable")}, jewelSocket, otherSocket))
+	if got, want := get(t, st, poe1.MovementSpeed), bare+10; math.Abs(got-want) > 1e-9 {
+		t.Errorf("movement speed %v, want %v", got, want)
+	}
+	if got := pairCodes(st); len(got) != 0 {
+		t.Errorf("warnings %v, want none about the jewels", got)
+	}
+	if slices.Contains(st.Build().Nodes, unstoppable) {
+		t.Errorf("nodes %v, want Unstoppable not among them", st.Build().Nodes)
+	}
+	ex, err := st.Explain(poe1.MovementSpeed, simulator.Proportional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := simulator.JewelSource{Node: jewelSocket, Name: "Forbidden Flame", Passive: unstoppable, With: otherSocket}
+	if !slices.ContainsFunc(ex.Lines, func(l simulator.Line) bool {
+		return l.Source.Bundle != nil && l.Source.Bundle.Source == src && l.Value != 0
+	}) {
+		t.Errorf("movement speed lines %+v, want one from the jewels", ex.Lines)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		jewels map[uint32]build.Item
+		nodes  []uint32
+		want   []build.Code
+	}{
+		{"one jewel", map[uint32]build.Item{jewelSocket: flame("Unstoppable")}, []uint32{jewelSocket, otherSocket},
+			[]build.Code{build.JewelNotableUnmatched}},
+		{"different notables", map[uint32]build.Item{jewelSocket: flame("Unstoppable"), otherSocket: flesh("Unbreakable")},
+			[]uint32{jewelSocket, otherSocket}, []build.Code{build.JewelNotableUnmatched, build.JewelNotableUnmatched}},
+		{"socket not allocated", map[uint32]build.Item{jewelSocket: flame("Unstoppable"), otherSocket: flesh("Unstoppable")},
+			[]uint32{jewelSocket}, []build.Code{build.JewelNotAllocated, build.JewelNotableUnmatched}},
+		{"another class's notable", map[uint32]build.Item{jewelSocket: flame("Righteous Providence"), otherSocket: flesh("Righteous Providence")},
+			[]uint32{jewelSocket, otherSocket}, []build.Code{build.JewelNotableUnknown, build.JewelNotableUnknown}},
+	} {
+		st := simulate(t, s, berserker(tc.jewels, tc.nodes...))
+		if got := get(t, st, poe1.MovementSpeed); got != bare {
+			t.Errorf("%s: movement speed %v, want %v", tc.name, got, bare)
+		}
+		if diff := cmp.Diff(tc.want, pairCodes(st)); diff != "" {
+			t.Errorf("%s: warnings (-want +got):\n%s\n%v", tc.name, diff, st.Warnings())
+		}
+	}
+
+	// The Ascendant's passives, not the nodes of other kinds that share their names: the
+	// Guardian's start (409) and a cluster jewel notable (46965).
+	for name, want := range map[string]int32{"Guardian": 30919, "Saboteur": 58827} {
+		if got := flame(name).Mods[0].Stats[0].Value; got != want {
+			t.Errorf("%s read as node %v, want the Ascendant's %v", name, got, want)
+		}
+	}
+}

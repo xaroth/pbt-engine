@@ -243,6 +243,10 @@ func (sh *Sheet) newSource(d Source) core.SourceID {
 			if n.Passive != 0 {
 				sh.grant(n.Passive, id)
 			}
+		case resolve.JewelSource:
+			if n.Passive != 0 {
+				sh.grant(n.Passive, id)
+			}
 		}
 	}
 	return id

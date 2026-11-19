@@ -736,6 +736,16 @@
               "type": "integer",
               "minimum": 1,
               "description": "For a jewel whose effect grows with them, the allocated passives between its socket and the class start; absent for others."
+            },
+            "passive": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The node of the notable the jewel allocates with the jewel in socket with, whose stats these are; absent for the jewel's own."
+            },
+            "with": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The socket of the jewel the notable needs too; present with passive."
             }
           }
         },

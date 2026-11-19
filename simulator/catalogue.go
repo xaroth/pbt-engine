@@ -107,7 +107,8 @@ type (
 	// allocates.
 	ItemSource = resolve.ItemSource
 	// JewelSource is a jewel by its socket node, with its name; with Passives, the passives
-	// between its socket and the class start that its effect grows with.
+	// between its socket and the class start that its effect grows with; with Passive, the
+	// notable it allocates with the jewel in socket With.
 	JewelSource = resolve.JewelSource
 )
 
