@@ -475,3 +475,38 @@ func sweepMatchesSimulate(t *testing.T, s *simulator.Sim, base *build.Build, var
 	}
 	return changed
 }
+
+// With Split Personality in place of each jewel but cluster jewels of the benchmark builds,
+// deallocating each allocated node and allocating a sample of the nodes next to them give, from
+// Sweep, every output Simulate gives for the edited build: a variant that changes the passives
+// between a jewel and the class start leaves the fast path.
+func TestSweepSplitPersonalityReal(t *testing.T) {
+	t.Parallel()
+	d := benchbuilds.Open(t)
+	jewel := build.Item{Rarity: build.Unique, Name: "Split Personality", Base: "Metadata/Items/Jewels/JewelStr", Mods: []build.ModLine{
+		{Kind: build.Explicit, Text: "effect", Stats: []build.StatValue{{Stat: "local_jewel_+%_effect_per_passive_between_jewel_and_class_start", Value: 25}}},
+		{Kind: build.Explicit, Text: "+5 to Strength", Stats: []build.StatValue{{Stat: "additional_strength", Value: 5}}},
+	}}
+	for _, c := range benchbuilds.Builds(t, d) {
+		base := c.Build.Clone()
+		replaced := false
+		for socket, it := range base.Jewels {
+			if !strings.HasPrefix(it.Base, "Metadata/Items/Jewels/JewelPassiveTreeExpansion") {
+				base.Jewels[socket], replaced = jewel, true
+			}
+		}
+		if !replaced {
+			continue
+		}
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			s, err := simulator.New(d.Store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !sweepMatchesSimulate(t, s, base, nodeVariants(t, d.Store, base)) {
+				t.Error("no variant changes an output")
+			}
+		})
+	}
+}

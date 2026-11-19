@@ -12,6 +12,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/poe1/passives"
 )
 
 func indexBases(s *dataset.Store) (map[string]*dataset.ItemBase, error) {
@@ -69,7 +70,8 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 }
 
 // compileJewels adds to the items of r's sheet the jewels of cb in the allocated sockets, each
-// with the effect the others give it (poe1.SocketJewelEffect).
+// with the effect the others give it (poe1.SocketJewelEffect) and the effect it gains per
+// passive between its socket and the class start (poe1.EffectPerPassiveToStart).
 func (s *Sim) compileJewels(r *run, cb *build.Build, sockets []uint32, bases map[string]*dataset.ItemBase) error {
 	jewels := make([]poe1.Item, len(sockets))
 	stats := make([][]resolve.StatValue, len(sockets))
@@ -83,12 +85,37 @@ func (s *Sim) compileJewels(r *run, cb *build.Build, sockets []uint32, bases map
 		stats[i] = c.Stats
 	}
 	adorned := poe1.AdornedEffect(stats...)
+	r.startDistances = startDistances(r.checked, sockets, stats)
 	for i, node := range sockets {
 		it := cb.Jewels[node]
-		poe1.ScaleJewel(&jewels[i], poe1.SocketJewelEffect(&it, adorned))
+		inc := poe1.SocketJewelEffect(&it, adorned)
+		if per := poe1.EffectPerPassiveToStart(stats[i]); per != 0 {
+			jewels[i].Passives = r.startDistances[node]
+			inc += per * float64(jewels[i].Passives)
+		}
+		poe1.ScaleJewel(&jewels[i], inc)
 	}
 	r.sheet.Items = append(r.sheet.Items, jewels...)
 	return nil
+}
+
+// startDistances returns, by socket, the passives between the class start and each of sockets
+// whose jewel, with stats, gains effect per passive between them; nil when there is none.
+func startDistances(c *build.Checked, sockets []uint32, stats [][]resolve.StatValue) map[uint32]int {
+	var counted []uint32
+	for i, node := range sockets {
+		if poe1.EffectPerPassiveToStart(stats[i]) != 0 {
+			counted = append(counted, node)
+		}
+	}
+	if len(counted) == 0 {
+		return nil
+	}
+	out := make(map[uint32]int, len(counted))
+	for i, n := range passives.StartDistances(c.Nodes(), c.Class().StartNode, counted...) {
+		out[counted[i]] = n
+	}
+	return out
 }
 
 // reflectRings applies poe1.ReflectRings to items, where at holds the index of each slot's own

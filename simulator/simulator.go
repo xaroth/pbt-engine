@@ -309,6 +309,9 @@ type run struct {
 	// ask is which skills the call reads the outputs of besides the main skill's.
 	ask      skillAsk
 	warnings []Warning
+	// startDistances are, by socket, the passives between the class start and each jewel whose
+	// effect grows with them.
+	startDistances map[uint32]int
 }
 
 // prepare checks b and resolves its config against the sim config snapshot sim.

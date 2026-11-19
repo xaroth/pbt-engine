@@ -1,5 +1,6 @@
-// Package passives reads the passive tree of a Path of Exile 1 dataset: the text of a node and
-// the passives in a jewel's radius. It needs no simulator.
+// Package passives reads the passive tree of a Path of Exile 1 dataset: the text of a node, the
+// passives in a jewel's radius and the passives between a socket and the class start. It needs
+// no simulator.
 package passives
 
 import "github.com/xaroth/pbt-engine/dataset"

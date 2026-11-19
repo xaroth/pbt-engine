@@ -1,6 +1,7 @@
 package simulator_test
 
 import (
+	"maps"
 	"math"
 	"os"
 	"slices"
@@ -710,5 +711,58 @@ func TestAnointOnSheet(t *testing.T) {
 		if want := get(t, st, poe1.Strength); got != want {
 			t.Errorf("strength with Might allocated too, %s: %v, want %v", name, got, want)
 		}
+	}
+}
+
+// Split Personality grants its stats with 25% increased effect per allocated passive between its
+// socket and the class start, as Path of Building counts them, on each 3.29 test build that holds
+// it. The counts on 59 and 60 give the Strength and Intelligence Path of Building's breakdown has
+// for the jewels: 91 and 82 Strength, 72 and 67 Intelligence. On 51, 53 and 60 the jewels sit in
+// sockets a large cluster jewel adds, so the route runs through its passives.
+func TestSplitPersonalityReal(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	reg, err := dataset.OpenRoot(os.DirFS(realdata.Root(t)))
+	if reg == nil {
+		t.Fatal(err)
+	}
+	for name, passives := range map[string]map[uint32]int{
+		"51-marauder-L100-juggernaut-static-strike-of-gathering-lightning": {22994: 53, 46393: 53},
+		"53-templar-L100-hierophant-kinetic-blast-of-clustering":           {9408: 42, 29712: 42},
+		"59-templar-L100-hierophant-frenzy":                                {3109: 69, 22994: 62},
+		"60-templar-L100-inquisitor-lancing-steel-of-spraying":             {10532: 54, 46519: 50},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			data, err := os.ReadFile("testdata/split-personality/" + name + ".xml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, _, err := pob.FromXML(data, reg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ex, err := simulate(t, s, b).Explain(poe1.Strength, simulator.Tree)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := map[uint32]int{}
+			for _, term := range ex.Tree.Terms {
+				if term.Source.Bundle == nil {
+					continue
+				}
+				src, ok := term.Source.Bundle.Source.(simulator.JewelSource)
+				if !ok || src.Name != "Split Personality" {
+					continue
+				}
+				got[src.Node] = src.Passives
+				if want := math.Trunc(5 * (1 + 0.25*float64(src.Passives))); term.Value != want {
+					t.Errorf("jewel %d: %v Strength, want %v for %d passives", src.Node, term.Value, want, src.Passives)
+				}
+			}
+			if !maps.Equal(got, passives) {
+				t.Errorf("passives by socket %v, want %v", got, passives)
+			}
+		})
 	}
 }

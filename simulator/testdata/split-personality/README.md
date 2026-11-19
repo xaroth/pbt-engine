@@ -1,0 +1,1 @@
+The gear layers of the four 3.29 test builds in pbt-conformance that hold Split Personality (`builds/3.29/<name>/pob-gear.xml` at commit af7d965): the tree with its jewels and the items, without skills or config. 51, 53 and 60 hold both jewels in sockets a large cluster jewel adds; 59 holds them in sockets of the tree.

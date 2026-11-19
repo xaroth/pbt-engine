@@ -16,6 +16,7 @@ import (
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
+	"github.com/xaroth/pbt-engine/poe1/passives"
 )
 
 // Result is one variant of a sweep: its index in the variants, its edits, the change of each
@@ -120,6 +121,11 @@ type sweep struct {
 	snapshot config.Values
 	workers  int
 	tree     *dataset.Tree
+	// allocated are the base's allocated nodes and clusters the passives its cluster jewels add,
+	// by id, kept only when it holds a jewel whose effect grows with the passives between it and
+	// the class start.
+	allocated []*dataset.Node
+	clusters  map[uint32]*dataset.Node
 }
 
 func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
@@ -152,10 +158,22 @@ func (s *Sim) newSweep(base *build.Build, opts []Option) (*sweep, error) {
 	if workers <= 0 {
 		workers = runtime.GOMAXPROCS(0)
 	}
-	return &sweep{
+	sw := &sweep{
 		sim: s, base: r, keys: st.keys, before: st.values, skills: baseSkills(r, st.perSkill),
 		co: co, snapshot: snapshot, workers: workers, tree: r.checked.Tree(),
-	}, nil
+	}
+	if len(r.startDistances) > 0 {
+		sw.allocated, sw.clusters = r.checked.Nodes(), byID(r.checked.ClusterNodes())
+	}
+	return sw, nil
+}
+
+func byID(nodes []*dataset.Node) map[uint32]*dataset.Node {
+	out := make(map[uint32]*dataset.Node, len(nodes))
+	for _, n := range nodes {
+		out[n.ID] = n
+	}
+	return out
 }
 
 // sweepKeys returns the outputs a sweep reads: those asked for and the one it ranks by.
@@ -238,8 +256,9 @@ type switchPlan struct {
 // back (a mastery choice on a node the variant allocates). Nodes the build cannot take have no
 // sources on the sheet, so switching them does nothing, as the check drops them. It reports
 // false for any other edit, when the check would resolve the result differently (two options
-// of one choice node, or one mastery effect chosen on two allocated masteries), and when it
-// allocates or deallocates a socket that holds a jewel.
+// of one choice node, or one mastery effect chosen on two allocated masteries), when it
+// allocates or deallocates a socket that holds a jewel, and when it changes the passives
+// between the class start and a jewel whose effect grows with them.
 func (sw *sweep) fastPlan(edits []build.Edit) (switchPlan, bool) {
 	raw := sw.base.build
 	nodes := make(map[uint32]bool, len(raw.Nodes))
@@ -258,7 +277,7 @@ func (sw *sweep) fastPlan(edits []build.Edit) (switchPlan, bool) {
 	}
 	p := switchPlan{warnings: sw.base.checked.EditWarnings(edits)}
 	sw.diffPlan(sw.base.checked.Build(), nodes, masteries, &p)
-	if sw.switchesJewel(p) {
+	if sw.switchesJewel(p) || sw.movesStart(p) {
 		return switchPlan{}, false
 	}
 	return p, true
@@ -269,6 +288,36 @@ func (sw *sweep) fastPlan(edits []build.Edit) (switchPlan, bool) {
 func (sw *sweep) switchesJewel(p switchPlan) bool {
 	held := func(id uint32) bool { _, ok := sw.base.build.Jewels[id]; return ok }
 	return slices.ContainsFunc(p.nodesOn, held) || slices.ContainsFunc(p.nodesOff, held)
+}
+
+// movesStart reports whether p changes the passives between the class start and a jewel whose
+// effect grows with them, which the sheet's items do not follow per variant.
+func (sw *sweep) movesStart(p switchPlan) bool {
+	if len(sw.base.startDistances) == 0 || len(p.nodesOn)+len(p.nodesOff) == 0 {
+		return false
+	}
+	allocated := make([]*dataset.Node, 0, len(sw.allocated)+len(p.nodesOn))
+	for _, n := range sw.allocated {
+		if !slices.Contains(p.nodesOff, n.ID) {
+			allocated = append(allocated, n)
+		}
+	}
+	for _, id := range p.nodesOn {
+		n := sw.clusters[id]
+		if n == nil {
+			n = sw.node(id)
+		}
+		if n != nil {
+			allocated = append(allocated, n)
+		}
+	}
+	sockets := slices.Collect(maps.Keys(sw.base.startDistances))
+	for i, got := range passives.StartDistances(allocated, sw.base.checked.Class().StartNode, sockets...) {
+		if got != sw.base.startDistances[sockets[i]] {
+			return true
+		}
+	}
+	return false
 }
 
 func applyFast(e build.Edit, nodes map[uint32]bool, masteries map[uint32]uint32) bool {

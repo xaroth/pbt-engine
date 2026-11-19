@@ -133,13 +133,20 @@ type JewelSource struct {
 	Node uint32
 	// Name is as ItemSource's.
 	Name string
+	// Passives is, for a jewel whose effect grows with them, the allocated passives between its
+	// socket and the class start; 0 for others.
+	Passives int
 }
 
 func (s JewelSource) String() string {
+	out := fmt.Sprintf("jewel %d", s.Node)
 	if s.Name != "" {
-		return fmt.Sprintf("jewel %d: %s", s.Node, s.Name)
+		out += ": " + s.Name
 	}
-	return fmt.Sprintf("jewel %d", s.Node)
+	if s.Passives != 0 {
+		out += fmt.Sprintf(", %d passives from the class start", s.Passives)
+	}
+	return out
 }
 
 func (CharacterSource) source() {}
