@@ -2,8 +2,10 @@ package pob_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -291,6 +293,41 @@ func codes(w []build.Warning) []build.Code {
 		out = append(out, x.Code)
 	}
 	return out
+}
+
+// PoB reads a spec's numbers with tonumber, so a value such as "nil" is unset. It sets no bloodline,
+// and a spec that is not active never refuses the file.
+func TestFromXMLNilSpecNumbers(t *testing.T) {
+	t.Parallel()
+	const nilSpec = `<Spec title="Other" treeVersion="3_29" classId="nil" ascendClassId="nil" secondaryAscendClassId="nil" nodes="4139"/>`
+	const active = `<Spec treeVersion="3_29" classId="1" ascendClassId="3" secondaryAscendClassId="%s" nodes="4139,11505"/>`
+	file := func(tree, specs string) []byte {
+		return []byte(`<PathOfBuilding><Build className="Marauder" ascendClassName="Chieftain"/><Tree ` + tree + `>` + specs + `</Tree></PathOfBuilding>`)
+	}
+	reg := registry(t)
+
+	b, w, err := pob.FromXML(file(`activeSpec="1"`, fmt.Sprintf(active, "0")+nilSpec), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []build.Warning{{Code: pob.SpecIgnored, Subject: "Other", Message: "only the active tree is imported"}}
+	if diff := cmp.Diff(want, w); diff != "" {
+		t.Errorf("inactive nil spec, warnings (-want +got):\n%s", diff)
+	}
+	if b.Bloodline != "" || !slices.Equal(b.Nodes, []uint32{4139, 11505}) {
+		t.Errorf("inactive nil spec: bloodline %q, nodes %v", b.Bloodline, b.Nodes)
+	}
+
+	b, w, err = pob.FromXML(file(`activeSpec="nil"`, fmt.Sprintf(active, "nil")+nilSpec), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(want, w); diff != "" {
+		t.Errorf("active nil bloodline, warnings (-want +got):\n%s", diff)
+	}
+	if b.Bloodline != "" || b.Ascendancy != "Chieftain" {
+		t.Errorf("active nil bloodline: bloodline %q, ascendancy %q", b.Bloodline, b.Ascendancy)
+	}
 }
 
 func TestFromXMLVariants(t *testing.T) {
