@@ -42,7 +42,7 @@ type Store struct {
 	// trees, classes, texts, names and layouts are keyed by variant and language, fixed by the
 	// manifest.
 	trees   map[string]*lazy[*Tree]
-	classes map[string]*lazy[[]Class]
+	classes map[string]*lazy[treeClasses]
 	texts   map[string]*lazy[*Text]
 	names   map[string]*lazy[*Names]
 	layouts map[string]*lazy[*Layout]
@@ -90,7 +90,7 @@ func Open(fsys fs.FS, opts ...Option) (*Store, error) {
 		fsys:     fsys,
 		files:    make(map[string]File, len(m.Files)),
 		trees:    map[string]*lazy[*Tree]{},
-		classes:  map[string]*lazy[[]Class]{},
+		classes:  map[string]*lazy[treeClasses]{},
 		texts:    map[string]*lazy[*Text]{},
 		names:    map[string]*lazy[*Names]{},
 		layouts:  map[string]*lazy[*Layout]{},
@@ -228,7 +228,7 @@ func registerFile(s *Store, f File) error {
 	case isGroup(f.Name, treePrefix):
 		variant := groupTag(f.Name, treePrefix)
 		s.trees[variant] = &lazy[*Tree]{}
-		s.classes[variant] = &lazy[[]Class]{}
+		s.classes[variant] = &lazy[treeClasses]{}
 	case isGroup(f.Name, layoutPrefix):
 		variant := groupTag(f.Name, layoutPrefix)
 		s.layouts[variant] = &lazy[*Layout]{}

@@ -43,6 +43,30 @@ func TestClassesWithNames(t *testing.T) {
 	}
 }
 
+// TestAlternateAscendancies reads a tree's alternate ascendancies from its tree file alone.
+func TestAlternateAscendancies(t *testing.T) {
+	t.Parallel()
+	want := sample()
+	fsys := &recordingFS{fsys: written(t, want)}
+	s, err := dataset.Open(fsys)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	got, err := s.AlternateAscendancies("standard")
+	if err != nil {
+		t.Fatalf("AlternateAscendancies: %v", err)
+	}
+	if diff := gocmp.Diff(want.Trees[0].AlternateAscendancies, got); diff != "" {
+		t.Errorf("AlternateAscendancies (-want +got):\n%s", diff)
+	}
+	read := fsys.read()
+	slices.Sort(read)
+	wantRead := []string{dataset.ManifestName, dataset.TreeFile("standard")}
+	if diff := gocmp.Diff(wantRead, read); diff != "" {
+		t.Errorf("files read (-want +got):\n%s", diff)
+	}
+}
+
 func TestClassesReadErrors(t *testing.T) {
 	t.Parallel()
 	full := written(t, sample())

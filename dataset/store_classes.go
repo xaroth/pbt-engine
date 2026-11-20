@@ -7,28 +7,41 @@ import "fmt"
 // characters and its classes are not checked against them; Write and Tree check them. With
 // Names, a host lists classes without loading the stats or text groups.
 func (s *Store) Classes(variant string) ([]Class, error) {
-	l, ok := s.classes[variant]
-	if !ok {
-		return nil, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
-	}
-	return l.get(func() ([]Class, error) { return s.loadClasses(variant) })
+	tc, err := s.treeClasses(variant)
+	return tc.classes, err
 }
 
-func (s *Store) loadClasses(variant string) ([]Class, error) {
-	type treeClasses struct {
-		variant string
-		classes []Class
+// AlternateAscendancies returns the alternate ascendancies of one tree variant, the bloodlines,
+// shared and read-only. It reads as Classes does, so it loads neither the stats nor the text
+// groups.
+func (s *Store) AlternateAscendancies(variant string) ([]Ascendancy, error) {
+	tc, err := s.treeClasses(variant)
+	return tc.alternates, err
+}
+
+// treeClasses is what of a tree file Classes and AlternateAscendancies read.
+type treeClasses struct {
+	variant    string
+	classes    []Class
+	alternates []Ascendancy
+}
+
+func (s *Store) treeClasses(variant string) (treeClasses, error) {
+	l, ok := s.classes[variant]
+	if !ok {
+		return treeClasses{}, fmt.Errorf("dataset %s has no %s tree: %w", s.manifest.Version, variant, ErrNotInDataset)
 	}
+	return l.get(func() (treeClasses, error) { return s.loadClasses(variant) })
+}
+
+func (s *Store) loadClasses(variant string) (treeClasses, error) {
 	name := TreeFile(variant)
-	tc, err := readGroup(s, name, func(b []byte) (treeClasses, error) {
-		v, cs, err := decodeTreeClasses(b)
-		return treeClasses{v, cs}, err
-	})
+	tc, err := readGroup(s, name, decodeTreeClasses)
 	if err != nil {
-		return nil, err
+		return treeClasses{}, err
 	}
 	if tc.variant != variant {
-		return nil, fmt.Errorf("%s: holds tree variant %q: %w", name, tc.variant, ErrInvalid)
+		return treeClasses{}, fmt.Errorf("%s: holds tree variant %q: %w", name, tc.variant, ErrInvalid)
 	}
-	return tc.classes, nil
+	return tc, nil
 }
