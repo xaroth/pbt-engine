@@ -116,6 +116,8 @@ type Sheet struct {
 	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.
 	skillSources map[skillKey][]core.SourceID
+	// buffs are the skill buffs the rules model, the model's.
+	buffs buffRules
 	// deriveFrom is the first skill slot whose skill is on the sheet only to derive conditions
 	// (DeriveOnly).
 	deriveFrom int
@@ -197,7 +199,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 	}
 	sh := &Sheet{
 		session: s, stats: md.stats, ctx: md.ctx, counters: md.counters, version: r.Version, table: t, gameVersion: v,
-		outputs: outputsByKey(), deriveFrom: maxSkills,
+		outputs: outputsByKey(), deriveFrom: maxSkills, buffs: md.buffs,
 	}
 	for i := range r.Bundles {
 		if _, err := sh.add(&r.Bundles[i], t, v, -1); err != nil {
@@ -282,6 +284,7 @@ type sheetModel struct {
 	stats    map[string]core.StatID
 	ctx      contexts
 	counters map[string]bool
+	buffs    buffRules
 }
 
 //nolint:gochecknoglobals // a cache of immutable models, one per set of counters
@@ -305,7 +308,7 @@ func modelFor(counters []string) *sheetModel {
 		// TestMechanics fails on it first.
 		panic(err)
 	}
-	md := &sheetModel{stats: r.ids, counters: make(map[string]bool, len(counters))}
+	md := &sheetModel{stats: r.ids, counters: make(map[string]bool, len(counters)), buffs: skillBuffs()}
 	b.SetMoreRule(pobMore)
 	md.ctx = addContexts(&b)
 	if md.ctx.damage.First != damageDimension().First {

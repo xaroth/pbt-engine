@@ -25,14 +25,14 @@ type SheetSkills struct {
 	// Main is the main skill, nil when the build has none.
 	Main *resolve.Skill
 	// Skills are in slot order: the main skill first, if any, then the other skills that
-	// reserve life or mana or apply a curse, then the other skills, as many as the sheet
-	// holds. Every skill is on the sheet so the conditions it causes can be derived
+	// reserve life or mana, grant you a buff or apply a curse, then the other skills, as many
+	// as the sheet holds. Every skill is on the sheet so the conditions it causes can be derived
 	// (Sheet.DeriveConditions).
 	Skills []*resolve.Skill
 	// Every says the outputs of every skill are read, not only the main skill's.
 	Every bool
 	// Kept is how many of Skills, from the first, are read and noted: the main skill, those
-	// that reserve or curse and, with Every, the rest. The others are on the sheet only to derive the
+	// that reserve, buff or curse and, with Every, the rest. The others are on the sheet only to derive the
 	// conditions they cause (Sheet.DeriveOnly).
 	Kept     int
 	Warnings []build.Warning
@@ -41,8 +41,8 @@ type SheetSkills struct {
 // SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, the
 // default attack when the build's main group has no active gem (resolve.SkillResolver.Default),
 // as when it has no groups, none when the dataset has no skills group or lacks the main gem
-// (the build check warns about that), the other skills that reserve life or mana or apply a
-// curse and each other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
+// (the build check warns about that), the other skills that reserve life or mana, grant you a
+// buff or apply a curse and each other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
 // skill are read. It warns about the gems whose hits the sheet does not give and, with every,
 // about the skills that do not resolve or do not fit the sheet.
 func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, error) {
@@ -89,20 +89,21 @@ func (s *SheetSkills) Read() []*resolve.Skill {
 	return s.Skills[:1]
 }
 
-// addOthers adds the skills of all other than the main skill: those that reserve, then those
-// that curse (curseList), then the rest, warning with Every about those that do not resolve or
+// addOthers adds the skills of all other than the main skill: those that reserve or whose buff
+// affects you (buffList), then those that curse (curseList), then the rest, warning with Every about those that do not resolve or
 // do not fit and with the rest's own warnings, whose outputs are then read. Without Every the
 // rest are only those whose hit the sheet gives with hands, the skills that can cause a
 // condition.
 func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands, groups []build.SkillGroup) {
 	var rest []resolve.SkillWarnings
 	var curses curseList
+	buffs := s.buffList(all)
 	for _, sw := range all {
 		switch {
 		case sw.Skill != nil && sw.Skill == s.Main:
 		case sw.Err != nil:
 			s.unresolved(sw)
-		case Reserves(sw.Skill):
+		case keeps(sw.Skill, buffs):
 			s.keep(sw)
 		case curses.take(sw):
 		case s.Every || Hit(sw.Skill, hands):
@@ -115,6 +116,25 @@ func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands, groups
 	if s.Every {
 		s.Kept = len(s.Skills)
 	}
+}
+
+// keeps reports whether sk is kept beside the main skill for itself: it reserves life or mana
+// or its buff affects you (buffs).
+func keeps(sk *resolve.Skill, buffs *buffList) bool { return buffs.take(sk) || Reserves(sk) }
+
+// buffList returns the list of the buffs of all, in slot order, with the main skill taken.
+func (s *SheetSkills) buffList(all []resolve.SkillWarnings) *buffList {
+	skills := slices.Clone(s.Skills)
+	for _, sw := range all {
+		if sw.Err == nil && sw.Skill != s.Main {
+			skills = append(skills, sw.Skill)
+		}
+	}
+	l := newBuffList(skillBuffs(), skills)
+	for _, sk := range s.Skills {
+		l.take(sk)
+	}
+	return l
 }
 
 // keep adds sws with their warnings.

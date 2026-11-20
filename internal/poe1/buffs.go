@@ -10,9 +10,9 @@ import (
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
-// Engine stats of the buffs aura and herald skills grant you. buff_effect, read in a skill's
-// context, is the effect of its buff on you in percent: 100 with its increases and more
-// multipliers. aura_skills_affecting_you and herald_skills_affecting_you, read on the sheet,
+// Engine stats of the buffs aura, herald, guard and golem skills grant you. buff_effect, read
+// in a skill's context, is the effect of its buff on you in percent: 100 with its increases and
+// more multipliers. aura_skills_affecting_you and herald_skills_affecting_you, read on the sheet,
 // count the skills whose buffs affect you. aura_granted_attack_and_cast_speed is the increased
 // attack and cast speed each of your aura skills grants beside its own stats. Each
 // affected_by_ stat of skillBuffs is set while that skill's buff affects you, for stats that
@@ -28,24 +28,35 @@ const (
 const (
 	typeAura                 = "Aura"
 	typeHerald               = "Herald"
+	typeGuard                = "Guard"
+	typeGolem                = "Golem"
 	statAuraCannotAffectSelf = "aura_cannot_affect_self"
 )
+
+// statAffectedByGuard is set while the buff of a guard skill affects you.
+const statAffectedByGuard = "affected_by_guard_skill"
+
+// vaalMoltenShell is the guard skill whose buff you cannot have with another guard's.
+const vaalMoltenShell = "VaalMoltenShell"
 
 // baseBuffEffect is a buff's effect before modifiers: 100%.
 const baseBuffEffect = 100
 
-// skillBuff is the buff an aura or herald skill grants you: the stats of its stat set that the
-// buff carries, and the stat set while it affects you, empty when the game has none.
+// skillBuff is the buff a skill grants you: the stats of its stat set that the buff carries,
+// and the stat set while it affects you, empty when the game has none.
 type skillBuff struct {
 	stats    []string
 	affected string
 }
 
-// skillBuffs are the buffs of the aura and herald skills the rules model, by granted effect.
-// The game data does not say which of a skill's stats its buff carries; these are the stats
-// the skill's description gives as granted to you ("You and nearby allies gain", "Buff
-// grants"), not those of the skill's own area, duration or damage.
-func skillBuffs() map[string]skillBuff {
+// buffRules are the buffs of the skills the rules model, by granted effect.
+type buffRules map[string]skillBuff
+
+// skillBuffs are the buffs of the aura, herald, guard and golem skills the rules model, by
+// granted effect. The game data does not say which of a skill's stats its buff carries; these
+// are the stats the skill's description gives as granted to you ("You and nearby allies gain",
+// "Buff grants", "Golems grant"), not those of the skill's own area, duration or damage.
+func skillBuffs() buffRules {
 	added := func(kind string) []string {
 		return []string{
 			"attack_minimum_added_" + kind + "_damage", "attack_maximum_added_" + kind + "_damage",
@@ -55,7 +66,7 @@ func skillBuffs() map[string]skillBuff {
 	resist := func(kind string) []string {
 		return []string{"base_" + kind + "_damage_resistance_%", "base_maximum_" + kind + "_damage_resistance_%"}
 	}
-	return map[string]skillBuff{
+	out := buffRules{
 		"Anger":             {added("fire"), "affected_by_anger"},
 		"Wrath":             {append(added("lightning"), "wrath_aura_spell_lightning_damage_+%_final"), "affected_by_wrath"},
 		"Envy":              {added("chaos"), ""},
@@ -87,9 +98,32 @@ func skillBuffs() map[string]skillBuff {
 			[]string{"skill_buff_grants_damage_+%_final_per_herald_skill_affecting_you"}, "affected_by_herald_of_the_breach",
 		},
 	}
+	addGuardAndGolemBuffs(out)
+	return out
 }
 
-// affectedStats are the affected_by_ stats of skillBuffs, sorted.
+// addGuardAndGolemBuffs adds the buffs of the guard and golem skills to r.
+func addGuardAndGolemBuffs(r buffRules) {
+	guard := func(stats ...string) skillBuff { return skillBuff{stats, statAffectedByGuard} }
+	shell := guard(
+		"base_physical_damage_reduction_rating", "molten_shell_damage_absorbed_%",
+		"molten_shell_damage_absorb_limit_%_of_armour", "molten_shell_max_damage_absorbed",
+	)
+	quickGuard := guard("quick_guard_damage_absorbed_%", "quick_guard_damage_absorb_limit")
+	golem := func(stats ...string) skillBuff { return skillBuff{stats: stats} }
+	r["MoltenShell"], r["VaalMoltenShell"] = shell, shell
+	r["QuickGuard"], r["BoneArmour"] = quickGuard, quickGuard
+	r["ImmortalCall"] = guard("mortal_call_elemental_damage_taken_+%_final", "mortal_call_physical_damage_taken_+%_final")
+	r["SummonFlameGolem"] = golem("fire_golem_grants_damage_+%", "fire_golem_grants_area_of_effect_+%")
+	r["SummonIceGolem"] = golem("ice_golem_grants_critical_strike_chance_+%", "ice_golem_grants_accuracy_rating_+")
+	r["SummonLightningGolem"] = golem(
+		"lightning_golem_grants_attack_and_cast_speed_+%", "lightning_golem_grants_base_mana_regeneration_rate_per_minute",
+	)
+	r["SummonChaosGolem"] = golem("chaos_golem_grants_dot_multiplier_+", "chaos_golem_grants_chaos_resistance_%")
+	r["SummonStoneGolem"] = golem("stone_golem_grants_base_life_regeneration_rate_per_minute", "stone_golem_grants_defences_+%")
+}
+
+// affectedStats are the affected_by_ stats of skillBuffs, sorted, each once.
 func affectedStats() []string {
 	var out []string
 	for _, b := range skillBuffs() {
@@ -98,14 +132,14 @@ func affectedStats() []string {
 		}
 	}
 	slices.Sort(out)
-	return out
+	return slices.Compact(out)
 }
 
 func buffMechanic() mechanic {
+	flags := affectedStats()
 	stats := append([]string{
 		statBuffEffect, statAuraSkillsAffectingYou, statHeraldSkillsAffectingYou, statAuraGrantedAttackCastRate,
-	}, affectedStats()...)
-	flags := affectedStats()
+	}, flags...)
 	return mechanic{name: "buffs", stats: stats, def: func(def core.StatDef, _ map[string]core.StatID) core.StatDef {
 		if _, ok := slices.BinarySearch(flags, def.Name); ok {
 			def.Flag = true
@@ -114,11 +148,19 @@ func buffMechanic() mechanic {
 	}}
 }
 
-// buffOf returns the buff sk grants you while it is active, false for a skill whose buff the
-// rules do not model, that does not reserve, or whose buff does not affect you.
-func buffOf(sk *resolve.Skill) (skillBuff, bool) {
-	b, ok := skillBuffs()[sk.GrantedEffect]
-	if !ok || !Reserves(sk) || !slices.ContainsFunc(sk.Types, func(t string) bool { return t == typeAura || t == typeHerald }) {
+// of returns the buff sk grants you while it is active, false for a skill whose buff the
+// rules do not model or does not affect you: an aura or herald that does not reserve, and a
+// guard skill a totem casts, which buffs the totem.
+func (r buffRules) of(sk *resolve.Skill) (skillBuff, bool) {
+	b, ok := r[sk.GrantedEffect]
+	switch {
+	case !ok:
+		return skillBuff{}, false
+	case slices.Contains(sk.Types, typeGolem):
+		return b, true
+	case slices.Contains(sk.Types, typeGuard):
+		return b, !slices.Contains(sk.Types, typeSummonsTotem)
+	case !Reserves(sk) || !slices.ContainsFunc(sk.Types, func(t string) bool { return t == typeAura || t == typeHerald }):
 		return skillBuff{}, false
 	}
 	if statOf(sk.Set().Stats, statAuraCannotAffectSelf) != 0 {
@@ -188,9 +230,9 @@ func buffScale(ref core.Ref, stat string, op core.Op, v float64) core.Scale {
 }
 
 // addBuff adds the buff b of sk, in slot with context ctx, from its buff stats: those stats
-// apply everywhere, scaled by the skill's buff effect, and the rules count the skill, set its
-// affected_by_ stat and, for an aura, give the attack and cast speed auras grant. It returns
-// the sources of both.
+// apply everywhere, scaled by the skill's buff effect, and the rules set its affected_by_ stat,
+// count an aura or herald and, for an aura, give the attack and cast speed auras grant. It
+// returns the sources of both.
 func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatValue, slot int, ctx core.CtxID) ([]core.SourceID, error) {
 	effect := core.Ref{Actor: 0, Stat: sh.stats[statBuffEffect], Ctx: int64(ctx)}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: sk.Source, Stats: stats}
@@ -204,13 +246,12 @@ func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatVal
 		return nil, err
 	}
 	aura := slices.Contains(sk.Types, typeAura)
-	count := statHeraldSkillsAffectingYou
-	if aura {
-		count = statAuraSkillsAffectingYou
-	}
-	mods := []core.Modifier{
-		{Stat: sh.stats[statBuffEffect], Op: core.OpBase, Value: baseBuffEffect, Source: src, Pred: pred},
-		{Stat: sh.stats[count], Op: core.OpBase, Value: 1, Source: src},
+	mods := []core.Modifier{{Stat: sh.stats[statBuffEffect], Op: core.OpBase, Value: baseBuffEffect, Source: src, Pred: pred}}
+	switch {
+	case aura:
+		mods = append(mods, core.Modifier{Stat: sh.stats[statAuraSkillsAffectingYou], Op: core.OpBase, Value: 1, Source: src})
+	case slices.Contains(sk.Types, typeHerald):
+		mods = append(mods, core.Modifier{Stat: sh.stats[statHeraldSkillsAffectingYou], Op: core.OpBase, Value: 1, Source: src})
 	}
 	if b.affected != "" {
 		mods = append(mods, core.Modifier{Stat: sh.stats[b.affected], Op: core.OpFlag, Value: 1, Source: src})
@@ -229,4 +270,34 @@ func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatVal
 		}
 	}
 	return []core.SourceID{buff, src}, nil
+}
+
+// buffList picks, of skills in order, those whose buffs affect you: of the skills granting the
+// same buff the first, as buffs of the same skill do not stack, and of the guard skills one,
+// whose buffs you have one at a time: Vaal Molten Shell if there is one, as PoB f9f4f3b does
+// (CalcPerform.lua, guardSlots), else the first. In game the guard used last applies.
+type buffList struct {
+	rules buffRules
+	seen  []string
+	guard string
+}
+
+func newBuffList(rules buffRules, skills []*resolve.Skill) *buffList {
+	l := &buffList{rules: rules}
+	for _, sk := range skills {
+		if _, ok := rules.of(sk); ok && slices.Contains(sk.Types, typeGuard) && (l.guard == "" || sk.GrantedEffect == vaalMoltenShell) {
+			l.guard = sk.GrantedEffect
+		}
+	}
+	return l
+}
+
+// take reports whether the buff of sk affects you, given the skills taken before it.
+func (l *buffList) take(sk *resolve.Skill) bool {
+	_, ok := l.rules.of(sk)
+	if !ok || slices.Contains(l.seen, sk.GrantedEffect) || slices.Contains(sk.Types, typeGuard) && sk.GrantedEffect != l.guard {
+		return false
+	}
+	l.seen = append(l.seen, sk.GrantedEffect)
+	return true
 }
