@@ -40,13 +40,11 @@ func TestFeaturesOfLeagues(t *testing.T) {
 			dataset.JewelFeatures{Sockets: 60, ClusterSockets: 42, Radii: radii, TimelessVersions: 6},
 		},
 		{
-			// The pinned 3.28 dataset was written before cluster sockets, radii and timeless
-			// versions were extracted.
 			realdata.Previous,
 			[]string{"Necromantic"},
 			all,
 			[]dataset.ProxyKind{dataset.ClusterProxy},
-			dataset.JewelFeatures{Sockets: 60},
+			dataset.JewelFeatures{Sockets: 60, ClusterSockets: 42, Radii: radii, TimelessVersions: 7},
 		},
 		{
 			realdata.Current,
