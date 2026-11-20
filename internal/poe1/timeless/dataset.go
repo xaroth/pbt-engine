@@ -44,7 +44,9 @@ func JewelOf(stats map[string]int32) (ModJewel, bool) {
 type Change struct {
 	// Replace makes Stats take the place of the passive's stats; otherwise they add to them.
 	Replace bool
-	Stats   []dataset.StatValue
+	// ReplacementID is the replacing row's id when Replace is set; it keys the row's name.
+	ReplacementID string
+	Stats         []dataset.StatValue
 }
 
 // Versions are the alternate tree versions of a tree variant, ready to conquer its passives.
@@ -82,6 +84,14 @@ func (v *Versions) Name(version int) string {
 	return v.rows[version].ID
 }
 
+// Rows returns the dataset's rows of version, or nil when there is no such version.
+func (v *Versions) Rows(version int) *dataset.TimelessVersion {
+	if v.Name(version) == "" {
+		return nil
+	}
+	return &v.rows[version]
+}
+
 // Conquer gives what j makes of passive n, or reports false when it leaves n as it is: an
 // unknown version or a passive it does not change.
 func (v *Versions) Conquer(j ModJewel, n Node) (Change, bool) {
@@ -95,7 +105,7 @@ func (v *Versions) Conquer(j ModJewel, n Node) (Change, bool) {
 	res := v.trees[j.Version].Conquer(Jewel{Seed: seed, Conqueror: j.Conqueror}, n)
 	var out Change
 	if res.Replaced {
-		out.Replace = true
+		out.Replace, out.ReplacementID = true, rows.Replacements[res.Replacement].ID
 		for s, r := range rows.Replacements[res.Replacement].Stats {
 			out.Stats = append(out.Stats, dataset.StatValue{Stat: r.Stat, Value: res.Rolls[s]})
 		}
@@ -106,6 +116,25 @@ func (v *Versions) Conquer(j ModJewel, n Node) (Change, bool) {
 		}
 	}
 	return out, out.Replace || len(out.Stats) > 0
+}
+
+// KindOf is n's kind as the alternate tree tables number it, from its own stats: a tattoo on it
+// does not change the kind a jewel sees. stats are the dataset's stats.
+func KindOf(n *dataset.Node, stats []dataset.Stat) Kind {
+	switch n.Kind {
+	case dataset.Normal:
+		ids := make([]string, 0, len(n.Stats))
+		for _, sv := range n.Stats {
+			ids = append(ids, stats[sv.Stat].ID)
+		}
+		return SmallKind(ids)
+	case dataset.Notable:
+		return Notable
+	case dataset.Keystone:
+		return Keystone
+	default:
+		return JewelSocket
+	}
 }
 
 // TablesOf gives a dataset's alternate tree version as tables.

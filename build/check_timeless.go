@@ -87,28 +87,9 @@ func (c *Checked) conquerFrom(socket uint32, j timeless.ModJewel, data *timeless
 	}
 	for _, id := range nodes {
 		n := c.node(id)
-		if ch, ok := data.versions.Conquer(j, timeless.Node{ID: id, Kind: c.timelessKind(n)}); ok {
+		if ch, ok := data.versions.Conquer(j, timeless.Node{ID: id, Kind: timeless.KindOf(n, c.stats)}); ok {
 			c.conquests = append(c.conquests, Conquest{Node: n, Socket: socket, Replace: ch.Replace, Stats: ch.Stats})
 		}
-	}
-}
-
-// timelessKind is n's kind as the alternate tree tables number it, from its own stats: a
-// tattoo on it does not change the kind the jewel sees.
-func (c *Checked) timelessKind(n *dataset.Node) timeless.Kind {
-	switch n.Kind {
-	case dataset.Normal:
-		ids := make([]string, 0, len(n.Stats))
-		for _, sv := range n.Stats {
-			ids = append(ids, c.stats[sv.Stat].ID)
-		}
-		return timeless.SmallKind(ids)
-	case dataset.Notable:
-		return timeless.Notable
-	case dataset.Keystone:
-		return timeless.Keystone
-	default:
-		return timeless.JewelSocket
 	}
 }
 
