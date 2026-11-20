@@ -56,6 +56,7 @@ func mechanics() []mechanic {
 		skillStageMechanic(),
 		transferMechanic(),
 		reservationMechanic(),
+		buffMechanic(),
 		costMechanic(),
 		damageMechanic(),
 		enemyMechanic(),

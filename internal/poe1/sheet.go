@@ -326,6 +326,12 @@ func modelFor(counters []string) *sheetModel {
 // add adds bd as a new source and returns it. Its modifiers apply in the context of the skill
 // in slot only, or everywhere when slot is negative.
 func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion, slot int) (core.SourceID, error) {
+	return sh.addBundle(bd, t, v, slot, nil)
+}
+
+// addBundle adds bd as add does; with effect set, slot is negative and each modifier is a
+// buff's, scaled by effect (buffScale).
+func (sh *Sheet) addBundle(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion, slot int, effect *core.Ref) (core.SourceID, error) {
 	// Every modifier lands on core actor 0, so another actor's stats would stack onto the player.
 	if bd.Actor != resolve.Player {
 		return 0, fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
@@ -343,7 +349,7 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 		ruled := false
 		if ok && e.Status == semantics.Authored {
 			var err error
-			if ruled, err = sh.addEntry(e, sv.Value, src, slot); err != nil {
+			if ruled, err = sh.addEntry(e, sv.Value, src, slot, effect); err != nil {
 				return 0, err
 			}
 		}
@@ -357,12 +363,13 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 
 // addEntry adds the modifiers and rule of authored entry e for a stat of value v, and reports
 // whether its rule was applied. Rules act on the sheet's values, which a skill's own stats (slot
-// not negative) do not reach, so they are not applied to them.
-func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot int) (bool, error) {
-	if err := sh.addMods(e, v, src, slot); err != nil {
+// not negative) do not reach and which a buff's effect does not scale, so they are not applied
+// to them.
+func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot int, effect *core.Ref) (bool, error) {
+	if err := sh.addMods(e, v, src, slot, effect); err != nil {
 		return false, err
 	}
-	if slot >= 0 {
+	if slot >= 0 || effect != nil {
 		return false, nil
 	}
 	return sh.applyRule(e, v, src)
@@ -437,8 +444,9 @@ func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 }
 
 // addMods adds e's modifiers for a stat of value from src; a modifier of the skill in slot
-// requires the slot's context, and slot is negative outside a skill.
-func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int) error {
+// requires the slot's context, and slot is negative outside a skill. With effect set, each
+// modifier is a buff's, scaled by it.
+func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int, effect *core.Ref) error {
 	for _, m := range e.Mods {
 		group, err := moreGroup(&m, slot >= 0)
 		if err != nil {
@@ -454,6 +462,9 @@ func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, s
 		}
 		if m.Per != nil {
 			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
+		}
+		if effect != nil {
+			mod.Scales = append(mod.Scales, buffScale(*effect, mod.Value))
 		}
 		var holds bool
 		if mod.Conds, holds = sh.conds(&m); !holds {
