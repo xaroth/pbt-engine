@@ -80,7 +80,8 @@ type Addition struct {
 
 // Conqueror names the conqueror on a jewel as the alternate passive keystones number them.
 type Conqueror struct {
-	Index, Version uint32
+	Index   uint32 `json:"index"`
+	Version uint32 `json:"version"`
 }
 
 // Tables is one version's rows: the version and, in table order, its replacements and additions.

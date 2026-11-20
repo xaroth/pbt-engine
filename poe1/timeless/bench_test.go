@@ -12,18 +12,6 @@ import (
 	"github.com/xaroth/pbt-engine/poe1/timeless"
 )
 
-// seedRanges are the seeds each version's jewel can show: first, last and step.
-//
-//nolint:gochecknoglobals // a constant table
-var seedRanges = map[string][3]uint32{
-	"Vaal":      {100, 8000, 1},
-	"Karui":     {10000, 18000, 1},
-	"Maraketh":  {500, 8000, 1},
-	"Templar":   {2000, 10000, 1},
-	"Eternal":   {2000, 160000, 20},
-	"Kalguuran": {100, 4000, 1},
-}
-
 // BenchmarkConquer conquers the passives in the Large radius of the socket with the most of
 // them, on the pinned current dataset, per version: one seed (forward), and every seed the
 // version's jewel can show (reverse, what a search for a seed scans; target: < 500 ms WASM).
@@ -34,12 +22,12 @@ func BenchmarkConquer(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	for i := range tree.TimelessVersions {
-		v := &tree.TimelessVersions[i]
-		seeds, ok := seedRanges[v.ID]
-		if !ok {
-			continue
-		}
+	versions, err := timeless.New(store).Versions(build.DefaultVariant)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for _, jv := range versions {
+		v, seeds := &tree.TimelessVersions[jv.Index], jv.Seeds
 		conquer, err := timeless.NewTree(tables(v))
 		if err != nil {
 			b.Fatal(err)
@@ -47,18 +35,18 @@ func BenchmarkConquer(b *testing.B) {
 		b.Run(v.ID+"/forward", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				conquerAll(conquer, timeless.Jewel{Seed: seeds[0]}, nodes)
+				conquerAll(conquer, timeless.Jewel{Seed: seeds.First}, nodes)
 			}
 			b.ReportMetric(float64(len(nodes)), "passives")
 		})
 		b.Run(v.ID+"/reverse", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				for s := seeds[0]; s <= seeds[1]; s += seeds[2] {
+				for s := seeds.First; s <= seeds.Last; s += seeds.Step {
 					conquerAll(conquer, timeless.Jewel{Seed: s}, nodes)
 				}
 			}
-			b.ReportMetric(float64((seeds[1]-seeds[0])/seeds[2]+1), "seeds")
+			b.ReportMetric(float64((seeds.Last-seeds.First)/seeds.Step+1), "seeds")
 		})
 	}
 }
@@ -84,7 +72,8 @@ func fullestRadius(tb testing.TB, store *dataset.Store) []timeless.Node {
 		tb.Fatal(err)
 	}
 	var out []timeless.Node
-	for _, id := range fullestSocket(tb, store, tree) {
+	_, ids := fullestSocket(tb, store, tree)
+	for _, id := range ids {
 		i, ok := slices.BinarySearchFunc(tree.Nodes, id, func(n dataset.Node, id uint32) int { return cmp.Compare(n.ID, id) })
 		if !ok || tree.Nodes[i].Ascendancy != "" {
 			continue
@@ -96,18 +85,19 @@ func fullestRadius(tb testing.TB, store *dataset.Store) []timeless.Node {
 	return out
 }
 
-// fullestSocket returns the nodes in the Large radius of the jewel socket with the most of them.
-func fullestSocket(tb testing.TB, store *dataset.Store, tree *dataset.Tree) []uint32 {
+// fullestSocket returns the jewel socket with the most nodes in its Large radius, and those nodes.
+func fullestSocket(tb testing.TB, store *dataset.Store, tree *dataset.Tree) (uint32, []uint32) {
 	tb.Helper()
 	reader := passives.New(store)
+	var socket uint32
 	var fullest []uint32
 	for _, s := range tree.JewelSlots {
 		ids, err := reader.NodesInRadius(build.DefaultVariant, s, passives.Radius{ID: "Large"})
 		if err == nil && len(ids) > len(fullest) {
-			fullest = ids
+			socket, fullest = s, ids
 		}
 	}
-	return fullest
+	return socket, fullest
 }
 
 // kindOf is n's kind as the alternate tree tables number it; false for a node no jewel changes.
@@ -128,4 +118,84 @@ func kindOf(n *dataset.Node, stats []dataset.Stat) (timeless.Kind, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// BenchmarkSearch searches every seed of each version in the socket with the most passives in
+// its Large radius, on the pinned current dataset, for a named notable and a stat of every kind
+// of passive, so every passive in the radius is conquered, and returns the best 50 with what each
+// gives (target: < 500 ms WASM).
+func BenchmarkSearch(b *testing.B) {
+	store := realdata.Open(b, realdata.Current)
+	tree, err := store.Tree(build.DefaultVariant)
+	if err != nil {
+		b.Fatal(err)
+	}
+	stats, err := store.Stats()
+	if err != nil {
+		b.Fatal(err)
+	}
+	names, err := store.Names("en")
+	if err != nil {
+		b.Fatal(err)
+	}
+	socket, _ := fullestSocket(b, store, tree)
+	reader := timeless.New(store)
+	versions, err := reader.Versions(build.DefaultVariant)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for _, jv := range versions {
+		q := timeless.Query{Socket: socket, Version: jv.Index, Language: "en", Limit: 50, Wants: benchWants(&tree.TimelessVersions[jv.Index], stats, names)}
+		b.Run(jv.ID, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := reader.Search(build.DefaultVariant, q); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// benchWants wants the first named notable replacement of v, and weighs the first stat of the
+// first row of each kind of passive.
+func benchWants(v *dataset.TimelessVersion, stats []dataset.Stat, names *dataset.Names) []timeless.Want {
+	var out []timeless.Want
+	for _, r := range v.Replacements {
+		i := slices.IndexFunc(names.TimelessNames, func(n dataset.Name) bool { return n.ID == r.ID })
+		if slices.Contains(r.Kinds, dataset.TimelessNotable) && i >= 0 {
+			out = append(out, timeless.Want{Name: names.TimelessNames[i].Name})
+			break
+		}
+	}
+	for _, k := range []dataset.TimelessKind{dataset.TimelessSmallAttribute, dataset.TimelessSmallNormal, dataset.TimelessNotable} {
+		if stat, ok := firstStat(v, k); ok {
+			w := timeless.Want{Stat: stats[stat].ID, Weight: 1}
+			if !slices.Contains(out, w) {
+				out = append(out, w)
+			}
+		}
+	}
+	return out
+}
+
+// firstStat gives the first stat of v's first replacement or addition with stats for kind k.
+func firstStat(v *dataset.TimelessVersion, k dataset.TimelessKind) (uint32, bool) {
+	var rows [][]dataset.StatRange
+	for _, r := range v.Replacements {
+		if slices.Contains(r.Kinds, k) {
+			rows = append(rows, r.Stats)
+		}
+	}
+	for _, a := range v.Additions {
+		if slices.Contains(a.Kinds, k) {
+			rows = append(rows, a.Stats)
+		}
+	}
+	for _, r := range rows {
+		if len(r) > 0 {
+			return r[0].Stat, true
+		}
+	}
+	return 0, false
 }

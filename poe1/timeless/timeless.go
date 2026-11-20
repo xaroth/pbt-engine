@@ -1,7 +1,9 @@
 // Package timeless computes what a timeless jewel makes of a passive in its radius: for a jewel's
 // alternate tree version, seed and conqueror, the replacement passive or the added stats the game
-// picks, with the values it rolls for them. It takes the game's alternate tree tables as plain
-// values. Every name is an alias of the engine's own.
+// picks, with the values it rolls for them. Tree takes the game's alternate tree tables as plain
+// values, and its names are aliases of the engine's own. Reader works on a dataset: what a jewel
+// in a socket makes of each passive in its radius, and a search of a version's seeds for wanted
+// results.
 package timeless
 
 import (
