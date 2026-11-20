@@ -14,21 +14,29 @@ import (
 // included, and enemy_maximum_resistance its cap. enemy_exposure is the Exposure the enemy has
 // to the type, its strongest instance; extra_exposure what is added to Exposure the character
 // inflicts, and minimum_exposure the least that Exposure applies (negative, 0 for no minimum).
-// penetration is how much of the resistance the character's hits of the type penetrate.
-// hit_enemy_resistance is the resistance a hit of the type meets after all of these.
+// penetration is how much of the resistance the character's hits of the type penetrate, and
+// non_critical_penetration what non-critical strikes penetrate on top of it.
+// inverted_resistance_chance is the chance in percent that a hit treats the resistance as
+// inverted, and critical_strikes_ignore_resistance a flag that critical strikes ignore it.
+// hit_enemy_resistance is the resistance a non-critical hit of the type meets after all of
+// these, critical_hit_enemy_resistance the one a critical strike meets.
 // enemy_damage_taken is the damage the enemy takes of the type in percent, 100 before modifiers;
 // enemy_armour and enemy_evasion are its armour and evasion rating.
 const (
-	statEnemyResistance        = "enemy_resistance"
-	statEnemyMaximumResistance = "enemy_maximum_resistance"
-	statEnemyExposure          = "enemy_exposure"
-	statExtraExposure          = "extra_exposure"
-	statMinimumExposure        = "minimum_exposure"
-	statPenetration            = "penetration"
-	statHitEnemyResistance     = "hit_enemy_resistance"
-	statEnemyDamageTaken       = "enemy_damage_taken"
-	statEnemyArmour            = "enemy_armour"
-	statEnemyEvasion           = "enemy_evasion"
+	statEnemyResistance                 = "enemy_resistance"
+	statEnemyMaximumResistance          = "enemy_maximum_resistance"
+	statEnemyExposure                   = "enemy_exposure"
+	statExtraExposure                   = "extra_exposure"
+	statMinimumExposure                 = "minimum_exposure"
+	statPenetration                     = "penetration"
+	statNonCriticalPenetration          = "non_critical_penetration"
+	statInvertedResistanceChance        = "inverted_resistance_chance"
+	statCriticalStrikesIgnoreResistance = "critical_strikes_ignore_resistance"
+	statHitEnemyResistance              = "hit_enemy_resistance"
+	statCriticalHitEnemyResistance      = "critical_hit_enemy_resistance"
+	statEnemyDamageTaken                = "enemy_damage_taken"
+	statEnemyArmour                     = "enemy_armour"
+	statEnemyEvasion                    = "enemy_evasion"
 )
 
 // EnemyKind is what the enemy a build is measured against is: a normal monster or a boss of
@@ -290,8 +298,11 @@ func (sh *Sheet) SetEnemy(e EnemyStats) {
 	sh.setEnemyUnique(e.Kind)
 }
 
-// formulaHitEnemyResistance is the formula name shown in explanations.
-const formulaHitEnemyResistance = "enemy resistance a hit meets"
+// Formula names shown in explanations.
+const (
+	formulaHitEnemyResistance         = "enemy resistance a hit meets"
+	formulaCriticalHitEnemyResistance = "enemy resistance a critical strike meets"
+)
 
 // mechanicEnemy names the enemy mechanic for those that come after it.
 const mechanicEnemy = "enemy"
@@ -304,7 +315,11 @@ func enemyMechanic() mechanic {
 		statExtraExposure,
 		statMinimumExposure,
 		statPenetration,
+		statNonCriticalPenetration,
+		statInvertedResistanceChance,
+		statCriticalStrikesIgnoreResistance,
 		statHitEnemyResistance,
+		statCriticalHitEnemyResistance,
 		statEnemyDamageTaken,
 		statEnemyArmour,
 		statEnemyEvasion,
@@ -316,33 +331,84 @@ func enemyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
 	case statEnemyExposure, statMinimumExposure:
 		def.LowestBase = true
+	case statInvertedResistanceChance:
+		def.HasMin, def.Min, def.HasMax, def.Max = true, 0, true, percentScale
+	case statCriticalStrikesIgnoreResistance:
+		def.Flag = true
 	case statHitEnemyResistance:
-		h := newMetResistance(ids, true)
+		h := newMetResistance(ids, hitNonCritical)
 		def.FormulaName, def.Formula, def.Attribute = formulaHitEnemyResistance, h.formula(), h.attribute()
+	case statCriticalHitEnemyResistance:
+		h := newMetResistance(ids, hitCritical)
+		def.FormulaName, def.Formula, def.Attribute = formulaCriticalHitEnemyResistance, h.formula(), h.attribute()
 	}
 	return def
 }
 
+// metBy is what meets a resistance: damage over time, a non-critical hit or a critical strike.
+type metBy int
+
+const (
+	overTime metBy = iota
+	hitNonCritical
+	hitCritical
+)
+
 // metResistance is the resistance damage of one type meets, read in the type's context: the
-// enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum, and
-// for a hit less its penetration. Exposure is its strongest instance, and what the character
-// adds to Exposure it inflicts, then its minimum, apply only while there is some. Penetration counts after the
-// limits, so it can take the resistance below the floor; damage over time does not penetrate.
-// All follow PoB (CalcOffence.lua calcResistForType, the hit's resistance and the skill's
-// damage over time, CalcPerform.lua's exposures); the game text gives none of the order.
+// enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum. A hit
+// then treats it as inverted by its chance to, weighing the inverted and the actual resistance,
+// and penetrates it, a non-critical hit also by what non-critical strikes penetrate; a critical
+// strike that ignores the resistance meets none and penetrates nothing. Exposure is its
+// strongest instance, and what the character adds to Exposure it inflicts, then its minimum,
+// apply only while there is some. Penetration counts after the limits, so it can take the
+// resistance below the floor; damage over time does not penetrate. All follow PoB
+// (CalcOffence.lua calcResistForType, the hit's resistance with HitsInvertEleResChance and the
+// skill's damage over time, CalcPerform.lua's exposures); the game text gives none of the order.
 type metResistance struct {
 	resistance, maximum, exposure, extra, minimum, penetration core.StatID
-	// penetrates is set for a hit.
-	penetrates bool
+	nonCritical, inverted, ignore                              core.StatID
+	by                                                         metBy
 }
 
-func newMetResistance(ids map[string]core.StatID, penetrates bool) metResistance {
+func newMetResistance(ids map[string]core.StatID, by metBy) metResistance {
 	return metResistance{
 		resistance: mustID(ids, statEnemyResistance), maximum: mustID(ids, statEnemyMaximumResistance),
 		exposure: mustID(ids, statEnemyExposure), extra: mustID(ids, statExtraExposure), minimum: mustID(ids, statMinimumExposure),
-		penetration: mustID(ids, statPenetration),
-		penetrates:  penetrates,
+		penetration: mustID(ids, statPenetration), nonCritical: mustID(ids, statNonCriticalPenetration),
+		inverted: mustID(ids, statInvertedResistanceChance), ignore: mustID(ids, statCriticalStrikesIgnoreResistance),
+		by: by,
 	}
+}
+
+// ignored reports whether a critical strike ignores the resistance, with stat reading a stat.
+func (h metResistance) ignored(stat func(core.StatID) float64) bool {
+	return h.by == hitCritical && stat(h.ignore) != 0
+}
+
+// limited returns the resistance with its Exposure within its limits, with stat reading a stat.
+func (h metResistance) limited(stat func(core.StatID) float64) float64 {
+	e, _ := h.exposed(stat)
+	return min(max(stat(h.resistance)+e, resistanceFloor), stat(h.maximum))
+}
+
+// invertedPart returns what a hit's chance to treat the resistance v as inverted changes of it.
+func (h metResistance) invertedPart(v float64, stat func(core.StatID) float64) float64 {
+	if h.by == overTime {
+		return 0
+	}
+	return -2 * v * stat(h.inverted) / percentScale
+}
+
+// penetrations returns the stats that penetrate the resistance.
+func (h metResistance) penetrations() []core.StatID {
+	switch h.by {
+	case hitNonCritical:
+		return []core.StatID{h.penetration, h.nonCritical}
+	case hitCritical:
+		return []core.StatID{h.penetration}
+	case overTime:
+	}
+	return nil
 }
 
 // exposed returns the Exposure the enemy has, with stat reading a stat, and how much of it its
@@ -360,19 +426,31 @@ func (h metResistance) exposed(stat func(core.StatID) float64) (e, raised float6
 
 func (h metResistance) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
-		e, _ := h.exposed(r.Stat)
-		v := min(max(r.Stat(h.resistance)+e, resistanceFloor), r.Stat(h.maximum))
-		if h.penetrates {
-			v -= r.Stat(h.penetration)
+		if h.ignored(r.Stat) {
+			return 0
+		}
+		v := h.limited(r.Stat)
+		v += h.invertedPart(v, r.Stat)
+		for _, p := range h.penetrations() {
+			v -= r.Stat(p)
 		}
 		return v
 	}
 }
 
-// attribute credits the enemy's resistance, its Exposure, what its minimum adds and any
-// penetration, which counts against it; what the limits change goes to the maximum's sources.
+// attribute credits the enemy's resistance, its Exposure, what its minimum adds, what treating
+// it as inverted changes and any penetration, which counts against it; what the limits change
+// goes to the maximum's sources. A critical strike that ignores the resistance credits what it
+// takes off to the sources that make it ignore it.
 func (h metResistance) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
+		total := a.Explanation().Total
+		if h.ignored(a.Stat) {
+			v := h.limited(a.Stat)
+			parts, _ := a.Of(core.SelfRef(h.resistance))
+			parts = rest(a, parts, v, core.SelfRef(h.maximum))
+			return core.Attribution{Parts: append(parts, a.Spread(core.SelfRef(h.ignore), -v, core.OpMore)...), Amount: total}
+		}
 		parts, _ := a.Of(core.SelfRef(h.resistance))
 		if e, raised := h.exposed(a.Stat); e != 0 {
 			for _, s := range []core.StatID{h.exposure, h.extra} {
@@ -384,11 +462,15 @@ func (h metResistance) attribute() core.Attribute {
 				parts = append(parts, scaled(p, raised/a.Stat(h.minimum))...)
 			}
 		}
-		if h.penetrates {
-			pen, _ := a.Of(core.SelfRef(h.penetration))
+		v := h.limited(a.Stat)
+		parts = rest(a, parts, v, core.SelfRef(h.maximum))
+		if inv := h.invertedPart(v, a.Stat); inv != 0 {
+			parts = append(parts, a.Spread(core.SelfRef(h.inverted), inv, core.OpMore)...)
+		}
+		for _, p := range h.penetrations() {
+			pen, _ := a.Of(core.SelfRef(p))
 			parts = append(parts, scaled(pen, -1)...)
 		}
-		total := a.Explanation().Total
-		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.maximum)), Amount: total}
+		return core.Attribution{Parts: parts, Amount: total}
 	}
 }

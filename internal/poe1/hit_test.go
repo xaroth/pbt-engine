@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
@@ -213,6 +214,24 @@ func TestPenetrationAndExposure(t *testing.T) {
 		{"lightning penetration", []resolve.StatValue{stat("base_reduce_enemy_lightning_resistance_%", 20)}, nil, with(taken{poe1.Lightning: 70})},
 		{"chaos penetration", []resolve.StatValue{stat("reduce_enemy_chaos_resistance_%", 20)}, nil, with(taken{poe1.Chaos: 90})},
 		{
+			"non-critical penetration", []resolve.StatValue{stat("non_critical_strikes_penetrate_elemental_resistances_%", 10)}, nil,
+			with(taken{poe1.Fire: 60, poe1.Cold: 60, poe1.Lightning: 60}),
+		},
+		{
+			"chance to treat resistances as inverted", []resolve.StatValue{stat("treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance", 25)}, nil,
+			with(taken{poe1.Fire: 75, poe1.Cold: 75, poe1.Lightning: 75}),
+		},
+		{
+			"inverted, then penetrated", []resolve.StatValue{
+				stat("treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance", 25), stat("base_reduce_enemy_fire_resistance_%", 20),
+			}, nil, with(taken{poe1.Fire: 95, poe1.Cold: 75, poe1.Lightning: 75}),
+		},
+		{
+			"always inverted", []resolve.StatValue{stat("treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance", 150)}, nil,
+			with(taken{poe1.Fire: 150, poe1.Cold: 150, poe1.Lightning: 150}),
+		},
+		{"cold penetration against a chilled enemy", []resolve.StatValue{stat("cold_penetration_%_vs_chilled_enemies", 20)}, nil, with(taken{poe1.Cold: 70})},
+		{
 			"elemental penetration", []resolve.StatValue{stat("reduce_enemy_elemental_resistance_%", 10)}, nil,
 			with(taken{poe1.Fire: 60, poe1.Cold: 60, poe1.Lightning: 60}),
 		},
@@ -306,6 +325,66 @@ func TestHitResistanceLimits(t *testing.T) {
 		if got := outputOf(t, sh, poe1.ColdMinimum); math.Abs(got-c.cold) > 1e-9 {
 			t.Errorf("%s: cold minimum: got %v, want %v", c.name, got, c.cold)
 		}
+	}
+}
+
+// Cold penetration against Chilled enemies holds only while the enemy is Chilled: a spell that
+// hits for 100 cold against 50% resistance meets 30% with 20% penetration.
+func TestPenetrationAgainstChilled(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		chilled bool
+		want    float64
+	}{{false, 50}, {true, 70}} {
+		var values config.Values
+		if err := config.Set(&values, poe1.EnemyChilled, c.chilled); err != nil {
+			t.Fatal(err)
+		}
+		sh := openWith(t, []resolve.Bundle{bundle(resolve.NodeSource{ID: 1}, resolve.Global,
+			resolve.StatValue{Stat: "cold_penetration_%_vs_chilled_enemies", Value: 20})}, values)
+		setSkills(t, sh, spellOf(0, "cold"))
+		if got := outputOf(t, sh, poe1.ColdMinimum); got != c.want {
+			t.Errorf("chilled %v: cold minimum: got %v, want %v", c.chilled, got, c.want)
+		}
+	}
+}
+
+// Critical strikes and non-critical hits can meet different resistances. A fire spell that hits
+// for 100 against 50% resistance, with a 50% chance to strike critically for 150%: a
+// non-critical hit deals 50, a critical strike 75, an average hit 62.5. Critical strikes that
+// ignore the resistance deal 150 whatever penetrates it; what non-critical strikes penetrate
+// reaches only non-critical hits.
+func TestCriticalStrikeResistance(t *testing.T) {
+	t.Parallel()
+	stat := func(name string, value float64) resolve.StatValue { return resolve.StatValue{Stat: name, Value: value} }
+	ignore := stat("critical_strikes_ignore_elemental_resistances", 1)
+	nonCrit := stat("non_critical_strikes_penetrate_elemental_resistances_%", 10)
+	pen := stat("base_reduce_enemy_fire_resistance_%", 10)
+	for _, c := range []struct {
+		name             string
+		stats            []resolve.StatValue
+		minimum, average float64
+	}{
+		{"neither", nil, 50, 62.5},
+		{"critical strikes ignore resistances", []resolve.StatValue{ignore}, 50, 0.5*50 + 0.5*150},
+		{"ignored, penetration does nothing", []resolve.StatValue{ignore, pen}, 60, 0.5*60 + 0.5*150},
+		{"non-critical penetration", []resolve.StatValue{nonCrit}, 60, 0.5*60 + 0.5*75},
+		{"both", []resolve.StatValue{ignore, nonCrit}, 60, 0.5*60 + 0.5*150},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			stats := append([]resolve.StatValue{stat("base_critical_strike_multiplier", 150)}, c.stats...)
+			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, stats...)))
+			sk := spellOf(0, "fire")
+			sk.StatSets[0].SpellCritChance = 5000
+			setSkills(t, sh, sk)
+			if got := outputOf(t, sh, poe1.FireMinimum); math.Abs(got-c.minimum) > 1e-9 {
+				t.Errorf("fire minimum: got %v, want %v", got, c.minimum)
+			}
+			if got := outputOf(t, sh, poe1.AverageHit); math.Abs(got-c.average) > 1e-9 {
+				t.Errorf("average hit: got %v, want %v", got, c.average)
+			}
+		})
 	}
 }
 

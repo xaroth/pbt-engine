@@ -151,3 +151,42 @@ func TestExplainHitAgainstEnemy(t *testing.T) {
 		t.Errorf("fire minimum: node 1 credited %v, want 20 (20%% of the hit)", credited)
 	}
 }
+
+// A critical strike that ignores the resistance a non-critical hit meets: a fire spell hitting
+// for 100 against 50% resistance, treated as inverted with 25% chance (25%) and penetrated 10%
+// by non-critical strikes (15%), strikes critically for 150% half the time and ignores it then.
+// The average hit, 0.5 x 85 + 0.5 x 150, credits the non-critical hit's 25 and 10 to the nodes
+// that lower its resistance, and the critical part's difference, 0.5 x 150 x 15%, to the
+// three: 37.5 to the one that ignores the resistance, -18.75 and -7.5 to the two whose effect
+// it removes.
+func TestExplainCriticalStrikeIgnoresResistance(t *testing.T) {
+	t.Parallel()
+	stat := func(name string, value float64) resolve.StatValue { return resolve.StatValue{Stat: name, Value: value} }
+	sh := open(t, resolved(
+		bundle(resolve.NodeSource{ID: 1}, resolve.Global, stat("critical_strikes_ignore_elemental_resistances", 1)),
+		bundle(resolve.NodeSource{ID: 2}, resolve.Global, stat("treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance", 25)),
+		bundle(resolve.NodeSource{ID: 3}, resolve.Global, stat("non_critical_strikes_penetrate_elemental_resistances_%", 10)),
+		bundle(resolve.NodeSource{ID: 4}, resolve.Global, stat("base_critical_strike_multiplier", 150)),
+	))
+	sk := spellOf(0, "fire")
+	sk.StatSets[0].SpellCritChance = 5000
+	setSkills(t, sh, sk)
+	ex := explainOf(t, sh, poe1.AverageHit, poe1.Proportional)
+	if !near(ex.Amount, 117.5) {
+		t.Fatalf("average hit: got %v, want 117.5", ex.Amount)
+	}
+	credited := map[string]float64{}
+	sum := 0.0
+	for _, l := range ex.Lines {
+		credited[l.Source.String()] += l.Value
+		sum += l.Value
+	}
+	if !near(sum, ex.Amount) {
+		t.Errorf("lines sum to %v, amount %v", sum, ex.Amount)
+	}
+	for src, want := range map[string]float64{"node 1": 37.5, "node 2": 25 - 18.75, "node 3": 10 - 7.5} {
+		if !near(credited[src], want) {
+			t.Errorf("%s: credited %v, want %v", src, credited[src], want)
+		}
+	}
+}
