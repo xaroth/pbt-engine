@@ -9,7 +9,10 @@ import (
 // Engine stats of a hit's damage with conversion, read in a skill's context for one damage
 // type. minimum_hit_damage and maximum_hit_damage are the hit of that type after damage and
 // conversion; the _before_conversion stats are the hit of the type before what converts away.
+// deals_no_damage, set in a damage type's context, makes the hit of that type 0 after
+// conversion: what the type converts or gives to others still counts.
 const (
+	statDealsNoDamage                    = "deals_no_damage"
 	statMinimumHitDamageBeforeConversion = "minimum_hit_damage_before_conversion"
 	statMaximumHitDamageBeforeConversion = "maximum_hit_damage_before_conversion"
 	statMinimumHitDamage                 = "minimum_hit_damage"
@@ -310,6 +313,7 @@ func conversionMechanic() mechanic {
 	return mechanic{
 		name: mechanicConversion, after: []string{mechanicDamage},
 		stats: slices.Concat(conversionStats(), []string{
+			statDealsNoDamage,
 			statMinimumHitDamageBeforeConversion,
 			statMaximumHitDamageBeforeConversion,
 			statMinimumHitDamage,
@@ -323,6 +327,8 @@ func conversionMechanic() mechanic {
 // conversionDef completes def when it is a stat of a hit's damage with conversion.
 func conversionDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
+	case statDealsNoDamage:
+		def.Flag = true
 	case statMinimumHitDamageBeforeConversion, statMaximumHitDamageBeforeConversion:
 		// The formula reads both stats, so addConversionFormulas sets it once they are registered.
 		def.HasMin = true
@@ -354,18 +360,23 @@ func addConversionFormulas(b *core.ModelBuilder, ids map[string]core.StatID) {
 }
 
 // convertedAwayHit is a hit's smallest or largest damage of one type: its damage before
-// conversion less what converts to later types. The type is the earliest of the context's
-// damage types, as for convertedHit.
+// conversion less what converts to later types, or 0 while the skill deals no damage of the
+// type. The type is the earliest of the context's damage types, as for convertedHit. That the
+// type's hit is 0 only after conversion follows PoB (CalcOffence.lua canDeal); the game text
+// does not say.
 type convertedAwayHit struct {
-	before     core.StatID
-	conversion conversionIDs
-	masks      damageMasks
+	before, dealsNo core.StatID
+	conversion      conversionIDs
+	masks           damageMasks
 	// at reads the conversion at its hit mask.
 	at partMasks
 }
 
 func newConvertedAwayHit(ids map[string]core.StatID, before string) convertedAwayHit {
-	return convertedAwayHit{before: mustID(ids, before), conversion: newConversionIDs(ids), masks: newDamageMasks()}
+	return convertedAwayHit{
+		before: mustID(ids, before), dealsNo: mustID(ids, statDealsNoDamage),
+		conversion: newConversionIDs(ids), masks: newDamageMasks(),
+	}
 }
 
 // rates returns the conversion rates of the type read in mask, and false when mask has none.
@@ -378,10 +389,23 @@ func (h convertedAwayHit) rates(mask core.Mask, stat func(core.StatID, core.Mask
 	return d, h.conversion.rates(d, func(s core.StatID) float64 { return stat(s, at) }), true
 }
 
+// dealsNoAt returns the mask deals_no_damage is read at for the type read in mask, and false
+// when mask has none.
+func (h convertedAwayHit) dealsNoAt(mask core.Mask) (core.Mask, bool) {
+	d, ok := h.masks.first(mask)
+	if !ok {
+		return mask, false
+	}
+	return h.masks.only(h.at.hitAt(mask), d), true
+}
+
 func (h convertedAwayHit) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
 		_, rates, ok := h.rates(r.Mask(), r.StatAt)
 		if !ok {
+			return 0
+		}
+		if at, _ := h.dealsNoAt(r.Mask()); r.StatAt(h.dealsNo, at) != 0 {
 			return 0
 		}
 		return r.Stat(h.before) * rates.keep
@@ -389,10 +413,16 @@ func (h convertedAwayHit) formula() core.Formula {
 }
 
 // attribute credits the damage before conversion, and what converts away as a negative more
-// part to the sources of each conversion, by its part of the converted share.
+// part to the sources of each conversion, by its part of the converted share. While the skill
+// deals no damage of the type, the flag's sources are listed at 0.
 func (h convertedAwayHit) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		total := a.Explanation().Total
+		if at, ok := h.dealsNoAt(a.Mask()); ok {
+			if ref := a.RefAt(h.dealsNo, at); a.Read(ref) != 0 {
+				return core.Attribution{Parts: a.Spread(ref, 0, core.OpFlag), Amount: total}
+			}
+		}
 		parts, before := a.Of(core.SelfRef(h.before))
 		d, rates, ok := h.rates(a.Mask(), func(s core.StatID, m core.Mask) float64 { return a.Read(a.RefAt(s, m)) })
 		lost := before * (rates.keep - 1)

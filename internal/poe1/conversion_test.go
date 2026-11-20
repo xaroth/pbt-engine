@@ -1,9 +1,11 @@
 package poe1_test
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
@@ -50,11 +52,13 @@ func checkHits(t *testing.T, sh *poe1.Sheet, want hits) {
 // Conversion and gain on made-up spells, before the enemy.
 func TestConversion(t *testing.T) {
 	t.Parallel()
+	frozen := config.Values{poe1.EnemyFrozen.Name(): json.RawMessage("true")}
 	for _, c := range []struct {
 		name   string
 		base   hits
 		own    []resolve.StatValue
 		global []resolve.StatValue
+		values config.Values
 		want   hits
 	}{
 		{
@@ -145,10 +149,45 @@ func TestConversion(t *testing.T) {
 			global: []resolve.StatValue{stat("physical_damage_%_to_add_as_fire", 50)},
 			want:   hits{poe1.Physical: {0, 3}, poe1.Fire: {0, 1.5}},
 		},
+		{
+			// Physical deals none, but what it converts to lightning still counts.
+			name: "no damage of a type after conversion",
+			base: hits{poe1.Physical: {100, 100}, poe1.Cold: {100, 100}},
+			global: []resolve.StatValue{
+				stat("base_physical_damage_%_to_convert_to_lightning", 50), stat("deal_no_non_lightning_damage", 1),
+			},
+			want: hits{poe1.Lightning: {50, 50}},
+		},
+		{
+			// Lightning's own minimum 50% less and maximum 25% more; cold none.
+			name:   "Lightning Purist",
+			base:   hits{poe1.Lightning: {100, 100}, poe1.Cold: {100, 100}},
+			global: []resolve.StatValue{stat("keystone_lightning_purist", 1)},
+			want:   hits{poe1.Lightning: {50, 125}},
+		},
+		{
+			name:   "Cold Purist",
+			base:   hits{poe1.Lightning: {100, 100}},
+			global: []resolve.StatValue{stat("base_lightning_damage_%_to_convert_to_cold", 30), stat("keystone_cold_purist", 1)},
+			want:   hits{poe1.Cold: {30, 30}},
+		},
+		{
+			name:   "gain against a Frozen enemy",
+			base:   hits{poe1.Cold: {100, 100}},
+			global: []resolve.StatValue{stat("cold_damage_%_to_add_as_fire_vs_frozen_enemies", 50)},
+			values: frozen,
+			want:   hits{poe1.Cold: {100, 100}, poe1.Fire: {50, 50}},
+		},
+		{
+			name:   "no gain against an enemy not Frozen",
+			base:   hits{poe1.Cold: {100, 100}},
+			global: []resolve.StatValue{stat("cold_damage_%_to_add_as_fire_vs_frozen_enemies", 50)},
+			want:   hits{poe1.Cold: {100, 100}},
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, c.global...)))
+			sh := openWith(t, []resolve.Bundle{bundle(resolve.NodeSource{ID: 1}, resolve.Global, c.global...)}, c.values)
 			setSkills(t, sh, conversionSpell(c.base, c.own...))
 			checkHits(t, sh, c.want)
 		})
@@ -180,5 +219,36 @@ func TestConvertedHitAgainstEnemy(t *testing.T) {
 		if !near(credited, want) {
 			t.Errorf("%s: node 1 credited %v, want %v", k, credited, want)
 		}
+	}
+}
+
+// Elemental Overload gives a hit 40% more elemental damage while the skill can strike
+// critically, what physical converts to fire included: of 100 physical, 50 is left and fire
+// gets 50 x 140%; cold's own 100 becomes 140.
+func TestElementalOverload(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name string
+		// crit is the spell's critical strike chance in hundredths of a percent.
+		crit int32
+		want map[output.Key]float64
+	}{
+		{name: "can strike critically", crit: 500, want: map[output.Key]float64{poe1.PhysicalMinimum: 50, poe1.FireMinimum: 70, poe1.ColdMinimum: 140}},
+		{name: "cannot strike critically", want: map[output.Key]float64{poe1.PhysicalMinimum: 50, poe1.FireMinimum: 50, poe1.ColdMinimum: 100}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global,
+				stat("base_physical_damage_%_to_convert_to_fire", 50), stat("keystone_elemental_overload", 1))))
+			sk := conversionSpell(hits{poe1.Physical: {100, 100}, poe1.Cold: {100, 100}})
+			sk.StatSets[0].SpellCritChance = c.crit
+			setSkills(t, sh, sk)
+			sh.SetEnemy(poe1.EnemyStats{})
+			for k, want := range c.want {
+				if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
+					t.Errorf("%s: got %v, want %v", k, got, want)
+				}
+			}
+		})
 	}
 }
