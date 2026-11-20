@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 335 authored, 103 unknown, 1 display-only, 0 gaps, 1470 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 338 authored, 103 unknown, 1 display-only, 0 gaps, 1467 outside
 unknown by reason: condition 68, items 18, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -103,13 +103,16 @@ omitted global_defences_+% global, uses 1: Ward, which is not a sheet value
 unknown guardian_reserved_mana_%_given_to_you_and_nearby_allies_as_base_maximum_energy_shield global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown guardian_reserved_mana_granted_to_you_and_allies_as_armour_% global, uses 1: reservation: depends on reserved life or mana, which needs skills
 omitted keystone_chaos_inoculation global, uses 1: Immune to Chaos Damage
+unvalidated keystone_cold_purist global, uses 1: the hit of each other type is 0 after conversion, so what it converts to the type it deals still counts, as PoB does (CalcOffence.lua canDeal); the text does not say
+omitted keystone_cold_purist global, uses 1: Cold Damage taken increased by Chill Effect for enemies Chilled by your Hits or in your Chilling Areas: the engine does not model the effect of Chill
 omitted keystone_crimson_dance global, uses 1: that bleeding cannot be Aggravated, which the sheet does not model
 unknown keystone_divine_shield global, uses 1: condition: physical damage prevented from hits recently
-omitted keystone_elemental_overload global, uses 1: 40% more Elemental Damage with Hits and Ailments for Skills that have dealt a Critical Strike in the past 8 seconds, which PoB counts for any skill that can strike critically
+unvalidated keystone_elemental_overload global, uses 1: the 40% more holds while the skill's chance to strike critically is above 0, as PoB counts it (CalcOffence.lua CritInPast8Sec); the text says for skills that have dealt a critical strike in the past 8 seconds
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life
 unvalidated keystone_glancing_blows global, uses 1: the text does not say whether doubling applies before or after other modifiers; the total is doubled, as PoB does (a 100% more multiplier)
 omitted keystone_glancing_blows global, uses 1: Chance to Block Attack Damage is doubled; You take 65% of Damage from Blocked Hits
 unvalidated keystone_iron_reflexes global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
+unvalidated keystone_lightning_purist global, uses 1: the hit of each other type is 0 after conversion, so what it converts to the type it deals still counts, as PoB does (CalcOffence.lua canDeal); the text does not say; the more and less apply to lightning's own damage, not to what earlier types convert to it, where PoB applies them to both when lightning has damage of its own
 omitted keystone_magebane global, uses 1: +1% Chance to Suppress Spell Damage per 15 Dexterity
 omitted keystone_miracle_of_thaumaturgy global, uses 1: While not on Full Life, Sacrifice 20% of Mana per Second to Recover that much Life
 unvalidated keystone_precise_technique global, uses 1: higher than is read as strictly higher, and each hand's accuracy rating is compared on its own, as PoB does
@@ -129,6 +132,7 @@ unknown life_regeneration_rate_per_minute_%_per_trap_triggered_recently_up_to_20
 unknown life_regeneration_rate_per_minute_%_when_on_low_life global, uses 1: condition: on Low Life
 unknown life_regeneration_rate_per_minute_%_while_stationary global, uses 1: condition: stationary
 unknown life_regeneration_rate_per_minute_%_while_using_flask global, uses 1: condition: any Flask effect
+unvalidated lightning_damage_%_to_add_as_cold_vs_chilled_enemies global, uses 1: gain as for lightning_damage_%_to_add_as_cold
 unknown mana_recovery_rate_+%_while_affected_by_a_mana_flask global, uses 1: condition: Mana Flask effect
 unknown mana_regeneration_+%_for_4_seconds_on_movement_skill_use global, uses 1: condition: used a Movement Skill recently
 unknown mana_regeneration_rate_+%_if_enemy_frozen_recently global, uses 1: condition: frozen an enemy recently
