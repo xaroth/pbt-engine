@@ -68,3 +68,16 @@ func TestAurasAndHeraldsAffectingYou(t *testing.T) {
 		}
 	}
 }
+
+// A buff's effect rounds its own value before a count multiplies it: Herald of the Breach's 3%
+// more damage per herald at 125% is 3%, so 6% more with two heralds, not 7%.
+func TestBuffEffectRoundsBeforeCount(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, resolve.StatValue{Stat: "herald_effect_on_self_+%", Value: 25})))
+	breach := buffSkill(0, "HeraldOfTheBreach", "Herald",
+		resolve.StatValue{Stat: "skill_buff_grants_damage_+%_final_per_herald_skill_affecting_you", Value: 3})
+	setSkills(t, sh, breach, buffSkill(1, "HeraldOfAsh", "Herald"))
+	if got := value(t, sh, "damage"); got != 106 {
+		t.Errorf("damage: got %v, want 106", got)
+	}
+}

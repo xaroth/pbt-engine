@@ -464,7 +464,9 @@ func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, s
 			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
 		}
 		if effect != nil {
-			mod.Scales = append(mod.Scales, buffScale(*effect, mod.Value))
+			// The effect rounds the buff's own value, before any count multiplies it, as PoB's
+			// ScaleAddMod does.
+			mod.Scales = append([]core.Scale{buffScale(*effect, mod.Value)}, mod.Scales...)
 		}
 		var holds bool
 		if mod.Conds, holds = sh.conds(&m); !holds {
