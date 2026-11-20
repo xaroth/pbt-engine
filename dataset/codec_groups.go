@@ -597,14 +597,18 @@ func decodeTree(buf []byte, index map[string]uint32) (Tree, error) {
 	return t, nil
 }
 
-// decodeTreeClasses reads the variant and classes of a tree file and none of its nodes, so it
-// needs no stats index.
-func decodeTreeClasses(buf []byte) (variant string, classes []Class, err error) {
+// decodeTreeClasses reads the variant, classes and alternate ascendancies of a tree file and
+// none of its nodes, so it needs no stats index.
+func decodeTreeClasses(buf []byte) (treeClasses, error) {
 	if !fb.TreeBufferHasIdentifier(buf) {
-		return "", nil, errIdentifier
+		return treeClasses{}, errIdentifier
 	}
 	root := fb.GetRootAsTree(buf, 0)
-	return string(root.Variant()), decodeClasses(root), nil
+	return treeClasses{
+		variant:    string(root.Variant()),
+		classes:    decodeClasses(root),
+		alternates: decodeAscendancies(root.AlternateAscendancies, root.AlternateAscendanciesLength()),
+	}, nil
 }
 
 // decodeClasses returns nil for no classes, so a tree without them reads back as written.
