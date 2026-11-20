@@ -2,9 +2,9 @@
   "format": 1,
   "game": "poe1",
   "version": "3.28.0.16",
-  "id": "df04719991f69ea2428b0b4279e2b8f49078645965e15a075e9e54e7736063a1",
+  "id": "5491cf7eeb81b26529d950effa7679f298fda40f8cf72c65cd47ca765e5bdd69",
   "source": {
-    "fixtureOf": "5f14cda3263e1d93da9969242fe91c41b0fbb5145ca4864b405947ddc1b13427"
+    "fixtureOf": "400942a0b5778859dd8204a898f3c9997997cba5e315014dda2e1ac9bb102916"
   },
   "files": [
     {
@@ -14,8 +14,8 @@
     },
     {
       "name": "characters.fb",
-      "size": 2720,
-      "sha256": "083795894bf257c00a6f42bb4fbcfe6f1dcaf8d8aee390e5a31dc8f5f32ff9a9"
+      "size": 2808,
+      "sha256": "27948d731ce417abc904d1c3f04f50852591c5d492e31d81ab930bab1eff19b4"
     },
     {
       "name": "constants.fb",
