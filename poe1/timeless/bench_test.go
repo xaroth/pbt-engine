@@ -146,7 +146,43 @@ func BenchmarkSearch(b *testing.B) {
 		b.Fatal(err)
 	}
 	for _, jv := range versions {
-		q := timeless.Query{Socket: socket, Version: jv.Index, Language: "en", Limit: 50, Wants: benchWants(&tree.TimelessVersions[jv.Index], stats, names)}
+		wants := benchWants(&tree.TimelessVersions[jv.Index], stats, names)
+		q := timeless.Query{Sockets: []uint32{socket}, Version: jv.Index, Language: "en", Limit: 50, Wants: wants}
+		b.Run(jv.ID, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := reader.Search(context.Background(), build.DefaultVariant, q, nil); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkSearchAllSockets searches every seed of each version in every socket Sockets
+// returns, for the wants of BenchmarkSearch, and returns the best 50 with what each gives
+// (target: < 10 s WASM for Vaal).
+func BenchmarkSearchAllSockets(b *testing.B) {
+	store := realdata.Open(b, realdata.Current)
+	tree, err := store.Tree(build.DefaultVariant)
+	if err != nil {
+		b.Fatal(err)
+	}
+	stats, err := store.Stats()
+	if err != nil {
+		b.Fatal(err)
+	}
+	names, err := store.Names("en")
+	if err != nil {
+		b.Fatal(err)
+	}
+	reader := timeless.New(store)
+	versions, err := reader.Versions(build.DefaultVariant)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for _, jv := range versions {
+		q := timeless.Query{Version: jv.Index, Language: "en", Limit: 50, Wants: benchWants(&tree.TimelessVersions[jv.Index], stats, names)}
 		b.Run(jv.ID, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
