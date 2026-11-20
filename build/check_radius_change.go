@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1/radius"
 )
 
 // Stats of a jewel that change what the passives in its radius give.
@@ -75,11 +76,15 @@ func (c *Checked) findRadiusChanges() error {
 // addRadiusChanges adds jewel, without a node, for each passive r changes in its radius, less
 // the conquered ones r does not reach.
 func (c *Checked) addRadiusChanges(jewel RadiusChange, r radiusChangeStat, conquered map[uint32]bool) error {
-	ix, area, err := c.jewelRadius(r.radius)
+	jr, ok := c.radiusOf(jewel.Socket, r.radius)
+	if !ok {
+		return nil
+	}
+	ix, err := c.radiusIndex()
 	if err != nil {
 		return err
 	}
-	nodes, err := ix.Nodes(jewel.Socket, area)
+	nodes, err := ix.Nodes(jewel.Socket, radius.Disc(jr))
 	if err != nil {
 		return nil //nolint:nilerr // only a socket on the tree has a radius
 	}

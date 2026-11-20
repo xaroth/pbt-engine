@@ -1,11 +1,9 @@
 package build
 
 import (
-	"fmt"
 	"maps"
 	"slices"
 
-	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1/radius"
 )
 
@@ -37,17 +35,17 @@ func (c *Checked) findUnconnected() error {
 				continue
 			}
 		}
+		area, ok := c.unconnectedArea(socket, stats)
+		if !ok {
+			continue
+		}
 		if ix == nil {
 			var err error
-			if ix, err = radius.Of(c.store, c.build.Variant); err != nil {
-				return fmt.Errorf("build: %w", err)
+			if ix, err = c.radiusIndex(); err != nil {
+				return err
 			}
 		}
-		nodes, err := c.unconnectedNodes(ix, socket, stats)
-		if err != nil {
-			return err
-		}
-		if len(nodes) > 0 {
+		if nodes := c.unconnectedNodes(ix, socket, area, stats); len(nodes) > 0 {
 			if c.unconnected == nil {
 				c.unconnected = map[uint32][]uint32{}
 			}
@@ -58,43 +56,41 @@ func (c *Checked) findUnconnected() error {
 }
 
 // unconnectedNodes returns the passives a jewel with stats in socket lets be allocated without
-// a connection: around the socket when it has nearbyUnconnectedStat, else around the keystone.
-// A socket off the tree, a keystone not on it or a ring with no radius reaches none.
-func (c *Checked) unconnectedNodes(ix *radius.Index, socket uint32, stats map[string]int32) ([]uint32, error) {
-	area, ok, err := c.unconnectedArea(stats)
-	if err != nil || !ok {
-		return nil, err
-	}
+// a connection in area: around the socket when it has nearbyUnconnectedStat, else around the
+// keystone. A socket off the tree or a keystone not on it reaches none.
+func (c *Checked) unconnectedNodes(ix *radius.Index, socket uint32, area radius.Area, stats map[string]int32) []uint32 {
 	var nodes []uint32
+	var err error
 	if _, nearby := stats[nearbyUnconnectedStat]; nearby {
 		nodes, err = ix.Nodes(socket, area)
 	} else {
 		nodes, err = ix.NodesAround(uint32(stats[keystoneUnconnectedStat]), area) //nolint:gosec // a node id, read from its name
 	}
 	if err != nil {
-		return nil, nil //nolint:nilerr // reaching nothing is the answer
+		return nil
 	}
-	return nodes, nil
+	return nodes
 }
 
-// unconnectedArea returns the area of a jewel with stats around its socket or keystone: Thread
-// of Hope's ring, else leapRadius. It reports false for a ring value with no radius.
-func (c *Checked) unconnectedArea(stats map[string]int32) (radius.Area, bool, error) {
+// unconnectedArea returns the area of the jewel with stats in socket around its socket or
+// keystone: Thread of Hope's ring, else leapRadius. It reports false for a ring value with no
+// radius, and for a tree without the radius.
+func (c *Checked) unconnectedArea(socket uint32, stats map[string]int32) (radius.Area, bool) {
 	id, ring := leapRadius, false
 	if v, ok := stats[ringStat]; ok {
 		if id, ok = ringRadius(v); !ok {
-			return radius.Area{}, false, nil
+			return radius.Area{}, false
 		}
 		ring = true
 	}
-	i := slices.IndexFunc(c.tree.JewelRadii, func(r dataset.JewelRadius) bool { return r.ID == id })
-	if i < 0 {
-		return radius.Area{}, false, fmt.Errorf("build: jewel radius %s in the %s tree: %w", id, c.build.Variant, dataset.ErrNotInDataset)
+	r, ok := c.radiusOf(socket, id)
+	if !ok {
+		return radius.Area{}, false
 	}
 	if ring {
-		return radius.Ring(c.tree.JewelRadii[i]), true, nil
+		return radius.Ring(r), true
 	}
-	return radius.Disc(c.tree.JewelRadii[i]), true, nil
+	return radius.Disc(r), true
 }
 
 // ringRadius returns the jewel radius whose ring Thread of Hope reaches with ringStat v.

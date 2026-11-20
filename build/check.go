@@ -51,6 +51,7 @@ const (
 	OverrideNotAllocated  Code = "override-not-allocated"
 	OverrideNotPlaceable  Code = "override-not-placeable"
 	ChoiceRepeated        Code = "choice-repeated"
+	RadiusMissing         Code = "radius-missing"
 )
 
 // Warning is something a run can go on without; Message says what was done about it. Subject
@@ -130,7 +131,9 @@ type Checked struct {
 	jewelPassives  []JewelPassive
 	// unconnected are the passives each socket's jewel lets be allocated without a connection.
 	unconnected map[uint32][]uint32
-	warnings    []Warning
+	// radiusWarned are the sockets whose jewel the tree has no radius for, which warned.
+	radiusWarned map[uint32]bool
+	warnings     []Warning
 }
 
 // MasteryChoice is an allocated mastery node and its chosen effect.
