@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 350 authored, 101 unknown, 1 display-only, 0 gaps, 1457 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 352 authored, 101 unknown, 1 display-only, 0 gaps, 1455 outside
 unknown by reason: condition 68, items 18, event 7, reservation 4, context 2, scale 1, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -94,7 +94,9 @@ unvalidated chaos_damage_resistance_is_doubled global, uses 1: the text does not
 unvalidated consecrated_ground_enemy_damage_taken_+% global, uses 1: the config says whether the enemy is on Consecrated Ground, not who created it; read as the character's own, as PoB does
 unvalidated critical_strikes_ignore_elemental_resistances global, uses 1: an ignored resistance is taken as 0 that penetration does not lower, as PoB does; the text does not say how ignoring and penetration combine
 unvalidated damage_+%_for_you_and_allies_affected_by_your_auras global, uses 1: the stat id says affected by your auras; the text says you and nearby allies, so it is read as an aura of the node's own that always applies to the player, as PoB does. Not scaled by aura effect on you; PoB scales it by aura and buff effect on you
+unvalidated damage_over_time_+%_while_affected_by_a_herald global, uses 1: counts the herald skills from gems whose buffs the rules model; damage over time read as for damage_over_time_+%
 unknown damage_reduction_rating_from_body_armour_doubled global, uses 1: items: depends on equipped items, which an entry cannot check yet
+unvalidated elemental_damage_+%_while_affected_by_a_herald global, uses 1: counts the herald skills from gems whose buffs the rules model
 unknown elemental_resistance_%_while_no_gems_in_helmet global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unvalidated elemental_resistances_+%_for_you_and_allies_affected_by_your_auras global, uses 1: the stat id says affected by your auras; the text says you and nearby allies, so it is read as an aura of the node's own that always applies to the player, as PoB does. Not scaled by aura effect on you, which the engine does not model; PoB scales it by aura and buff effect on you
 unknown energy_shield_regeneration_%_per_minute_if_enemy_cursed_recently global, uses 1: condition: cursed an enemy recently

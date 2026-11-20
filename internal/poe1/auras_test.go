@@ -1,9 +1,11 @@
 package poe1_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/poe1"
 )
 
 // buffSkill is a reserving skill of granted effect id and type kind ("Aura" or "Herald") with
@@ -79,5 +81,49 @@ func TestBuffEffectRoundsBeforeCount(t *testing.T) {
 	setSkills(t, sh, breach, buffSkill(1, "HeraldOfAsh", "Herald"))
 	if got := value(t, sh, "damage"); got != 106 {
 		t.Errorf("damage: got %v, want 106", got)
+	}
+}
+
+// Watcher's Eye lines hold while their aura affects you. A cold spell that hits for 100 against
+// 50% resistance, with a 50% chance to strike critically for 150%: Hatred's 10% cold
+// penetration reaches every hit, Zealotry's 20% only critical strikes, and neither holds without
+// its aura or with an aura that cannot affect you.
+func TestStatsWhileAffectedByAura(t *testing.T) {
+	t.Parallel()
+	generous := buffSkill(1, "Hatred", "Aura")
+	generous.Supports = []resolve.Support{{
+		Source: resolve.GemSource{Gem: 1, ID: "generosity"}, Stats: []resolve.StatValue{{Stat: "aura_cannot_affect_self", Value: 1}},
+	}}
+	for _, c := range []struct {
+		name             string
+		aura             *resolve.Skill
+		minimum, average float64
+	}{
+		{"no aura", nil, 50, 0.5*50 + 0.5*75},
+		{"Hatred", buffSkill(1, "Hatred", "Aura"), 60, 0.5*60 + 0.5*90},
+		{"Zealotry", buffSkill(1, "Zealotry", "Aura"), 50, 0.5*50 + 0.5*150*0.7},
+		{"Hatred that cannot affect you", generous, 50, 0.5*50 + 0.5*75},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			sh := open(t, resolved(bundle(resolve.ItemSource{Slot: "Jewel", Name: "Watcher's Eye"}, resolve.Global,
+				resolve.StatValue{Stat: "base_critical_strike_multiplier", Value: 150},
+				resolve.StatValue{Stat: "reduce_enemy_cold_resistance_%_while_affected_by_hatred", Value: 10},
+				resolve.StatValue{Stat: "critical_strikes_penetrates_%_elemental_resistances_while_affected_by_zealotry", Value: 20},
+			)))
+			sk := spellOf(0, "cold")
+			sk.StatSets[0].SpellCritChance = 5000
+			skills := []*resolve.Skill{sk}
+			if c.aura != nil {
+				skills = append(skills, c.aura)
+			}
+			setSkills(t, sh, skills...)
+			if got := outputOf(t, sh, poe1.ColdMinimum); math.Abs(got-c.minimum) > 1e-9 {
+				t.Errorf("cold minimum: got %v, want %v", got, c.minimum)
+			}
+			if got := outputOf(t, sh, poe1.AverageHit); math.Abs(got-c.average) > 1e-9 {
+				t.Errorf("average hit: got %v, want %v", got, c.average)
+			}
+		})
 	}
 }
