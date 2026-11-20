@@ -17,7 +17,7 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
-	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/poe1"
 )
 
 // Errors of ToXML beside FromXML's: a build of another game than poe1, and a version that is

@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/xaroth/pbt-engine/config"
-	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/poe1"
 )
 
 // shockEffectInput is PoB's "Effect of Shock" input, read while the enemy is Shocked.

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/xaroth/pbt-engine/config"
-	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/poe1"
 )
 
 // enemyKindInput is PoB's "Is the enemy a Boss?" input.
