@@ -25,13 +25,14 @@ type SheetSkills struct {
 	// Main is the main skill, nil when the build has none.
 	Main *resolve.Skill
 	// Skills are in slot order: the main skill first, if any, then the other skills that
-	// reserve life or mana, then the other skills, as many as the sheet holds. Every skill is
-	// on the sheet so the conditions it causes can be derived (Sheet.DeriveConditions).
+	// reserve life or mana or apply a curse, then the other skills, as many as the sheet
+	// holds. Every skill is on the sheet so the conditions it causes can be derived
+	// (Sheet.DeriveConditions).
 	Skills []*resolve.Skill
 	// Every says the outputs of every skill are read, not only the main skill's.
 	Every bool
 	// Kept is how many of Skills, from the first, are read and noted: the main skill, those
-	// that reserve and, with Every, the rest. The others are on the sheet only to derive the
+	// that reserve or curse and, with Every, the rest. The others are on the sheet only to derive the
 	// conditions they cause (Sheet.DeriveOnly).
 	Kept     int
 	Warnings []build.Warning
@@ -40,8 +41,8 @@ type SheetSkills struct {
 // SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, the
 // default attack when the build's main group has no active gem (resolve.SkillResolver.Default),
 // as when it has no groups, none when the dataset has no skills group or lacks the main gem
-// (the build check warns about that), the other skills that reserve life or mana and each
-// other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
+// (the build check warns about that), the other skills that reserve life or mana or apply a
+// curse and each other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
 // skill are read. It warns about the gems whose hits the sheet does not give and, with every,
 // about the skills that do not resolve or do not fit the sheet.
 func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, error) {
@@ -69,7 +70,7 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 		}
 	}
 	if skills != nil {
-		out.addOthers(skills.All(), hands)
+		out.addOthers(skills.All(), hands, sk.Groups)
 	}
 	if w, ok := notSimulated(sk, out.Read(), hands); ok {
 		out.Warnings = append(out.Warnings, w)
@@ -88,32 +89,48 @@ func (s *SheetSkills) Read() []*resolve.Skill {
 	return s.Skills[:1]
 }
 
-// addOthers adds the skills of all other than the main skill: those that reserve, then the
-// rest, warning with Every about those that do not resolve or do not fit and with the rest's
-// own warnings, whose outputs are then read. Without Every the rest are only those whose hit
-// the sheet gives with hands, the skills that can cause a condition.
-func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands) {
+// addOthers adds the skills of all other than the main skill: those that reserve, then those
+// that curse (curseList), then the rest, warning with Every about those that do not resolve or
+// do not fit and with the rest's own warnings, whose outputs are then read. Without Every the
+// rest are only those whose hit the sheet gives with hands, the skills that can cause a
+// condition.
+func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands, groups []build.SkillGroup) {
 	var rest []resolve.SkillWarnings
+	var curses curseList
 	for _, sw := range all {
 		switch {
 		case sw.Skill != nil && sw.Skill == s.Main:
 		case sw.Err != nil:
-			if s.Every {
-				s.Warnings = append(s.Warnings, build.Warning{
-					Code: SkillUnresolved, Subject: sw.Source.String(), Message: fmt.Sprintf("skill %d: %v; no outputs", sw.Which+1, sw.Err),
-				})
-			}
+			s.unresolved(sw)
 		case Reserves(sw.Skill):
-			s.Skills = append(s.Skills, sw.Skill)
-			s.Warnings = append(s.Warnings, sw.Warnings...)
+			s.keep(sw)
+		case curses.take(sw):
 		case s.Every || Hit(sw.Skill, hands):
 			rest = append(rest, sw)
 		}
 	}
+	s.keep(curses.ordered(groups)...)
 	s.Kept = len(s.Skills)
 	s.addRest(rest)
 	if s.Every {
 		s.Kept = len(s.Skills)
+	}
+}
+
+// keep adds sws with their warnings.
+func (s *SheetSkills) keep(sws ...resolve.SkillWarnings) {
+	for _, sw := range sws {
+		s.Skills = append(s.Skills, sw.Skill)
+		s.Warnings = append(s.Warnings, sw.Warnings...)
+	}
+}
+
+// unresolved warns with Every about sw, which does not resolve.
+func (s *SheetSkills) unresolved(sw resolve.SkillWarnings) {
+	if s.Every {
+		s.Warnings = append(s.Warnings, build.Warning{
+			Code: SkillUnresolved, Subject: sw.Source.String(), Message: fmt.Sprintf("skill %d: %v; no outputs", sw.Which+1, sw.Err),
+		})
 	}
 }
 

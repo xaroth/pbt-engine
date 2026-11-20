@@ -13,14 +13,16 @@ import (
 
 // Description files the passive tree's stats render with, by resolve scope.
 const (
-	treeDescriptions = "Metadata/StatDescriptions/passive_skill_stat_descriptions.txt"
-	auraDescriptions = "Metadata/StatDescriptions/passive_skill_aura_stat_descriptions.txt"
+	treeDescriptions  = "Metadata/StatDescriptions/passive_skill_stat_descriptions.txt"
+	auraDescriptions  = "Metadata/StatDescriptions/passive_skill_aura_stat_descriptions.txt"
+	curseDescriptions = "Metadata/StatDescriptions/curse_skill_stat_descriptions.txt"
 )
 
-// DescriptionFiles returns the description file the passive tree renders each resolve scope
-// with, for semantics.Table.Check.
+// DescriptionFiles returns the description file each resolve scope renders with, for
+// semantics.Table.Check: the passive tree's for its global and buff stats, the curse skills'
+// for what a curse carries to the enemy.
 func DescriptionFiles() map[resolve.Scope]string {
-	return map[resolve.Scope]string{resolve.Global: treeDescriptions, resolve.Buff: auraDescriptions}
+	return map[resolve.Scope]string{resolve.Global: treeDescriptions, resolve.Buff: auraDescriptions, resolve.Curse: curseDescriptions}
 }
 
 // rule is a named pattern FeedsSheet decides with. Each has its own test case.

@@ -34,10 +34,12 @@ func (a Actor) String() string {
 type Scope uint8
 
 // Scopes. Buff stats are auras a node grants; they render with the passive aura scope and
-// may reach allies as well as the player.
+// may reach allies as well as the player. Curse stats are those a curse or mark carries to the
+// enemy it affects; they render with the curse skill scope.
 const (
 	Global Scope = iota
 	Buff
+	Curse
 )
 
 func (s Scope) String() string {
@@ -46,6 +48,8 @@ func (s Scope) String() string {
 		return "global"
 	case Buff:
 		return "buff"
+	case Curse:
+		return "curse"
 	}
 	return "scope?"
 }

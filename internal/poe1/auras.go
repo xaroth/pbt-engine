@@ -153,13 +153,35 @@ func splitBuff(stats []resolve.StatValue, b skillBuff) (own, buff []resolve.Stat
 	return own, buff
 }
 
-// buffScale scales a buff's modifier of value v by the effect at ref, rounded as PoB rounds a
-// scaled modifier (ModStore.lua ScaleAddMod): a whole value toward zero, another down to one
-// decimal place. PoB rounds to two places first, which a whole product of whole values does
-// not need.
-func buffScale(ref core.Ref, v float64) core.Scale {
+// carried is how the stats a buff or curse carries apply: scaled by the effect at effect, and
+// held while every one of holds does.
+type carried struct {
+	effect core.Ref
+	holds  []core.Cond
+}
+
+// apply scales mod, a modifier of engine stat, by the effect and holds it while c holds. The
+// effect rounds the modifier's own value, before any count multiplies it, as PoB's ScaleAddMod
+// does.
+func (c *carried) apply(mod *core.Modifier, stat string) {
+	mod.Scales = append([]core.Scale{buffScale(c.effect, stat, mod.Op, mod.Value)}, mod.Scales...)
+	mod.Conds = append(mod.Conds, c.holds...)
+}
+
+// criticalChancePlaces are the decimal places a scaled base critical strike chance keeps.
+const criticalChancePlaces = 2
+
+// buffScale scales a buff's modifier of value v, of op on engine stat, by the effect at ref,
+// rounded as PoB rounds a scaled modifier (ModStore.lua ScaleAddMod): a whole value toward
+// zero, another down to one decimal place, and a base critical strike chance down to two
+// (Data.lua highPrecisionMods). PoB rounds to two places first, which a whole product of whole
+// values does not need.
+func buffScale(ref core.Ref, stat string, op core.Op, v float64) core.Scale {
 	sc := core.Scale{Ref: ref, Step: baseBuffEffect, Ratio: true, Round: core.RoundTrunc}
-	if v != math.Trunc(v) {
+	switch {
+	case stat == statCriticalStrikeChance && op == core.OpBase:
+		sc.Round, sc.Places = core.RoundFloor, criticalChancePlaces
+	case v != math.Trunc(v):
 		sc.Round, sc.Places = core.RoundFloor, 1
 	}
 	return sc
@@ -172,7 +194,7 @@ func buffScale(ref core.Ref, v float64) core.Scale {
 func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatValue, slot int, ctx core.CtxID) ([]core.SourceID, error) {
 	effect := core.Ref{Actor: 0, Stat: sh.stats[statBuffEffect], Ctx: int64(ctx)}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: sk.Source, Stats: stats}
-	buff, err := sh.addBundle(&bd, sh.table, sh.gameVersion, -1, &effect)
+	buff, err := sh.addBundle(&bd, sh.table, sh.gameVersion, -1, &carried{effect: effect})
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +219,7 @@ func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatVal
 		granted := core.Scale{Ref: core.SelfRef(sh.stats[statAuraGrantedAttackCastRate]), Step: 1}
 		for _, stat := range []string{statAttackSpeed, statCastSpeed} {
 			mods = append(mods, core.Modifier{
-				Stat: sh.stats[stat], Op: core.OpInc, Value: 1, Source: src, Scales: []core.Scale{granted, buffScale(effect, 1)},
+				Stat: sh.stats[stat], Op: core.OpInc, Value: 1, Source: src, Scales: []core.Scale{granted, buffScale(effect, stat, core.OpInc, 1)},
 			})
 		}
 	}
