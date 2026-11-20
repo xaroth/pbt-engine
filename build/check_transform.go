@@ -51,13 +51,7 @@ func (c *Checked) findTransforms() error {
 	if err != nil {
 		return err
 	}
-	changed := map[uint32]bool{}
-	for _, o := range c.overrides {
-		changed[o.Node.ID] = true
-	}
-	for _, q := range c.conquests {
-		changed[q.Node.ID] = true
-	}
+	changed := c.conqueredOrOverridden()
 	for _, j := range jewels {
 		nodes, err := ix.Nodes(j.Socket, area)
 		if err != nil {

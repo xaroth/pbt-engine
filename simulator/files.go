@@ -38,7 +38,8 @@ func ItemFiles(m dataset.Manifest) []string {
 // a body armour with stats, whose Life Modifiers a mastery looks at (poe1.ModTags), the
 // layout of its variant and the English text when it has a cluster jewel, whose lines say
 // which passives it adds, and the layout when it has a jewel that transforms the attributes of
-// the passives in its radius (build.TransformsAttributes). Compare, Sweep and Stats.Explain read no more than the simulations
+// the passives in its radius (build.TransformsAttributes) or otherwise changes them
+// (build.ChangesRadiusPassives). Compare, Sweep and Stats.Explain read no more than the simulations
 // of the builds they take or make; Stats.Text reads the text of its language.
 func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
 	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile, dataset.SkillsFile}
@@ -61,7 +62,7 @@ func jewelFiles(b *build.Build) []string {
 	var clusterJewel, transform bool
 	for _, it := range b.Jewels {
 		clusterJewel = clusterJewel || cluster.IsJewelBase(it.Base)
-		transform = transform || build.TransformsAttributes(&it)
+		transform = transform || build.TransformsAttributes(&it) || build.ChangesRadiusPassives(&it)
 	}
 	layout := dataset.LayoutFile(cmp.Or(b.Variant, build.DefaultVariant))
 	switch {

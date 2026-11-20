@@ -329,8 +329,8 @@ func resolve(c *build.Checked, wholeTree bool) (*Resolved, error) {
 
 func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 	choices := c.Masteries()
-	changes := nodeChanges(stats, c)
-	nothing, granted := grantedPassives(c)
+	changes, unallocated := nodeChanges(stats, c)
+	nothing, granted := grantedPassives(c, unallocated)
 	var out []Bundle
 	for _, n := range c.Nodes() {
 		if ch, ok := changes[n.ID]; ok {
@@ -356,8 +356,8 @@ func allocatedBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
 // allocate: not other ascendancies' nodes or other classes' starts, and the passives its
 // cluster jewels add.
 func treeBundles(stats []dataset.Stat, c *build.Checked) []Bundle {
-	changes := nodeChanges(stats, c)
-	nothing, granted := grantedPassives(c)
+	changes, unallocated := nodeChanges(stats, c)
+	nothing, granted := grantedPassives(c, unallocated)
 	var out []Bundle
 	for i := range c.Tree().Nodes {
 		n := &c.Tree().Nodes[i]
