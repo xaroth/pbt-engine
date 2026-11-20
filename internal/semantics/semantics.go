@@ -439,7 +439,7 @@ func checkOrder(prev, e *Entry) error {
 }
 
 func parseScope(name string) (resolve.Scope, error) {
-	for _, s := range []resolve.Scope{resolve.Global, resolve.Buff} {
+	for _, s := range []resolve.Scope{resolve.Global, resolve.Buff, resolve.Curse} {
 		if s.String() == name {
 			return s, nil
 		}

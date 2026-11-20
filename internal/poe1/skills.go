@@ -98,10 +98,11 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	return nil
 }
 
-// addSkill adds the sources of sk's own stats in slot, and of the buff it grants you.
+// addSkill adds the sources of sk's own stats in slot, of the buff it grants you, of the curse
+// it applies to the enemy and of its stages.
 func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) {
 	b, buffs := buffOf(sk)
-	bundles, buffStats := skillBundles(sk, b, buffs)
+	bundles, buffStats, curseStats := sh.skillBundles(sk, b, buffs)
 	srcs := make([]core.SourceID, 0, len(bundles)+1)
 	for i := range bundles {
 		src, err := sh.add(&bundles[i], sh.table, sh.gameVersion, slot)
@@ -120,13 +121,17 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 		return nil, err
 	}
 	srcs = append(srcs, src, hit)
-	if buffs {
-		buff, err := sh.addBuff(sk, b, buffStats, slot, ctx)
-		if err != nil {
-			return nil, err
-		}
-		srcs = append(srcs, buff...)
+	var more []core.SourceID
+	switch {
+	case buffs:
+		more, err = sh.addBuff(sk, b, buffStats, slot, ctx)
+	case curseStats != nil:
+		more, err = sh.addCurse(sk, curseStats, slot, ctx)
 	}
+	if err != nil {
+		return nil, err
+	}
+	srcs = append(srcs, more...)
 	if sk.Stages > 0 {
 		stages, err := sh.addStages(sk, slot)
 		if err != nil {
@@ -151,22 +156,25 @@ func (sh *Sheet) addStages(sk *resolve.Skill, slot int) (core.SourceID, error) {
 	return src, nil
 }
 
-// skillBundles returns the bundles of sk's own stats: its stat set's, less the stats of its buff
-// b when buffs is set, which it returns, and its supports'.
-func skillBundles(sk *resolve.Skill, b skillBuff, buffs bool) ([]resolve.Bundle, []resolve.StatValue) {
-	bundles := make([]resolve.Bundle, 0, 1+len(sk.Supports))
-	var buffStats []resolve.StatValue
+// skillBundles returns the bundles of sk's own stats: its stat set's and its supports'. Of its
+// stat set, it returns apart the stats of its buff b when buffs is set, and those of its curse
+// when it is one, non-nil then.
+func (sh *Sheet) skillBundles(sk *resolve.Skill, b skillBuff, buffs bool) (bundles []resolve.Bundle, buff, curse []resolve.StatValue) {
+	bundles = make([]resolve.Bundle, 0, 1+len(sk.Supports))
 	if len(sk.StatSets) > 0 {
 		own := sk.Set().Stats
-		if buffs {
-			own, buffStats = splitBuff(own, b)
+		switch {
+		case buffs:
+			own, buff = splitBuff(own, b)
+		case IsCurse(sk):
+			own, curse = sh.splitCurse(own)
 		}
 		bundles = append(bundles, skillBundle(sk.Source, own))
 	}
 	for _, sp := range sk.Supports {
 		bundles = append(bundles, skillBundle(sp.Source, sp.Stats))
 	}
-	return bundles, buffStats
+	return bundles, buff, curse
 }
 
 func skillBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {

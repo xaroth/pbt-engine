@@ -2,7 +2,7 @@
 
 A headless build simulation engine for Path of Exile. It takes a build and a game version and returns the numbers a player cares about, each with an explanation of where it came from.
 
-Status: early. The engine simulates the character sheet of a Path of Exile 1 build from its passive tree, campaign rewards and equipped items, the life and mana its skills reserve, the buffs its aura and herald skills grant it, and the costs and hit of its skills that are spells or attacks with one weapon, two weapons or unarmed (the default attack for a build without a main skill of its own), an attack's chance to hit against the enemy's evasion included: the main skill's always, every other skill's when asked for. It imports and exports Path of Building builds and reads item text. What each package does is in its doc comment (`go doc ./<package>`).
+Status: early. The engine simulates the character sheet of a Path of Exile 1 build from its passive tree, campaign rewards and equipped items, the life and mana its skills reserve, the buffs its aura and herald skills grant it, the curses and marks it applies to the enemy, and the costs and hit of its skills that are spells or attacks with one weapon, two weapons or unarmed (the default attack for a build without a main skill of its own), an attack's chance to hit against the enemy's evasion included: the main skill's always, every other skill's when asked for. It imports and exports Path of Building builds and reads item text. What each package does is in its doc comment (`go doc ./<package>`).
 
 ## Layout
 
