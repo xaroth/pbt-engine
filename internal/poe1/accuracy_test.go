@@ -99,3 +99,46 @@ func TestAlwaysHit(t *testing.T) {
 		t.Errorf("spell: got %v, want 100", got)
 	}
 }
+
+// Precise Technique: no critical strikes, and 40% more attack damage while the 601 accuracy
+// rating is higher than maximum life; equal is not higher.
+func TestPreciseTechnique(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		life, hit float64
+	}{
+		{600, 14},
+		{601, 10},
+	} {
+		sh := accuracySheet(t,
+			resolve.StatValue{Stat: "keystone_precise_technique", Value: 1},
+			resolve.StatValue{Stat: "base_maximum_life", Value: c.life},
+		)
+		for k, want := range map[output.Key]float64{
+			poe1.Life: c.life, poe1.AccuracyRating: 601, poe1.CriticalStrikeChance: 0, poe1.AverageHit: c.hit,
+		} {
+			if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
+				t.Errorf("life %v: %s: got %v, want %v", c.life, k, got, want)
+			}
+		}
+	}
+}
+
+// The accuracy mastery makes the dexterity bonus 3 per Dexterity instead of 2: (2 x 49 + 3 x
+// 100 + 103) x 1.5 = 751. Without inherent attribute bonuses it grants none: 201 x 1.5 = 301.
+func TestDexterityAccuracyBonusInstead(t *testing.T) {
+	t.Parallel()
+	instead := resolve.StatValue{Stat: "dexterity_accuracy_bonus_grants_accuracy_rating_+3_per_dexterity_instead", Value: 1}
+	for _, c := range []struct {
+		name  string
+		stats []resolve.StatValue
+		want  float64
+	}{
+		{"instead", []resolve.StatValue{instead}, 751},
+		{"no attribute bonuses", []resolve.StatValue{instead, {Stat: "keystone_supreme_prodigy", Value: 1}}, 301},
+	} {
+		if got := outputOf(t, accuracySheet(t, c.stats...), poe1.AccuracyRating); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+}

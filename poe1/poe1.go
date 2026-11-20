@@ -50,6 +50,8 @@ const (
 	MainHandAverageHit          = rules.MainHandAverageHit
 	OffHandAverageHit           = rules.OffHandAverageHit
 	AccuracyRating              = rules.AccuracyRating
+	MainHandAccuracyRating      = rules.MainHandAccuracyRating
+	OffHandAccuracyRating       = rules.OffHandAccuracyRating
 	HitChance                   = rules.HitChance
 	CriticalStrikeChance        = rules.CriticalStrikeChance
 	HitsPerSecond               = rules.HitsPerSecond

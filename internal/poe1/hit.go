@@ -87,6 +87,11 @@ func bothHandsHit(sk *resolve.Skill, h Hands) bool {
 	return attackHit(sk, h) && h.bothHands(sk.Types, sk.WeaponRestrictions)
 }
 
+// oneHandAttackHit reports whether the sheet gives sk's hit as an attack's with one hand.
+func oneHandAttackHit(sk *resolve.Skill, h Hands) bool {
+	return attackHit(sk, h) && !h.bothHands(sk.Types, sk.WeaponRestrictions)
+}
+
 // Hit reports whether the sheet gives sk's hit with hands: a spell hit, or an attack with one
 // weapon.
 func Hit(sk *resolve.Skill, h Hands) bool {
