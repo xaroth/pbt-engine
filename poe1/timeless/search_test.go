@@ -2,6 +2,7 @@ package timeless_test
 
 import (
 	"cmp"
+	"encoding/json"
 	"maps"
 	"slices"
 	"testing"
@@ -277,5 +278,50 @@ func TestSearchRanksByScore(t *testing.T) {
 		if i > 0 && (m.Score > got[i-1].Score || m.Score == got[i-1].Score && m.Seed < got[i-1].Seed) {
 			t.Errorf("seed %d (%v) ranks after seed %d (%v)", m.Seed, m.Score, got[i-1].Seed, got[i-1].Score)
 		}
+	}
+}
+
+// The types a host sends and reads encode with lowercase keys, nested ones included.
+func TestJSONKeys(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name string
+		v    any
+		want string
+	}{
+		{
+			name: "version",
+			v:    timeless.JewelVersion{Index: 1, ID: "Vaal", Seeds: timeless.SeedRange{First: 100, Last: 8000, Step: 1}},
+			want: `{"index":1,"id":"Vaal","seeds":{"first":100,"last":8000,"step":1}}`,
+		},
+		{
+			name: "socketed",
+			v:    timeless.Socketed{Socket: 26196, Version: 5, Seed: 67340, Conqueror: caspiro},
+			want: `{"socket":26196,"version":5,"seed":67340,"conqueror":{"index":3,"version":1}}`,
+		},
+		{
+			name: "query",
+			v:    timeless.Query{Socket: 26196, Version: 5, Wants: []timeless.Want{{Name: "Slum Lord", Min: 2}}, Language: "en"},
+			want: `{"socket":26196,"version":5,"wants":[{"name":"Slum Lord","stat":"","weight":0,"min":2}],"allocated":null,"language":"en","limit":0}`,
+		},
+		{
+			name: "match",
+			v: timeless.Match{Seed: 67340, Score: 2, Totals: []int64{2}, Passives: []timeless.Passive{
+				{Node: 34173, Replaced: true, Name: "Slum Lord", Stats: []timeless.Stat{{ID: "minion_damage_+%", Value: 80}}},
+			}},
+			want: `{"seed":67340,"score":2,"totals":[2],"passives":[{"node":34173,"replaced":true,"name":"Slum Lord","stats":[{"id":"minion_damage_+%","value":80}]}]}`,
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := json.Marshal(testCase.v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != testCase.want {
+				t.Errorf("got  %s\nwant %s", got, testCase.want)
+			}
+		})
 	}
 }

@@ -8,7 +8,9 @@ import (
 
 // SeedRange is the seeds a jewel of a version shows: First to Last, Step apart.
 type SeedRange struct {
-	First, Last, Step uint32
+	First uint32 `json:"first"`
+	Last  uint32 `json:"last"`
+	Step  uint32 `json:"step"`
 }
 
 // Contains tells whether a jewel of the range can show seed.
