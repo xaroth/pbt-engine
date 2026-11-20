@@ -25,8 +25,10 @@ const (
 	MainSkillOutOfRange  Code = "main-skill-out-of-range"
 )
 
-// checkSkills checks the skill groups against the dataset's skills group. Without one, it
-// warns once and keeps the groups as they are.
+// checkSkills checks the skill groups against the dataset's skills group: it drops unknown gems,
+// clears unknown variants and slots without sockets, corrects which gems are supports, clamps
+// gem levels and quality, and moves a main skill or active gem that does not fit to the first,
+// each with a warning. Without the group, it warns once and keeps the groups as they are.
 func (c *Checked) checkSkills() error {
 	sk := &c.build.Skills
 	if !slices.ContainsFunc(sk.Groups, func(g SkillGroup) bool { return len(g.Gems) > 0 }) {
