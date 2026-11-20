@@ -104,6 +104,9 @@ type Weapon struct {
 	// the percentage it increases theirs by; with CannotBeEvaded its attacks always hit.
 	Accuracy, IncreasedAccuracy float64
 	CannotBeEvaded              bool
+	// ConvertedToRandomElement and GainedAsColdOrLightning are the percentages of its attacks'
+	// physical damage converted to a random element and gained as cold or lightning.
+	ConvertedToRandomElement, GainedAsColdOrLightning float64
 	// Sockets are the item's sockets as its text writes them, such as "R-B-B".
 	Sockets string
 }
@@ -133,6 +136,8 @@ const (
 	localAccuracy           = "local_accuracy_rating"
 	localAccuracyInc        = "local_accuracy_rating_+%"
 	localAlwaysHit          = "local_always_hit"
+	localToRandomElement    = "local_physical_damage_%_to_convert_to_a_random_element"
+	localAsColdOrLightning  = "local_physical_damage_%_to_gain_as_cold_or_lightning"
 )
 
 // localWeaponStats are the stats that change a weapon's own values.
@@ -141,6 +146,7 @@ func localWeaponStats() map[string]bool {
 		localPhysicalDamageInc: true, localElementalDamageInc: true, localAttackSpeedInc: true,
 		localCriticalChance: true, localCriticalChanceInc: true, localNoPhysicalDamage: true,
 		localAccuracy: true, localAccuracyInc: true, localAlwaysHit: true,
+		localToRandomElement: true, localAsColdOrLightning: true,
 	}
 	for _, ids := range localAdded() {
 		for _, id := range ids {
@@ -175,6 +181,7 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 	crit := float64(b.CriticalChance)/critPermyriadToPercent + sums[localCriticalChance]/critPermyriadToPercent
 	w.CriticalChance = roundHundredths(crit * (1 + sums[localCriticalChanceInc]/percentScale))
 	w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded = sums[localAccuracy], sums[localAccuracyInc], sums[localAlwaysHit] != 0
+	w.ConvertedToRandomElement, w.GainedAsColdOrLightning = sums[localToRandomElement], sums[localAsColdOrLightning]
 	return w
 }
 
@@ -324,6 +331,26 @@ func (w *Weapon) mods(dim core.Dimension) []weaponMod {
 	)
 	if w.CannotBeEvaded {
 		out = append(out, weaponMod{statHitsCannotBeEvaded, core.OpFlag, 1, nil})
+	}
+	return append(out, w.randomElementMods(dim)...)
+}
+
+// randomElementMods returns w's physical damage converted to a random element and gained as
+// cold or lightning as conversion and gain shared evenly between the elements it may become,
+// as PoB's default "Average" random element mode does (CalcOffence.lua physMode); the game
+// picks one per hit.
+func (w *Weapon) randomElementMods(dim core.Dimension) []weaponMod {
+	physical := []core.Mask{damageBit(dim, Physical)}
+	var out []weaponMod
+	if v := w.ConvertedToRandomElement; v != 0 {
+		for _, d := range []DamageType{Fire, Cold, Lightning} {
+			out = append(out, weaponMod{conversionStat(d), core.OpBase, v / 3, physical})
+		}
+	}
+	if v := w.GainedAsColdOrLightning; v != 0 {
+		for _, d := range []DamageType{Cold, Lightning} {
+			out = append(out, weaponMod{gainStat(d), core.OpBase, v / 2, physical})
+		}
 	}
 	return out
 }

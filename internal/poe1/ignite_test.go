@@ -65,9 +65,10 @@ func TestIgnite(t *testing.T) {
 		{name: "cannot ignite", crit: 5000, node: []resolve.StatValue{chance(50)}, own: []resolve.StatValue{stat("never_ignite", 1)}, want: 0},
 		{
 			// Ailments are never from critical strikes: 0.5 per hit, 2 applied, no crit
-			// multiplier.
+			// multiplier. Elemental Overload's 40% more applies, as the skill can strike
+			// critically.
 			name: "never from critical strikes", crit: 5000, node: []resolve.StatValue{chance(50), stat("keystone_elemental_overload", 1)},
-			want: (100 + 100*2.0/3) * 0.9 * 0.5,
+			want: (100 + 100*2.0/3) * 0.9 * 0.5 * 1.4,
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {

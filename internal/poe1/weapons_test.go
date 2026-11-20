@@ -112,3 +112,36 @@ func TestAttackHit(t *testing.T) {
 		t.Errorf("spell's physical minimum: got %v, want 0", got)
 	}
 }
+
+// A weapon's physical damage converted to a random element and gained as cold or lightning is
+// shared evenly between the elements, for its attacks: of 30 to 60 physical, 60% converted
+// leaves 12 to 24 and gives each element 6 to 12; 40% gained gives cold and lightning 6 to 12
+// more each.
+func TestWeaponRandomElement(t *testing.T) {
+	t.Parallel()
+	it := &build.Item{Name: "Sword", Mods: []build.ModLine{{Kind: build.Explicit, Stats: []build.StatValue{
+		{Stat: "local_physical_damage_%_to_convert_to_a_random_element", Value: 60},
+		{Stat: "local_physical_damage_%_to_gain_as_cold_or_lightning", Value: 40},
+	}}}}
+	base := &dataset.ItemBase{Class: "One Hand Sword", Weapon: &dataset.WeaponValues{PhysicalDamage: dataset.ValueRange{Min: 30, Max: 60}, AttackTime: 1000}}
+	c := poe1.CompileItem(it, base)
+	if len(c.Stats) != 0 {
+		t.Errorf("stats left beside the weapon: %v", c.Stats)
+	}
+	sh := open(t, resolved())
+	if err := equip(sh, []poe1.Item{{Slot: build.SlotWeapon, Name: "Sword", Key: "sword", Stats: c.Stats, Weapon: c.Weapon}}); err != nil {
+		t.Fatal(err)
+	}
+	sh.SetEnemy(poe1.EnemyStats{})
+	attack := skill(0, "Attack", "Damage", "Melee")
+	attack.StatSets = []resolve.SkillStatSet{{}}
+	setSkills(t, sh, attack)
+	for k, want := range map[output.Key]float64{
+		poe1.PhysicalMinimum: 12, poe1.PhysicalMaximum: 24, poe1.FireMinimum: 6, poe1.FireMaximum: 12,
+		poe1.ColdMinimum: 12, poe1.ColdMaximum: 24, poe1.LightningMinimum: 12, poe1.LightningMaximum: 24,
+	} {
+		if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
+			t.Errorf("%s: got %v, want %v", k, got, want)
+		}
+	}
+}
