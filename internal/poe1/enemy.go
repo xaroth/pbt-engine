@@ -15,7 +15,8 @@ import (
 // to the type, its strongest instance; extra_exposure what is added to Exposure the character
 // inflicts, and minimum_exposure the least that Exposure applies (negative, 0 for no minimum).
 // penetration is how much of the resistance the character's hits of the type penetrate, and
-// non_critical_penetration what non-critical strikes penetrate on top of it.
+// non_critical_penetration what non-critical strikes penetrate on top of it, and
+// critical_penetration what critical strikes do.
 // inverted_resistance_chance is the chance in percent that a hit treats the resistance as
 // inverted, and critical_strikes_ignore_resistance a flag that critical strikes ignore it.
 // hit_enemy_resistance is the resistance a non-critical hit of the type meets after all of
@@ -30,6 +31,7 @@ const (
 	statMinimumExposure                 = "minimum_exposure"
 	statPenetration                     = "penetration"
 	statNonCriticalPenetration          = "non_critical_penetration"
+	statCriticalPenetration             = "critical_penetration"
 	statInvertedResistanceChance        = "inverted_resistance_chance"
 	statCriticalStrikesIgnoreResistance = "critical_strikes_ignore_resistance"
 	statHitEnemyResistance              = "hit_enemy_resistance"
@@ -316,6 +318,7 @@ func enemyMechanic() mechanic {
 		statMinimumExposure,
 		statPenetration,
 		statNonCriticalPenetration,
+		statCriticalPenetration,
 		statInvertedResistanceChance,
 		statCriticalStrikesIgnoreResistance,
 		statHitEnemyResistance,
@@ -357,8 +360,8 @@ const (
 // metResistance is the resistance damage of one type meets, read in the type's context: the
 // enemy's resistance with its Exposure, at least resistanceFloor and at most its maximum. A hit
 // then treats it as inverted by its chance to, weighing the inverted and the actual resistance,
-// and penetrates it, a non-critical hit also by what non-critical strikes penetrate; a critical
-// strike that ignores the resistance meets none and penetrates nothing. Exposure is its
+// and penetrates it, a non-critical hit also by what non-critical strikes penetrate and a
+// critical strike by what critical strikes do; a critical strike that ignores the resistance meets none and penetrates nothing. Exposure is its
 // strongest instance, and what the character adds to Exposure it inflicts, then its minimum,
 // apply only while there is some. Penetration counts after the limits, so it can take the
 // resistance below the floor; damage over time does not penetrate. All follow PoB
@@ -366,7 +369,7 @@ const (
 // skill's damage over time, CalcPerform.lua's exposures); the game text gives none of the order.
 type metResistance struct {
 	resistance, maximum, exposure, extra, minimum, penetration core.StatID
-	nonCritical, inverted, ignore                              core.StatID
+	nonCritical, critical, inverted, ignore                    core.StatID
 	by                                                         metBy
 }
 
@@ -375,6 +378,7 @@ func newMetResistance(ids map[string]core.StatID, by metBy) metResistance {
 		resistance: mustID(ids, statEnemyResistance), maximum: mustID(ids, statEnemyMaximumResistance),
 		exposure: mustID(ids, statEnemyExposure), extra: mustID(ids, statExtraExposure), minimum: mustID(ids, statMinimumExposure),
 		penetration: mustID(ids, statPenetration), nonCritical: mustID(ids, statNonCriticalPenetration),
+		critical: mustID(ids, statCriticalPenetration),
 		inverted: mustID(ids, statInvertedResistanceChance), ignore: mustID(ids, statCriticalStrikesIgnoreResistance),
 		by: by,
 	}
@@ -405,7 +409,7 @@ func (h metResistance) penetrations() []core.StatID {
 	case hitNonCritical:
 		return []core.StatID{h.penetration, h.nonCritical}
 	case hitCritical:
-		return []core.StatID{h.penetration}
+		return []core.StatID{h.penetration, h.critical}
 	case overTime:
 	}
 	return nil

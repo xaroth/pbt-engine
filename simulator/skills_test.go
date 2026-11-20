@@ -449,3 +449,29 @@ func TestUnarmedAttack(t *testing.T) {
 		t.Error("a bow skill unarmed has an average hit")
 	}
 }
+
+// A stat that holds while affected by an aura holds while the aura's gem is enabled: an
+// amulet's +1% to Critical Strike Chance while affected by Hatred raises Fireball's 5% critical
+// strike chance to 6% with Hatred enabled, not with it disabled.
+func TestWhileAffectedByAura(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	it, _, err := s.Data().Item("Rarity: RARE\nGale Pendant\nOnyx Amulet\nImplicits: 0\n+1% to Critical Strike Chance while affected by Hatred\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	crit := func(disabled bool) float64 {
+		b := marauderBuild(90)
+		if err := b.Apply(build.Equip(build.SlotAmulet, it)); err != nil {
+			t.Fatal(err)
+		}
+		b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: gems + "SkillGemFireball", Level: 20}}})
+		b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: gems + "SkillGemHatred", Level: 20, Disabled: disabled}}})
+		return get(t, simulate(t, s, b), poe1.CriticalStrikeChance)
+	}
+	enabled, disabled := crit(false), crit(true)
+	if disabled != 5 || enabled != 6 {
+		t.Errorf("critical strike chance with Hatred enabled %v, disabled %v; want 6 and 5", enabled, disabled)
+	}
+}
