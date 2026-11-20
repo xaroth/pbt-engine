@@ -112,6 +112,7 @@ const (
 	EnemyIgnited             = rules.EnemyIgnited
 	EnemyBleeding            = rules.EnemyBleeding
 	EnemyMoving              = rules.EnemyMoving
+	EnemyMaimed              = rules.EnemyMaimed
 	EnemyUnnerved            = rules.EnemyUnnerved
 	EnemyIntimidated         = rules.EnemyIntimidated
 	EnemyTaunted             = rules.EnemyTaunted

@@ -138,6 +138,11 @@
         "source": "default"
       },
       {
+        "key": "enemy-maimed",
+        "value": false,
+        "source": "default"
+      },
+      {
         "key": "enemy-unnerved",
         "value": false,
         "source": "default"
@@ -333,6 +338,11 @@
       },
       {
         "key": "enemy-moving",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "enemy-maimed",
         "value": false,
         "source": "default"
       },
