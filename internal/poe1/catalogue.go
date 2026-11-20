@@ -89,8 +89,8 @@ const (
 	needsHit
 	// needsRate is a hit the character uses itself.
 	needsRate
-	// needsAttackHit is an attack's hit.
-	needsAttackHit
+	// needsOneHandAttackHit is an attack's hit with one hand.
+	needsOneHandAttackHit
 	// needsOneHandHit is a hit that is not an attack's with both hands.
 	needsOneHandHit
 	// needsBothHandsHit is an attack's hit with both hands.
@@ -106,11 +106,11 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 
 // Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, with
 // hands: an output of the sheet always, one of the skill group for a main skill; its hit only
-// for a hit, its accuracy only for an attack's, its hit per damage type only for a hit with one
-// hand, its hit per hand only for an attack's with both, its rate of hits and hit damage per
-// second only for a hit the character uses itself, its damage over time only for a skill that
-// deals it or a hit whose ailments it gives, and its ignite, bleeding and poison only for a
-// hit the character uses itself with one hand.
+// for a hit, its accuracy only for an attack's with one hand, its hit per damage type only for
+// a hit with one hand, its hit and accuracy per hand only for an attack's with both, its rate
+// of hits and hit damage per second only for a hit the character uses itself, its damage over
+// time only for a skill that deals it or a hit whose ailments it gives, and its ignite,
+// bleeding and poison only for a hit the character uses itself with one hand.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -128,8 +128,8 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 		return Hit(sk, hands)
 	case needsRate:
 		return selfUsedHit(sk, hands)
-	case needsAttackHit:
-		return attackHit(sk, hands)
+	case needsOneHandAttackHit:
+		return oneHandAttackHit(sk, hands)
 	case needsOneHandHit:
 		return Hit(sk, hands) && !bothHandsHit(sk, hands)
 	case needsBothHandsHit:
@@ -216,10 +216,10 @@ const (
 )
 
 // hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, and
-// from each hand's of an attack with both, an attack's accuracy, the chance to hit and that a
-// use strikes critically, hits per second and hit damage per second, and per damage type the
-// smallest and largest hit that is not critical, of a hit with one hand or of each hand of an
-// attack with both.
+// from each hand's of an attack with both, an attack's accuracy, and each hand's of an attack
+// with both, the chance to hit and that a use strikes critically, hits per second and hit
+// damage per second, and per damage type the smallest and largest hit that is not critical, of
+// a hit with one hand or of each hand of an attack with both.
 func hitOutputs() []Output {
 	return append([]Output{
 		{Key: AverageHit, Label: "Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsHit},
@@ -231,7 +231,15 @@ func hitOutputs() []Output {
 			Key: OffHandAverageHit, Label: "Off Hand Average Hit", Better: output.Higher, Places: hitPlaces,
 			stat: statAverageHit, needs: needsBothHandsHit, hand: readOffHand,
 		},
-		{Key: AccuracyRating, Label: "Accuracy Rating", Better: output.Higher, stat: statAccuracyRating, needs: needsAttackHit},
+		{Key: AccuracyRating, Label: "Accuracy Rating", Better: output.Higher, stat: statAccuracyRating, needs: needsOneHandAttackHit},
+		{
+			Key: MainHandAccuracyRating, Label: "Main Hand Accuracy Rating", Better: output.Higher,
+			stat: statAccuracyRating, needs: needsBothHandsHit, hand: readMainHand,
+		},
+		{
+			Key: OffHandAccuracyRating, Label: "Off Hand Accuracy Rating", Better: output.Higher,
+			stat: statAccuracyRating, needs: needsBothHandsHit, hand: readOffHand,
+		},
 		{Key: HitChance, Label: "Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsHit},
 		{
 			Key: CriticalStrikeChance, Label: "Critical Strike Chance", Better: output.Higher, Unit: UnitPercent, Places: ratePlaces,
@@ -337,7 +345,7 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	switch o.needs {
 	case needsSkill, needsDot:
 		form = formNone
-	case needsHit, needsRate, needsAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
+	case needsHit, needsRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
 		form = formHit
 	}
 	return sh.skillHandNode(i, o.stat, damage, form, o.hand)

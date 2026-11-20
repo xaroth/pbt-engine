@@ -123,6 +123,8 @@ const (
 	MainHandAverageHit          output.Key = "skill.main_hand_average_hit"
 	OffHandAverageHit           output.Key = "skill.off_hand_average_hit"
 	AccuracyRating              output.Key = "skill.accuracy_rating"
+	MainHandAccuracyRating      output.Key = "skill.main_hand_accuracy_rating"
+	OffHandAccuracyRating       output.Key = "skill.off_hand_accuracy_rating"
 	HitChance                   output.Key = "skill.hit_chance"
 	CriticalStrikeChance        output.Key = "skill.critical_strike_chance"
 	HitsPerSecond               output.Key = "skill.hits_per_second"

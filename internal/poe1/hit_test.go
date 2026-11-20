@@ -108,9 +108,10 @@ func TestHitOutputsGiven(t *testing.T) {
 		return sk
 	}
 	for _, c := range []struct {
-		name                string
-		skill               *resolve.Skill
-		hands               poe1.Hands
+		name  string
+		skill *resolve.Skill
+		hands poe1.Hands
+		// accuracy: of one hand; with both hands it is per hand.
 		hit, accuracy, rate bool
 		// types and bothHands: per damage type, per hand.
 		types, bothHands bool
@@ -127,7 +128,7 @@ func TestHitOutputsGiven(t *testing.T) {
 		{"attack that can be made unarmed", restricted(skill(0, "Attack", "Damage"), "Claw", "Unarmed"), bareHanded, true, true, true, true, false},
 		{"bow attack unarmed", restricted(skill(0, "Attack", "Damage"), "Bow"), bareHanded, false, false, false, false, false},
 		{"bow attack with a sword", restricted(skill(0, "Attack", "Damage"), "Bow"), oneWeapon, false, false, false, false, false},
-		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, true, true, true, false, true},
+		{"attack dual wielding", skill(0, "Attack", "Damage"), twoWeapons, true, false, true, false, true},
 		{"main hand attack dual wielding", skill(0, "Attack", "Damage", "MainHandOnly"), twoWeapons, true, true, true, true, false},
 		{"sword attack with a wand in the off hand", restricted(skill(0, "Attack", "Damage"), "One Hand Sword"), swordAndWand, false, false, false, false, false},
 		{
@@ -140,6 +141,7 @@ func TestHitOutputsGiven(t *testing.T) {
 			poe1.AverageHit: c.hit, poe1.HitChance: c.hit, poe1.AccuracyRating: c.accuracy,
 			poe1.HitsPerSecond: c.rate, poe1.HitDPS: c.rate, poe1.Life: true,
 			poe1.PhysicalMinimum: c.types, poe1.MainHandAverageHit: c.bothHands, poe1.OffHandAverageHit: c.bothHands,
+			poe1.MainHandAccuracyRating: c.bothHands, poe1.OffHandAccuracyRating: c.bothHands,
 		} {
 			if got := poe1.Gives(byKey[k], c.skill, c.hands); got != want {
 				t.Errorf("%s: %s given %v, want %v", c.name, k, got, want)
