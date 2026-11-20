@@ -389,7 +389,13 @@ func TestGenerate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Generate: %v", err)
 			}
-			if diff := gocmp.Diff(testCase.want, got, cmpopts.EquateEmpty(), cmpopts.IgnoreFields(cluster.Node{}, "X", "Y")); diff != "" {
+			// TestPositions covers where the nodes sit.
+			opts := []gocmp.Option{
+				cmpopts.EquateEmpty(),
+				cmpopts.IgnoreFields(cluster.Node{}, "X", "Y"),
+				cmpopts.IgnoreFields(cluster.Subgraph{}, "CentreX", "CentreY", "Radius"),
+			}
+			if diff := gocmp.Diff(testCase.want, got, opts...); diff != "" {
 				t.Errorf("Generate (-want +got):\n%s", diff)
 			}
 		})
@@ -412,11 +418,14 @@ func TestPositions(t *testing.T) {
 		name  string
 		jewel cluster.Jewel
 		want  map[uint32][2]float64
+		// radius is the orbit the jewel's nodes sit on, around the socket's group at (0, 0).
+		radius float64
 	}{
 		{
-			name:  "large",
-			jewel: cluster.Jewel{Base: largeBase, Lines: []string{"Adds 3 Jewel Socket Passive Skills", "Adds 5 Small Passive Skills which grant nothing"}},
-			want:  map[uint32][2]float64{65696: {-167.5, 335 * cos30}, medium0: at(medium0), medium1: at(medium1), medium2: at(medium2)},
+			name:   "large",
+			jewel:  cluster.Jewel{Base: largeBase, Lines: []string{"Adds 3 Jewel Socket Passive Skills", "Adds 5 Small Passive Skills which grant nothing"}},
+			want:   map[uint32][2]float64{65696: {-167.5, 335 * cos30}, medium0: at(medium0), medium1: at(medium1), medium2: at(medium2)},
+			radius: 335,
 		},
 		{
 			name: "medium",
@@ -424,7 +433,8 @@ func TestPositions(t *testing.T) {
 				"Adds 4 Passive Skills", "1 Added Passive Skill is a Jewel Socket",
 				"Added Small Passive Skills grant: 10% increased Cold Damage", "1 Added Passive Skill is Alpha",
 			}},
-			want: map[uint32][2]float64{65680: {-81, 162 * cos30}, medium0: at(medium0)},
+			want:   map[uint32][2]float64{65680: {-81, 162 * cos30}, medium0: at(medium0)},
+			radius: 162,
 		},
 	}
 	for _, testCase := range testCases {
@@ -433,6 +443,9 @@ func TestPositions(t *testing.T) {
 			got, err := g.Generate(large, testCase.jewel)
 			if err != nil {
 				t.Fatalf("Generate: %v", err)
+			}
+			if got.CentreX != 0 || got.CentreY != 0 || got.Radius != testCase.radius {
+				t.Errorf("centre (%v, %v) radius %v, want (0, 0) radius %v", got.CentreX, got.CentreY, got.Radius, testCase.radius)
 			}
 			seen := 0
 			for _, n := range got.Nodes {

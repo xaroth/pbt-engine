@@ -122,9 +122,11 @@ type Checked struct {
 	generated map[uint32]*dataset.Node
 	// clusterRead are the lines of each socket's cluster jewel that say what it adds.
 	clusterRead map[uint32][]string
-	masteries   []MasteryChoice
-	overrides   []OverrideChoice
-	conquests   []Conquest
+	// clusterPlaced are where the nodes each socket's cluster jewel adds sit, by socket.
+	clusterPlaced map[uint32]ClusterGroup
+	masteries     []MasteryChoice
+	overrides     []OverrideChoice
+	conquests     []Conquest
 	// radiusPassives are the small passives jewels change by allocation.
 	radiusPassives []RadiusPassive
 	transforms     []AttributeTransform

@@ -88,7 +88,9 @@ func (c *Checked) addSubgraph(g *cluster.Generator, socket uint32, it *Item) {
 	}
 	if c.generated == nil {
 		c.generated, c.clusterRead = map[uint32]*dataset.Node{}, map[uint32][]string{}
+		c.clusterPlaced = map[uint32]ClusterGroup{}
 	}
+	grp := ClusterGroup{Socket: socket, X: sg.CentreX, Y: sg.CentreY, Radius: sg.Radius}
 	c.clusterRead[socket] = slices.DeleteFunc(j.Lines, func(l string) bool { return slices.Contains(sg.Unread, l) })
 	for i := range sg.Nodes {
 		n := sg.Nodes[i].Node
@@ -98,7 +100,11 @@ func (c *Checked) addSubgraph(g *cluster.Generator, socket uint32, it *Item) {
 			n = added
 		}
 		c.generated[n.ID] = &n
+		if cluster.IsGenerated(n.ID) {
+			grp.Nodes = append(grp.Nodes, ClusterPlace{ID: n.ID, X: sg.Nodes[i].X, Y: sg.Nodes[i].Y, Passive: sg.Nodes[i].Passive})
+		}
 	}
+	c.clusterPlaced[socket] = grp
 	in := *c.node(socket)
 	in.Neighbours = append(slices.Clone(in.Neighbours), sg.Entrance)
 	slices.Sort(in.Neighbours)
@@ -113,6 +119,41 @@ func (c *Checked) ClusterNodes() []*dataset.Node {
 		if cluster.IsGenerated(id) {
 			out = append(out, c.generated[id])
 		}
+	}
+	return out
+}
+
+// ClusterGroup is where the passives one cluster jewel adds sit: around a centre, on an orbit of
+// the given radius, in layout coordinates, so a link between neighbours can be drawn as an arc
+// of that orbit.
+type ClusterGroup struct {
+	// Socket is the socket the jewel is in.
+	Socket uint32 `json:"socket"`
+	// X and Y are the centre of the orbit, Radius its radius.
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Radius float64 `json:"radius"`
+	// Nodes are the passives the jewel adds, sorted by id. The sockets it adds are the tree's
+	// own and not among them.
+	Nodes []ClusterPlace `json:"nodes"`
+}
+
+// ClusterPlace is where a passive a cluster jewel adds sits, in layout coordinates.
+type ClusterPlace struct {
+	ID uint32  `json:"id"`
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+	// Passive is the tree node whose art the passive borrows; 0 for a small passive that grants
+	// nothing, which has none.
+	Passive uint32 `json:"passive"`
+}
+
+// ClusterPlaces returns where the passives of each cluster jewel in the build sit, by socket.
+// ClusterNodes has the passives themselves.
+func (c *Checked) ClusterPlaces() []ClusterGroup {
+	out := make([]ClusterGroup, 0, len(c.clusterPlaced))
+	for _, id := range slices.Sorted(maps.Keys(c.clusterPlaced)) {
+		out = append(out, c.clusterPlaced[id])
 	}
 	return out
 }
