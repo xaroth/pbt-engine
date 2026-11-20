@@ -162,7 +162,8 @@ func TestResistances(t *testing.T) {
 // TestNodeAuraResistances: Commander of Darkness (36017) reads "You and nearby Allies have +30%
 // to Elemental Resistances", an aura of the node's own that applies to the player with no aura
 // skill, as PoB does (ModParser.lua "you and nearby allies", CalcPerform.lua ExtraAura). Its
-// "Auras from your Skills grant" line needs an aura skill from a gem, so it stays unapplied.
+// "Auras from your Skills grant" line applies per aura skill from a gem, so it gives nothing
+// here, and has no note.
 func TestNodeAuraResistances(t *testing.T) {
 	t.Parallel()
 	const (
@@ -189,8 +190,8 @@ func TestNodeAuraResistances(t *testing.T) {
 			if got, err := sh.Output("player.chaos_resistance"); err != nil || got != -60 {
 				t.Errorf("player.chaos_resistance: got %v, %v, want -60", got, err)
 			}
-			if !slices.ContainsFunc(sh.Notes(), func(n poe1.Note) bool { return n.Kind == poe1.NotApplied && n.Stat == auraSkills }) {
-				t.Errorf("notes: want %s not applied, got %v", auraSkills, sh.Notes())
+			if slices.ContainsFunc(sh.Notes(), func(n poe1.Note) bool { return n.Stat == auraSkills }) {
+				t.Errorf("notes: want none of %s, got %v", auraSkills, sh.Notes())
 			}
 		})
 	}
