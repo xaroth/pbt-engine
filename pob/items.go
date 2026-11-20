@@ -184,16 +184,13 @@ func (im *importer) equip(out *build.Items, it pobxml.Item, name string, read fu
 
 func itemSubject(it pobxml.Item) string { return cmp.Or(it.Name, "item "+strconv.Itoa(it.ID)) }
 
-// itemReader returns a function that reads an item's text, building the reader on first use.
+// itemReader returns a function that reads an item's text with the store's reader, made on
+// first use.
 func itemReader(store *dataset.Store) func(pobxml.Item) (build.Item, error) {
-	var r *items.Reader
-	var rerr error
 	return func(it pobxml.Item) (build.Item, error) {
-		if r == nil && rerr == nil {
-			r, rerr = items.NewReader(store)
-		}
-		if rerr != nil {
-			return build.Item{}, fmt.Errorf("%w", rerr)
+		r, err := items.ReaderOf(store)
+		if err != nil {
+			return build.Item{}, fmt.Errorf("%w", err)
 		}
 		item, _, err := r.Parse(it.Text)
 		if err != nil {

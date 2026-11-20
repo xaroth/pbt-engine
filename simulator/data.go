@@ -17,11 +17,10 @@ var ErrAmbiguousName = errors.New("simulator: name of more than one gem")
 // Data looks up the ids a build holds by the names players know, in the sim's dataset.
 type Data struct {
 	store *dataset.Store
-	items func() (*items.Reader, error)
 }
 
 // Data returns the sim's name lookups.
-func (s *Sim) Data() *Data { return &Data{store: s.store, items: s.items} }
+func (s *Sim) Data() *Data { return &Data{store: s.store} }
 
 // Gem returns the id of the gem named name in English, such as "Fireball", "Inspiration" or
 // the transfigured "Fireball of Splitting", chosen among gems of one name as
@@ -51,7 +50,7 @@ func (d *Data) Gem(name string) (build.GemID, error) {
 // text that is not an item items.ErrFormat, an unknown base items.ErrUnknownBase, an item no slot
 // takes items.ErrNotEquipable and a flask in the game's text items.ErrNotSupported.
 func (d *Data) Item(text string) (build.Item, []Warning, error) {
-	r, err := d.items()
+	r, err := items.ReaderOf(d.store)
 	if err != nil {
 		return build.Item{}, nil, fmt.Errorf("simulator: %w", err)
 	}

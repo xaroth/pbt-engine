@@ -84,8 +84,6 @@ const maxCompiled = 1024
 type Sim struct {
 	store *dataset.Store
 	table *semantics.Table
-	// items reads item text; made on first use, since most uses of a sim read none.
-	items func() (*items.Reader, error)
 	// bases indexes the dataset's item bases by id, on first use.
 	bases func() (map[string]*dataset.ItemBase, error)
 	// modTags indexes the tags of the dataset's mods, on first use.
@@ -252,7 +250,6 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
 	s := &Sim{store: store, table: t, cfg: config.Values{}}
-	s.items = sync.OnceValues(func() (*items.Reader, error) { return items.NewReader(store) })
 	s.bases = sync.OnceValues(func() (map[string]*dataset.ItemBase, error) { return indexBases(store) })
 	s.modTags = sync.OnceValues(func() (*poe1.ModTags, error) { return indexModTags(store) })
 	if err := s.Configure(opts...); err != nil {
@@ -267,7 +264,7 @@ func New(store *dataset.Store, opts ...Option) (*Sim, error) {
 // the dataset it needs, which dataset.Store.Load can read first.
 func (s *Sim) Load() {
 	build.Load(s.store)
-	_, _ = s.items()
+	_, _ = items.ReaderOf(s.store)
 	_, _ = s.bases()
 	_, _ = s.modTags()
 }

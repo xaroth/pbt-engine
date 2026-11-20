@@ -129,6 +129,15 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	return r, nil
 }
 
+type readerKey struct{}
+
+// ReaderOf returns the reader of s, made by NewReader once per store and shared after, its
+// error included.
+func ReaderOf(s *dataset.Store) (*Reader, error) {
+	//nolint:wrapcheck // NewReader wraps its errors
+	return dataset.Derived(s, readerKey{}, NewReader)
+}
+
 // passiveHandler is the stat description handler that shows a passive's name for its node id,
 // as in "Passive Skills in Radius of Supreme Ego can be Allocated".
 const passiveHandler = "passive_hash"
