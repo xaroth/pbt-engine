@@ -62,6 +62,7 @@ func mechanics() []mechanic {
 		exposureMechanic(),
 		conversionMechanic(),
 		accuracyMechanic(),
+		hitEffectsMechanic(),
 		hitMechanic(),
 		handsMechanic(),
 		dotMechanic(),

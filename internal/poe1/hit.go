@@ -15,8 +15,9 @@ import (
 // average_hit is what the enemy takes from an average hit of every type, critical strikes
 // weighed in by the chance that a use strikes critically. cast_time is the skill's in seconds
 // and cast_speed its speed in percent of it, 100 before modifiers; attack_rate and attack_speed
-// are the same for attacks. hits_per_second follows, and hit_dps is the damage the enemy takes
-// per second from hits.
+// are the same for attacks. action_speed is the character's speed of every action in percent,
+// 100 before modifiers. hits_per_second follows, and hit_dps is the damage the enemy takes per
+// second from hits.
 const (
 	statEffectiveMinimumHitDamage = "effective_minimum_hit_damage"
 	statEffectiveMaximumHitDamage = "effective_maximum_hit_damage"
@@ -25,6 +26,7 @@ const (
 	statCastSpeed                 = "cast_speed"
 	statAttackRate                = "attack_rate"
 	statAttackSpeed               = "attack_speed"
+	statActionSpeed               = "action_speed"
 	statHitsPerSecond             = "hits_per_second"
 	statHitDPS                    = "hit_dps"
 )
@@ -145,7 +147,7 @@ const mechanicHit = "hit"
 
 func hitMechanic() mechanic {
 	return mechanic{
-		name: mechanicHit, after: []string{mechanicDamage, mechanicEnemy, mechanicConversion, mechanicAccuracy},
+		name: mechanicHit, after: []string{mechanicDamage, mechanicEnemy, mechanicConversion, mechanicAccuracy, mechanicHitEffects},
 		stats: []string{
 			statEffectiveMinimumHitDamage,
 			statEffectiveMaximumHitDamage,
@@ -154,6 +156,7 @@ func hitMechanic() mechanic {
 			statCastSpeed,
 			statAttackRate,
 			statAttackSpeed,
+			statActionSpeed,
 			statHitsPerSecond,
 			statHitDPS,
 		},
@@ -168,18 +171,19 @@ func hitMechanic() mechanic {
 // effectiveness, times the type's damage modifier and the modifier of the smallest or largest
 // damage alone, rounded half up. Against the enemy it is reduced by the resistance it meets
 // (metResistance), or for physical damage by the enemy's armour against a hit of that size,
-// then scaled by the enemy's damage taken. A critical strike multiplies the hit before the
-// enemy reduces it. The average hit weighs the non-critical and critical averages of every
-// type by the chance that a use strikes critically (accuracyDef). Hits per second are the cast
-// time divided by the cast speed, rounded to hundredths, at most one per server tick; hit DPS
-// is the average hit times the chance to hit times hits per second. The order, roundings and
-// cap follow PoB (CalcOffence.lua); the game text gives none of them.
+// then scaled by the enemy's damage taken. The hit effects (hitEffects) and a critical strike
+// multiply the hit before the enemy reduces it. The average hit weighs the non-critical and
+// critical averages of every type by the chance that a use strikes critically (accuracyDef).
+// Hits per second are the cast time divided by the cast speed, rounded to hundredths, times the
+// action speed, at most one per server tick; hit DPS is the average hit times the chance to hit
+// times hits per second. The order, roundings and cap follow PoB (CalcOffence.lua, CalcPerform.lua
+// actionSpeedMod); the game text gives none of them.
 func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
 	case statEffectiveMinimumHitDamage, statEffectiveMaximumHitDamage:
 		h := effectiveHit{
 			hit: mustID(ids, statMinimumHitDamage), minimum: mustID(ids, statMinimumHitDamage), maximum: mustID(ids, statMaximumHitDamage),
-			enemy: newEnemyReduction(ids),
+			enemy: newEnemyReduction(ids), effects: newHitEffects(ids),
 		}
 		if def.Name == statEffectiveMaximumHitDamage {
 			h.hit = mustID(ids, statMaximumHitDamage)
@@ -191,9 +195,12 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	case statHitsPerSecond:
 		h := hitRate{
 			castTime: mustID(ids, statCastTime), castSpeed: mustID(ids, statCastSpeed),
-			attackRate: mustID(ids, statAttackRate), attackSpeed: mustID(ids, statAttackSpeed), attack: attackMask(),
+			attackRate: mustID(ids, statAttackRate), attackSpeed: mustID(ids, statAttackSpeed),
+			action: mustID(ids, statActionSpeed), attack: attackMask(),
 		}
 		def.FormulaName, def.Formula, def.Attribute = formulaHitsPerSecond, h.formula(), h.attribute()
+	case statActionSpeed:
+		def.HasMin = true
 	case statHitDPS:
 		h := hitDPS{average: mustID(ids, statAverageHit), chance: mustID(ids, statHitChance), rate: mustID(ids, statHitsPerSecond)}
 		def.FormulaName, def.Formula, def.Attribute = formulaHitDPS, h.formula(), h.attribute()
@@ -228,29 +235,37 @@ func (h hitDamage) unscaled(read func(core.StatID) float64) float64 {
 }
 
 // effectiveHit is what the enemy takes of a hit of one type that is not critical, read in the
-// type's context: physical damage is reduced by armour against the average of the minimum and
-// maximum hit, other damage by the resistance the hit meets; then the enemy's damage taken
-// applies.
+// type's context: the hit effects scale it, then physical damage is reduced by armour against
+// the average of the minimum and maximum hit, other damage by the resistance the hit meets;
+// then the enemy's damage taken applies.
 type effectiveHit struct {
 	hit, minimum, maximum core.StatID
 	enemy                 enemyReduction
+	effects               hitEffects
 }
 
 func (h effectiveHit) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
-		raw := (r.Stat(h.minimum) + r.Stat(h.maximum)) * half
+		f := h.effects.read(r.Stat).multiplier()
+		raw := (r.Stat(h.minimum) + r.Stat(h.maximum)) * half * f
 		physical := r.Mask().Intersects(h.enemy.physical)
-		return r.Stat(h.hit) * h.enemy.multiplier(physical, raw, r.Stat) * r.Stat(h.enemy.taken) / percentScale
+		return r.Stat(h.hit) * f * h.enemy.multiplier(physical, raw, r.Stat) * r.Stat(h.enemy.taken) / percentScale
 	}
 }
 
-// attribute credits the hit, what the enemy's armour or resistance takes off to its sources,
-// and what damage taken changes to its sources.
+// attribute credits the hit, what the hit effects add to their sources, what the enemy's
+// armour or resistance takes off to its sources, and what damage taken changes to its sources.
 func (h effectiveHit) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		parts, hit := a.Of(core.SelfRef(h.hit))
+		s := h.effects.read(a.Stat)
+		f := s.multiplier()
+		if f != 1 {
+			parts = append(parts, h.effects.credit(a, s, hit)...)
+			hit *= f
+		}
 		physical := a.Mask().Intersects(h.enemy.physical)
-		raw := (a.Stat(h.minimum) + a.Stat(h.maximum)) * half
+		raw := (a.Stat(h.minimum) + a.Stat(h.maximum)) * half * f
 		if d := hit*h.enemy.multiplier(physical, raw, a.Stat) - hit; d != 0 {
 			parts = append(parts, a.Spread(core.SelfRef(h.enemy.reducer(physical)), d, core.OpMore)...)
 		}
@@ -305,11 +320,12 @@ func resistanceMultiplier(res float64) float64 {
 }
 
 // averageHit is the average hit of a skill, read in its context: per damage type, the average of
-// its minimum and maximum hit without and with a critical strike, each reduced by the enemy,
-// weighed by the chance that a use strikes critically.
+// its minimum and maximum hit, scaled by the hit effects, without and with a critical strike,
+// each reduced by the enemy, weighed by the chance that a use strikes critically.
 type averageHit struct {
 	minimum, maximum, chance, multiplier core.StatID
 	enemy                                enemyReduction
+	effects                              hitEffects
 	dim                                  core.Dimension
 }
 
@@ -317,58 +333,68 @@ func newAverageHit(ids map[string]core.StatID) averageHit {
 	return averageHit{
 		minimum: mustID(ids, statMinimumHitDamage), maximum: mustID(ids, statMaximumHitDamage),
 		chance: mustID(ids, statEffectiveCriticalStrikeChance), multiplier: mustID(ids, statCriticalStrikeMultiplier),
-		enemy: newEnemyReduction(ids), dim: damageDimension(),
+		enemy: newEnemyReduction(ids), effects: newHitEffects(ids), dim: damageDimension(),
 	}
 }
 
 // typeHit is one damage type's part of the average hit: the average of its minimum and
-// maximum, what is left of it after the enemy's armour or resistance and what the enemy takes
-// of it without a critical strike, and its part of the average hit.
+// maximum, that scaled by the hit effects, what is left of it after the enemy's armour or
+// resistance and what the enemy takes of it without a critical strike, and its part of the
+// average hit.
 type typeHit struct {
-	raw, resisted, normal, total float64
+	unscaled, raw, resisted, normal, total float64
 }
 
-// of returns damage type d's part, with read reading a stat in d's context.
-func (h averageHit) of(d DamageType, crit, critMultiplier float64, read func(core.StatID) float64) typeHit {
-	raw := (read(h.minimum) + read(h.maximum)) * half
-	if raw == 0 {
+// of returns damage type d's part with the hit effects multiplying it by f, with read reading a
+// stat in d's context.
+func (h averageHit) of(d DamageType, f, crit, critMultiplier float64, read func(core.StatID) float64) typeHit {
+	unscaled := (read(h.minimum) + read(h.maximum)) * half
+	if unscaled == 0 {
 		return typeHit{}
 	}
+	raw := unscaled * f
 	taken := read(h.enemy.taken) / percentScale
 	resist := func(v float64) float64 { return v * h.enemy.multiplier(d == Physical, v, read) }
 	resisted := resist(raw)
 	normal := resisted * taken
-	return typeHit{raw: raw, resisted: resisted, normal: normal, total: normal*(1-crit) + resist(raw*critMultiplier)*taken*crit}
+	return typeHit{unscaled: unscaled, raw: raw, resisted: resisted, normal: normal, total: normal*(1-crit) + resist(raw*critMultiplier)*taken*crit}
 }
 
 func (h averageHit) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
 		crit, critMultiplier := r.Stat(h.chance)/percentScale, r.Stat(h.multiplier)/percentScale
+		f := h.effects.read(r.Stat).multiplier()
 		total := 0.0
 		for d := Physical; d <= Chaos; d++ {
 			bit := damageBit(h.dim, d)
-			total += h.of(d, crit, critMultiplier, func(s core.StatID) float64 { return r.StatWith(s, bit) }).total
+			total += h.of(d, f, crit, critMultiplier, func(s core.StatID) float64 { return r.StatWith(s, bit) }).total
 		}
 		return total
 	}
 }
 
 // attribute credits, per damage type, the hit's sources with the average of its minimum and
-// maximum, the enemy's resistance or armour with what it takes off, and the critical strike
-// chance and multiplier with what critical strikes add, split equally between them.
+// maximum, the hit effects' sources with what they add, the enemy's resistance or armour with
+// what it takes off, and the critical strike chance and multiplier with what critical strikes
+// add, split equally between them.
 func (h averageHit) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		crit, critMultiplier := a.Stat(h.chance)/percentScale, a.Stat(h.multiplier)/percentScale
+		s := h.effects.read(a.Stat)
+		f := s.multiplier()
 		var parts []core.Part
 		for d := Physical; d <= Chaos; d++ {
 			bit := damageBit(h.dim, d)
-			t := h.of(d, crit, critMultiplier, func(s core.StatID) float64 { return a.Read(a.RefWith(s, bit)) })
+			t := h.of(d, f, crit, critMultiplier, func(s core.StatID) float64 { return a.Read(a.RefWith(s, bit)) })
 			if t.raw == 0 {
 				continue
 			}
 			minParts, _ := a.Of(a.RefWith(h.minimum, bit))
 			maxParts, _ := a.Of(a.RefWith(h.maximum, bit))
 			parts = append(parts, scaled(append(minParts, maxParts...), half)...)
+			if f != 1 {
+				parts = append(parts, h.effects.credit(a, s, t.unscaled)...)
+			}
 			if t.resisted != t.raw {
 				reducer := core.SelfRef(h.enemy.armour)
 				if d != Physical {
@@ -389,9 +415,9 @@ func (h averageHit) attribute() core.Attribute {
 }
 
 // hitRate is a skill's hits per second: an attack's from its attack rate and speed, another
-// skill's from its cast time and speed.
+// skill's from its cast time and speed, either times the action speed.
 type hitRate struct {
-	castTime, castSpeed, attackRate, attackSpeed core.StatID
+	castTime, castSpeed, attackRate, attackSpeed, action core.StatID
 	// attack is the Attack type's context bit.
 	attack core.Mask
 }
@@ -410,21 +436,22 @@ func (h hitRate) base(isAttack bool, stat func(core.StatID) float64) (float64, c
 
 func (h hitRate) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
+		action := r.Stat(h.action) / percentScale
 		if r.Mask().Intersects(h.attack) {
-			rate := r.Stat(h.attackRate) * roundHundredths(r.Stat(h.attackSpeed)/percentScale)
+			rate := r.Stat(h.attackRate) * roundHundredths(r.Stat(h.attackSpeed)/percentScale) * action
 			return min(max(rate, 0), 1/serverTickSeconds)
 		}
 		t := r.Stat(h.castTime)
 		if t <= 0 {
 			return 0
 		}
-		return min(roundHundredths(r.Stat(h.castSpeed)/percentScale)/t, 1/serverTickSeconds)
+		return min(roundHundredths(r.Stat(h.castSpeed)/percentScale)/t*action, 1/serverTickSeconds)
 	}
 }
 
 // attribute credits the uses per second before speed to the sources of the attack rate or cast
-// time, then the speed's increases and more multipliers over them; what rounding and the tick
-// cap change goes to the speed's sources.
+// time, then the speed's increases and more multipliers over them, then the action speed's over
+// those; what rounding and the tick cap change goes to the speed's sources.
 func (h hitRate) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		total := a.Explanation().Total
@@ -437,7 +464,7 @@ func (h hitRate) attribute() core.Attribute {
 		if isAttack {
 			from = h.attackRate
 		}
-		parts := a.LayersOver(core.SelfRef(speed), a.Spread(core.SelfRef(from), base, core.OpBase))
+		parts := a.LayersOver(core.SelfRef(h.action), a.LayersOver(core.SelfRef(speed), a.Spread(core.SelfRef(from), base, core.OpBase)))
 		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(speed)), Amount: total}
 	}
 }
@@ -547,15 +574,16 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	return src, nil
 }
 
-// baseSpeed is cast and attack speed before modifiers: 100%.
+// baseSpeed is cast, attack and action speed before modifiers: 100%.
 const baseSpeed = 100
 
-// addBaseSpeeds adds the base cast and attack speed as a rule's source each, so increases and
-// more multipliers apply to them by the default rule.
+// addBaseSpeeds adds the base cast, attack and action speed as a rule's source each, so
+// increases and more multipliers apply to them by the default rule.
 func (sh *Sheet) addBaseSpeeds() error {
 	for _, b := range []struct{ stat, id, rule string }{
 		{statCastSpeed, "base-cast-speed", "base cast speed (100%)"},
 		{statAttackSpeed, "base-attack-speed", "base attack speed (100%)"},
+		{statActionSpeed, "base-action-speed", "base action speed (100%)"},
 	} {
 		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
 		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: baseSpeed, Source: src}

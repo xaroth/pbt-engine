@@ -28,6 +28,7 @@ func conditionInputs() []conditionInput {
 		{"conditionLeeching", poe1.Leeching},
 		{"conditionEnemyBleeding", poe1.EnemyBleeding},
 		{"conditionEnemyMoving", poe1.EnemyMoving},
+		{"conditionEnemyMaimed", poe1.EnemyMaimed},
 		{"conditionEnemyTaunted", poe1.EnemyTaunted},
 		{"conditionEnemyIgnited", poe1.EnemyIgnited},
 		{"conditionEnemyChilled", poe1.EnemyChilled},
