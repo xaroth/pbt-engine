@@ -45,6 +45,10 @@ const (
 //     30 life, rolled.
 func timelessStore(t *testing.T) *dataset.Store {
 	t.Helper()
+	return openStore(t, timelessDataset())
+}
+
+func timelessDataset() *dataset.Dataset {
 	str := []dataset.StatValue{{Stat: tlStrength, Value: 10}}
 	xs := []float64{0, 1000, 2000, 3000, 3500, 4000, 2500}
 	layout := make([]dataset.LayoutNode, 0, len(xs))
@@ -54,7 +58,7 @@ func timelessStore(t *testing.T) *dataset.Store {
 		groups = append(groups, dataset.LayoutGroup{ID: id, X: x})
 		layout = append(layout, dataset.LayoutNode{ID: id, Group: id, Icon: "n.png"})
 	}
-	return openStore(t, &dataset.Dataset{
+	return &dataset.Dataset{
 		Manifest: dataset.Manifest{Game: "poe1", Version: "3.29.3.3"},
 		Stats: []dataset.Stat{
 			{ID: "base_maximum_life"}, {ID: "base_strength"}, {ID: "eternal_keystone"}, {ID: "eternal_keystone_v2"},
@@ -81,7 +85,7 @@ func timelessStore(t *testing.T) *dataset.Store {
 			TimelessVersions: timelessVersions(),
 		}},
 		Layouts: []dataset.Layout{{Variant: "standard", Orbits: []dataset.Orbit{{Slots: 1}}, Groups: groups, Nodes: layout}},
-	})
+	}
 }
 
 // The alternate tree versions of timelessStore, by index.

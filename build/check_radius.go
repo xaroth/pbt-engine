@@ -43,47 +43,70 @@ func (c *Checked) RadiusPassives() []RadiusPassive { return slices.Clone(c.radiu
 // is read only when such a jewel is socketed.
 func (c *Checked) findRadiusPassives() error {
 	var ix *radius.Index
-	var area radius.Area
 	for _, socket := range slices.Sorted(maps.Keys(c.build.Jewels)) {
 		it := c.build.Jewels[socket]
 		nothing, granted := hasStat(&it, allocatedSmallGrantNothingStat), hasStat(&it, unallocatedSmallGrantedStat)
 		if !nothing && !granted || c.allocated(socket) == nil {
 			continue
 		}
+		r, ok := c.radiusOf(socket, smallRadius)
+		if !ok {
+			continue
+		}
 		if ix == nil {
 			var err error
-			if ix, area, err = c.smallRadius(); err != nil {
+			if ix, err = c.radiusIndex(); err != nil {
 				return err
 			}
 		}
-		nodes, err := ix.Nodes(socket, area)
-		if err != nil {
-			// Only a socket on the tree has a radius.
-			continue
-		}
-		for _, id := range nodes {
-			if n := c.node(id); n.Kind == dataset.Normal {
-				c.radiusPassives = append(c.radiusPassives, RadiusPassive{Node: n, Socket: socket, Nothing: nothing, Granted: granted})
-			}
-		}
+		c.addRadiusPassives(ix, RadiusPassive{Socket: socket, Nothing: nothing, Granted: granted}, radius.Disc(r))
 	}
 	return nil
 }
 
-func (c *Checked) smallRadius() (*radius.Index, radius.Area, error) {
-	return c.jewelRadius(smallRadius)
+// addRadiusPassives adds jewel, without a node, for each small passive in area around its socket.
+func (c *Checked) addRadiusPassives(ix *radius.Index, jewel RadiusPassive, area radius.Area) {
+	nodes, err := ix.Nodes(jewel.Socket, area)
+	if err != nil {
+		// Only a socket on the tree has a radius.
+		return
+	}
+	for _, id := range nodes {
+		if n := c.node(id); n.Kind == dataset.Normal {
+			jewel.Node = n
+			c.radiusPassives = append(c.radiusPassives, jewel)
+		}
+	}
 }
 
-// jewelRadius returns the radius index of the build's tree variant and the disc of jewel radius
-// id.
-func (c *Checked) jewelRadius(id string) (*radius.Index, radius.Area, error) {
+// radiusIndex returns the radius index of the build's tree variant.
+func (c *Checked) radiusIndex() (*radius.Index, error) {
 	ix, err := radius.Of(c.store, c.build.Variant)
 	if err != nil {
-		return nil, radius.Area{}, fmt.Errorf("build: %w", err)
+		return nil, fmt.Errorf("build: %w", err)
 	}
-	i := slices.IndexFunc(c.tree.JewelRadii, func(r dataset.JewelRadius) bool { return r.ID == id })
-	if i < 0 {
-		return nil, radius.Area{}, fmt.Errorf("build: jewel radius %s in the %s tree: %w", id, c.build.Variant, dataset.ErrNotInDataset)
+	return ix, nil
+}
+
+// radiusOf returns the jewel radius id of the build's tree for the jewel in socket. A tree
+// without it, as a dataset older than the radii, gives the jewel's radius work nothing to go on:
+// radiusOf warns once for the jewel and reports false, and the work is skipped.
+func (c *Checked) radiusOf(socket uint32, id string) (dataset.JewelRadius, bool) {
+	if i := slices.IndexFunc(c.tree.JewelRadii, func(r dataset.JewelRadius) bool { return r.ID == id }); i >= 0 {
+		return c.tree.JewelRadii[i], true
 	}
-	return ix, radius.Disc(c.tree.JewelRadii[i]), nil
+	if !c.radiusWarned[socket] {
+		if c.radiusWarned == nil {
+			c.radiusWarned = map[uint32]bool{}
+		}
+		c.radiusWarned[socket] = true
+		it := c.build.Jewels[socket]
+		name := it.Name
+		if name == "" {
+			name = it.Base
+		}
+		c.warnAboutf(Warning{Subject: jewelSubject(socket)}, RadiusMissing,
+			"%s: the %s tree has no %s jewel radius; what it does in its radius is left out", name, c.build.Variant, id)
+	}
+	return dataset.JewelRadius{}, false
 }

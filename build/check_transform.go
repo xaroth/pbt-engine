@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/poe1/radius"
 )
 
 // transformStatPrefix starts the stats of a jewel that transforms one attribute of the passives
@@ -47,13 +48,20 @@ func (c *Checked) findTransforms() error {
 	if len(jewels) == 0 {
 		return nil
 	}
-	ix, area, err := c.jewelRadius(transformRadius)
-	if err != nil {
-		return err
-	}
+	var ix *radius.Index
 	changed := c.conqueredOrOverridden()
 	for _, j := range jewels {
-		nodes, err := ix.Nodes(j.Socket, area)
+		r, ok := c.radiusOf(j.Socket, transformRadius)
+		if !ok {
+			continue
+		}
+		if ix == nil {
+			var err error
+			if ix, err = c.radiusIndex(); err != nil {
+				return err
+			}
+		}
+		nodes, err := ix.Nodes(j.Socket, radius.Disc(r))
 		if err != nil {
 			// Only a socket on the tree has a radius.
 			continue

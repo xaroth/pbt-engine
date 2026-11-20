@@ -41,13 +41,17 @@ func (c *Checked) conquer() error {
 		if !ok {
 			continue
 		}
+		r, ok := c.radiusOf(socket, timelessRadius)
+		if !ok {
+			continue
+		}
 		if data == nil {
 			var err error
 			if data, err = c.timelessData(); err != nil {
 				return err
 			}
 		}
-		c.conquerFrom(socket, j, data)
+		c.conquerFrom(socket, j, data, radius.Disc(r))
 	}
 	return nil
 }
@@ -56,7 +60,6 @@ func (c *Checked) conquer() error {
 type timelessData struct {
 	versions *timeless.Versions
 	radius   *radius.Index
-	area     radius.Area
 }
 
 func (c *Checked) timelessData() (*timelessData, error) {
@@ -65,23 +68,19 @@ func (c *Checked) timelessData() (*timelessData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build: %w", err)
 	}
-	ix, err := radius.Of(c.store, variant)
+	ix, err := c.radiusIndex()
 	if err != nil {
-		return nil, fmt.Errorf("build: %w", err)
+		return nil, err
 	}
-	i := slices.IndexFunc(c.tree.JewelRadii, func(r dataset.JewelRadius) bool { return r.ID == timelessRadius })
-	if i < 0 {
-		return nil, fmt.Errorf("build: jewel radius %s in the %s tree: %w", timelessRadius, variant, dataset.ErrNotInDataset)
-	}
-	return &timelessData{versions: versions, radius: ix, area: radius.Disc(c.tree.JewelRadii[i])}, nil
+	return &timelessData{versions: versions, radius: ix}, nil
 }
 
-// conquerFrom adds what jewel j in socket makes of the passives in its radius.
-func (c *Checked) conquerFrom(socket uint32, j timeless.ModJewel, data *timelessData) {
+// conquerFrom adds what jewel j in socket makes of the passives in its radius, the disc area.
+func (c *Checked) conquerFrom(socket uint32, j timeless.ModJewel, data *timelessData, area radius.Area) {
 	if data.versions.Name(j.Version) == "" {
 		return
 	}
-	nodes, err := data.radius.Nodes(socket, data.area)
+	nodes, err := data.radius.Nodes(socket, area)
 	if err != nil {
 		// Only a socket on the tree has a radius; a timeless jewel fits no other.
 		return
