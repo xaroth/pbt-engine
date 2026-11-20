@@ -114,7 +114,8 @@ func (r *Reader) Conquer(variant string, j Socketed, language string) ([]Passive
 // Query is what a search looks for: seeds of a version whose jewel, in a socket, gives the
 // wanted results.
 type Query struct {
-	Socket uint32 `json:"socket"`
+	// Sockets are the sockets to search; empty searches every socket Sockets returns.
+	Sockets []uint32 `json:"sockets"`
 	// Version is JewelVersion.Index.
 	Version int    `json:"version"`
 	Wants   []Want `json:"wants"`
@@ -140,56 +141,136 @@ type Want struct {
 	Min int64 `json:"min"`
 }
 
-// Match is a seed whose jewel gives every wanted result.
+// Match is a seed whose jewel, in a socket, gives every wanted result.
 type Match struct {
-	Seed uint32 `json:"seed"`
+	Socket uint32 `json:"socket"`
+	Seed   uint32 `json:"seed"`
 	// Score is the sum of each want's total times its weight.
 	Score float64 `json:"score"`
 	// Totals holds each want's total, in the query's order.
 	Totals []int64 `json:"totals"`
-	// Passives is what the jewel makes of each passive searched, by node id. A keystone, which
+	// Passives is what the jewel makes of each passive searched in the socket's radius, by node
+	// id. A keystone, which
 	// only the jewel's conqueror changes, is left out.
 	Passives []Passive `json:"passives"`
 }
 
 // Progress reports a search under way: the seeds scanned, the seeds in all and the matches
-// found so far, before the query's limit is applied.
+// found so far, before the query's limit is applied. A search of several sockets counts the
+// seeds of every socket.
 type Progress = rules.Progress
 
-// Search scans every seed of the query's version in its socket and returns the seeds whose
-// totals reach every want's Min, by score from highest, then by seed. Keystones are not
-// searched: the conqueror, not the seed, picks theirs. Errors are those of Conquer, and ErrWant
-// for a want the version never gives.
+// Sockets returns the sockets a search with no sockets covers, by node id: the jewel sockets
+// of the tree variant, such as build.DefaultVariant, that Path of Building's timeless search
+// offers. The sockets a cluster jewel adds are left out, since they exist only with the jewel.
+func (r *Reader) Sockets(variant string) ([]uint32, error) {
+	tree, err := r.store.Tree(variant)
+	if err != nil {
+		return nil, fmt.Errorf("timeless: %w", err)
+	}
+	out := slices.DeleteFunc(slices.Clone(tree.JewelSlots), func(id uint32) bool {
+		return slices.ContainsFunc(tree.Clusters.Sockets, func(c dataset.ClusterSocket) bool { return c.Node == id && c.Parent != 0 })
+	})
+	slices.Sort(out)
+	return out, nil
+}
+
+// Search scans every seed of the query's version in each of its sockets and returns the
+// socket and seed pairs whose totals reach every want's Min, by score from highest, then by
+// socket, then by seed. Limit bounds the whole list. Keystones are not searched: the conqueror,
+// not the seed, picks theirs. Errors are those of Conquer, and ErrWant for a want the version
+// never gives.
 //
 // A not nil progress is called every few hundred seeds and once after the last, from the
 // goroutine that called Search. Once ctx is done, Search returns ctx.Err() and no matches
 // within a seed's time.
 func (r *Reader) Search(ctx context.Context, variant string, q Query, progress Progress) ([]Match, error) {
-	s, err := r.socket(variant, q.Socket, q.Version, q.Language)
+	base, err := r.setup(variant, q.Version, q.Language)
 	if err != nil {
 		return nil, err
 	}
-	wants, err := s.wants(q.Version, q.Wants)
+	wants, err := base.wants(q.Version, q.Wants)
 	if err != nil {
 		return nil, err
 	}
-	if q.Allocated != nil {
-		s.nodes = slices.DeleteFunc(s.nodes, func(n rules.Node) bool { return !slices.Contains(q.Allocated, n.ID) })
-	}
-	s.nodes = slices.DeleteFunc(s.nodes, func(n rules.Node) bool { return n.Kind == Keystone })
-	found, err := s.versions.Search(ctx, q.Version, s.seeds, s.nodes, wants, q.Limit, progress)
+	sockets, err := r.searched(variant, base, q)
 	if err != nil {
-		return nil, err //nolint:wrapcheck // the caller's own error
+		return nil, err
 	}
-	out := make([]Match, len(found))
-	for i, m := range found {
-		out[i] = Match{Seed: m.Seed, Score: m.Score, Totals: m.Totals, Passives: s.conquer(q.Version, m.Seed, Conqueror{})}
+	found, err := scanSockets(ctx, sockets, q, wants, progress)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortStableFunc(found, func(a, b Match) int {
+		return cmp.Or(cmp.Compare(b.Score, a.Score), cmp.Compare(a.Socket, b.Socket), cmp.Compare(a.Seed, b.Seed))
+	})
+	if q.Limit > 0 && len(found) > q.Limit {
+		found = found[:q.Limit]
+	}
+	for i := range found {
+		s := sockets[slices.IndexFunc(sockets, func(s *socket) bool { return s.id == found[i].Socket })]
+		found[i].Passives = s.conquer(q.Version, found[i].Seed, Conqueror{})
+	}
+	return found, nil
+}
+
+// searched returns the sockets q searches, by id, each with the passives of its radius a
+// search conquers: the allocated ones when q limits them, and no keystones.
+func (r *Reader) searched(variant string, base *socket, q Query) ([]*socket, error) {
+	ids := q.Sockets
+	if len(ids) == 0 {
+		var err error
+		if ids, err = r.Sockets(variant); err != nil {
+			return nil, err
+		}
+	}
+	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
+	out := make([]*socket, len(ids))
+	for i, id := range ids {
+		s, err := r.at(base, variant, id)
+		if err != nil {
+			return nil, err
+		}
+		s.nodes = slices.DeleteFunc(s.nodes, func(n rules.Node) bool {
+			return n.Kind == Keystone || q.Allocated != nil && !slices.Contains(q.Allocated, n.ID)
+		})
+		out[i] = s
 	}
 	return out, nil
 }
 
+// scanSockets scans the seeds of each socket in turn, reporting progress over all of them, and
+// returns the matches, each socket's best q.Limit among them, without their passives.
+func scanSockets(ctx context.Context, sockets []*socket, q Query, wants []rules.Want, progress Progress) ([]Match, error) {
+	var found []Match
+	scanned, matched, total := 0, 0, 0
+	for _, s := range sockets {
+		total += s.seeds.Count()
+	}
+	for _, s := range sockets {
+		last := 0
+		report := func(done, _, n int) {
+			last = n
+			if progress != nil {
+				progress(scanned+done, total, matched+n)
+			}
+		}
+		ms, err := s.versions.Search(ctx, q.Version, s.seeds, s.nodes, wants, q.Limit, report)
+		if err != nil {
+			return nil, err //nolint:wrapcheck // the caller's own error
+		}
+		for _, m := range ms {
+			found = append(found, Match{Socket: s.id, Seed: m.Seed, Score: m.Score, Totals: m.Totals})
+		}
+		scanned += s.seeds.Count()
+		matched += last
+	}
+	return found, nil
+}
+
 // socket is what a call reads for one socket and version.
 type socket struct {
+	id       uint32
 	versions *rules.Versions
 	seeds    SeedRange
 	nodes    []rules.Node
@@ -210,7 +291,17 @@ func (r *Reader) versions(variant string) (*rules.Versions, []SeedRange, error) 
 	return versions, seeds, nil
 }
 
+// socket reads what a call needs for the socket id.
 func (r *Reader) socket(variant string, id uint32, version int, language string) (*socket, error) {
+	base, err := r.setup(variant, version, language)
+	if err != nil {
+		return nil, err
+	}
+	return r.at(base, variant, id)
+}
+
+// setup reads what a version needs of any socket.
+func (r *Reader) setup(variant string, version int, language string) (*socket, error) {
 	versions, seeds, err := r.versions(variant)
 	if err != nil {
 		return nil, err
@@ -228,12 +319,19 @@ func (r *Reader) socket(variant string, id uint32, version int, language string)
 	if s.names, err = r.names(language); err != nil {
 		return nil, err
 	}
-	ids, err := r.radius(variant, s.tree, id)
+	return s, nil
+}
+
+// at returns base for the socket id, with the passives of its radius.
+func (r *Reader) at(base *socket, variant string, id uint32) (*socket, error) {
+	ids, err := r.radius(variant, base.tree, id)
 	if err != nil {
 		return nil, err
 	}
+	s := *base
+	s.id = id
 	s.nodes = nodesOf(s.tree, s.stats, ids)
-	return s, nil
+	return &s, nil
 }
 
 // nodesOf gives the passives ids with their kinds.
