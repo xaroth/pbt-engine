@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 338 authored, 103 unknown, 1 display-only, 0 gaps, 1467 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 342 authored, 103 unknown, 1 display-only, 0 gaps, 1463 outside
 unknown by reason: condition 68, items 18, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -29,6 +29,7 @@ unvalidated chance_to_inflict_cold_exposure_on_hit_with_cold_damage_% global, us
 unvalidated dexterity_accuracy_bonus_grants_accuracy_rating_+3_per_dexterity_instead global, uses 6: the +3 is in the stat id and the text, not in the value, which is read as 1
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
 unvalidated exposure_you_inflict_has_minimum_resistance_% global, uses 6: applied to any Exposure the enemy has, after what is added to it, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
+unvalidated treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance global, uses 6: the chance weighs the inverted and the actual resistance, taken within its limits and before penetration, as PoB does; the text does not say where in the order it applies
 unvalidated X_to_armour_per_2_strength global, uses 5: the text says per 2 Strength; that it counts whole steps (rounded down) is not stated. The sheet at a value that is not a multiple would validate it
 unknown armour_+%_per_retaliation_used_in_past_10_seconds global, uses 5: condition: Retaliation Skills used in the past 10 seconds
 unknown armour_+%_per_second_while_stationary_up_to_100 global, uses 5: condition: time stationary
@@ -88,6 +89,7 @@ unknown chance_to_block_spells_%_if_used_retaliation_recently global, uses 1: co
 unknown chance_to_block_spells_%_while_channelling global, uses 1: condition: channelling
 unvalidated chaos_damage_resistance_is_doubled global, uses 1: the text does not say whether doubling applies before or after other modifiers or more than once; the total is doubled once, as PoB does
 unvalidated consecrated_ground_enemy_damage_taken_+% global, uses 1: the config says whether the enemy is on Consecrated Ground, not who created it; read as the character's own, as PoB does
+unvalidated critical_strikes_ignore_elemental_resistances global, uses 1: an ignored resistance is taken as 0 that penetration does not lower, as PoB does; the text does not say how ignoring and penetration combine
 unknown damage_+%_for_you_and_allies_affected_by_your_auras global, uses 1: context: increased damage, which is not simulated yet; applies to the player always, as an aura of the node's own
 unknown damage_reduction_rating_from_body_armour_doubled global, uses 1: items: depends on equipped items, which an entry cannot check yet
 unknown elemental_resistance_%_while_no_gems_in_helmet global, uses 1: items: depends on equipped items, which an entry cannot check yet
