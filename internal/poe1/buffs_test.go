@@ -127,3 +127,70 @@ func TestStatsWhileAffectedByAura(t *testing.T) {
 		})
 	}
 }
+
+// skillOf is a skill of granted effect id with types and stats as its stat set.
+func skillOf(group int, id string, types []string, stats ...resolve.StatValue) *resolve.Skill {
+	sk := skill(group, types...)
+	sk.GrantedEffect = id
+	sk.StatSets = []resolve.SkillStatSet{{Stats: stats}}
+	return sk
+}
+
+func iceGolem(group int) *resolve.Skill {
+	return skillOf(group, "SummonIceGolem", []string{"Spell", "Minion", "Golem"},
+		resolve.StatValue{Stat: "ice_golem_grants_accuracy_rating_+", Value: 420},
+		resolve.StatValue{Stat: "golem_buff_effect_+%", Value: 20})
+}
+
+// A golem's buff reaches the sheet at its effect, raised by the golem's own quality and by
+// "increased Effect of Buffs granted by your Golems": +420 accuracy at 150% is +630. Buffs of
+// the same golem do not stack.
+func TestGolemBuff(t *testing.T) {
+	t.Parallel()
+	sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global, resolve.StatValue{Stat: "golem_buff_effect_+%", Value: 30})))
+	setSkills(t, sh, skill(0, "Spell"), iceGolem(1))
+	if got := value(t, sh, "accuracy_rating"); got != 630 {
+		t.Errorf("one golem: got %v, want 630", got)
+	}
+	setSkills(t, sh, skill(0, "Spell"), iceGolem(1), iceGolem(2))
+	if got := value(t, sh, "accuracy_rating"); got != 630 {
+		t.Errorf("two of the same golem: got %v, want 630", got)
+	}
+}
+
+func guardOf(group int, id string, armour float64, types ...string) *resolve.Skill {
+	return skillOf(group, id, append([]string{"Spell", "Guard"}, types...),
+		resolve.StatValue{Stat: "base_physical_damage_reduction_rating", Value: armour})
+}
+
+// You have one guard skill's buff at a time: the first, or Vaal Molten Shell when there is one.
+// A guard skill a totem casts buffs the totem.
+func TestOneGuardBuff(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name   string
+		skills []*resolve.Skill
+		armour float64
+	}{
+		{"Molten Shell", []*resolve.Skill{guardOf(1, "MoltenShell", 100)}, 100},
+		{"the first guard", []*resolve.Skill{guardOf(1, "MoltenShell", 100), guardOf(2, "QuickGuard", 0)}, 100},
+		{"Vaal Molten Shell", []*resolve.Skill{guardOf(1, "MoltenShell", 100), guardOf(2, "VaalMoltenShell", 300, "Vaal")}, 300},
+		{"by a totem", []*resolve.Skill{guardOf(1, "MoltenShell", 100, "SummonsTotem")}, 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			sh := open(t, resolved())
+			setSkills(t, sh, append([]*resolve.Skill{skill(0, "Spell")}, c.skills...)...)
+			if got := value(t, sh, "armour"); got != c.armour {
+				t.Errorf("armour: got %v, want %v", got, c.armour)
+			}
+			want := 1.0
+			if c.armour == 0 {
+				want = 0
+			}
+			if got := value(t, sh, "affected_by_guard_skill"); got != want {
+				t.Errorf("affected by a guard skill: got %v, want %v", got, want)
+			}
+		})
+	}
+}

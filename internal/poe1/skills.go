@@ -33,21 +33,26 @@ type skillSlot struct {
 	restrictions []string
 }
 
-// skillKey is a skill's sources by slot and content.
+// skillKey is a skill's sources by slot and content, and whether its buff affects you, which
+// depends on the skills in other slots (buffList).
 type skillKey struct {
 	slot int
 	key  string
+	buff bool
 }
 
 // skillKeys returns the key of each of skills in its slot. Rendering a skill costs more than
-// comparing it with the one the slot has, so a slot whose skill is unchanged keeps its key.
+// comparing it with the one the slot has, so a slot whose skill and buff are unchanged keeps
+// its key.
 func (sh *Sheet) skillKeys(skills []*resolve.Skill) []skillKey {
 	keys := make([]skillKey, len(skills))
+	buffs := newBuffList(sh.buffs, skills)
 	for i, sk := range skills {
-		if i < len(sh.skills) && reflect.DeepEqual(sh.skills[i].skill, sk) {
+		buff := buffs.take(sk)
+		if i < len(sh.skills) && sh.skills[i].key.buff == buff && reflect.DeepEqual(sh.skills[i].skill, sk) {
 			keys[i] = sh.skills[i].key
 		} else {
-			keys[i] = skillKey{i, fmt.Sprint(*sk)}
+			keys[i] = skillKey{i, fmt.Sprint(*sk), buff}
 		}
 	}
 	return keys
@@ -56,10 +61,10 @@ func (sh *Sheet) skillKeys(skills []*resolve.Skill) []skillKey {
 // SetSkills makes skills the sheet's skills: skill i takes context slot i, and the sources of
 // its own stats (the stat set it uses, quality included, and each applied support) go on,
 // those of other skills off. A skill's own stats reach that skill's values only. Every skill
-// that reserves life or mana reserves it from the sheet's pools; outputs of the skill group
-// read skill 0. A skill not
-// seen yet in its slot gets its sources added once; adding is refused while a checkpoint is
-// open (ErrCheckpointOpen).
+// that reserves life or mana reserves it from the sheet's pools, and the buffs of aura, herald,
+// guard and golem skills affect you, each skill's once and one guard skill's; outputs of the
+// skill group read skill 0. A skill not seen yet in its slot gets its sources added once;
+// adding is refused while a checkpoint is open (ErrCheckpointOpen).
 func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	if len(skills) > maxSkills {
 		return fmt.Errorf("%w: %d skills, at most %d", ErrSkill, len(skills), maxSkills)
@@ -86,7 +91,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 		if sh.marked {
 			return fmt.Errorf("%w: skill %s", ErrCheckpointOpen, sk.Source)
 		}
-		srcs, err := sh.addSkill(sk, i)
+		srcs, err := sh.addSkill(sk, i, k.buff)
 		if err != nil {
 			return err
 		}
@@ -98,10 +103,11 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 	return nil
 }
 
-// addSkill adds the sources of sk's own stats in slot, of the buff it grants you, of the curse
-// it applies to the enemy and of its stages.
-func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) {
-	b, buffs := buffOf(sk)
+// addSkill adds the sources of sk's own stats in slot, of the buff it grants you when buff is
+// set (its buff stats are not its own either way), of the curse it applies to the enemy and of
+// its stages.
+func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.SourceID, error) {
+	b, buffs := sh.buffs.of(sk)
 	bundles, buffStats, curseStats := sh.skillBundles(sk, b, buffs)
 	srcs := make([]core.SourceID, 0, len(bundles)+1)
 	for i := range bundles {
@@ -123,7 +129,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 	srcs = append(srcs, src, hit)
 	var more []core.SourceID
 	switch {
-	case buffs:
+	case buffs && buff:
 		more, err = sh.addBuff(sk, b, buffStats, slot, ctx)
 	case curseStats != nil:
 		more, err = sh.addCurse(sk, curseStats, slot, ctx)
@@ -132,28 +138,29 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int) ([]core.SourceID, error) 
 		return nil, err
 	}
 	srcs = append(srcs, more...)
-	if sk.Stages > 0 {
-		stages, err := sh.addStages(sk, slot)
-		if err != nil {
-			return nil, err
-		}
-		srcs = append(srcs, stages)
+	stages, err := sh.addStages(sk, slot)
+	if err != nil {
+		return nil, err
 	}
-	return srcs, nil
+	return append(srcs, stages...), nil
 }
 
-// addStages gives skill_stages the stages sk's gem says, in slot.
-func (sh *Sheet) addStages(sk *resolve.Skill, slot int) (core.SourceID, error) {
+// addStages gives skill_stages the stages sk's gem says, in slot, and returns its source; none
+// for a gem without stages.
+func (sh *Sheet) addStages(sk *resolve.Skill, slot int) ([]core.SourceID, error) {
+	if sk.Stages <= 0 {
+		return nil, nil
+	}
 	src := sh.newSource(Source{RuleID: "skill-stages", Rule: fmt.Sprintf("%d stages of %s", sk.Stages, sk.Source)})
 	pred, err := predicate(sh.session.Model(), semantics.ContextFilter{}, sh.ctx, slot)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	mod := core.Modifier{Stat: sh.stats[statSkillStages], Op: core.OpBase, Value: float64(sk.Stages), Source: src, Pred: pred}
 	if _, err := sh.session.AddModifier(mod); err != nil {
-		return 0, fmt.Errorf("sheet: skill stages: %w", err)
+		return nil, fmt.Errorf("sheet: skill stages: %w", err)
 	}
-	return src, nil
+	return []core.SourceID{src}, nil
 }
 
 // skillBundles returns the bundles of sk's own stats: its stat set's and its supports'. Of its
