@@ -114,6 +114,8 @@ type shape struct {
 	radius string
 	// transforms lists the passives whose attributes jewels transform.
 	transforms string
+	// radiusChanges lists the passives other radius jewels change.
+	radiusChanges string
 	// itemPassives lists the notables items allocate with their items, which the sheet credits.
 	itemPassives string
 	// jewelPassives lists the notables jewels allocate together with their jewels.
@@ -131,7 +133,8 @@ func shapeOf(c *build.Checked) shape {
 	return shape{
 		variant: cb.Variant, class: cb.Class, ascendancy: cb.Ascendancy, bloodline: cb.Bloodline,
 		overrides: overrides.String(), clusters: clustersKey(c.ClusterNodes()), conquests: conquestsKey(c.Conquests()),
-		radius: radiusKey(c.RadiusPassives()), transforms: transformsKey(c.AttributeTransforms()), itemPassives: itemPassivesKey(c.ItemPassives()),
+		radius: radiusKey(c.RadiusPassives()), transforms: transformsKey(c.AttributeTransforms()),
+		radiusChanges: radiusChangesKey(c.RadiusChanges()), itemPassives: itemPassivesKey(c.ItemPassives()),
 		jewelPassives: jewelPassivesKey(c.JewelPassives()),
 	}
 }
@@ -210,6 +213,17 @@ func transformsKey(ts []build.AttributeTransform) string {
 		buf = strconv.AppendUint(append(buf, ','), uint64(t.Node.ID), decimal)
 		buf = strconv.AppendUint(append(buf, '@'), uint64(t.Socket), decimal)
 		buf = append(buf, ':', byte('0'+t.From), '>', byte('0'+t.To))
+	}
+	return string(buf)
+}
+
+// radiusChangesKey lists passives with their socket and the jewel stat that changes them.
+func radiusChangesKey(rs []build.RadiusChange) string {
+	var buf []byte
+	for _, r := range rs {
+		buf = strconv.AppendUint(append(buf, ','), uint64(r.Node.ID), decimal)
+		buf = strconv.AppendUint(append(buf, '@'), uint64(r.Socket), decimal)
+		buf = strconv.AppendInt(append(append(buf, ':'), r.Stat+"="...), int64(r.Value), decimal)
 	}
 	return string(buf)
 }

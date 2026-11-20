@@ -125,6 +125,7 @@ type Checked struct {
 	// radiusPassives are the small passives jewels change by allocation.
 	radiusPassives []RadiusPassive
 	transforms     []AttributeTransform
+	radiusChanges  []RadiusChange
 	itemPassives   []ItemPassive
 	jewelPassives  []JewelPassive
 	// unconnected are the passives each socket's jewel lets be allocated without a connection.
@@ -168,7 +169,8 @@ type MasteryChoice struct {
 // whose lines do not say what it adds. A timeless jewel in an allocated socket changes the
 // passives in its radius (Conquests), and Unnatural Instinct in an allocated socket those whose
 // effect depends on allocation (RadiusPassives); a jewel in an allocated socket that transforms
-// an attribute of the passives in its radius to another changes them (AttributeTransforms). An
+// an attribute of the passives in its radius to another changes them (AttributeTransforms), and
+// so does one whose stat makes them give other or more stats (RadiusChanges). An
 // equipped item's line "Allocates <notable>" gives the notable without a point or a path
 // (ItemPassives); one naming a node that is no notable of the tree is left out with a warning.
 // A Forbidden Flame and a Forbidden Flesh in allocated sockets that name the same ascendancy
@@ -372,6 +374,9 @@ func (c *Checked) checkGear() error {
 		return err
 	}
 	if err := c.findTransforms(); err != nil {
+		return err
+	}
+	if err := c.findRadiusChanges(); err != nil {
 		return err
 	}
 	return c.findUnconnected()

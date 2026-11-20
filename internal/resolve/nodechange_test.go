@@ -282,3 +282,109 @@ func TestResolveAttributeTransforms(t *testing.T) {
 		})
 	}
 }
+
+// On conquestDataset with a Medium and a Small radius, the tattoo giving Strength, the conquered
+// notable also giving Strength and a second socket 10 whose Large radius reaches 4 and 7 but not
+// 3, radius jewels change what passives give: The Light of Meaning adds its stat to small and
+// notable passives, tattooed ones too, and to those Unnatural Instinct grants, but not to the
+// class start, masteries or conquered passives; Healthy Mind moves increases to maximum life to
+// maximum mana at twice their value, but not on conquered passives; Transcendent Flesh gives its
+// value of Strength per Strength on each passive, conquered or tattooed, each jewel counting the
+// passive as the others leave it.
+func TestResolveRadiusChanges(t *testing.T) {
+	t.Parallel()
+	d := conquestDataset()
+	d.Stats = append(d.Stats, dataset.Stat{ID: "maximum_mana_+%"})
+	tree := &d.Trees[0]
+	tree.JewelRadii = append(tree.JewelRadii, dataset.JewelRadius{ID: "Medium", Radius: 1500}, dataset.JewelRadius{ID: "Small", Radius: 700})
+	tree.Nodes[0].Neighbours = append(tree.Nodes[0].Neighbours, 10)
+	tree.Nodes = append(tree.Nodes, dataset.Node{ID: 10, Kind: dataset.JewelSocket, Neighbours: []uint32{1}})
+	tree.Overrides[0].Stats = []dataset.StatValue{{Stat: 6, Value: 20}}
+	tree.TimelessVersions[1].Replacements[1].Stats = append(tree.TimelessVersions[1].Replacements[1].Stats, dataset.StatRange{Stat: 3, Min: 5, Max: 5})
+	l := &d.Layouts[0]
+	l.Groups = append(l.Groups, dataset.LayoutGroup{ID: 10, X: 2000})
+	l.Nodes = append(l.Nodes, dataset.LayoutNode{ID: 10, Group: 10, Icon: "n.png"})
+	s := open(t, d)
+	jewel := func(stat string, value int32) build.Item {
+		return build.Item{Rarity: build.Unique, Base: "Metadata/Items/Jewels/JewelDex", Mods: []build.ModLine{{
+			Kind: build.Explicit, Text: "radius", Stats: []build.StatValue{{Stat: stat, Value: value}},
+		}}}
+	}
+	timeless := build.Item{Rarity: build.Unique, Base: "Metadata/Items/Jewels/JewelTimeless", Mods: []build.ModLine{{
+		Kind: build.Explicit, Text: "conquered", Stats: []build.StatValue{
+			{Stat: "local_unique_jewel_alternate_tree_version", Value: 1},
+			{Stat: "local_unique_jewel_alternate_tree_seed", Value: 100},
+			{Stat: "local_unique_jewel_alternate_tree_keystone", Value: 1},
+		},
+	}}}
+	chaos := jewel("local_unique_jewel_passives_in_radius_grant_base_chaos_damage_resistance_%", 4)
+	lifeToMana := jewel("local_unique_jewel_life_increases_applies_to_mana_doubled", 1)
+	flesh := jewel("local_unique_jewel_X_strength_per_1_strength_allocated_in_radius", -1)
+	instinct := jewelWith("local_jewel_allocated_non_notable_passives_in_radius_grant_nothing",
+		"local_jewel_copy_stats_from_unallocated_non_notable_passives_in_radius")
+	global := func(src resolve.Source, stats ...resolve.StatValue) resolve.Bundle {
+		return resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: src, Stats: stats}
+	}
+	n4, n7 := resolve.NodeSource{ID: 4}, resolve.NodeSource{ID: 7}
+	str, addStr, life, mana, chaosRes := "base_strength", "additional_strength", "maximum_life_+%", "maximum_mana_+%", "base_chaos_damage_resistance_%"
+	conquered := global(n7, resolve.StatValue{life, 10}, resolve.StatValue{addStr, 5})
+	tattoo := map[uint32]string{4: "Valako4"}
+	testCases := []struct {
+		name      string
+		nodes     []uint32
+		jewels    build.Jewels
+		overrides map[uint32]string
+		want      []resolve.Bundle
+	}{
+		{name: "The Light of Meaning", nodes: []uint32{1, 3, 4, 7}, jewels: build.Jewels{3: chaos}, want: []resolve.Bundle{
+			global(n4, resolve.StatValue{str, 10}, resolve.StatValue{chaosRes, 4}),
+			global(n7, resolve.StatValue{addStr, 20}, resolve.StatValue{life, 8}, resolve.StatValue{chaosRes, 4}),
+		}},
+		{name: "The Light of Meaning on a tattoo", nodes: []uint32{1, 3, 4}, jewels: build.Jewels{3: chaos}, overrides: tattoo, want: []resolve.Bundle{
+			global(n4, resolve.StatValue{str, 20}, resolve.StatValue{chaosRes, 4}),
+		}},
+		{name: "The Light of Meaning beside a timeless jewel", nodes: []uint32{1, 3, 7, 10}, jewels: build.Jewels{3: chaos, 10: timeless},
+			want: []resolve.Bundle{conquered}},
+		{name: "The Light of Meaning on a passive Unnatural Instinct grants", nodes: []uint32{1, 3, 10}, jewels: build.Jewels{3: instinct, 10: chaos},
+			want: []resolve.Bundle{global(resolve.RadiusSource{Socket: 3, Node: 4}, resolve.StatValue{str, 10}, resolve.StatValue{chaosRes, 4})}},
+		{name: "Healthy Mind", nodes: []uint32{1, 3, 7}, jewels: build.Jewels{3: lifeToMana}, want: []resolve.Bundle{
+			global(n7, resolve.StatValue{addStr, 20}, resolve.StatValue{mana, 16}),
+		}},
+		{name: "Healthy Mind beside a timeless jewel", nodes: []uint32{1, 3, 7, 10}, jewels: build.Jewels{3: lifeToMana, 10: timeless},
+			want: []resolve.Bundle{conquered}},
+		{name: "Transcendent Flesh", nodes: []uint32{1, 3, 4, 7}, jewels: build.Jewels{3: flesh}, want: []resolve.Bundle{
+			global(n7, resolve.StatValue{addStr, 20}, resolve.StatValue{life, 8}, resolve.StatValue{str, -20}),
+		}},
+		{name: "Transcendent Flesh on a tattoo", nodes: []uint32{1, 3, 4}, jewels: build.Jewels{3: flesh}, overrides: tattoo, want: []resolve.Bundle{}},
+		{name: "Transcendent Flesh beside a timeless jewel", nodes: []uint32{1, 3, 7, 10}, jewels: build.Jewels{3: flesh, 10: timeless}, want: []resolve.Bundle{
+			global(n7, resolve.StatValue{life, 10}, resolve.StatValue{addStr, 5}, resolve.StatValue{str, -5}),
+		}},
+		{name: "two Transcendent Flesh", nodes: []uint32{1, 3, 4, 7, 10}, jewels: build.Jewels{3: flesh, 10: flesh}, want: []resolve.Bundle{
+			global(n4, resolve.StatValue{str, -10}),
+			global(n7, resolve.StatValue{addStr, 20}, resolve.StatValue{life, 8}, resolve.StatValue{str, -40}),
+		}},
+		{name: "socket not allocated", nodes: []uint32{1, 4}, jewels: build.Jewels{3: chaos}, want: []resolve.Bundle{global(n4, resolve.StatValue{str, 10})}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := testBuild(90, testCase.nodes...)
+			b.Overrides = testCase.overrides
+			b.Jewels = testCase.jewels
+			r, err := resolveBuild(t, s, b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := slices.DeleteFunc(r.Bundles, func(bd resolve.Bundle) bool {
+				switch bd.Source.(type) {
+				case resolve.NodeSource, resolve.RadiusSource:
+					return bd.Scope != resolve.Global
+				}
+				return true
+			})
+			if diff := cmp.Diff(testCase.want, got); diff != "" {
+				t.Errorf("node bundles (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

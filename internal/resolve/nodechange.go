@@ -41,21 +41,111 @@ func ChangeNode(n *dataset.Node, changes ...NodeChange) *dataset.Node {
 
 // nodeChanges returns the changes c's build makes to nodes, by node id: its tattoo or
 // runegraft first, then what its timeless jewels make of it, then the attributes its jewels
-// transform. stats are the dataset's stats.
-func nodeChanges(stats []dataset.Stat, c *build.Checked) map[uint32][]NodeChange {
+// transform and what other radius jewels make the node give, then the attributes Transcendent
+// jewels count on it. It also returns the changes to what a node gives while not allocated:
+// without a tattoo or runegraft, which only allocated passives keep, and without Transcendent
+// counts, which only allocated passives give. stats are the dataset's stats.
+func nodeChanges(stats []dataset.Stat, c *build.Checked) (all, unallocated map[uint32][]NodeChange) {
+	return changesOf(stats, c, true), changesOf(stats, c, false)
+}
+
+// changesOf returns nodeChanges' changes to allocated nodes, or with allocated unset to
+// unallocated ones.
+func changesOf(stats []dataset.Stat, c *build.Checked, allocated bool) map[uint32][]NodeChange {
 	out := map[uint32][]NodeChange{}
-	for _, o := range c.Overrides() {
-		out[o.Node.ID] = append(out[o.Node.ID], NodeChange{Replace: true, Stats: o.Override.Stats})
-	}
-	for _, q := range c.Conquests() {
-		out[q.Node.ID] = append(out[q.Node.ID], NodeChange{Replace: q.Replace, Stats: q.Stats})
-	}
-	for _, t := range c.AttributeTransforms() {
-		if ch := transformChange(stats, t); len(ch.Stats) > 0 {
-			out[t.Node.ID] = append(out[t.Node.ID], ch)
+	if allocated {
+		for _, o := range c.Overrides() {
+			addChange(out, o.Node.ID, NodeChange{Replace: true, Stats: o.Override.Stats})
 		}
 	}
+	for _, q := range c.Conquests() {
+		addChange(out, q.Node.ID, NodeChange{Replace: q.Replace, Stats: q.Stats})
+	}
+	for _, t := range c.AttributeTransforms() {
+		addChange(out, t.Node.ID, transformChange(stats, t))
+	}
+	var counted []build.RadiusChange
+	for _, rc := range c.RadiusChanges() {
+		if build.PerAttributeOf(rc.Stat) != 0 {
+			counted = append(counted, rc)
+			continue
+		}
+		addChange(out, rc.Node.ID, radiusChange(stats, rc, ChangeNode(rc.Node, out[rc.Node.ID]...)))
+	}
+	if allocated {
+		addCounts(stats, out, counted)
+	}
 	return out
+}
+
+// addChange adds ch to node id's changes in out unless it changes nothing.
+func addChange(out map[uint32][]NodeChange, id uint32, ch NodeChange) {
+	if ch.Replace || len(ch.Stats) > 0 {
+		out[id] = append(out[id], ch)
+	}
+}
+
+// addCounts adds the changes of the Transcendent jewel stats counted to out. Each jewel counts
+// the attribute the node gives after the changes in out, not after another's count.
+func addCounts(stats []dataset.Stat, out map[uint32][]NodeChange, counted []build.RadiusChange) {
+	counts := make([]NodeChange, len(counted))
+	for i, rc := range counted {
+		counts[i] = perAttributeChange(stats, rc, ChangeNode(rc.Node, out[rc.Node.ID]...))
+	}
+	for i, rc := range counted {
+		addChange(out, rc.Node.ID, counts[i])
+	}
+}
+
+// Healthy Mind moves increases to maximum life to maximum mana at manaPerLife times their value.
+const (
+	lifeIncreaseStat = "maximum_life_+%"
+	manaIncreaseStat = "maximum_mana_+%"
+	manaPerLife      = 2
+)
+
+// radiusChange returns the change rc's jewel stat makes to n, rc's passive as its tattoo or
+// runegraft and attribute transforms leave it: The Light of Meaning adds its stat, and Healthy
+// Mind moves increases to maximum life to maximum mana at twice their value.
+func radiusChange(stats []dataset.Stat, rc build.RadiusChange, n *dataset.Node) NodeChange {
+	if granted, ok := build.RadiusGrantOf(rc.Stat); ok {
+		h, ok := statHandle(stats, granted)
+		if !ok {
+			return NodeChange{}
+		}
+		return NodeChange{Stats: []dataset.StatValue{{Stat: h, Value: rc.Value}}}
+	}
+	if rc.Stat != build.LifeToManaDoubledStat {
+		return NodeChange{}
+	}
+	mana, ok := statHandle(stats, manaIncreaseStat)
+	if !ok {
+		return NodeChange{}
+	}
+	var ch NodeChange
+	for _, sv := range n.Stats {
+		if stats[sv.Stat].ID == lifeIncreaseStat {
+			ch.Stats = append(ch.Stats, dataset.StatValue{Stat: sv.Stat, Value: -sv.Value}, dataset.StatValue{Stat: mana, Value: manaPerLife * sv.Value})
+		}
+	}
+	return ch
+}
+
+// perAttributeChange returns the change rc's Transcendent jewel stat makes to n, rc's passive as
+// changed so far: its value of the attribute per 1 of it n gives, counted where n is allocated.
+func perAttributeChange(stats []dataset.Stat, rc build.RadiusChange, n *dataset.Node) NodeChange {
+	a := build.PerAttributeOf(rc.Stat)
+	var total int32
+	for _, sv := range n.Stats {
+		if slices.Contains(attributesOf(stats[sv.Stat].ID), a) {
+			total += sv.Value
+		}
+	}
+	h, ok := statHandle(stats, baseAttributeStat(a))
+	if total == 0 || !ok {
+		return NodeChange{}
+	}
+	return NodeChange{Stats: []dataset.StatValue{{Stat: h, Value: rc.Value * total}}}
 }
 
 // transformChange returns the change that makes t's passive's stats that give t.From give t.To
@@ -138,7 +228,7 @@ func baseAttributeStat(a build.Attribute) string {
 type grantedPassive struct {
 	source Source
 	node   *dataset.Node
-	// changes are what timeless jewels make of the node.
+	// changes are what jewels make of the node.
 	changes []NodeChange
 }
 
@@ -148,8 +238,10 @@ func (g grantedPassive) bundles(stats []dataset.Stat) []Bundle {
 
 // grantedPassives returns the passives c's jewels make grant nothing while allocated, by node
 // id, and those jewels, items, then jewel pairs grant while not allocated: by socket then node
-// id, then by slot, then by socket.
-func grantedPassives(c *build.Checked) (map[uint32]bool, []grantedPassive) {
+// id, then by slot, then by socket. A passive a jewel grants from its radius gives what
+// unallocated, the changes to an unallocated node by id, makes of it; the others what timeless
+// jewels make of them.
+func grantedPassives(c *build.Checked, unallocated map[uint32][]NodeChange) (map[uint32]bool, []grantedPassive) {
 	nothing := map[uint32]bool{}
 	var granted []grantedPassive
 	conquests := c.Conquests()
@@ -167,7 +259,7 @@ func grantedPassives(c *build.Checked) (map[uint32]bool, []grantedPassive) {
 			nothing[p.Node.ID] = true
 		}
 		if p.Granted {
-			grant(RadiusSource{Socket: p.Socket, Node: p.Node.ID}, p.Node)
+			granted = append(granted, grantedPassive{source: RadiusSource{Socket: p.Socket, Node: p.Node.ID}, node: p.Node, changes: unallocated[p.Node.ID]})
 		}
 	}
 	for _, p := range c.ItemPassives() {
