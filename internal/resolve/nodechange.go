@@ -147,8 +147,8 @@ func (g grantedPassive) bundles(stats []dataset.Stat) []Bundle {
 }
 
 // grantedPassives returns the passives c's jewels make grant nothing while allocated, by node
-// id, and those jewels then items grant while not allocated: by socket then node id, then by
-// slot.
+// id, and those jewels, items, then jewel pairs grant while not allocated: by socket then node
+// id, then by slot, then by socket.
 func grantedPassives(c *build.Checked) (map[uint32]bool, []grantedPassive) {
 	nothing := map[uint32]bool{}
 	var granted []grantedPassive
@@ -172,6 +172,9 @@ func grantedPassives(c *build.Checked) (map[uint32]bool, []grantedPassive) {
 	}
 	for _, p := range c.ItemPassives() {
 		grant(ItemSource{Slot: p.Slot, Name: p.Name, Passive: p.Node.ID}, p.Node)
+	}
+	for _, p := range c.JewelPassives() {
+		grant(JewelSource{Node: p.Socket, Name: p.Name, Passive: p.Node.ID, With: p.With}, p.Node)
 	}
 	return nothing, granted
 }

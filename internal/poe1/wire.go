@@ -172,7 +172,9 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Node     uint32 `json:"node"`
 			Name     string `json:"name"`
 			Passives int    `json:"passives,omitempty"`
-		}{"jewel", src.Node, src.Name, src.Passives})
+			Passive  uint32 `json:"passive,omitempty"`
+			With     uint32 `json:"with,omitempty"`
+		}{"jewel", src.Node, src.Name, src.Passives, src.Passive, src.With})
 	}
 	return nil, fmt.Errorf("%w %T", errSourceKind, s.Bundle.Source)
 }

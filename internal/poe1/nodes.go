@@ -9,8 +9,8 @@ import (
 
 // SetNodes turns node sources on for the allocated nodes and the chosen mastery effects and off
 // for the rest, and the sources a jewel or item grants a node by (resolve.RadiusSource,
-// resolve.ItemSource with a Passive) the other way, for a sheet opened over resolve.Tree. Other
-// sources are left as they are.
+// resolve.ItemSource or resolve.JewelSource with a Passive) the other way, for a sheet opened
+// over resolve.Tree. Other sources are left as they are.
 func (sh *Sheet) SetNodes(nodes []uint32, masteries map[uint32]uint32) {
 	on := make(map[uint32]bool, len(nodes))
 	for _, n := range nodes {

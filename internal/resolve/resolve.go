@@ -126,8 +126,8 @@ func (s ItemSource) String() string {
 	return out
 }
 
-// JewelSource is a jewel in a tree socket. Resolve returns none; the rules compile jewels as
-// items.
+// JewelSource is a jewel in a tree socket. Resolve returns only the notables jewels allocate
+// together, with Passive and With (build.JewelPassive); the rules compile jewels as items.
 type JewelSource struct {
 	// Node is the jewel socket node's id.
 	Node uint32
@@ -136,6 +136,9 @@ type JewelSource struct {
 	// Passives is, for a jewel whose effect grows with them, the allocated passives between its
 	// socket and the class start; 0 for others.
 	Passives int
+	// Passive is the node id of the notable the jewel allocates with the jewel in socket With,
+	// whose stats these are; both 0 for the jewel's own.
+	Passive, With uint32
 }
 
 func (s JewelSource) String() string {
@@ -145,6 +148,9 @@ func (s JewelSource) String() string {
 	}
 	if s.Passives != 0 {
 		out += fmt.Sprintf(", %d passives from the class start", s.Passives)
+	}
+	if s.Passive != 0 {
+		out += fmt.Sprintf(", with jewel %d allocating node %d", s.With, s.Passive)
 	}
 	return out
 }
