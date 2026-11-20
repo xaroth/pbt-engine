@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	gocmp "github.com/google/go-cmp/cmp"
+
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/benchbuilds"
@@ -232,7 +234,7 @@ func TestSweepWarningsAlike(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < len(res); i += 2 {
-		if fast, full := res[i].Warnings, res[i+1].Warnings; len(fast) != 1 || !slices.Equal(fast, full) {
+		if fast, full := res[i].Warnings, res[i+1].Warnings; len(fast) != 1 || !gocmp.Equal(fast, full) {
 			t.Errorf("variants %d and %d: %v and %v", i, i+1, fast, full)
 		}
 	}

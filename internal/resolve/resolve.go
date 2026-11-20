@@ -155,6 +155,27 @@ func (s JewelSource) String() string {
 	return out
 }
 
+// SourceNodes returns the passive nodes and jewel sockets s names, in the order its String
+// names them.
+func SourceNodes(s Source) []uint32 {
+	switch s := s.(type) {
+	case NodeSource:
+		return []uint32{s.ID}
+	case RadiusSource:
+		return []uint32{s.Node, s.Socket}
+	case ItemSource:
+		if s.Passive != 0 {
+			return []uint32{s.Passive}
+		}
+	case JewelSource:
+		if s.Passive != 0 {
+			return []uint32{s.Node, s.With, s.Passive}
+		}
+		return []uint32{s.Node}
+	}
+	return nil
+}
+
 func (CharacterSource) source() {}
 func (ItemSource) source()      {}
 func (JewelSource) source()     {}

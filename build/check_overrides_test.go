@@ -61,27 +61,33 @@ func TestCheckOverrides(t *testing.T) {
 		{
 			name:      "unknown",
 			overrides: map[uint32]string{2: "Nope"},
-			want:      []build.Warning{{Code: build.OverrideUnknown, Subject: "node 2", Message: `override "Nope" is not in the standard tree of 3.29.3.3; dropped`}},
+			want: []build.Warning{{
+				Code: build.OverrideUnknown, Subject: "node 2", Nodes: []uint32{2},
+				Message: `override "Nope" is not in the standard tree of 3.29.3.3; dropped`,
+			}},
 		},
 		{
 			name:      "on a node not allocated",
 			overrides: map[uint32]string{6: "Valako4"},
-			want:      []build.Warning{{Code: build.OverrideNotAllocated, Subject: "node 6", Message: "override Valako4 on a node that is not allocated; dropped"}},
+			want: []build.Warning{{
+				Code: build.OverrideNotAllocated, Subject: "node 6", Nodes: []uint32{6},
+				Message: "override Valako4 on a node that is not allocated; dropped",
+			}},
 		},
 		{
 			name:      "on another kind of node",
 			overrides: map[uint32]string{2: "runegraft_8", 5: "Keystone1", 3: "Valako4"},
 			want: []build.Warning{
-				{Code: build.OverrideNotPlaceable, Subject: "node 2", Message: "override runegraft_8 replaces only a mastery node; dropped"},
-				{Code: build.OverrideNotPlaceable, Subject: "node 3", Message: "override Valako4 replaces only a small attribute node; dropped"},
-				{Code: build.OverrideNotPlaceable, Subject: "node 5", Message: "override Keystone1 may not replace this node; dropped"},
+				{Code: build.OverrideNotPlaceable, Subject: "node 2", Nodes: []uint32{2}, Message: "override runegraft_8 replaces only a mastery node; dropped"},
+				{Code: build.OverrideNotPlaceable, Subject: "node 3", Nodes: []uint32{3}, Message: "override Valako4 replaces only a small attribute node; dropped"},
+				{Code: build.OverrideNotPlaceable, Subject: "node 5", Nodes: []uint32{5}, Message: "override Keystone1 may not replace this node; dropped"},
 			},
 		},
 		{
 			name:      "too few neighbours",
 			overrides: map[uint32]string{2: "Picky"},
 			want: []build.Warning{
-				{Code: build.OverrideNotPlaceable, Subject: "node 2", Message: "override Picky needs at least 4 neighbours, the node has 3; dropped"},
+				{Code: build.OverrideNotPlaceable, Subject: "node 2", Nodes: []uint32{2}, Message: "override Picky needs at least 4 neighbours, the node has 3; dropped"},
 			},
 		},
 		{
@@ -89,7 +95,10 @@ func TestCheckOverrides(t *testing.T) {
 			overrides: map[uint32]string{4: "runegraft_8"},
 			masteries: map[uint32]uint32{4: 7},
 			kept:      map[uint32]string{4: "runegraft_8"},
-			want:      []build.Warning{{Code: build.MasteryOverridden, Subject: "node 4", Message: "effect 7 chosen on a mastery an override replaces; dropped"}},
+			want: []build.Warning{{
+				Code: build.MasteryOverridden, Subject: "node 4", Nodes: []uint32{4},
+				Message: "effect 7 chosen on a mastery an override replaces; dropped",
+			}},
 		},
 	}
 	for _, testCase := range testCases {

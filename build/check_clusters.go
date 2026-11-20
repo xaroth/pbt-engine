@@ -81,7 +81,7 @@ func (c *Checked) addSubgraph(g *cluster.Generator, socket uint32, it *Item) {
 	sg, err := g.Generate(socket, j)
 	switch {
 	case errors.Is(err, cluster.ErrUnread):
-		c.warnf(ClusterJewelUnread, jewelSubject(socket), "its lines do not say which passives it adds; it adds none")
+		c.warnAboutf(jewelAbout(socket), ClusterJewelUnread, "its lines do not say which passives it adds; it adds none")
 		return
 	case err != nil:
 		return
@@ -138,8 +138,5 @@ func (c *Checked) clusterNodeProblem(id uint32) (Warning, bool) {
 	if !cluster.IsGenerated(id) && (!nested || sock.Parent == 0) {
 		return Warning{}, false
 	}
-	return Warning{
-		Code: NodeNoClusterJewel, Subject: fmt.Sprintf("node %d", id),
-		Message: "a passive only a cluster jewel adds, and no jewel in the build adds it; dropped",
-	}, true
+	return nodeAbout(id).saying(NodeNoClusterJewel, "a passive only a cluster jewel adds, and no jewel in the build adds it; dropped"), true
 }

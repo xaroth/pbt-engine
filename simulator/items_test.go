@@ -1,6 +1,7 @@
 package simulator_test
 
 import (
+	"fmt"
 	"maps"
 	"math"
 	"os"
@@ -279,6 +280,31 @@ func TestUncountedItemStatWarning(t *testing.T) {
 		t.Fatalf("warnings %v, want %v", ws, want)
 	}
 	if diff := cmp.Diff(want, ws[i]); diff != "" {
+		t.Errorf("warning (-want +got):\n%s", diff)
+	}
+}
+
+// A jewel's stat the sheet leaves out warns with the jewel's socket in Nodes, beside its subject.
+func TestUncountedJewelStatWarning(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	b := withJewel(t, s, marauderBuild(1, jewelSocket), jewelSocket)
+	const stat = "evasion_+%_if_hit_recently"
+	it := b.Jewels[jewelSocket]
+	it.Mods = append(it.Mods, build.ModLine{
+		Kind: build.Explicit, Text: "10% increased Evasion Rating if you've been Hit Recently",
+		Stats: []build.StatValue{{Stat: stat, Value: 10}},
+	})
+	b.Jewels[jewelSocket] = it
+	want := simulator.Warning{
+		Code: simulator.UnmodelledStat, Subject: fmt.Sprintf("%s from jewel %d: Gloom Spark", stat, jewelSocket),
+		Message: "not applied: condition: hit recently, left out", Stat: stat, Nodes: []uint32{jewelSocket},
+	}
+	w, ok := warnedStat(simulate(t, s, b), stat)
+	if !ok {
+		t.Fatalf("no warning about %s, want %v", stat, want)
+	}
+	if diff := cmp.Diff(want, w); diff != "" {
 		t.Errorf("warning (-want +got):\n%s", diff)
 	}
 }

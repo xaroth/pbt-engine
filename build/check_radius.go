@@ -105,7 +105,7 @@ func (c *Checked) radiusOf(socket uint32, id string) (dataset.JewelRadius, bool)
 		if name == "" {
 			name = it.Base
 		}
-		c.warnAboutf(Warning{Subject: jewelSubject(socket)}, RadiusMissing,
+		c.warnAboutf(jewelAbout(socket), RadiusMissing,
 			"%s: the %s tree has no %s jewel radius; what it does in its radius is left out", name, c.build.Variant, id)
 	}
 	return dataset.JewelRadius{}, false

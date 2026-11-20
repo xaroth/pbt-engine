@@ -147,7 +147,10 @@ func TestFromXML(t *testing.T) {
 	}
 	wantWarnings := []build.Warning{
 		{Code: pob.AscendancyIgnored, Subject: "Warlock", Message: "legacy secondary ascendancy 2, which PoB hides and ignores; not imported"},
-		{Code: pob.OverrideIgnored, Subject: "node 5152", Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`},
+		{
+			Code: pob.OverrideIgnored, Subject: "node 5152", Nodes: []uint32{5152},
+			Message: `no override named "Tattoo of the Tasalio Shaman" in dataset 3.29.3.5; not imported`,
+		},
 		{Code: pob.ConfigIgnored, Subject: "usePowerCharges", Message: "config input usePowerCharges not modelled (value true)"},
 		{Code: pob.SkillIgnored, Subject: "RF", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
 		{Code: pob.SkillIgnored, Subject: "Flame Dash", Message: "dataset 3.29.3.5 has no skills group to read gems with; not imported"},
@@ -155,7 +158,10 @@ func TestFromXML(t *testing.T) {
 		{Code: pob.PantheonIgnored, Subject: "Arakaali", Message: "pantheon not imported"},
 		{Code: pob.ItemIgnored, Subject: "Doom Crown", Message: "not equipped in the active item set; not imported"},
 		{Code: pob.ItemIgnored, Subject: "Kaom's Heart", Message: "not read: items: dataset 3.29.3.5 has no items group; not imported"},
-		{Code: pob.JewelIgnored, Subject: "node 26725", Message: `jewel "Corruption Spark" not read: items: dataset 3.29.3.5 has no items group; not imported`},
+		{
+			Code: pob.JewelIgnored, Subject: "node 26725", Nodes: []uint32{26725},
+			Message: `jewel "Corruption Spark" not read: items: dataset 3.29.3.5 has no items group; not imported`,
+		},
 		{Code: pob.ItemIgnored, Subject: "Seething Divine Life Flask of Staunching", Message: `slot "Flask 1" is not an equipment slot; not imported`},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
@@ -257,7 +263,10 @@ func TestFromXMLOverrides(t *testing.T) {
 	if diff := cmp.Diff(map[uint32]string{11505: "Valako4", 4139: "runegraft_8"}, b.Overrides); diff != "" {
 		t.Errorf("overrides (-want +got):\n%s", diff)
 	}
-	want := []build.Warning{{Code: pob.OverrideIgnored, Subject: "node 26196", Message: `2 overrides are named "Tattoo of the Twins"; not imported`}}
+	want := []build.Warning{{
+		Code: pob.OverrideIgnored, Subject: "node 26196", Nodes: []uint32{26196},
+		Message: `2 overrides are named "Tattoo of the Twins"; not imported`,
+	}}
 	if diff := cmp.Diff(want, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
 	}
@@ -310,7 +319,7 @@ func TestFromXMLVersionFallback(t *testing.T) {
 		t.Errorf("got version %s, class %s", b.Version, b.Class)
 	}
 	want := build.Warning{Code: pob.VersionFallback, Subject: "3.10", Message: "no dataset of this version; class names read with 3.29.3.5"}
-	if len(w) != 1 || w[0] != want {
+	if len(w) != 1 || !cmp.Equal(w[0], want) {
 		t.Errorf("warnings %v, want %v", w, want)
 	}
 }

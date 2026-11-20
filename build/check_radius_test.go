@@ -39,11 +39,11 @@ func TestCheckWithoutJewelRadii(t *testing.T) {
 	c, warnings := check(t, b(), storeWith(nil), build.RadiusMissing)
 	want := []build.Warning{
 		{
-			Code: build.RadiusMissing, Subject: "jewel 3",
+			Code: build.RadiusMissing, Subject: "jewel 3", Nodes: []uint32{3},
 			Message: "Elegant Hubris: the standard tree has no Large jewel radius; what it does in its radius is left out",
 		},
 		{
-			Code: build.RadiusMissing, Subject: "jewel 8",
+			Code: build.RadiusMissing, Subject: "jewel 8", Nodes: []uint32{8},
 			Message: "Thread of Hope: the standard tree has no Small jewel radius; what it does in its radius is left out",
 		},
 	}

@@ -146,13 +146,13 @@ func TestToXMLWarnings(t *testing.T) {
 	}
 	want := []build.Warning{
 		{Code: pob.VersionFallback, Subject: "3.28", Message: "no dataset of this version; names written with 3.29.3.5"},
-		{Code: pob.OverrideNotExported, Subject: "node 2", Message: `override "Unnamed1" has no English name; not exported`},
+		{Code: pob.OverrideNotExported, Subject: "node 2", Nodes: []uint32{2}, Message: `override "Unnamed1" has no English name; not exported`},
 		{Code: pob.ConfigNotExported, Subject: "power-charges", Message: "config value not exported"},
 		{Code: pob.ConfigNotExported, Subject: "bandits", Message: "PoB has no choice for the bandit quest not completed; its default, kill all, applies"},
 		{Code: pob.GemUnknown, Subject: "Metadata/Items/Gems/SkillGemFlameDash", Message: "gem not in dataset; written by id only"},
 		{Code: pob.ItemNotExported, Subject: "belt", Message: "items are not exported"},
 		{Code: pob.ItemNotExported, Subject: "ring-1", Message: "items are not exported"},
-		{Code: pob.ItemNotExported, Subject: "node 26725", Message: "jewels are not exported"},
+		{Code: pob.ItemNotExported, Subject: "node 26725", Nodes: []uint32{26725}, Message: "jewels are not exported"},
 	}
 	if diff := cmp.Diff(want, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)

@@ -77,26 +77,32 @@ func TestCheckJewels(t *testing.T) {
 		{
 			name:   "unallocated socket",
 			jewels: build.Jewels{71: jewel(jewelBase)},
-			want:   []build.Warning{{Code: build.JewelNotAllocated, Subject: "jewel 71", Message: "socket not allocated; kept, it counts once allocated"}},
-			kept:   build.Jewels{71: jewel(jewelBase)},
+			want: []build.Warning{{
+				Code: build.JewelNotAllocated, Subject: "jewel 71", Nodes: []uint32{71},
+				Message: "socket not allocated; kept, it counts once allocated",
+			}},
+			kept: build.Jewels{71: jewel(jewelBase)},
 		},
 		{
 			name:   "not a socket",
 			jewels: build.Jewels{3: jewel(jewelBase), 99: jewel(jewelBase)},
 			want: []build.Warning{
-				{Code: build.JewelNotSocket, Subject: "jewel 3", Message: "node 3 is not a jewel socket of the standard tree; jewel left out"},
-				{Code: build.JewelNotSocket, Subject: "jewel 99", Message: "node 99 is not a jewel socket of the standard tree; jewel left out"},
+				{Code: build.JewelNotSocket, Subject: "jewel 3", Nodes: []uint32{3}, Message: "node 3 is not a jewel socket of the standard tree; jewel left out"},
+				{Code: build.JewelNotSocket, Subject: "jewel 99", Nodes: []uint32{99}, Message: "node 99 is not a jewel socket of the standard tree; jewel left out"},
 			},
 		},
 		{
 			name:   "not a jewel",
 			jewels: build.Jewels{70: jewel(ringBase)},
-			want:   []build.Warning{{Code: build.JewelKindMismatch, Subject: "jewel 70", Message: "a Ring does not fit a jewel socket; left out"}},
+			want:   []build.Warning{{Code: build.JewelKindMismatch, Subject: "jewel 70", Nodes: []uint32{70}, Message: "a Ring does not fit a jewel socket; left out"}},
 		},
 		{
 			name:   "unknown base",
 			jewels: build.Jewels{70: unknown},
-			want:   []build.Warning{{Code: build.ItemBaseUnknown, Subject: "jewel 70", Message: "base Metadata/Items/Nothing not in 3.29.3.3; item left out"}},
+			want: []build.Warning{{
+				Code: build.ItemBaseUnknown, Subject: "jewel 70", Nodes: []uint32{70},
+				Message: "base Metadata/Items/Nothing not in 3.29.3.3; item left out",
+			}},
 		},
 	}
 	for _, testCase := range testCases {
@@ -151,7 +157,10 @@ func TestEditWarningsJewel(t *testing.T) {
 	got := c.EditWarnings([]build.Edit{
 		build.SocketJewel(3, jewel(jewelBase)), build.SocketJewel(70, jewel(jewelBase)), build.SocketJewel(71, jewel(jewelBase)),
 	})
-	want := []build.Warning{{Code: build.JewelNotSocket, Subject: "jewel 3", Message: "node 3 is not a jewel socket of the standard tree; jewel left out"}}
+	want := []build.Warning{{
+		Code: build.JewelNotSocket, Subject: "jewel 3", Nodes: []uint32{3},
+		Message: "node 3 is not a jewel socket of the standard tree; jewel left out",
+	}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("EditWarnings (-want +got):\n%s", diff)
 	}

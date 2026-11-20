@@ -79,8 +79,11 @@ func impossibleEscape() build.Item {
 func TestCheckUnconnectedPassives(t *testing.T) {
 	t.Parallel()
 	s := unconnectedStore(t)
-	disconnected := func(subject string) []build.Warning {
-		return []build.Warning{{Code: build.NodesDisconnected, Subject: subject, Message: "not connected to the class, ascendancy or bloodline start; kept"}}
+	disconnected := func(subject string, nodes ...uint32) []build.Warning {
+		return []build.Warning{{
+			Code: build.NodesDisconnected, Subject: subject, Nodes: nodes,
+			Message: "not connected to the class, ascendancy or bloodline start; kept",
+		}}
 	}
 	testCases := []struct {
 		name  string
@@ -89,14 +92,14 @@ func TestCheckUnconnectedPassives(t *testing.T) {
 		want  []build.Warning
 	}{
 		{name: "Intuitive Leap's radius and a path from it", nodes: []uint32{1, 2, 3, 4, 5, 6}, jewel: intuitiveLeap},
-		{name: "outside Intuitive Leap's radius", nodes: []uint32{1, 2, 3, 5, 6}, jewel: intuitiveLeap, want: disconnected("nodes 5, 6")},
+		{name: "outside Intuitive Leap's radius", nodes: []uint32{1, 2, 3, 5, 6}, jewel: intuitiveLeap, want: disconnected("nodes 5, 6", 5, 6)},
 		{name: "Thread of Hope's ring", nodes: []uint32{1, 2, 3, 5, 6}, jewel: threadOfHope},
-		{name: "inside Thread of Hope's ring", nodes: []uint32{1, 2, 3, 4}, jewel: threadOfHope, want: disconnected("nodes 4")},
+		{name: "inside Thread of Hope's ring", nodes: []uint32{1, 2, 3, 4}, jewel: threadOfHope, want: disconnected("nodes 4", 4)},
 		{name: "Impossible Escape's keystone and its radius", nodes: []uint32{1, 2, 3, 7, 8, 9}, jewel: impossibleEscape},
-		{name: "outside Impossible Escape's radius", nodes: []uint32{1, 2, 3, 9}, jewel: impossibleEscape, want: disconnected("nodes 9")},
-		{name: "socket not allocated", nodes: []uint32{1, 2, 4, 5}, jewel: intuitiveLeap, want: disconnected("nodes 4, 5")},
-		{name: "socket not joined to the start", nodes: []uint32{1, 3, 4}, jewel: intuitiveLeap, want: disconnected("nodes 3, 4")},
-		{name: "jewel removed", nodes: []uint32{1, 2, 3, 4, 5, 6}, want: disconnected("nodes 4, 5, 6")},
+		{name: "outside Impossible Escape's radius", nodes: []uint32{1, 2, 3, 9}, jewel: impossibleEscape, want: disconnected("nodes 9", 9)},
+		{name: "socket not allocated", nodes: []uint32{1, 2, 4, 5}, jewel: intuitiveLeap, want: disconnected("nodes 4, 5", 4, 5)},
+		{name: "socket not joined to the start", nodes: []uint32{1, 3, 4}, jewel: intuitiveLeap, want: disconnected("nodes 3, 4", 3, 4)},
+		{name: "jewel removed", nodes: []uint32{1, 2, 3, 4, 5, 6}, want: disconnected("nodes 4, 5, 6", 4, 5, 6)},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
