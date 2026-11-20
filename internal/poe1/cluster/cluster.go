@@ -53,6 +53,10 @@ type Subgraph struct {
 	// Nodes are sorted by ID. The first in orbit order, Entrance, links to Socket.
 	Nodes    []Node
 	Entrance uint32
+	// CentreX and CentreY are the centre of the group the nodes sit around, in layout
+	// coordinates, and Radius the radius of the orbit they sit on. A jewel socket the jewel adds
+	// keeps the tree's position and is not on the orbit.
+	CentreX, CentreY, Radius float64
 	// Unread are the jewel's lines that no description reads, and lines adding a stat to small
 	// passives that the stats group lacks; they are left out.
 	Unread []string

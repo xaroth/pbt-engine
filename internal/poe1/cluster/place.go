@@ -42,6 +42,8 @@ func (g *Generator) build(sg *Subgraph, sock *dataset.ClusterSocket, cj *dataset
 	small := g.smallStats(r.skill, r)
 	ids := make([]uint32, len(ring))
 	orbit := g.orbitRadius(sock, cj.Size)
+	grp := g.proxyGroup(sock)
+	sg.CentreX, sg.CentreY, sg.Radius = grp.X, grp.Y, orbit
 	for i, p := range ring {
 		n := Node{ID: base + uint32(p.index), Kind: p.kind, Passive: p.passive, OrbitIndex: p.index} //nolint:gosec // orbit indices are below 16
 		switch p.kind {
@@ -206,9 +208,7 @@ func moved(i int32, moves [][2]int32) int32 {
 // the given radius around the socket's proxy's group, turned by the socket's start index for
 // the jewel's size.
 func (g *Generator) position(sock *dataset.ClusterSocket, cj *dataset.ClusterJewel, radius float64, i int32) (x, y float64) {
-	p := g.layoutNode(sock.Proxy)
-	gi, _ := slices.BinarySearchFunc(g.layout.Groups, p.Group, func(gr dataset.LayoutGroup, id uint32) int { return cmp.Compare(gr.ID, id) })
-	grp := g.layout.Groups[gi]
+	grp := g.proxyGroup(sock)
 	var start int32
 	if int(cj.Size) < len(sock.StartIndices) {
 		start = sock.StartIndices[cj.Size]
@@ -216,6 +216,13 @@ func (g *Generator) position(sock *dataset.ClusterSocket, cj *dataset.ClusterJew
 	angle := 2 * math.Pi * float64((i+start)%cj.TotalIndices) / float64(cj.TotalIndices)
 	sin, cos := math.Sincos(angle)
 	return grp.X + radius*sin, grp.Y - radius*cos
+}
+
+// proxyGroup returns the layout group of sock's proxy, which the jewel's nodes sit around.
+func (g *Generator) proxyGroup(sock *dataset.ClusterSocket) dataset.LayoutGroup {
+	p := g.layoutNode(sock.Proxy)
+	gi, _ := slices.BinarySearchFunc(g.layout.Groups, p.Group, func(gr dataset.LayoutGroup, id uint32) int { return cmp.Compare(gr.ID, id) })
+	return g.layout.Groups[gi]
 }
 
 // orbitRadius returns the radius a jewel of size draws on in sock: the orbit of the proxies of

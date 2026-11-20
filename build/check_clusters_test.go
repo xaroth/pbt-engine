@@ -2,6 +2,7 @@ package build_test
 
 import (
 	"maps"
+	"math"
 	"slices"
 	"testing"
 
@@ -181,4 +182,43 @@ func TestCheckClusterNodes(t *testing.T) {
 			t.Errorf("warnings (-want +got):\n%s", diff)
 		}
 	})
+}
+
+// TestClusterPlaces: every passive a large cluster jewel adds sits on its cluster's orbit around
+// the group centre, and has a source passive that is a tree node.
+func TestClusterPlaces(t *testing.T) {
+	t.Parallel()
+	s := realdata.Open(t, realdata.Current)
+	r, err := items.NewReader(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, _ := check(t, clusterBuild(t, s, readJewel(t, r, largeJewel)), s)
+	tree, err := s.Tree("standard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := c.ClusterPlaces()
+	if len(groups) != 1 || groups[0].Socket != largeSocket || groups[0].Radius <= 0 {
+		t.Fatalf("ClusterPlaces() = %+v, want one group at socket %d with a radius", groups, largeSocket)
+	}
+	g := groups[0]
+	ids := make([]uint32, 0, len(g.Nodes))
+	for _, n := range c.ClusterNodes() {
+		ids = append(ids, n.ID)
+	}
+	got := make([]uint32, 0, len(g.Nodes))
+	for _, p := range g.Nodes {
+		got = append(got, p.ID)
+		if d := math.Hypot(p.X-g.X, p.Y-g.Y); math.Abs(d-g.Radius) > 1e-6 {
+			t.Errorf("node %d is %v from the centre, want radius %v", p.ID, d, g.Radius)
+		}
+		if i := slices.IndexFunc(tree.Nodes, func(n dataset.Node) bool { return n.ID == p.Passive }); i < 0 {
+			t.Errorf("node %d borrows passive %d, which is not a tree node", p.ID, p.Passive)
+		}
+	}
+	// 8 passives of the jewel, 2 of them sockets, which are the tree's own nodes.
+	if !slices.Equal(got, ids) || len(got) != 6 {
+		t.Errorf("placed nodes %v, want the 6 of ClusterNodes %v", got, ids)
+	}
 }
