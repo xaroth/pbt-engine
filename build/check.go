@@ -235,6 +235,24 @@ func (c *Checked) Points() (passive, ascendancy, granted int) {
 	return passive, ascendancy, granted
 }
 
+// AscendancyPoints returns the points the ascendancy and bloodline nodes use, by the id of the
+// build's ascendancy and of its bloodline, with an entry for each the build has; empty without
+// either. They are counted as Points counts them, so their sum is its ascendancy.
+func (c *Checked) AscendancyPoints() map[string]int {
+	out := map[string]int{}
+	for _, id := range []string{c.build.Ascendancy, c.build.Bloodline} {
+		if id != "" {
+			out[id] = 0
+		}
+	}
+	for _, n := range c.nodes {
+		if n.Ascendancy != "" && n.Kind != dataset.AscendancyStart && !n.MultipleChoiceOption {
+			out[n.Ascendancy]++
+		}
+	}
+	return out
+}
+
 // Store returns the dataset the build was checked against.
 func (c *Checked) Store() *dataset.Store { return c.store }
 

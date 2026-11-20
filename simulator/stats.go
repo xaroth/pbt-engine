@@ -2,6 +2,7 @@ package simulator
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 
@@ -124,8 +125,12 @@ func (st *Stats) MainSkill() (MainSkill, bool) {
 }
 
 // Budget returns the points the build can spend under the config the simulation resolved.
-// The points it uses are build.Checked.Points.
-func (st *Stats) Budget() Budget { return st.budget }
+// The points it uses are build.Checked.Points and, per id, build.Checked.AscendancyPoints.
+func (st *Stats) Budget() Budget {
+	b := st.budget
+	b.Ascendancies = maps.Clone(b.Ascendancies)
+	return b
+}
 
 // Warnings returns what the simulation went on without and what it did about each.
 func (st *Stats) Warnings() []Warning { return slices.Clone(st.warnings) }

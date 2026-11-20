@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	gocmp "github.com/google/go-cmp/cmp"
+
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
@@ -127,6 +129,55 @@ func TestPointBudget(t *testing.T) {
 			}
 			if len(codes) != len(testCase.codes) || (len(codes) > 0 && codes[0] != testCase.codes[0]) {
 				t.Errorf("got %v, want %v", got, testCase.codes)
+			}
+		})
+	}
+}
+
+// TestPointBudgetByAscendancy gives the points each of the ascendancy and the bloodline uses and
+// its budget: the labyrinths' 2 less what the other uses.
+func TestPointBudgetByAscendancy(t *testing.T) {
+	t.Parallel()
+	s := budgetStore(t)
+	testCases := []struct {
+		name               string
+		bloodline          string
+		nodes              []uint32
+		wantUsed, wantLeft map[string]int
+	}{
+		{name: "ascendancy only", nodes: []uint32{21}, wantUsed: map[string]int{"Juggernaut": 1}, wantLeft: map[string]int{"Juggernaut": 2}},
+		{
+			name: "bloodline without nodes", bloodline: "Oshabi", nodes: []uint32{21, 22},
+			wantUsed: map[string]int{"Juggernaut": 2, "Oshabi": 0}, wantLeft: map[string]int{"Juggernaut": 2, "Oshabi": 0},
+		},
+		{
+			name: "both", bloodline: "Oshabi", nodes: []uint32{21, 30, 31},
+			wantUsed: map[string]int{"Juggernaut": 1, "Oshabi": 1}, wantLeft: map[string]int{"Juggernaut": 1, "Oshabi": 1},
+		},
+		{
+			name: "over", bloodline: "Oshabi", nodes: []uint32{21, 22, 30, 31, 32},
+			wantUsed: map[string]int{"Juggernaut": 2, "Oshabi": 2}, wantLeft: map[string]int{"Juggernaut": 0, "Oshabi": 0},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := &build.Build{Format: 1, Game: "poe1", Version: "3.29", Class: "Metadata/Characters/Str/Str", Ascendancy: "Juggernaut",
+				Bloodline: testCase.bloodline, Level: 5, Nodes: testCase.nodes}
+			c, warnings, err := build.Check(b, s)
+			if err != nil || len(warnings) != 0 {
+				t.Fatal(err, warnings)
+			}
+			cfg, _ := config.Resolve(poe1.ConfigSpecs())
+			bud, _, err := poe1.PointBudget(c, cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := gocmp.Diff(testCase.wantUsed, c.AscendancyPoints()); diff != "" {
+				t.Errorf("used (-want +got):\n%s", diff)
+			}
+			if diff := gocmp.Diff(testCase.wantLeft, bud.Ascendancies); diff != "" {
+				t.Errorf("budget (-want +got):\n%s", diff)
 			}
 		})
 	}

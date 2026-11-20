@@ -23,6 +23,10 @@ const banditKillAllFlag = "a2q7-QuestRewardTaken"
 type Budget struct {
 	Passive    int `json:"passive"`
 	Ascendancy int `json:"ascendancy"`
+	// Ascendancies is the budget of the build's ascendancy and of its bloodline, by the id
+	// build.Checked.AscendancyPoints keys their use by; empty without either. The two spend
+	// Ascendancy together, so each has it less what the other uses.
+	Ascendancies map[string]int `json:"ascendancies"`
 	// Level is the points of the character's level: level - 1.
 	Level int `json:"level"`
 	// Quests is the passive points of the quests the campaign stage reaches; killing all
@@ -52,6 +56,11 @@ func PointBudget(c *build.Checked, cfg config.Resolved) (Budget, []build.Warning
 		}
 	}
 	bud.Passive = bud.Level + bud.Quests + bud.Granted
+	used := c.AscendancyPoints()
+	bud.Ascendancies = make(map[string]int, len(used))
+	for id, n := range used {
+		bud.Ascendancies[id] = bud.Ascendancy - (ascendancy - n)
+	}
 	var out []build.Warning
 	if passive > bud.Passive {
 		out = append(out, build.Warning{
