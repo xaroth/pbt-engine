@@ -139,49 +139,12 @@ type MasteryChoice struct {
 	Effect dataset.MasteryEffect
 }
 
-// Check checks b against the dataset s and fixes what it can: it trims spaces around the name
-// and cuts a longer one to MaxNameLength characters, clears an ascendancy of
-// another class and a bloodline not among the tree's alternate ascendancies, clamps the level
-// to 1 to 100, drops unknown, repeated and proxy nodes, other classes' nodes, nodes of
-// ascendancies other than the build's ascendancy and bloodline, mastery choices that do not
-// fit or are on a mastery an override replaces, and overrides that are unknown, on a node not
-// allocated or on a node they may not replace, each with a warning. It warns without a fix
-// about nodes not connected to the class, ascendancy or bloodline start and about allocated
-// masteries with no choice and no override. A passive that Thread of Hope or Intuitive Leap, or
-// Impossible Escape around its keystone, reaches from a socket joined to a start is connected
-// without a path, and so are the nodes paths join to it. Against the dataset's skills group it drops unknown gems,
-// clears unknown variants and slots without sockets, corrects which gems are supports, clamps
-// gem levels and quality, and moves a main skill or active gem that does not fit to the first,
-// each with a warning; a dataset without the group gets one warning and the skills stay as
-// they are. Against the items group it leaves out items in no item slot, in a slot no
-// allocated node opens or in one an allocated node closes, of an unknown base or of a class
-// the slot does not take, and stats the dataset does not have, and warns about mod lines not
-// read as stats; it leaves out an offhand item the game refuses beside the
-// weapon, and warns about a quiver with no bow; it leaves out an item's abyss jewels past its
-// abyssal sockets, of an unknown base or not an abyss jewel; a dataset without the group gets
-// one warning.
-// It leaves out jewels in a node that is not a jewel socket and, against the items group,
-// jewels of an unknown base or not a jewel, and cluster jewels that do not fit their socket,
-// and warns about jewels in a socket not allocated, which it keeps. A cluster jewel in a
-// cluster socket adds its passives, numbered as Path of Building numbers them: they can be
-// allocated, paths run through them and their stats count. It drops a passive or socket that
-// only a cluster jewel adds when no jewel in the build adds it, and warns about a cluster jewel
-// whose lines do not say what it adds. A timeless jewel in an allocated socket changes the
-// passives in its radius (Conquests), and Unnatural Instinct in an allocated socket those whose
-// effect depends on allocation (RadiusPassives); a jewel in an allocated socket that transforms
-// an attribute of the passives in its radius to another changes them (AttributeTransforms), and
-// so does one whose stat makes them give other or more stats (RadiusChanges). An
-// equipped item's line "Allocates <notable>" gives the notable without a point or a path
-// (ItemPassives); one naming a node that is no notable of the tree is left out with a warning.
-// A Forbidden Flame and a Forbidden Flesh in allocated sockets that name the same ascendancy
-// passive of the class give it the same way, even when it is of another ascendancy
-// (JewelPassives); a line without a match in an allocated socket, or naming no ascendancy
-// passive of the class, is left out with a warning.
-// The weapon-swap
-// slots are not in use: their items are left out and the gems socketed in them disabled,
-// without a warning, so the skills they grant or hold are disabled too. It returns a
-// *CheckError when the game, tree variant or class does not fit, or the error of a dataset
-// group that fails to load. The point budget depends on the game's quests; the rules check it.
+// Check checks b against the dataset s and returns it as checked, fixed where it does not fit,
+// with a warning for each fix and for each problem it leaves as it is. A warning's Code is one
+// of the Code constants and its Message says what was done. Items in the weapon-swap slots are
+// left out and their gems disabled without a warning. It returns a *CheckError when the game,
+// tree variant or class does not fit, or the error of a dataset group that fails to load. The
+// point budget depends on the game's quests; the rules check it.
 func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	var ps problems
 	m := s.Manifest()
@@ -358,8 +321,8 @@ func (c *Checked) warnAboutf(about Warning, code Code, format string, args ...an
 
 // checkGear checks the items and jewels, sets the weapon swap aside and finds the notables the
 // items and jewel pairs allocate, what the timeless jewels conquer, the small passives jewels
-// change by allocation, the passives whose attributes jewels transform and the passives jewels
-// let be allocated without a connection.
+// change by allocation, the passives whose attributes jewels transform, those jewels make give
+// other or more stats and the passives jewels let be allocated without a connection.
 func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
@@ -420,7 +383,9 @@ func (c *Checked) checkBloodline() {
 	c.bloodStart = c.ascendancyStart(b.Bloodline)
 }
 
-// checkCharacter checks the name, ascendancy, bloodline and level.
+// checkCharacter trims spaces around the name and cuts a longer one to MaxNameLength
+// characters, clears an ascendancy of another class and a bloodline not among the tree's
+// alternate ascendancies, and clamps the level to 1 to MaxLevel, each with a warning.
 func (c *Checked) checkCharacter() {
 	c.checkName()
 	c.checkAscendancy()
@@ -444,8 +409,10 @@ func (c *Checked) checkLevel() {
 	}
 }
 
-// checkNodes adds the passives the build's cluster jewels add to the tree, then keeps the
-// allocated nodes that exist and fit the class and ascendancy.
+// checkNodes adds the passives the build's cluster jewels add to the tree, then drops, each with
+// a warning, unknown, repeated and proxy nodes, other classes' starts, nodes of ascendancies
+// other than the build's ascendancy and bloodline, and passives or sockets only a cluster jewel
+// adds when no jewel in the build adds them.
 func (c *Checked) checkNodes() error {
 	if err := c.generateClusters(); err != nil {
 		return err
@@ -517,7 +484,9 @@ func (c *Checked) node(id uint32) *dataset.Node {
 
 // checkConnected warns about allocated nodes no path of allocated nodes joins to the class,
 // ascendancy or bloodline start, or to a passive a jewel lets be allocated without one (see
-// joined). They stay allocated: the jewel may be missing from the build only.
+// joined): one that Thread of Hope or Intuitive Leap, or Impossible Escape around its keystone,
+// reaches from a socket so joined. They stay allocated: the jewel may be missing from the build
+// only.
 func (c *Checked) checkConnected() {
 	reached := c.joined(c.allocatedSet())
 	var lost []string
@@ -590,8 +559,9 @@ func (c *Checked) reach(roots []uint32, allowed, reached map[uint32]bool) {
 	}
 }
 
-// checkMasteries keeps the mastery choices that fit and warns about allocated masteries with
-// none. An effect can be chosen once; the lowest node keeps it.
+// checkMasteries drops, each with a warning, mastery choices that do not fit or are on a mastery
+// an override replaces, and warns about allocated masteries with no choice and no override. An
+// effect can be chosen once; the lowest node keeps it.
 func (c *Checked) checkMasteries() {
 	chosen := map[uint32]bool{}
 	for _, id := range slices.Sorted(maps.Keys(c.build.Masteries)) {

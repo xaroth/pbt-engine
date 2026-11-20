@@ -128,7 +128,9 @@ func baseClass(data *dataset.Items, id string) string {
 	return ""
 }
 
-// checkItem fixes it as the dataset says, or reports false to unequip it.
+// checkItem fixes it as the dataset says, or reports false to unequip it: in no item slot, in a
+// slot no allocated node opens or one an allocated node closes, of an unknown base or of a
+// class the slot does not take. Each of those has a warning.
 func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 	about := itemWarning(s)
 	if !slices.Contains(ItemSlots(), s) {
@@ -257,7 +259,8 @@ func (c *Checked) checkMods(about Warning, it *Item, readElsewhere []string) {
 }
 
 // setAsideSwap leaves out the items in the weapon-swap slots and disables the gems socketed in
-// them.
+// them, so the skills they grant or hold are disabled too. Neither has a warning: the swap is
+// not in use.
 func (c *Checked) setAsideSwap() {
 	for s := range c.build.Items {
 		if s.Swap() {

@@ -16,12 +16,13 @@ const (
 	NodeNoClusterJewel Code = "node-no-cluster-jewel"
 )
 
-// generateClusters adds the passives the build's cluster jewels add to the nodes Check knows:
-// a jewel in one of the tree's own cluster sockets, then a jewel in a socket an added jewel
-// adds, and so on. The socket a jewel is in links to the first passive it adds. A jewel that
-// does not fit its socket adds nothing, as checkJewels leaves it out; one whose lines do not
-// say what it adds warns. The generator is read only when a cluster jewel is in a cluster
-// socket.
+// generateClusters adds the passives the build's cluster jewels add to the nodes Check knows,
+// numbered as Path of Building numbers them, so they can be allocated, paths run through them
+// and their stats count. It adds a jewel in one of the tree's own cluster sockets, then a jewel
+// in a socket an added jewel adds, and so on. The socket a jewel is in links to the first
+// passive it adds. A jewel that does not fit its socket adds nothing, as checkJewels leaves it
+// out; one whose lines do not say what it adds warns. The generator is read only when a
+// cluster jewel is in a cluster socket.
 func (c *Checked) generateClusters() error {
 	var g *cluster.Generator
 	done := map[uint32]bool{}

@@ -18,7 +18,8 @@ type OverrideChoice struct {
 // Overrides returns the overrides kept, by node id.
 func (c *Checked) Overrides() []OverrideChoice { return slices.Clone(c.overrides) }
 
-// checkOverrides keeps the overrides on allocated nodes they may replace.
+// checkOverrides keeps the overrides on allocated nodes they may replace and drops, each with a
+// warning, those that are unknown, on a node not allocated or on a node they may not replace.
 func (c *Checked) checkOverrides() {
 	for _, id := range slices.Sorted(maps.Keys(c.build.Overrides)) {
 		n := c.allocated(id)
