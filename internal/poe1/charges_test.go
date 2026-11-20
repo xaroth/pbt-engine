@@ -1,9 +1,12 @@
 package poe1_test
 
 import (
+	"math"
 	"slices"
 	"testing"
 
+	"github.com/xaroth/pbt-engine/config"
+	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
@@ -69,6 +72,53 @@ func TestChargesAndFortification(t *testing.T) {
 				if got := value(t, sh, stat); got != want {
 					t.Errorf("%s: got %v, want %v", stat, got, want)
 				}
+			}
+		})
+	}
+}
+
+// A spell that hits for 100 fire against 50% fire resistance deals 50. Frenzy Charges give 4%
+// more damage each (Character.ot), and the stat here 10% increased spell damage per Power Charge.
+// The character has its maximum charges of a kind it uses, else its minimum. 100 * 1.3 * 1.04
+// is 135.2, rounded to 135 before resistance, as PoB does.
+func TestUsedCharges(t *testing.T) {
+	t.Parallel()
+	stats := []resolve.StatValue{
+		{Stat: "max_power_charges", Value: 3}, {Stat: "max_frenzy_charges", Value: 3}, {Stat: "max_endurance_charges", Value: 3},
+		{Stat: "base_minimum_frenzy_charges", Value: 1},
+		{Stat: "object_inherent_damage_+%_final_per_frenzy_charge", Value: 4},
+		{Stat: "spell_damage_+%_per_power_charge", Value: 10},
+	}
+	for _, c := range []struct {
+		name    string
+		uses    []config.Key[bool]
+		charges map[string]float64
+		want    float64
+	}{
+		{name: "none used", charges: map[string]float64{"power_charges": 0, "frenzy_charges": 1, "endurance_charges": 0}, want: 52},
+		{name: "frenzy", uses: []config.Key[bool]{poe1.FrenzyCharges}, charges: map[string]float64{"frenzy_charges": 3}, want: 56},
+		{
+			name: "power and endurance", uses: []config.Key[bool]{poe1.PowerCharges, poe1.EnduranceCharges},
+			charges: map[string]float64{"power_charges": 3, "frenzy_charges": 1, "endurance_charges": 3}, want: 67.5,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			var values config.Values
+			for _, k := range c.uses {
+				if err := config.Set(&values, k, true); err != nil {
+					t.Fatal(err)
+				}
+			}
+			sh := openWith(t, []resolve.Bundle{bundle(resolve.NodeSource{ID: 1}, resolve.Global, stats...)}, values)
+			setSkills(t, sh, elementalSpell())
+			for stat, want := range c.charges {
+				if got := value(t, sh, stat); got != want {
+					t.Errorf("%s: got %v, want %v", stat, got, want)
+				}
+			}
+			if got := outputOf(t, sh, poe1.FireMinimum); math.Abs(got-c.want) > 1e-9 {
+				t.Errorf("fire minimum: got %v, want %v", got, c.want)
 			}
 		})
 	}

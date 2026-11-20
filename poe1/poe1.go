@@ -124,6 +124,9 @@ const (
 	Leeching                 = rules.Leeching
 	Focused                  = rules.Focused
 	Fortified                = rules.Fortified
+	PowerCharges             = rules.PowerCharges
+	FrenzyCharges            = rules.FrenzyCharges
+	EnduranceCharges         = rules.EnduranceCharges
 	LowestResonance          = rules.LowestResonance
 )
 

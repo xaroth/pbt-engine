@@ -87,8 +87,9 @@ type condition struct {
 	text string
 }
 
+// conditions are the condition keys, the charge keys among them.
 func conditions() []condition {
-	return []condition{
+	return slices.Concat([]condition{
 		{EnemyShocked, statEnemyIsShocked, "the enemy is Shocked"},
 		{EnemyChilled, statEnemyIsChilled, "the enemy is Chilled"},
 		{EnemyFrozen, statEnemyIsFrozen, "the enemy is Frozen"},
@@ -105,7 +106,18 @@ func conditions() []condition {
 		{Leeching, statIsLeeching, "Leeching"},
 		{Focused, statIsFocused, "Focused"},
 		{Fortified, statIsFortified, "Fortified"},
+	}, chargeConditions())
+}
+
+// chargeConditions are the charge keys as conditions: each holds whether the character uses
+// a kind of charge.
+func chargeConditions() []condition {
+	chs := charges()
+	out := make([]condition, 0, len(chs))
+	for _, c := range chs {
+		out = append(out, condition{c.key, c.uses, c.text})
 	}
+	return out
 }
 
 func conditionSpecs() []config.Spec {

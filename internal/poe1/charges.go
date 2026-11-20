@@ -1,10 +1,14 @@
 package poe1
 
-import "github.com/xaroth/pbt-engine/internal/core"
+import (
+	"github.com/xaroth/pbt-engine/config"
+	"github.com/xaroth/pbt-engine/internal/core"
+)
 
 // Engine stats of charges. power_charges, frenzy_charges and endurance_charges are the charges
-// the character has: its minimum, at most its maximum, as PoB counts them by default (charges
-// not in use). fortification is the character's Fortification: its maximum while
+// the character has: its maximum while the config says it uses that kind (uses_power_charges and
+// the like), else its minimum, at most its maximum, as PoB counts charges not in use.
+// fortification is the character's Fortification: its maximum while
 // has_maximum_fortification is set, else none, as PoB counts it by default (not Fortified);
 // fortification_above_20 is the part above 20. The character also has its maximum while the
 // config says it is Fortified (is_fortified). inspiration_charges are the Inspiration Charges
@@ -26,18 +30,42 @@ const (
 	statFortificationAbove20                           = "fortification_above_20"
 	statMaximumInspirationCharges                      = "maximum_inspiration_charges"
 	statInspirationCharges                             = "inspiration_charges"
+	statUsesPowerCharges                               = "uses_power_charges"
+	statUsesFrenzyCharges                              = "uses_frenzy_charges"
+	statUsesEnduranceCharges                           = "uses_endurance_charges"
 )
 
-// charge is one kind of charge's stats: the charges the character has and their limits.
+// Charge config keys: whether the character has its maximum charges of a kind, as when it keeps
+// them up in combat. Each is off by default, so the character has its minimum charges.
+const (
+	PowerCharges     config.Key[bool] = "power-charges"
+	FrenzyCharges    config.Key[bool] = "frenzy-charges"
+	EnduranceCharges config.Key[bool] = "endurance-charges"
+)
+
+// charge is one kind of charge's stats: the charges the character has, their limits and whether
+// the character uses them, with the config key that says so.
 type charge struct {
-	current, minimum, maximum string
+	current, minimum, maximum, uses string
+	key                             config.Key[bool]
+	// text names the condition in explanations.
+	text string
 }
 
 func charges() []charge {
 	return []charge{
-		{current: statPowerCharges, minimum: statMinimumPowerCharges, maximum: statMaximumPowerCharges},
-		{current: statFrenzyCharges, minimum: statMinimumFrenzyCharges, maximum: statMaximumFrenzyCharges},
-		{current: statEnduranceCharges, minimum: statMinimumEnduranceCharges, maximum: statMaximumEnduranceCharges},
+		{
+			current: statPowerCharges, minimum: statMinimumPowerCharges, maximum: statMaximumPowerCharges,
+			uses: statUsesPowerCharges, key: PowerCharges, text: "maximum Power Charges",
+		},
+		{
+			current: statFrenzyCharges, minimum: statMinimumFrenzyCharges, maximum: statMaximumFrenzyCharges,
+			uses: statUsesFrenzyCharges, key: FrenzyCharges, text: "maximum Frenzy Charges",
+		},
+		{
+			current: statEnduranceCharges, minimum: statMinimumEnduranceCharges, maximum: statMaximumEnduranceCharges,
+			uses: statUsesEnduranceCharges, key: EnduranceCharges, text: "maximum Endurance Charges",
+		},
 	}
 }
 
@@ -46,7 +74,7 @@ const fortificationThreshold = 20
 
 // Formula names shown in explanations.
 const (
-	formulaDefaultCharges              = "minimum charges, capped by the maximum"
+	formulaCharges                     = "maximum charges while used, else minimum charges capped by the maximum"
 	formulaMaximumEnduranceCharges     = "maximum endurance charges"
 	formulaDefaultFortification        = "maximum fortification while fortified"
 	formulaFortificationAboveThreshold = "fortification above 20"
@@ -54,8 +82,8 @@ const (
 )
 
 // chargeDef completes def when it is one of a charge's stats. A charge's limits are at least
-// 0, and the character has its minimum charges, at most the maximum: PoB's default, which
-// counts no charges gained in combat (CalcPerform.lua doActorCharges).
+// 0. The character has its maximum charges while it uses them, else its minimum, at most the
+// maximum, as PoB counts them (CalcPerform.lua doActorCharges).
 func chargeDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	if def.Name == statMaximumEnduranceChargesAreMaximumFrenzyCharges {
 		def.Flag = true
@@ -66,10 +94,9 @@ func chargeDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		case c.minimum, c.maximum:
 			def.HasMin = true
 		case c.current:
-			minimum, maximum := mustID(ids, c.minimum), mustID(ids, c.maximum)
 			def.HasMin = true
-			def.Formula = func(rd core.Reader, _ core.Agg) float64 { return min(rd.Stat(minimum), rd.Stat(maximum)) }
-			def.FormulaName, def.Attribute = formulaDefaultCharges, cappedAttribute(minimum, maximum)
+			def.Formula, def.Attribute = currentCharges(c, ids)
+			def.FormulaName = formulaCharges
 		}
 	}
 	switch def.Name {
@@ -90,6 +117,26 @@ func chargeDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		}
 	}
 	return def
+}
+
+// currentCharges is the charges of c the character has.
+func currentCharges(c charge, ids map[string]core.StatID) (core.Formula, core.Attribute) {
+	uses, minimum, maximum := mustID(ids, c.uses), mustID(ids, c.minimum), mustID(ids, c.maximum)
+	formula := func(rd core.Reader, _ core.Agg) float64 {
+		if rd.Stat(uses) != 0 {
+			return rd.Stat(maximum)
+		}
+		return min(rd.Stat(minimum), rd.Stat(maximum))
+	}
+	capped := cappedAttribute(minimum, maximum)
+	attribute := func(a *core.Attributor) core.Attribution {
+		if a.Stat(uses) != 0 {
+			parts, amount := a.Of(core.SelfRef(maximum))
+			return core.Attribution{Parts: parts, Amount: amount}
+		}
+		return capped(a)
+	}
+	return formula, attribute
 }
 
 // maximumEnduranceCharges is the maximum frenzy charges while "Your Maximum Endurance Charges

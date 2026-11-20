@@ -18,11 +18,14 @@ type conditionInput struct {
 	key   config.Key[bool]
 }
 
-// conditionInputs are PoB's condition inputs the config holds, in PoB's order.
+// conditionInputs are PoB's condition and charge inputs the config holds, in PoB's order.
 func conditionInputs() []conditionInput {
 	return []conditionInput{
 		{"conditionFullLife", poe1.OnFullLife},
 		{"conditionFullEnergyShield", poe1.OnFullEnergyShield},
+		{"usePowerCharges", poe1.PowerCharges},
+		{"useFrenzyCharges", poe1.FrenzyCharges},
+		{"useEnduranceCharges", poe1.EnduranceCharges},
 		{"conditionFocused", poe1.Focused},
 		{"buffFortification", poe1.Fortified},
 		{"conditionLeeching", poe1.Leeching},
