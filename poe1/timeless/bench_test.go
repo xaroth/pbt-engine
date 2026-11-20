@@ -2,6 +2,7 @@ package timeless_test
 
 import (
 	"cmp"
+	"context"
 	"slices"
 	"testing"
 
@@ -149,7 +150,7 @@ func BenchmarkSearch(b *testing.B) {
 		b.Run(jv.ID, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := reader.Search(build.DefaultVariant, q); err != nil {
+				if _, err := reader.Search(context.Background(), build.DefaultVariant, q, nil); err != nil {
 					b.Fatal(err)
 				}
 			}

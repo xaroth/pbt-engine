@@ -2,6 +2,7 @@ package timeless
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -151,11 +152,19 @@ type Match struct {
 	Passives []Passive `json:"passives"`
 }
 
+// Progress reports a search under way: the seeds scanned, the seeds in all and the matches
+// found so far, before the query's limit is applied.
+type Progress = rules.Progress
+
 // Search scans every seed of the query's version in its socket and returns the seeds whose
 // totals reach every want's Min, by score from highest, then by seed. Keystones are not
 // searched: the conqueror, not the seed, picks theirs. Errors are those of Conquer, and ErrWant
 // for a want the version never gives.
-func (r *Reader) Search(variant string, q Query) ([]Match, error) {
+//
+// A not nil progress is called every few hundred seeds and once after the last, from the
+// goroutine that called Search. Once ctx is done, Search returns ctx.Err() and no matches
+// within a seed's time.
+func (r *Reader) Search(ctx context.Context, variant string, q Query, progress Progress) ([]Match, error) {
 	s, err := r.socket(variant, q.Socket, q.Version, q.Language)
 	if err != nil {
 		return nil, err
@@ -168,7 +177,10 @@ func (r *Reader) Search(variant string, q Query) ([]Match, error) {
 		s.nodes = slices.DeleteFunc(s.nodes, func(n rules.Node) bool { return !slices.Contains(q.Allocated, n.ID) })
 	}
 	s.nodes = slices.DeleteFunc(s.nodes, func(n rules.Node) bool { return n.Kind == Keystone })
-	found := s.versions.Search(q.Version, s.seeds, s.nodes, wants, q.Limit)
+	found, err := s.versions.Search(ctx, q.Version, s.seeds, s.nodes, wants, q.Limit, progress)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the caller's own error
+	}
 	out := make([]Match, len(found))
 	for i, m := range found {
 		out[i] = Match{Seed: m.Seed, Score: m.Score, Totals: m.Totals, Passives: s.conquer(q.Version, m.Seed, Conqueror{})}

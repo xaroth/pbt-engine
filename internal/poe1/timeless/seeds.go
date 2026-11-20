@@ -18,6 +18,14 @@ func (r SeedRange) Contains(seed uint32) bool {
 	return r.Step > 0 && seed >= r.First && seed <= r.Last && (seed-r.First)%r.Step == 0
 }
 
+// Count is the number of seeds in the range.
+func (r SeedRange) Count() int {
+	if r.Step == 0 || r.Last < r.First {
+		return 0
+	}
+	return int((r.Last-r.First)/r.Step) + 1
+}
+
 // Seeds returns the seed range of each alternate tree version of the tree variant of s, by
 // version, made once per store. It is read from the ranges of the jewel mods' seed stat; a
 // version no mod names has the zero range.

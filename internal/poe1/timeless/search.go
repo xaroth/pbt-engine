@@ -2,6 +2,7 @@ package timeless
 
 import (
 	"cmp"
+	"context"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/dataset"
@@ -30,6 +31,13 @@ type Match struct {
 	Totals []int64
 }
 
+// Progress reports a search under way: the seeds scanned, the seeds in all and the matches
+// found so far, before the limit is applied.
+type Progress func(scanned, total, found int)
+
+// progressEvery is how many seeds a search scans between reports.
+const progressEvery = 256
+
 // hit is where a row adds to a want: to its count, or the value of one of the row's stats.
 type hit struct {
 	want int
@@ -39,18 +47,44 @@ type hit struct {
 
 // Search conquers nodes with every seed of seeds and no conqueror, and returns the seeds
 // whose totals reach every want's Min, by score from highest, then by seed. Limit bounds the
-// matches returned; 0 returns all of them.
-func (v *Versions) Search(version int, seeds SeedRange, nodes []Node, wants []Want, limit int) []Match {
+// matches returned; 0 returns all of them. A not nil progress is called every progressEvery
+// seeds and after the last. Once ctx is done, Search returns its error and no matches, after
+// at most one more seed.
+func (v *Versions) Search(ctx context.Context, version int, seeds SeedRange, nodes []Node, wants []Want, limit int, progress Progress) ([]Match, error) {
 	if v.Name(version) == "" || seeds.Step == 0 {
-		return nil
+		return nil, nil
 	}
 	rows, tree := &v.rows[version], v.trees[version]
 	h := hitsOf(rows, wants)
 	nodes = slices.DeleteFunc(slices.Clone(nodes), func(n Node) bool { return !h.wanted(rows, n.Kind) })
+	if progress == nil {
+		progress = func(int, int, int) {}
+	}
 
+	out, err := scan(ctx, tree, &h, seeds, nodes, wants, progress)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortStableFunc(out, func(a, b Match) int { return cmp.Compare(b.Score, a.Score) })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// scan conquers nodes with each seed and returns the seeds that reach every want's Min, in
+// seed order.
+func scan(ctx context.Context, tree *Tree, h *hits, seeds SeedRange, nodes []Node, wants []Want, progress Progress) ([]Match, error) {
 	var out []Match
 	totals := make([]int64, len(wants))
+	total, scanned := seeds.Count(), 0
 	for seed := seeds.First; seed <= seeds.Last; seed += seeds.Step {
+		if err := ctx.Err(); err != nil {
+			return nil, err //nolint:wrapcheck // the caller's own error
+		}
+		if scanned%progressEvery == 0 {
+			progress(scanned, total, len(out))
+		}
 		clear(totals)
 		for _, n := range nodes {
 			res := tree.Conquer(Jewel{Seed: seed}, n)
@@ -59,12 +93,10 @@ func (v *Versions) Search(version int, seeds SeedRange, nodes []Node, wants []Wa
 		if m, ok := match(seed, wants, totals); ok {
 			out = append(out, m)
 		}
+		scanned++
 	}
-	slices.SortStableFunc(out, func(a, b Match) int { return cmp.Compare(b.Score, a.Score) })
-	if limit > 0 && len(out) > limit {
-		out = out[:limit]
-	}
-	return out
+	progress(scanned, total, len(out))
+	return out, nil
 }
 
 // hits are where each replacement and addition row of a version adds to the wants.
