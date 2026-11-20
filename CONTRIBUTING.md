@@ -74,6 +74,7 @@ Median of 6 runs on an AMD Ryzen 5 5600X, Go 1.27.4, Linux, at commit 23effd2, o
 | `poe1/timeless` `Conquer/<version>/forward` | One seed over the 100 passives of the fullest Large radius | 0.011 to 0.020 ms | 0 |
 | `poe1/timeless` `Conquer/<version>/reverse` | Every seed of the version over that radius | 88 ms (Maraketh, 7,501 seeds) to 176 ms (Vaal, 7,901 seeds) | 0 |
 | `poe1/timeless` `Search/<version>` | A search of every seed of the version in that socket for a named notable and a stat of each kind of passive, best 50 with what each gives | 31 ms (Eternal) to 164 ms (Vaal); 242 ms for Vaal as WebAssembly in Chrome 156 | 1.8 to 2.0 MB |
+| `poe1/timeless` `SearchAllSockets/<version>` | The same search over every socket `Reader.Sockets` returns (24) | 0.9 s (Eternal) to 3.1 s (Vaal); 9.2 s for Vaal as WebAssembly in Chrome 156 on a machine where one Vaal socket took 0.6 s at most | 35 to 39 MB |
 | `internal/poe1/cluster` `Generator/setup` | The cluster generator's setup, once per tree variant | 3.0 ms | 2.2 MB |
 | `internal/poe1/cluster` `Generator/generate` | One large cluster jewel | 0.010 ms | 5 KB |
 

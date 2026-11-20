@@ -7,6 +7,7 @@ import (
 	"errors"
 	"maps"
 	"slices"
+	"strconv"
 	"testing"
 
 	gocmp "github.com/google/go-cmp/cmp"
@@ -180,7 +181,7 @@ func TestSearchInGameJewel(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
-				Socket: agnosticSocket, Version: version, Language: "en", Allocated: testCase.allocated,
+				Sockets: []uint32{agnosticSocket}, Version: version, Language: "en", Allocated: testCase.allocated,
 				Wants: []timeless.Want{{Name: "Slum Lord", Min: 2}},
 			}, nil)
 			if err != nil {
@@ -206,24 +207,9 @@ func TestSearchFindsPlantedSeed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	names, totals := map[string]int64{}, map[string]int64{}
-	for _, p := range passives {
-		if p.Name != "" {
-			names[p.Name]++
-		}
-		for _, s := range p.Stats {
-			totals[s.ID] += int64(s.Value)
-		}
-	}
-	wants := make([]timeless.Want, 0, len(names)+len(totals))
-	for _, name := range slices.Sorted(maps.Keys(names)) {
-		wants = append(wants, timeless.Want{Name: name, Min: names[name]})
-	}
-	for _, id := range slices.Sorted(maps.Keys(totals)) {
-		wants = append(wants, timeless.Want{Stat: id, Weight: 1, Min: totals[id]})
-	}
+	wants := exactWants(passives)
 	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
-		Socket: agnosticSocket, Version: vaal, Wants: wants, Language: "en", Limit: 5,
+		Sockets: []uint32{agnosticSocket}, Version: vaal, Wants: wants, Language: "en", Limit: 5,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -246,6 +232,43 @@ func TestSearchFindsPlantedSeed(t *testing.T) {
 	}
 }
 
+// exactWants wants at least what the jewel gives in passives: each name as often, each stat as much.
+func exactWants(passives []timeless.Passive) []timeless.Want {
+	names, totals := map[string]int64{}, map[string]int64{}
+	for _, p := range passives {
+		if p.Name != "" {
+			names[p.Name]++
+		}
+		for _, s := range p.Stats {
+			totals[s.ID] += int64(s.Value)
+		}
+	}
+	wants := make([]timeless.Want, 0, len(names)+len(totals))
+	for _, name := range slices.Sorted(maps.Keys(names)) {
+		wants = append(wants, timeless.Want{Name: name, Min: names[name]})
+	}
+	for _, id := range slices.Sorted(maps.Keys(totals)) {
+		wants = append(wants, timeless.Want{Stat: id, Weight: 1, Min: totals[id]})
+	}
+	return wants
+}
+
+// otherSocket returns a counted socket other than agnosticSocket.
+func otherSocket(tb testing.TB, r *timeless.Reader) uint32 {
+	tb.Helper()
+	sockets, err := r.Sockets(build.DefaultVariant)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	for _, id := range sockets {
+		if id != agnosticSocket {
+			return id
+		}
+	}
+	tb.Fatal("no second socket")
+	return 0
+}
+
 func eternal(tb testing.TB, r *timeless.Reader) int {
 	tb.Helper()
 	versions, err := r.Versions(build.DefaultVariant)
@@ -259,13 +282,167 @@ func eternal(tb testing.TB, r *timeless.Reader) int {
 	return versions[i].Index
 }
 
+// A seed planted in one of two sockets ranks first and names its socket.
+func TestSearchSeveralSocketsFindsPlantedSeed(t *testing.T) {
+	t.Parallel()
+	reader := timeless.New(realdata.Open(t, realdata.Current))
+	const vaal, planted = 1, 4321
+	for _, in := range []uint32{agnosticSocket, otherSocket(t, reader)} {
+		t.Run(strconv.FormatUint(uint64(in), 10), func(t *testing.T) {
+			t.Parallel()
+			passives, err := reader.Conquer(build.DefaultVariant, timeless.Socketed{Socket: in, Version: vaal, Seed: planted}, "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
+				Sockets: []uint32{agnosticSocket, otherSocket(t, reader)}, Version: vaal, Wants: exactWants(passives), Language: "en", Limit: 5,
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) == 0 || got[0].Socket != in || got[0].Seed != planted {
+				t.Fatalf("matches %v, want seed %d in socket %d first", got, planted, in)
+			}
+			byNode := map[uint32]timeless.Passive{}
+			for _, p := range passives {
+				byNode[p.Node] = p
+			}
+			for _, p := range got[0].Passives {
+				if !gocmp.Equal(byNode[p.Node], p) {
+					t.Errorf("node %d: %+v, Conquer gives %+v", p.Node, p, byNode[p.Node])
+				}
+			}
+		})
+	}
+}
+
+// Several sockets give a socket's matches as a search of it alone does, and rank by score from
+// highest, then by socket, then by seed, with the limit on the whole list.
+func TestSearchSeveralSocketsMatchesOne(t *testing.T) {
+	t.Parallel()
+	reader := timeless.New(realdata.Open(t, realdata.InGame))
+	version, other := eternal(t, reader), otherSocket(t, reader)
+	q := timeless.Query{Version: version, Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Weight: 1}, {Stat: "maximum_life_+%", Weight: 0.5}}}
+	one := func(socket uint32) []timeless.Match {
+		q := q
+		q.Sockets = []uint32{socket}
+		got, err := reader.Search(t.Context(), build.DefaultVariant, q, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	both := q
+	both.Sockets = []uint32{other, agnosticSocket}
+	got, err := reader.Search(t.Context(), build.DefaultVariant, both, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, socket := range both.Sockets {
+		var seeds []uint32
+		for _, m := range got {
+			if m.Socket == socket {
+				seeds = append(seeds, m.Seed)
+			}
+		}
+		matches := one(socket)
+		want := make([]uint32, len(matches))
+		for i, m := range matches {
+			want[i] = m.Seed
+		}
+		if diff := gocmp.Diff(want, seeds); diff != "" {
+			t.Errorf("socket %d seeds (-one socket +several):\n%s", socket, diff)
+		}
+	}
+	for i := 1; i < len(got); i++ {
+		a, b := got[i-1], got[i]
+		if b.Score > a.Score || b.Score == a.Score && (b.Socket < a.Socket || b.Socket == a.Socket && b.Seed < a.Seed) {
+			t.Fatalf("%d/%d (%v) ranks after %d/%d (%v)", b.Socket, b.Seed, b.Score, a.Socket, a.Seed, a.Score)
+		}
+	}
+	both.Limit = 10
+	limited, err := reader.Search(t.Context(), build.DefaultVariant, both, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(limited) != 10 || !gocmp.Equal(got[:10], limited) {
+		t.Errorf("limit 10 gives %d matches, not the first 10 of %d", len(limited), len(got))
+	}
+}
+
+// With no sockets a search covers the counted ones, and its progress counts their seeds.
+func TestSearchAllSockets(t *testing.T) {
+	t.Parallel()
+	reader := timeless.New(realdata.Open(t, realdata.InGame))
+	version := eternal(t, reader)
+	sockets, err := reader.Sockets(build.DefaultVariant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	versions, err := reader.Versions(build.DefaultVariant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := versions[slices.IndexFunc(versions, func(v timeless.JewelVersion) bool { return v.Index == version })].Seeds.Count()
+	var scanned, total, prev int
+	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
+		Version: version, Language: "en", Wants: []timeless.Want{{Stat: "maximum_life_+%", Weight: 1, Min: 1}},
+	}, func(s, n, _ int) {
+		if s < prev {
+			t.Errorf("progress fell from %d to %d", prev, s)
+		}
+		scanned, total, prev = s, n, s
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := count * len(sockets); scanned != want || total != want {
+		t.Errorf("progress ended at %d of %d seeds, want %d", scanned, total, want)
+	}
+	seen := map[uint32]bool{}
+	for _, m := range got {
+		seen[m.Socket] = true
+		if !slices.Contains(sockets, m.Socket) {
+			t.Fatalf("match in socket %d, which is not counted", m.Socket)
+		}
+	}
+	if len(seen) != len(sockets) {
+		t.Errorf("matches in %d of %d sockets", len(seen), len(sockets))
+	}
+}
+
+// The counted sockets are those of the tree itself: a socket a cluster jewel adds is left out.
+func TestSockets(t *testing.T) {
+	t.Parallel()
+	store := realdata.Open(t, realdata.Current)
+	got, err := timeless.New(store).Sockets(build.DefaultVariant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := store.Tree(build.DefaultVariant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 24 {
+		t.Errorf("%d sockets, want 24: 18 for any jewel and 6 on the tree for cluster jewels", len(got))
+	}
+	if !slices.IsSorted(got) || !slices.Contains(got, agnosticSocket) {
+		t.Errorf("sockets %v", got)
+	}
+	for _, c := range tree.Clusters.Sockets {
+		if c.Parent != 0 && slices.Contains(got, c.Node) {
+			t.Errorf("socket %d is added by the jewel in socket %d", c.Node, c.Parent)
+		}
+	}
+}
+
 // Matches rank by the weighted sum of their totals, from highest, then by seed.
 func TestSearchRanksByScore(t *testing.T) {
 	t.Parallel()
 	reader := timeless.New(realdata.Open(t, realdata.InGame))
 	wants := []timeless.Want{{Name: "Slum Lord", Weight: 10}, {Stat: "maximum_life_+%", Weight: 0.5}}
 	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
-		Socket: agnosticSocket, Version: eternal(t, reader), Language: "en", Wants: wants, Limit: 200,
+		Sockets: []uint32{agnosticSocket}, Version: eternal(t, reader), Language: "en", Wants: wants, Limit: 200,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -296,7 +473,7 @@ func TestSearchProgress(t *testing.T) {
 	type report struct{ scanned, total, found int }
 	var reports []report
 	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
-		Socket: agnosticSocket, Version: version, Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Min: 1}},
+		Sockets: []uint32{agnosticSocket}, Version: version, Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Min: 1}},
 	}, func(scanned, total, found int) { reports = append(reports, report{scanned, total, found}) })
 	if err != nil {
 		t.Fatal(err)
@@ -322,7 +499,7 @@ func TestSearchCancel(t *testing.T) {
 	defer cancel()
 	var scanned, total int
 	got, err := reader.Search(ctx, build.DefaultVariant, timeless.Query{
-		Socket: agnosticSocket, Version: eternal(t, reader), Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Min: 1}},
+		Sockets: []uint32{agnosticSocket, otherSocket(t, reader)}, Version: eternal(t, reader), Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Min: 1}},
 	}, func(s, n, _ int) {
 		scanned, total = s, n
 		if s >= n/2 {
@@ -360,15 +537,16 @@ func TestJSONKeys(t *testing.T) {
 		},
 		{
 			name: "query",
-			v:    timeless.Query{Socket: 26196, Version: 5, Wants: []timeless.Want{{Name: "Slum Lord", Min: 2}}, Language: "en"},
-			want: `{"socket":26196,"version":5,"wants":[{"name":"Slum Lord","stat":"","weight":0,"min":2}],"allocated":null,"language":"en","limit":0}`,
+			v:    timeless.Query{Sockets: []uint32{26196}, Version: 5, Wants: []timeless.Want{{Name: "Slum Lord", Min: 2}}, Language: "en"},
+			want: `{"sockets":[26196],"version":5,"wants":[{"name":"Slum Lord","stat":"","weight":0,"min":2}],"allocated":null,"language":"en","limit":0}`,
 		},
 		{
 			name: "match",
-			v: timeless.Match{Seed: 67340, Score: 2, Totals: []int64{2}, Passives: []timeless.Passive{
+			v: timeless.Match{Socket: 26196, Seed: 67340, Score: 2, Totals: []int64{2}, Passives: []timeless.Passive{
 				{Node: 34173, Replaced: true, Name: "Slum Lord", Stats: []timeless.Stat{{ID: "minion_damage_+%", Value: 80}}},
 			}},
-			want: `{"seed":67340,"score":2,"totals":[2],"passives":[{"node":34173,"replaced":true,"name":"Slum Lord","stats":[{"id":"minion_damage_+%","value":80}]}]}`,
+			want: `{"socket":26196,"seed":67340,"score":2,"totals":[2],` +
+				`"passives":[{"node":34173,"replaced":true,"name":"Slum Lord","stats":[{"id":"minion_damage_+%","value":80}]}]}`,
 		},
 	}
 	for _, testCase := range testCases {
