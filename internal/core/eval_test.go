@@ -343,6 +343,36 @@ func TestScaling(t *testing.T) {
 			want: map[core.StatID]float64{dmg: increased100(2 * 11 * 1)},
 		},
 	})
+	ratio := func(effect float64, sc core.Scale) []core.Modifier {
+		sc.Ref, sc.Step, sc.Ratio = core.SelfRef(str), 100, true
+		return []core.Modifier{
+			{Stat: str, Op: core.OpBase, Value: effect},
+			{Stat: dmg, Op: core.OpBase, Value: 100},
+			{Stat: dmg, Op: core.OpInc, Value: 20, Source: 1, Scales: []core.Scale{sc}},
+		}
+	}
+	runEval(t, b.Build(), 1, []evalCase{
+		{
+			name: "ratio rounds toward zero",
+			mods: ratio(137, core.Scale{Round: core.RoundTrunc}),
+			want: map[core.StatID]float64{dmg: increased100(27)},
+		},
+		{
+			name: "ratio keeps a whole product exact",
+			mods: ratio(115, core.Scale{Round: core.RoundTrunc}),
+			want: map[core.StatID]float64{dmg: increased100(23)},
+		},
+		{
+			name: "ratio to places",
+			mods: ratio(137, core.Scale{Round: core.RoundFloor, Places: 1}),
+			want: map[core.StatID]float64{dmg: increased100(27.4)},
+		},
+		{
+			name: "ratio cap",
+			mods: ratio(137, core.Scale{Round: core.RoundTrunc, Cap: 1.2, HasCap: true}),
+			want: map[core.StatID]float64{dmg: increased100(24)},
+		},
+	})
 }
 
 // attrModel has strength and dexterity in one CycleFamily, plus a life formula reading

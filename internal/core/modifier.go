@@ -103,12 +103,17 @@ func (c *Cond) holds(v float64) bool {
 
 // Scale multiplies a modifier's value by the step count floor(ref / Step). When HasCap is set,
 // the step count is at most Cap: "1% per 10 strength, up to 5%" is a modifier of value 1 with
-// Step 10 and Cap 5.
+// Step 10 and Cap 5. When Ratio is set it multiplies by ref / Step itself, at most Cap with
+// HasCap, and rounds the product by Round to Places decimal places: a buff's stat at an effect
+// of ref percent is a Ratio scale of Step 100.
 type Scale struct {
 	Ref    Ref
 	Step   float64
 	Cap    float64
 	HasCap bool
+	Ratio  bool
+	Round  Rounding
+	Places int8
 }
 
 // Predicate restricts a modifier to contexts. A context matches when it intersects every mask

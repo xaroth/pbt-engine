@@ -345,15 +345,18 @@ func (d *StatDef) clamp(r float64) float64 {
 }
 
 // round applies the stat's rounding and normalises -0.
-func (d *StatDef) round(r float64) float64 {
-	if d.Round != RoundNone {
-		p := math.Pow10(int(d.Places))
+func (d *StatDef) round(r float64) float64 { return roundTo(r, d.Round, d.Places) }
+
+// roundTo rounds r by mode to places decimal places and normalises -0.
+func roundTo(r float64, mode Rounding, places int8) float64 {
+	if mode != RoundNone {
+		p := math.Pow10(int(places))
 		x := r
-		if d.Places != 0 {
+		if places != 0 {
 			x = float64(r * p)
 		}
 		//exhaustive:ignore // RoundNone is excluded by the enclosing if
-		switch d.Round {
+		switch mode {
 		case RoundHalf:
 			x = math.Floor(x + half)
 		case RoundFloor:
@@ -361,7 +364,7 @@ func (d *StatDef) round(r float64) float64 {
 		case RoundTrunc:
 			x = math.Trunc(x)
 		}
-		if d.Places != 0 {
+		if places != 0 {
 			x /= p
 		}
 		r = x
