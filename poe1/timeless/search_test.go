@@ -2,7 +2,9 @@ package timeless_test
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
+	"errors"
 	"maps"
 	"slices"
 	"testing"
@@ -177,10 +179,10 @@ func TestSearchInGameJewel(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := reader.Search(build.DefaultVariant, timeless.Query{
+			got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
 				Socket: agnosticSocket, Version: version, Language: "en", Allocated: testCase.allocated,
 				Wants: []timeless.Want{{Name: "Slum Lord", Min: 2}},
-			})
+			}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -220,9 +222,9 @@ func TestSearchFindsPlantedSeed(t *testing.T) {
 	for _, id := range slices.Sorted(maps.Keys(totals)) {
 		wants = append(wants, timeless.Want{Stat: id, Weight: 1, Min: totals[id]})
 	}
-	got, err := reader.Search(build.DefaultVariant, timeless.Query{
+	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
 		Socket: agnosticSocket, Version: vaal, Wants: wants, Language: "en", Limit: 5,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,9 +264,9 @@ func TestSearchRanksByScore(t *testing.T) {
 	t.Parallel()
 	reader := timeless.New(realdata.Open(t, realdata.InGame))
 	wants := []timeless.Want{{Name: "Slum Lord", Weight: 10}, {Stat: "maximum_life_+%", Weight: 0.5}}
-	got, err := reader.Search(build.DefaultVariant, timeless.Query{
+	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
 		Socket: agnosticSocket, Version: eternal(t, reader), Language: "en", Wants: wants, Limit: 200,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,6 +280,63 @@ func TestSearchRanksByScore(t *testing.T) {
 		if i > 0 && (m.Score > got[i-1].Score || m.Score == got[i-1].Score && m.Seed < got[i-1].Seed) {
 			t.Errorf("seed %d (%v) ranks after seed %d (%v)", m.Seed, m.Score, got[i-1].Seed, got[i-1].Score)
 		}
+	}
+}
+
+// Progress rises to the range's seed count, ends there, and counts the matches.
+func TestSearchProgress(t *testing.T) {
+	t.Parallel()
+	reader := timeless.New(realdata.Open(t, realdata.InGame))
+	version := eternal(t, reader)
+	versions, err := reader.Versions(build.DefaultVariant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := versions[slices.IndexFunc(versions, func(v timeless.JewelVersion) bool { return v.Index == version })].Seeds.Count()
+	type report struct{ scanned, total, found int }
+	var reports []report
+	got, err := reader.Search(t.Context(), build.DefaultVariant, timeless.Query{
+		Socket: agnosticSocket, Version: version, Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Min: 1}},
+	}, func(scanned, total, found int) { reports = append(reports, report{scanned, total, found}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := reports[len(reports)-1]; last != (report{total, total, len(got)}) {
+		t.Errorf("last report %+v, want %d of %d seeds and %d found", last, total, total, len(got))
+	}
+	if len(reports) < total/1000 {
+		t.Errorf("%d reports for %d seeds", len(reports), total)
+	}
+	for i := 1; i < len(reports); i++ {
+		if reports[i].scanned < reports[i-1].scanned || reports[i].found < reports[i-1].found {
+			t.Fatalf("report %+v after %+v", reports[i], reports[i-1])
+		}
+	}
+}
+
+// A search whose context is cancelled stops before its last seed and returns the context's error.
+func TestSearchCancel(t *testing.T) {
+	t.Parallel()
+	reader := timeless.New(realdata.Open(t, realdata.InGame))
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	var scanned, total int
+	got, err := reader.Search(ctx, build.DefaultVariant, timeless.Query{
+		Socket: agnosticSocket, Version: eternal(t, reader), Language: "en", Wants: []timeless.Want{{Name: "Slum Lord", Min: 1}},
+	}, func(s, n, _ int) {
+		scanned, total = s, n
+		if s >= n/2 {
+			cancel()
+		}
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error %v, want context.Canceled", err)
+	}
+	if got != nil {
+		t.Errorf("%d matches, want none", len(got))
+	}
+	if scanned >= total {
+		t.Errorf("scanned %d of %d seeds", scanned, total)
 	}
 }
 
