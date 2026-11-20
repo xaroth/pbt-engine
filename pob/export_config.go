@@ -3,26 +3,22 @@ package pob
 import (
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/poe1"
 )
 
 // config writes the bandit choice into f's <Build> and its config set, the campaign stage as
-// the resistance penalty, and the enemy and condition keys as PoB's inputs. Without a bandit choice
-// PoB's default, kill all, applies.
+// the resistance penalty, and the enemy, condition and Resonance keys as PoB's inputs. Without
+// a bandit choice PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
-	enemy, enemyKeys, unwritable, err := enemyInputs(v)
+	held, heldKeys, unwritable, err := heldInputs(v)
 	if err != nil {
 		return err
 	}
-	conditions, conditionKeys, err := conditionOutputs(v)
-	if err != nil {
-		return err
-	}
-	maps.Copy(enemyKeys, conditionKeys)
-	ex.warnConfigLeftOut(v, enemyKeys)
+	ex.warnConfigLeftOut(v, heldKeys)
 	for _, name := range unwritable {
 		ex.warnf(ConfigNotExported, name, "PoB reads 0 in this input as empty and uses its boss preset; not exported")
 	}
@@ -46,12 +42,31 @@ func (ex *exporter) config(f *outFile) error {
 	if ok {
 		inputs = append(inputs, outInput{Name: penaltyInput, Number: pobPenalty(stage)})
 	}
-	inputs = append(inputs, enemy...)
-	inputs = append(inputs, conditions...)
+	inputs = append(inputs, held...)
 	if len(inputs) > 0 {
 		f.Config = &outConfig{Active: "1", Sets: []outConfigSet{{ID: "1", Inputs: inputs}}}
 	}
 	return nil
+}
+
+// heldInputs returns the PoB inputs of v's enemy, condition and Resonance keys and the names of
+// the keys, and the enemy inputs PoB cannot be given.
+func heldInputs(v config.Values) (inputs []outInput, keys map[string]bool, unwritable []string, err error) {
+	enemy, keys, unwritable, err := enemyInputs(v)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	conditions, conditionKeys, err := conditionOutputs(v)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	resonance, resonanceKey, err := resonanceOutputs(v)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	maps.Copy(keys, conditionKeys)
+	keys[resonanceKey] = true
+	return slices.Concat(enemy, conditions, resonance), keys, unwritable, nil
 }
 
 // warnConfigLeftOut warns of each config key of v that config does not export: not the

@@ -254,6 +254,7 @@ func TestConfigKeys(t *testing.T) {
 	for _, name := range []string{"enemy-fire-exposure", "enemy-cold-exposure", "enemy-lightning-exposure"} {
 		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false"), Derived: true})
 	}
+	want = append(want, simulator.ConfigKey{Name: "lowest-resonance", Default: json.RawMessage("0")})
 	if diff := cmp.Diff(want, keys); diff != "" {
 		t.Errorf("config keys (-want +got):\n%s", diff)
 	}

@@ -123,6 +123,8 @@ type Sheet struct {
 	enemy enemyMods
 	// conditions holds the conditions' sources.
 	conditions conditionMods
+	// resonance holds the lowest Resonance.
+	resonance core.ModID
 	// held holds what the character holds (SetHands).
 	held heldMods
 	// equipment holds what the equipped items are (SetItems).
@@ -381,7 +383,7 @@ func (sh *Sheet) addBaseValues() error {
 	// The conditions come before the enemy, which sets one.
 	for _, add := range []func() error{
 		sh.addBaseMovementSpeed, sh.addBaseDamage, sh.addBaseSpeeds, sh.addBaseAilmentValues,
-		sh.addConditions, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
+		sh.addConditions, sh.addResonance, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
 		sh.addBaseEfficiencies,
 	} {
 		if err := add(); err != nil {

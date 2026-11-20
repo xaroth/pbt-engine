@@ -200,6 +200,11 @@
         "key": "enemy-lightning-exposure",
         "value": false,
         "source": "default"
+      },
+      {
+        "key": "lowest-resonance",
+        "value": 0,
+        "source": "default"
       }
     ]
   },
@@ -412,6 +417,11 @@
       {
         "key": "enemy-lightning-exposure",
         "value": false,
+        "source": "default"
+      },
+      {
+        "key": "lowest-resonance",
+        "value": 0,
         "source": "default"
       }
     ]
