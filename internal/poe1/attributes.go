@@ -2,6 +2,7 @@ package poe1
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
@@ -12,7 +13,8 @@ import (
 const attributeFamily = 1
 
 // Engine stats of the attributes. The no_ stats are flags that turn off one inherent attribute
-// bonus each.
+// bonus each. accuracy_rating_per_dexterity_instead, when not 0, is the accuracy rating the
+// dexterity bonus grants per dexterity in place of the constant's.
 const (
 	statStrength                                 = "strength"
 	statDexterity                                = "dexterity"
@@ -23,16 +25,18 @@ const (
 	statNoIntelligenceBonusToMaximumEnergyShield = "no_intelligence_bonus_to_maximum_energy_shield"
 	statNoDexterityBonusToAccuracyRating         = "no_dexterity_bonus_to_accuracy_rating"
 	statNoStrengthBonusToMeleePhysicalDamage     = "no_strength_bonus_to_melee_physical_damage"
+	statAccuracyRatingPerDexterityInstead        = "accuracy_rating_per_dexterity_instead"
 )
 
 // attributeBonus is an inherent bonus of an attribute: the constant's Value per Per points of
-// the attribute, in whole steps, unless flag stat off is set (none when empty).
+// the attribute, in whole steps, unless flag stat off is set (none when empty). While stat
+// instead is not 0 (never when empty), the bonus is instead its value per point of the attribute.
 type attributeBonus struct {
 	// id is the rule source's RuleID.
-	id                               string
-	constant, attribute, target, off string
-	op                               core.Op
-	label                            string
+	id                                        string
+	constant, attribute, target, off, instead string
+	op                                        core.Op
+	label                                     string
 	// in are the contexts the bonus requires, as a table modifier's: one of each term; notIn
 	// those it excludes.
 	in    [][]string
@@ -57,7 +61,7 @@ func attributeBonuses() []attributeBonus {
 			id:       "dexterity-bonus-accuracy",
 			constant: "accuracy_rating_per_dexterity", label: "Dexterity bonus to accuracy rating",
 			attribute: statDexterity, target: statAccuracyRating, op: core.OpBase,
-			off: statNoDexterityBonusToAccuracyRating,
+			off: statNoDexterityBonusToAccuracyRating, instead: statAccuracyRatingPerDexterityInstead,
 		},
 		{
 			id:       "dexterity-bonus-evasion",
@@ -103,11 +107,28 @@ func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
 		if b.off != "" {
 			mod.Conds = []core.Cond{{Ref: core.SelfRef(sh.stats[b.off]), Cmp: core.CmpEQ}}
 		}
-		if _, err := sh.session.AddModifier(mod); err != nil {
-			return fmt.Errorf("sheet: %s: %w", b.constant, err)
+		mods := []core.Modifier{mod}
+		if b.instead != "" {
+			src := sh.newSource(Source{RuleID: b.id + "-instead", Rule: fmt.Sprintf("%s (%s per 1)", b.label, b.instead)})
+			mods = append(mods, insteadModifier(mod, src, sh.stats[b.instead]))
+			mods[0].Conds = append(slices.Clone(mod.Conds), core.Cond{Ref: core.SelfRef(sh.stats[b.instead]), Cmp: core.CmpEQ})
+		}
+		for _, m := range mods {
+			if _, err := sh.session.AddModifier(m); err != nil {
+				return fmt.Errorf("sheet: %s: %w", b.constant, err)
+			}
 		}
 	}
 	return nil
+}
+
+// insteadModifier is mod from src granting the value of stat instead per point of the
+// attribute, held while instead is not 0.
+func insteadModifier(mod core.Modifier, src core.SourceID, instead core.StatID) core.Modifier {
+	mod.Value, mod.Source = 1, src
+	mod.Scales = []core.Scale{mod.Scales[0], {Ref: core.SelfRef(instead), Step: 1}}
+	mod.Conds = append(slices.Clone(mod.Conds), core.Cond{Ref: core.SelfRef(instead), Cmp: core.CmpNE})
+	return mod
 }
 
 func constant(consts []resolve.Constant, id string) (resolve.Constant, error) {
@@ -133,6 +154,7 @@ func attributeMechanic() mechanic {
 		statNoIntelligenceBonusToMaximumEnergyShield,
 		statNoDexterityBonusToAccuracyRating,
 		statNoStrengthBonusToMeleePhysicalDamage,
+		statAccuracyRatingPerDexterityInstead,
 	}, def: attributeDef}
 }
 

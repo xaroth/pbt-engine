@@ -9,11 +9,14 @@ import (
 // Engine stats of accuracy. accuracy_rating is an attack's accuracy rating; hits_cannot_be_evaded
 // is a flag that makes its hits always land. hit_chance is the chance to hit in percent, and
 // effective_critical_strike_chance the chance that a use of the skill hits and is critical.
+// accuracy_rating_is_higher_than_maximum_life is 1 for an attack whose accuracy rating is
+// higher than the character's maximum life, else 0.
 const (
-	statAccuracyRating                = "accuracy_rating"
-	statHitsCannotBeEvaded            = "hits_cannot_be_evaded"
-	statHitChance                     = "hit_chance"
-	statEffectiveCriticalStrikeChance = "effective_critical_strike_chance"
+	statAccuracyRating                  = "accuracy_rating"
+	statHitsCannotBeEvaded              = "hits_cannot_be_evaded"
+	statHitChance                       = "hit_chance"
+	statEffectiveCriticalStrikeChance   = "effective_critical_strike_chance"
+	statAccuracyIsHigherThanMaximumLife = "accuracy_rating_is_higher_than_maximum_life"
 )
 
 // Chance to hit limits and the formula's constants. They follow PoB (CalcDefence.lua
@@ -30,17 +33,19 @@ const (
 const (
 	formulaHitChance               = "chance to hit"
 	formulaEffectiveCriticalChance = "critical strike chance of a use that hits"
+	formulaAccuracyAboveLife       = "whether accuracy rating is higher than maximum life"
 )
 
 // mechanicAccuracy names the accuracy mechanic for those that come after it.
 const mechanicAccuracy = "accuracy"
 
 func accuracyMechanic() mechanic {
-	return mechanic{name: mechanicAccuracy, after: []string{mechanicDamage, mechanicEnemy}, stats: []string{
+	return mechanic{name: mechanicAccuracy, after: []string{mechanicDamage, mechanicEnemy, mechanicDefences}, stats: []string{
 		statAccuracyRating,
 		statHitsCannotBeEvaded,
 		statHitChance,
 		statEffectiveCriticalStrikeChance,
+		statAccuracyIsHigherThanMaximumLife,
 	}, def: accuracyDef}
 }
 
@@ -68,8 +73,22 @@ func accuracyDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	case statEffectiveCriticalStrikeChance:
 		h := effectiveCriticalChance{chance: mustID(ids, statCriticalStrikeChance), hit: mustID(ids, statHitChance)}
 		def.FormulaName, def.Formula, def.Attribute = formulaEffectiveCriticalChance, h.formula(), h.attribute()
+	case statAccuracyIsHigherThanMaximumLife:
+		def.FormulaName, def.Formula = formulaAccuracyAboveLife, accuracyAboveLife(
+			mustID(ids, statAccuracyRating), mustID(ids, statMaximumLife), attackMask())
 	}
 	return def
+}
+
+// accuracyAboveLife compares an attack's accuracy rating, in its context and so per hand, with
+// the sheet's maximum life, strictly, as PoB does (CalcOffence.lua, AccRatingHigherThanMaxLife).
+func accuracyAboveLife(accuracy, life core.StatID, attack core.Mask) core.Formula {
+	return func(r core.Reader, _ core.Agg) float64 {
+		if r.Mask().Intersects(attack) && r.Stat(accuracy) > r.StatAt(life, core.Mask{}) {
+			return 1
+		}
+		return 0
+	}
 }
 
 // chanceToHit is the chance in percent that a hit with accuracy lands on an enemy with
