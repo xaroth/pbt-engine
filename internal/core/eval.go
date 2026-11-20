@@ -291,7 +291,16 @@ func (s *Session) modValue(mi uint32, n Node, fam uint8, deps *[]uint32) (float6
 	ss := s.scales[s.mScale[mi]:s.mScale[mi+1]]
 	for i := range ss {
 		sc := &ss[i]
-		q := math.Floor(s.read(deps, sc.Ref, fam, n.Actor, n.Ctx) / sc.Step)
+		r := s.read(deps, sc.Ref, fam, n.Actor, n.Ctx)
+		if sc.Ratio {
+			if sc.HasCap {
+				r = fmin(r, sc.Cap*sc.Step)
+			}
+			// Multiplying before dividing keeps whole products of whole values exact.
+			v = roundTo(float64(v*r)/sc.Step, sc.Round, sc.Places)
+			continue
+		}
+		q := math.Floor(r / sc.Step)
 		if sc.HasCap {
 			q = fmin(q, sc.Cap)
 		}

@@ -73,13 +73,23 @@ func (s *Session) checkModifier(m *Modifier) error {
 			return err
 		}
 	}
-	for _, sc := range m.Scales {
-		if err := s.checkRef("scale", sc.Ref); err != nil {
+	for i := range m.Scales {
+		if err := s.checkScale(&m.Scales[i]); err != nil {
 			return err
 		}
-		if !(sc.Step > 0) {
-			return fmt.Errorf("%w: scale step %v, want > 0", ErrOutOfRange, sc.Step)
-		}
+	}
+	return nil
+}
+
+func (s *Session) checkScale(sc *Scale) error {
+	if err := s.checkRef("scale", sc.Ref); err != nil {
+		return err
+	}
+	if !(sc.Step > 0) {
+		return fmt.Errorf("%w: scale step %v, want > 0", ErrOutOfRange, sc.Step)
+	}
+	if sc.Round > RoundTrunc || sc.Places < 0 || sc.Places > maxPlaces {
+		return fmt.Errorf("%w: scale rounding %d to %d places", ErrOutOfRange, sc.Round, sc.Places)
 	}
 	return nil
 }
