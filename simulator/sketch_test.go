@@ -56,10 +56,6 @@ func needBuildNew() need {
 	return need{what: "build.New", waitsOn: []string{"build.New", "poe1.Witch", "poe1.Elementalist"}}
 }
 
-func needCharges() need {
-	return need{what: "charge config keys", waitsOn: []string{"poe1.PowerCharges"}}
-}
-
 // needTypedClear: Clear takes a key name today, not a typed key.
 func needTypedClear() need {
 	return need{what: "typed Clear", probe: func() bool {
@@ -125,7 +121,7 @@ func sketchEdit() []sketchPart {
 	return []sketchPart{
 		{name: "clone and apply edits", run: sketchApply},
 		{name: "equip an item from its text", run: sketchEquip},
-		{name: "set charges in the build's config", code: `err = config.Set(&next.Config, poe1.PowerCharges, 3)`, needs: []need{needCharges()}},
+		{name: "set charges in the build's config", run: sketchCharges},
 		{name: "look gems up by name", run: sketchGems},
 		{name: "edit the main skill group", run: sketchGroup},
 		{name: "an edit of a missing group keeps ErrEditTarget", run: sketchEditTarget},
@@ -402,6 +398,12 @@ func sketchEquip(t *testing.T, s *sketchState) {
 	}
 	if got := s.next.Items[build.SlotHelmet]; got.Base == "" || len(got.Mods) != 5 {
 		t.Errorf("equipped %+v", got)
+	}
+}
+
+func sketchCharges(t *testing.T, s *sketchState) {
+	if err := config.Set(&s.next.Config, poe1.PowerCharges, true); err != nil {
+		t.Fatal(err)
 	}
 }
 

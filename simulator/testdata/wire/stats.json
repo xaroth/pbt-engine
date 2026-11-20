@@ -457,6 +457,21 @@
       "source": "default"
     },
     {
+      "key": "power-charges",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "frenzy-charges",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "endurance-charges",
+      "value": false,
+      "source": "default"
+    },
+    {
       "key": "enemy-shock-effect",
       "value": 0,
       "source": "default"

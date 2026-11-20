@@ -245,7 +245,7 @@ func TestConfigKeys(t *testing.T) {
 	for _, name := range []string{
 		"enemy-shocked", "enemy-chilled", "enemy-frozen", "enemy-ignited", "enemy-bleeding", "enemy-moving", "enemy-maimed",
 		"enemy-unnerved", "enemy-intimidated", "enemy-taunted", "enemy-on-consecrated-ground", "full-life",
-		"full-energy-shield", "leeching", "focused", "fortified",
+		"full-energy-shield", "leeching", "focused", "fortified", "power-charges", "frenzy-charges", "endurance-charges",
 	} {
 		derived := name == "enemy-shocked" || name == "enemy-chilled" || name == "enemy-ignited"
 		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false"), Derived: derived})

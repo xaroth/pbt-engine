@@ -135,7 +135,7 @@ func TestToXMLWarnings(t *testing.T) {
 	b := chieftain(t)
 	b.Version = "3.28"
 	b.Config = values(t, poe1.BanditsNotCompleted, "")
-	b.Config["power-charges"] = json.RawMessage("3")
+	b.Config["rage"] = json.RawMessage("3")
 	b.Skills.Groups[0].Gems[1].ID = "Metadata/Items/Gems/SkillGemFlameDash"
 	b.Items = build.Items{build.SlotRing1: {Rarity: build.Rare, Base: "Ruby Ring"}, build.SlotBelt: {Rarity: build.Normal, Base: "Heavy Belt"}}
 	b.Jewels = build.Jewels{26725: {Rarity: build.Rare, Base: "Crimson Jewel"}}
@@ -147,7 +147,7 @@ func TestToXMLWarnings(t *testing.T) {
 	want := []build.Warning{
 		{Code: pob.VersionFallback, Subject: "3.28", Message: "no dataset of this version; names written with 3.29.3.5"},
 		{Code: pob.OverrideNotExported, Subject: "node 2", Nodes: []uint32{2}, Message: `override "Unnamed1" has no English name; not exported`},
-		{Code: pob.ConfigNotExported, Subject: "power-charges", Message: "config value not exported"},
+		{Code: pob.ConfigNotExported, Subject: "rage", Message: "config value not exported"},
 		{Code: pob.ConfigNotExported, Subject: "bandits", Message: "PoB has no choice for the bandit quest not completed; its default, kill all, applies"},
 		{Code: pob.GemUnknown, Subject: "Metadata/Items/Gems/SkillGemFlameDash", Message: "gem not in dataset; written by id only"},
 		{Code: pob.ItemNotExported, Subject: "belt", Message: "items are not exported"},
