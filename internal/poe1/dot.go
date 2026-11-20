@@ -140,7 +140,7 @@ func dotDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	case statAreaDamageModifiersApplyToSkillDot, statSpellDamageModifiersApplyToSkillDot, statProjectileDamageModifiersApplyToSkillDot:
 		def.Flag = true
 	case statDamageOverTimeEnemyResistance:
-		h := newMetResistance(ids, false)
+		h := newMetResistance(ids, overTime)
 		def.FormulaName, def.Formula, def.Attribute = formulaDotEnemyResistance, h.formula(), h.attribute()
 	case statDamageOverTime:
 		d := damageOverTime{

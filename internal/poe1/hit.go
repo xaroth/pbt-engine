@@ -254,7 +254,7 @@ func (h effectiveHit) formula() core.Formula {
 		f := h.effects.read(r.Stat).multiplier()
 		raw := (r.Stat(h.minimum) + r.Stat(h.maximum)) * half * f
 		physical := r.Mask().Intersects(h.enemy.physical)
-		return r.Stat(h.hit) * f * h.enemy.multiplier(physical, raw, r.Stat) * r.Stat(h.enemy.taken) / percentScale
+		return r.Stat(h.hit) * f * h.enemy.multiplier(physical, false, raw, r.Stat) * r.Stat(h.enemy.taken) / percentScale
 	}
 }
 
@@ -271,42 +271,47 @@ func (h effectiveHit) attribute() core.Attribute {
 		}
 		physical := a.Mask().Intersects(h.enemy.physical)
 		raw := (a.Stat(h.minimum) + a.Stat(h.maximum)) * half * f
-		if d := hit*h.enemy.multiplier(physical, raw, a.Stat) - hit; d != 0 {
-			parts = append(parts, a.Spread(core.SelfRef(h.enemy.reducer(physical)), d, core.OpMore)...)
+		if d := hit*h.enemy.multiplier(physical, false, raw, a.Stat) - hit; d != 0 {
+			parts = append(parts, a.Spread(core.SelfRef(h.enemy.reducer(physical, false)), d, core.OpMore)...)
 		}
 		total := a.Explanation().Total
 		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.enemy.taken)), Amount: total}
 	}
 }
 
-// enemyReduction is the enemy's stats that reduce hits.
+// enemyReduction is the enemy's stats that reduce hits: the resistance a non-critical and a
+// critical hit meet, armour and damage taken.
 type enemyReduction struct {
-	resistance, armour, taken core.StatID
+	resistance, critical, armour, taken core.StatID
 	// physical is the physical damage bit, which armour reduces instead of a resistance.
 	physical core.Mask
 }
 
 func newEnemyReduction(ids map[string]core.StatID) enemyReduction {
 	return enemyReduction{
-		resistance: mustID(ids, statHitEnemyResistance), armour: mustID(ids, statEnemyArmour),
+		resistance: mustID(ids, statHitEnemyResistance), critical: mustID(ids, statCriticalHitEnemyResistance), armour: mustID(ids, statEnemyArmour),
 		taken: mustID(ids, statEnemyDamageTaken), physical: damageBit(damageDimension(), Physical),
 	}
 }
 
 // multiplier is what the enemy's armour, for physical damage against a hit of size raw, or
-// else the resistance the hit meets, leaves of a hit, with stat reading a stat in the hit
-// type's context.
-func (e enemyReduction) multiplier(physical bool, raw float64, stat func(core.StatID) float64) float64 {
+// else the resistance the hit meets, leaves of a hit, critical when critical is set, with stat
+// reading a stat in the hit type's context.
+func (e enemyReduction) multiplier(physical, critical bool, raw float64, stat func(core.StatID) float64) float64 {
 	if physical {
 		return armourMultiplier(stat(e.armour), raw)
 	}
-	return resistanceMultiplier(stat(e.resistance))
+	return resistanceMultiplier(stat(e.reducer(physical, critical)))
 }
 
-// reducer is the stat that reduces a hit: armour for physical damage, else the resistance.
-func (e enemyReduction) reducer(physical bool) core.StatID {
-	if physical {
+// reducer is the stat that reduces a hit, critical when critical is set: armour for physical
+// damage, else the resistance it meets.
+func (e enemyReduction) reducer(physical, critical bool) core.StatID {
+	switch {
+	case physical:
 		return e.armour
+	case critical:
+		return e.critical
 	}
 	return e.resistance
 }
@@ -345,9 +350,10 @@ func newAverageHit(ids map[string]core.StatID) averageHit {
 // typeHit is one damage type's part of the average hit: the average of its minimum and
 // maximum, that scaled by the hit effects, what is left of it after the enemy's armour or
 // resistance and what the enemy takes of it without a critical strike, and its part of the
-// average hit.
+// average hit. critResisted is what the critical part of the average hit differs by for the
+// resistance a critical strike meets being other than a non-critical hit's.
 type typeHit struct {
-	unscaled, raw, resisted, normal, total float64
+	unscaled, raw, resisted, normal, total, critResisted float64
 }
 
 // of returns damage type d's part with the hit effects multiplying it by f, with read reading a
@@ -359,10 +365,17 @@ func (h averageHit) of(d DamageType, f, crit, critMultiplier float64, read func(
 	}
 	raw := unscaled * f
 	taken := read(h.enemy.taken) / percentScale
-	resist := func(v float64) float64 { return v * h.enemy.multiplier(d == Physical, v, read) }
-	resisted := resist(raw)
+	resist := func(v float64, critical bool) float64 {
+		return v * h.enemy.multiplier(d == Physical, critical, v, read)
+	}
+	resisted := resist(raw, false)
 	normal := resisted * taken
-	return typeHit{unscaled: unscaled, raw: raw, resisted: resisted, normal: normal, total: normal*(1-crit) + resist(raw*critMultiplier)*taken*crit}
+	critRaw := raw * critMultiplier
+	critical := resist(critRaw, true) * taken * crit
+	return typeHit{
+		unscaled: unscaled, raw: raw, resisted: resisted, normal: normal, total: normal*(1-crit) + critical,
+		critResisted: critical - resist(critRaw, false)*taken*crit,
+	}
 }
 
 func (h averageHit) formula() core.Formula {
@@ -410,13 +423,28 @@ func (h averageHit) attribute() core.Attribute {
 			if t.normal != t.resisted {
 				parts = append(parts, a.Spread(a.RefWith(h.enemy.taken, bit), t.normal-t.resisted, core.OpMore)...)
 			}
-			if c := t.total - t.normal; c != 0 {
+			if t.critResisted != 0 {
+				parts = append(parts, h.creditCritical(a, bit, t.critResisted)...)
+			}
+			if c := t.total - t.normal - t.critResisted; c != 0 {
 				parts = append(parts, a.Spread(core.SelfRef(h.chance), c*half, core.OpMore)...)
 				parts = append(parts, a.Spread(core.SelfRef(h.multiplier), c*half, core.OpMore)...)
 			}
 		}
 		return core.Attribution{Parts: parts, Amount: a.Explanation().Total}
 	}
+}
+
+// creditCritical credits what the critical part of the average hit differs by, amount, for the
+// resistance a critical strike meets being other than a non-critical hit's, in damage context
+// bit: the hit is linear in the resistance, so each source's share is its part of the critical
+// resistance less its part of the non-critical one.
+func (h averageHit) creditCritical(a *core.Attributor, bit core.Mask, amount float64) []core.Part {
+	critRef, nonRef := a.RefWith(h.enemy.critical, bit), a.RefWith(h.enemy.resistance, bit)
+	crit, critV := a.Of(critRef)
+	non, nonV := a.Of(nonRef)
+	k := amount / (critV - nonV)
+	return append(scaled(crit, k), scaled(non, -k)...)
 }
 
 // hitRate is a skill's hits per second: an attack's from its attack rate and speed, another
