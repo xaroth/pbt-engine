@@ -163,7 +163,7 @@ type xmlFile struct {
 		MainSkill     string `xml:"mainSkillIndex,attr"`
 	} `xml:"Build"`
 	Tree *struct {
-		Active int       `xml:"activeSpec,attr"`
+		Active string    `xml:"activeSpec,attr"`
 		Specs  []xmlSpec `xml:"Spec"`
 	} `xml:"Tree"`
 	Config struct {
@@ -199,9 +199,9 @@ type xmlFile struct {
 type xmlSpec struct {
 	Title          string `xml:"title,attr"`
 	TreeVersion    string `xml:"treeVersion,attr"`
-	ClassID        int    `xml:"classId,attr"`
-	AscendClassID  int    `xml:"ascendClassId,attr"`
-	Secondary      int    `xml:"secondaryAscendClassId,attr"`
+	ClassID        string `xml:"classId,attr"`
+	AscendClassID  string `xml:"ascendClassId,attr"`
+	Secondary      string `xml:"secondaryAscendClassId,attr"`
 	Nodes          string `xml:"nodes,attr"`
 	MasteryEffects string `xml:"masteryEffects,attr"`
 	Sockets        []struct {
@@ -248,8 +248,11 @@ type xmlSkill struct {
 }
 
 // Parse reads a PoE1 build file. It fails on XML it cannot decode, another root (ErrNotPoB,
-// or ErrPoE2 for a PoE2 build), no <Build> or no active spec (ErrMissing), and node or mastery
-// lists, gem levels and quality, and group indexes that are not numbers (ErrMalformed).
+// or ErrPoE2 for a PoE2 build), no <Build> or no active spec (ErrMissing), and gem levels and
+// quality and group indexes that are not numbers, and node or mastery lists of the active spec
+// that are malformed (ErrMalformed). As PoB reads them with tonumber, a spec's class, ascendancy
+// and bloodline ids and the active spec's index that are not numbers, such as "nil", are unset.
+// A fault in a spec that is not active does not fail the file.
 func Parse(data []byte) (*File, error) {
 	var x xmlFile
 	if err := xml.Unmarshal(data, &x); err != nil {
@@ -263,7 +266,7 @@ func Parse(data []byte) (*File, error) {
 			Level: x.Build.Level, Class: x.Build.Class, Ascendancy: x.Build.Ascendancy, Bandit: x.Build.Bandit,
 			PantheonMajor: x.Build.PantheonMajor, PantheonMinor: x.Build.PantheonMinor,
 		},
-		Active: max(x.Tree.Active, 1) - 1,
+		Active: max(optional(x.Tree.Active), 1) - 1,
 		Config: inputs(x),
 	}
 	var err error
@@ -274,11 +277,12 @@ func Parse(data []byte) (*File, error) {
 		return nil, err
 	}
 	if f.Active >= len(x.Tree.Specs) {
-		return nil, fmt.Errorf("%w: active spec %d of %d", ErrMissing, x.Tree.Active, len(x.Tree.Specs))
+		return nil, fmt.Errorf("%w: active spec %s of %d", ErrMissing, x.Tree.Active, len(x.Tree.Specs))
 	}
-	for _, xs := range x.Tree.Specs {
+	for i, xs := range x.Tree.Specs {
 		s, err := spec(xs)
-		if err != nil {
+		// Only the active spec is imported, so a fault in another one is not a fault of the file.
+		if err != nil && i == f.Active {
 			return nil, err
 		}
 		f.Specs = append(f.Specs, s)
@@ -311,7 +315,7 @@ func (x *xmlFile) check() error {
 func spec(x xmlSpec) (Spec, error) {
 	s := Spec{
 		Title: x.Title, TreeVersion: x.TreeVersion,
-		ClassID: x.ClassID, AscendClassID: x.AscendClassID, SecondaryAscendClassID: x.Secondary,
+		ClassID: optional(x.ClassID), AscendClassID: optional(x.AscendClassID), SecondaryAscendClassID: optional(x.Secondary),
 	}
 	var err error
 	if s.Nodes, err = nodes(x.Nodes); err != nil {
