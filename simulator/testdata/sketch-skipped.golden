@@ -1,5 +1,4 @@
 make a build from scratch: build.New
-set charges in the build's config: charge config keys
 hand a condition back: typed Clear
 read the change of damage per second: skill simulation
 sweep variants ranked by damage per second: skill simulation
