@@ -1,4 +1,4 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 330 authored, 103 unknown, 1 display-only, 0 gaps, 1475 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 333 authored, 103 unknown, 1 display-only, 0 gaps, 1472 outside
 unknown by reason: condition 68, items 18, event 7, reservation 4, context 3, scale 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -48,6 +48,7 @@ unknown movement_speed_+%_while_dual_wielding global, uses 3: items: depends on 
 unknown shield_maximum_energy_shield_+% global, uses 3: items: depends on equipped items, which an entry cannot check yet
 unvalidated taunted_enemies_damage_taken_+% global, uses 3: the config says whether the enemy is Taunted, not by whom; read as by the character, as PoB does
 unknown X_armour_if_you_have_blocked_recently global, uses 2: condition: blocked recently
+unvalidated action_speed_-% buff, uses 2: the passive aura descriptions give the stat no text (the passive names the buff, as Tailwind); read as its global text, "{0}% increased Action Speed" for a negative value. That action speed multiplies the rate of attacks and casts follows PoB (CalcOffence.lua)
 unknown armour_+%_if_you_havent_been_hit_recently global, uses 2: condition: not hit recently
 unknown armour_+%_while_stationary global, uses 2: condition: stationary
 unknown armour_and_energy_shield_+%_from_body_armour_if_gloves_helmet_boots_have_armour_and_energy_shield global, uses 2: items: depends on equipped items, which an entry cannot check yet
