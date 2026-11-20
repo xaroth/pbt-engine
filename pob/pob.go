@@ -249,8 +249,8 @@ func (im *importer) masteries() map[uint32]uint32 {
 	return out
 }
 
-// config is the bandit choice, the campaign stage, the enemy and the conditions; other inputs
-// give warnings.
+// config is the bandit choice, the campaign stage, the enemy, the conditions and the Resonance
+// count; other inputs give warnings.
 func (im *importer) config() (config.Values, error) {
 	var v config.Values
 	if bandit, ok := banditOf(im.file.Build.Bandit); ok {
@@ -286,13 +286,16 @@ func (im *importer) config() (config.Values, error) {
 	return v, nil
 }
 
-// heldInput imports PoB's input name with value into v when it is an enemy or condition input
-// the config holds. It reports whether it is one, and whether its value was read.
+// heldInput imports PoB's input name with value into v when it is an enemy, condition or
+// Resonance input the config holds. It reports whether it is one, and whether its value was read.
 func heldInput(v *config.Values, name, value string) (known, imported bool) {
 	if known, imported = enemyInput(v, name, value); known {
 		return known, imported
 	}
-	return conditionOf(v, name, value)
+	if known, imported = conditionOf(v, name, value); known {
+		return known, imported
+	}
+	return resonanceOf(v, name, value)
 }
 
 // mirrorsBuild reports a config input that repeats a <Build> attribute, read from there.

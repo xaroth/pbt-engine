@@ -9,8 +9,8 @@ import (
 )
 
 // config writes the bandit choice into f's <Build> and its config set, the campaign stage as
-// the resistance penalty, and the enemy and condition keys as PoB's inputs. Without a bandit choice
-// PoB's default, kill all, applies.
+// the resistance penalty, and the enemy, condition and Resonance keys as PoB's inputs. Without
+// a bandit choice PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
 	enemy, enemyKeys, unwritable, err := enemyInputs(v)
@@ -21,7 +21,12 @@ func (ex *exporter) config(f *outFile) error {
 	if err != nil {
 		return err
 	}
+	resonance, resonanceKey, err := resonanceOutputs(v)
+	if err != nil {
+		return err
+	}
 	maps.Copy(enemyKeys, conditionKeys)
+	enemyKeys[resonanceKey] = true
 	ex.warnConfigLeftOut(v, enemyKeys)
 	for _, name := range unwritable {
 		ex.warnf(ConfigNotExported, name, "PoB reads 0 in this input as empty and uses its boss preset; not exported")
@@ -48,6 +53,7 @@ func (ex *exporter) config(f *outFile) error {
 	}
 	inputs = append(inputs, enemy...)
 	inputs = append(inputs, conditions...)
+	inputs = append(inputs, resonance...)
 	if len(inputs) > 0 {
 		f.Config = &outConfig{Active: "1", Sets: []outConfigSet{{ID: "1", Inputs: inputs}}}
 	}

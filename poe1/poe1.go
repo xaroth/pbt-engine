@@ -124,6 +124,7 @@ const (
 	Leeching                 = rules.Leeching
 	Focused                  = rules.Focused
 	Fortified                = rules.Fortified
+	LowestResonance          = rules.LowestResonance
 )
 
 // CampaignStage is how far the character is through the story campaign: the value of
@@ -171,3 +172,6 @@ type Rating = rules.Rating
 
 // ShockEffect is the effect of a Shock in percent, from 0: the value of EnemyShockEffect.
 type ShockEffect = rules.ShockEffect
+
+// Resonance is a count of Resonance, from 0: the value of LowestResonance.
+type Resonance = rules.Resonance
