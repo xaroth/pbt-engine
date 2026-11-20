@@ -312,7 +312,10 @@
     {
       "code": "node-unknown",
       "subject": "node 99",
-      "message": "not in the standard tree of 3.29.3.3; dropped"
+      "message": "not in the standard tree of 3.29.3.3; dropped",
+      "nodes": [
+        99
+      ]
     },
     {
       "code": "version-mismatch",
