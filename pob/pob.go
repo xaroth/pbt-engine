@@ -156,6 +156,11 @@ func (im *importer) warnf(code build.Code, subject, format string, args ...any) 
 	im.warnings = append(im.warnings, build.Warning{Code: code, Subject: subject, Message: fmt.Sprintf(format, args...)})
 }
 
+// warnNodef warns about node n.
+func (im *importer) warnNodef(code build.Code, n uint32, format string, args ...any) {
+	im.warnings = append(im.warnings, nodeWarning(code, n, format, args...))
+}
+
 func versionOf(tree string) (version, variant string, err error) {
 	m := treeVersion.FindStringSubmatch(tree)
 	if m == nil {
@@ -360,9 +365,9 @@ func (im *importer) overrides(text *dataset.Text, version string) map[uint32]str
 			}
 			out[o.Node] = named[0]
 		case 0:
-			im.warnf(OverrideIgnored, nodeSubject(o.Node), "no override named %q in dataset %s; not imported", o.Name, version)
+			im.warnNodef(OverrideIgnored, o.Node, "no override named %q in dataset %s; not imported", o.Name, version)
 		default:
-			im.warnf(OverrideIgnored, nodeSubject(o.Node), "%d overrides are named %q; not imported", len(named), o.Name)
+			im.warnNodef(OverrideIgnored, o.Node, "%d overrides are named %q; not imported", len(named), o.Name)
 		}
 	}
 	return out
@@ -372,4 +377,9 @@ func specName(s pobxml.Spec, i int) string {
 	return cmp.Or(s.Title, "tree "+strconv.Itoa(i+1))
 }
 
-func nodeSubject(n uint32) string { return "node " + strconv.FormatUint(uint64(n), 10) }
+// nodeWarning returns a warning about node n.
+func nodeWarning(code build.Code, n uint32, format string, args ...any) build.Warning {
+	return build.Warning{
+		Code: code, Subject: "node " + strconv.FormatUint(uint64(n), 10), Message: fmt.Sprintf(format, args...), Nodes: []uint32{n},
+	}
+}

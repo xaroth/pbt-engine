@@ -33,7 +33,7 @@ func TestCheckAcrossLeagues(t *testing.T) {
 		Overrides: map[uint32]string{mastery: "runegraft_26"},
 	}
 	bloodline := build.Warning{Code: build.BloodlineUnknown, Subject: "bloodline Abyssal"}
-	node := build.Warning{Code: build.NodeUnknown, Subject: "node 12128"}
+	node := build.Warning{Code: build.NodeUnknown, Subject: "node 12128", Nodes: []uint32{12128}}
 	testCases := []struct {
 		version string
 		want    []build.Warning
@@ -41,9 +41,9 @@ func TestCheckAcrossLeagues(t *testing.T) {
 		{realdata.Oldest, []build.Warning{
 			bloodline,
 			node,
-			{Code: build.OverrideUnknown, Subject: "node 4492"},
+			{Code: build.OverrideUnknown, Subject: "node 4492", Nodes: []uint32{4492}},
 			// The mastery stays allocated without the runegraft that stood for its effect.
-			{Code: build.MasteryNotChosen, Subject: "node 4492"},
+			{Code: build.MasteryNotChosen, Subject: "node 4492", Nodes: []uint32{4492}},
 		}},
 		{realdata.Previous, []build.Warning{bloodline, node}},
 		{realdata.Current, nil},

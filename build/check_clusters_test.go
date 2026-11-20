@@ -174,8 +174,8 @@ func TestCheckClusterNodes(t *testing.T) {
 		}
 		_, ws := check(t, misfit, s, build.JewelTooLarge, build.JewelKindMismatch)
 		want := []build.Warning{
-			{Code: build.JewelTooLarge, Subject: "jewel 10532", Message: "a large cluster jewel does not fit a medium socket; left out"},
-			{Code: build.JewelKindMismatch, Subject: "jewel 26725", Message: "a cluster jewel does not fit a socket that takes none; left out"},
+			{Code: build.JewelTooLarge, Subject: "jewel 10532", Nodes: []uint32{10532}, Message: "a large cluster jewel does not fit a medium socket; left out"},
+			{Code: build.JewelKindMismatch, Subject: "jewel 26725", Nodes: []uint32{26725}, Message: "a cluster jewel does not fit a socket that takes none; left out"},
 		}
 		if diff := cmp.Diff(want, ws); diff != "" {
 			t.Errorf("warnings (-want +got):\n%s", diff)

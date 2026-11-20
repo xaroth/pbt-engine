@@ -546,7 +546,7 @@ func configWarning(p config.Problem) Warning {
 func noteWarnings(notes []poe1.Note) []Warning {
 	out := make([]Warning, 0, len(notes))
 	for _, n := range notes {
-		w := Warning{Subject: n.Stat + " from " + n.Source.String(), Stat: n.Stat}
+		w := Warning{Subject: n.Stat + " from " + n.Source.String(), Stat: n.Stat, Nodes: resolve.SourceNodes(n.Source)}
 		if item, ok := n.Source.(resolve.ItemSource); ok {
 			w.Slot = item.Slot
 		}

@@ -69,7 +69,9 @@ func (c *Checked) findJewelPassives() {
 	for _, ls := range [][2][]jewelNotable{{flames, fleshes}, {fleshes, flames}} {
 		for _, l := range ls[0] {
 			if matched(l, ls[1]) < 0 {
-				c.warnAboutf(Warning{Subject: jewelSubject(l.socket), Stat: l.stat}, JewelNotableUnmatched,
+				about := jewelAbout(l.socket)
+				about.Stat = l.stat
+				c.warnAboutf(about, JewelNotableUnmatched,
 					"line %q has no matching line on a jewel in an allocated socket; nothing allocated", l.text)
 			}
 		}
@@ -90,7 +92,9 @@ func (c *Checked) jewelNotables() (flames, fleshes []jewelNotable) {
 				switch {
 				case sv.Stat != flameNotableStat && sv.Stat != fleshNotableStat:
 				case !c.classAscendancyPassive(l.node):
-					c.warnAboutf(Warning{Subject: jewelSubject(id), Stat: sv.Stat}, JewelNotableUnknown,
+					about := jewelAbout(id)
+					about.Stat = sv.Stat
+					c.warnAboutf(about, JewelNotableUnknown,
 						"line %q allocates node %d, no ascendancy passive of %s; left out", m.Text, l.node, c.build.Class)
 				case sv.Stat == flameNotableStat:
 					flames = append(flames, l)

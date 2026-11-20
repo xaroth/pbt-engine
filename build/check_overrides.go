@@ -44,18 +44,17 @@ func (c *Checked) overridden(id uint32) bool {
 
 // overrideProblem returns the warning for putting the override id on node when it does not fit.
 func (c *Checked) overrideProblem(node uint32, id string, allocated bool) (Warning, bool) {
-	subject := fmt.Sprintf("node %d", node)
+	about := nodeAbout(node)
 	o, ok := c.tree.Override(id)
 	if !ok {
-		msg := fmt.Sprintf("override %q is not in the %s tree of %s; dropped", id, c.build.Variant, c.store.Manifest().Version)
-		return Warning{Code: OverrideUnknown, Subject: subject, Message: msg}, true
+		return about.saying(OverrideUnknown, "override %q is not in the %s tree of %s; dropped", id, c.build.Variant, c.store.Manifest().Version), true
 	}
 	n := c.node(node)
 	if n == nil || !allocated {
-		return Warning{Code: OverrideNotAllocated, Subject: subject, Message: fmt.Sprintf("override %s on a node that is not allocated; dropped", id)}, true
+		return about.saying(OverrideNotAllocated, "override %s on a node that is not allocated; dropped", id), true
 	}
 	if why := c.cannotReplace(o, n); why != "" {
-		return Warning{Code: OverrideNotPlaceable, Subject: subject, Message: fmt.Sprintf("override %s %s; dropped", id, why)}, true
+		return about.saying(OverrideNotPlaceable, "override %s %s; dropped", id, why), true
 	}
 	return Warning{}, false
 }

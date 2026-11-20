@@ -87,7 +87,12 @@
         "subject": { "type": "string", "description": "What it is about, such as \"node 12345\"; for reading, not matching." },
         "message": { "type": "string" },
         "slot": { "$ref": "#/$defs/Slot", "description": "The slot of the equipped item it is about; absent for others." },
-        "stat": { "type": "string", "description": "The game stat id it is about; absent for others." }
+        "stat": { "type": "string", "description": "The game stat id it is about; absent for others." },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "The ids of the passive nodes or jewel sockets it is about, in the order subject names them; absent for others."
+        }
       }
     },
     "Stats": {

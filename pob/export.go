@@ -90,7 +90,7 @@ func (ex *exporter) itemsLeftOut() {
 		ex.warnf(ItemNotExported, string(s), "items are not exported")
 	}
 	for _, node := range slices.Sorted(maps.Keys(ex.b.Jewels)) {
-		ex.warnf(ItemNotExported, nodeSubject(node), "jewels are not exported")
+		ex.warnNodef(ItemNotExported, node, "jewels are not exported")
 	}
 }
 
@@ -112,6 +112,11 @@ type exporter struct {
 
 func (ex *exporter) warnf(code build.Code, subject, format string, args ...any) {
 	ex.warnings = append(ex.warnings, build.Warning{Code: code, Subject: subject, Message: fmt.Sprintf(format, args...)})
+}
+
+// warnNodef warns about node n.
+func (ex *exporter) warnNodef(code build.Code, n uint32, format string, args ...any) {
+	ex.warnings = append(ex.warnings, nodeWarning(code, n, format, args...))
 }
 
 // treeVersion is PoB's name of b's tree: 3_29, 3_29_ruthless, 3_29_alternate.
@@ -188,7 +193,7 @@ func (ex *exporter) overrides(text *dataset.Text) []outOverride {
 		id := ex.b.Overrides[node]
 		i := slices.IndexFunc(text.OverrideNames, func(n dataset.Name) bool { return n.ID == id })
 		if i < 0 {
-			ex.warnf(OverrideNotExported, nodeSubject(node), "override %q has no English name; not exported", id)
+			ex.warnNodef(OverrideNotExported, node, "override %q has no English name; not exported", id)
 			continue
 		}
 		out = append(out, outOverride{Node: node, Name: text.OverrideNames[i].Name})

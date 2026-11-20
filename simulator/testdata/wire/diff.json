@@ -255,7 +255,10 @@
       {
         "code": "mastery-not-chosen",
         "subject": "node 6",
-        "message": "allocated mastery with no effect chosen; it counts towards its group only"
+        "message": "allocated mastery with no effect chosen; it counts towards its group only",
+        "nodes": [
+          6
+        ]
       }
     ],
     "skill": null,

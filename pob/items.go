@@ -142,7 +142,7 @@ func (im *importer) setAbyssJewel(out build.Items, j abyssJewel) {
 // socket reads it into out at the socket node, or warns.
 func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read func(pobxml.Item) (build.Item, error)) error {
 	if node > maxTreeNode {
-		im.warnf(JewelIgnored, nodeSubject(node), "jewel %q is in a cluster jewel's socket; not imported", it.Name)
+		im.warnNodef(JewelIgnored, node, "jewel %q is in a cluster jewel's socket; not imported", it.Name)
 		return nil
 	}
 	item, err := read(it)
@@ -153,7 +153,7 @@ func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read 
 		}
 		(*out)[node] = item
 	case ignorable(err):
-		im.warnf(JewelIgnored, nodeSubject(node), "jewel %q not read: %v; not imported", it.Name, err)
+		im.warnNodef(JewelIgnored, node, "jewel %q not read: %v; not imported", it.Name, err)
 	default:
 		return fmt.Errorf("pob: %w", err)
 	}
