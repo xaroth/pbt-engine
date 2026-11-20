@@ -25,7 +25,6 @@ type pending struct {
 func capabilities() []string {
 	return []string{
 		"skills on a build",
-		"charges in config",
 		"minions",
 		"totems",
 		"a party",

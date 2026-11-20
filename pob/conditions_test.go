@@ -19,13 +19,15 @@ func TestFromXMLConditions(t *testing.T) {
 	<Input name="conditionShockEffect" number="25"/>
 	<Input name="conditionEnemyColdExposure" boolean="true"/>
 	<Input name="conditionFullLife" boolean="true"/>
+	<Input name="useFrenzyCharges" boolean="true"/>
 	<Input name="buffFortification" boolean="false"/>
 	<Input name="conditionEnemyChilled" boolean="maybe"/>
 	<Input name="conditionBeenHitRecently" boolean="true"/>
 </ConfigSet>`)
 	want := values(t, poe1.BanditsKillAll, "")
 	for name, v := range map[string]string{
-		"enemy-shocked": "true", "enemy-shock-effect": "25", "enemy-cold-exposure": "true", "full-life": "true", "fortified": "false",
+		"enemy-shocked": "true", "enemy-shock-effect": "25", "enemy-cold-exposure": "true", "full-life": "true", "frenzy-charges": "true",
+		"fortified": "false",
 	} {
 		want[name] = json.RawMessage(v)
 	}
