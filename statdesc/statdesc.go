@@ -49,19 +49,19 @@ type Limit struct {
 }
 
 // Handler transforms the value of stat Stat (an index into Description.Stats) before display.
+// Args are further stats it reads, such as a name that depends on more than one stat.
 type Handler struct {
 	Name string
 	Stat int
+	Args []int
 }
 
 // Set holds scopes by name.
 type Set struct {
 	scopes   map[string]*scope
 	handlers map[string]handler
-	// names maps a handler that shows a name in place of the value to the name of each value,
-	// and values to the value of each name.
-	names  map[string]map[int32]string
-	values map[string]map[string]int32
+	// namers name the values of a handler that shows a name in place of the value.
+	namers map[string]Namer
 }
 
 // Option configures a Set.
@@ -72,7 +72,41 @@ type Option func(*Set)
 // passive_hash handler, for one, names a passive by its node id. A value without a name shows
 // as the number.
 func WithNames(handler string, names map[int32]string) Option {
-	return func(s *Set) { s.names[handler] = names }
+	return WithNamer(handler, mapNamer{names: names, values: byName(names)})
+}
+
+// Namer names the values of a handler's stats: the stat it shows, then its Args.
+type Namer interface {
+	// Name returns the name of values, or false when they have none.
+	Name(values []int32) (string, bool)
+	// Values returns the values that show name, one per stat, or false when no values do.
+	Values(name string) ([]int32, bool)
+}
+
+// WithNamer makes handler show the name n gives the values of its stats in place of the value,
+// and Read take each name back to the values n gives it. Values without a name show as the
+// number.
+func WithNamer(handler string, n Namer) Option {
+	return func(s *Set) { s.namers[handler] = n }
+}
+
+// mapNamer names the values of a handler with no Args.
+type mapNamer struct {
+	names  map[int32]string
+	values map[string]int32
+}
+
+func (m mapNamer) Name(values []int32) (string, bool) {
+	if len(values) != 1 {
+		return "", false
+	}
+	n, ok := m.names[values[0]]
+	return n, ok
+}
+
+func (m mapNamer) Values(name string) ([]int32, bool) {
+	v, ok := m.values[name]
+	return []int32{v}, ok
 }
 
 type scope struct {
@@ -86,12 +120,9 @@ type scope struct {
 
 // NewSet indexes scopes. Every parent must be in scopes.
 func NewSet(scopes []Scope, opts ...Option) (*Set, error) {
-	s := &Set{scopes: make(map[string]*scope, len(scopes)), handlers: handlers(), names: map[string]map[int32]string{}, values: map[string]map[string]int32{}}
+	s := &Set{scopes: make(map[string]*scope, len(scopes)), handlers: handlers(), namers: map[string]Namer{}}
 	for _, o := range opts {
 		o(s)
-	}
-	for h, names := range s.names {
-		s.values[h] = byName(names)
 	}
 	for _, sc := range scopes {
 		if _, dup := s.scopes[sc.Name]; dup {
@@ -146,8 +177,10 @@ func checkDescription(d Description) error {
 			return fmt.Errorf("%d limits for %d stats: %w", len(v.Limits), len(d.Stats), ErrInvalid)
 		}
 		for _, h := range v.Handlers {
-			if h.Stat < 0 || h.Stat >= len(d.Stats) {
-				return fmt.Errorf("handler %s stat %d out of range: %w", h.Name, h.Stat, ErrInvalid)
+			for _, st := range append([]int{h.Stat}, h.Args...) {
+				if st < 0 || st >= len(d.Stats) {
+					return fmt.Errorf("handler %s stat %d out of range: %w", h.Name, st, ErrInvalid)
+				}
 			}
 		}
 	}
@@ -213,8 +246,18 @@ func (s *Set) Describe(scopeName string, stats map[string]int32) ([]Line, error)
 
 // named reports whether handler shows a name.
 func (s *Set) named(handler string) bool {
-	_, ok := s.names[handler]
+	_, ok := s.namers[handler]
 	return ok
+}
+
+// handlerValues returns the values of h's stats: the stat it shows, then its Args.
+func handlerValues(h Handler, vals []int32) []int32 {
+	out := make([]int32, 0, 1+len(h.Args))
+	out = append(out, vals[h.Stat])
+	for _, a := range h.Args {
+		out = append(out, vals[a])
+	}
+	return out
 }
 
 func (s *Set) render(d Description, stats map[string]int32) (string, bool, error) {
@@ -231,8 +274,8 @@ func (s *Set) render(d Description, stats map[string]int32) (string, bool, error
 		nums[i] = number{v: float64(x)}
 	}
 	for _, h := range v.Handlers {
-		if names, ok := s.names[h.Name]; ok {
-			nums[h.Stat].name = names[vals[h.Stat]]
+		if n, ok := s.namers[h.Name]; ok {
+			nums[h.Stat].name, _ = n.Name(handlerValues(h, vals))
 			continue
 		}
 		f, ok := s.handlers[h.Name]
