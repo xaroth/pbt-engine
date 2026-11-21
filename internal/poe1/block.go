@@ -1,9 +1,11 @@
 package poe1
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 // Engine stats of block. shield_block_chance is the held shield's own chance to block,
@@ -71,6 +73,21 @@ func blockMechanic() mechanic {
 	}, def: blockDef}
 }
 
+// addShieldBlock adds the held shield's own chance to block to the chance to block attack
+// damage, as a rule's source, so what replaces the shield's value (shield_block_chance's
+// overrides) replaces it there too.
+func (sh *Sheet) addShieldBlock() error {
+	src := sh.newSource(Source{RuleID: "shield-block", Rule: "chance to block of the held shield"})
+	mod := core.Modifier{
+		Stat: sh.stats[statAttackBlockChance], Op: core.OpBase, Value: 1, Source: src,
+		Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[statShieldBlockChance]), Step: 1}},
+	}
+	if _, err := sh.session.AddModifier(mod); err != nil {
+		return fmt.Errorf("sheet: shield block: %w", err)
+	}
+	return nil
+}
+
 // Stats of a shield's own chance to block. statShieldBlock carries it to the character.
 const (
 	statShieldBlock      = "base_block_chance_%_from_shield"
@@ -79,17 +96,26 @@ const (
 	statLocalBlockRemove = "local_no_block_chance"
 )
 
-// isLocalBlock reports whether stat changes a shield's own chance to block.
-func isLocalBlock(stat string) bool {
-	return stat == statLocalBlockFlat || stat == statLocalBlockInc || stat == statLocalBlockRemove
+// localBlockStats are the stats that change a shield's own chance to block.
+func localBlockStats() map[string]bool {
+	return map[string]bool{statLocalBlockFlat: true, statLocalBlockInc: true, statLocalBlockRemove: true}
+}
+
+// shieldBlockStats returns a shield's own chance to block (shieldBlock) as statShieldBlock, none
+// when it is 0.
+func shieldBlockStats(base int32, sums map[string]float64) []resolve.StatValue {
+	if b := shieldBlock(base, sums); b != 0 {
+		return []resolve.StatValue{{Stat: statShieldBlock, Value: b}}
+	}
+	return nil
 }
 
 // shieldBlock returns a shield's chance to block from its base's and its local stat sums: the
-// base's increased, then the flat added, rounded down, as PoB has it (Item.lua,
-// BuildModListForSlotNum).
+// base's plus the flat, increased, rounded down, as PoB has it (Item.lua,
+// BuildModListForSlotNum; PoB 2.65 added the flat after the increases).
 func shieldBlock(base int32, sums map[string]float64) float64 {
 	if sums[statLocalBlockRemove] != 0 {
 		return 0
 	}
-	return math.Floor(float64(base)*(1+sums[statLocalBlockInc]/percentScale) + sums[statLocalBlockFlat])
+	return math.Floor((float64(base) + sums[statLocalBlockFlat]) * (1 + sums[statLocalBlockInc]/percentScale))
 }

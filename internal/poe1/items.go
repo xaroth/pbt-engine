@@ -83,13 +83,12 @@ func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 		}
 	}
 	if c.Shield {
-		if b := shieldBlock(base.Block, sums); b != 0 {
-			c.Stats = append(c.Stats, resolve.StatValue{Stat: statShieldBlock, Value: b})
-		}
+		local = localBlockStats()
+		c.Stats = append(c.Stats, shieldBlockStats(base.Block, sums)...)
 	}
 	for _, m := range it.Mods {
 		for _, sv := range m.Stats {
-			if !local[sv.Stat] && !itemdefence.IsLocal(sv.Stat) && !(c.Shield && isLocalBlock(sv.Stat)) {
+			if !local[sv.Stat] && !itemdefence.IsLocal(sv.Stat) {
 				c.Stats = append(c.Stats, resolve.StatValue{Stat: sv.Stat, Value: float64(sv.Value)})
 			}
 		}
