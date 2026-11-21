@@ -137,7 +137,12 @@ type Checked struct {
 	unconnected map[uint32][]uint32
 	// radiusWarned are the sockets whose jewel the tree has no radius for, which warned.
 	radiusWarned map[uint32]bool
-	warnings     []Warning
+	// skillGrants are the skills the items and allocated passives grant.
+	skillGrants []grant
+	// itemGrantsUnknown and treeGrantsUnknown are set when the dataset does not say what items
+	// or passives grant.
+	itemGrantsUnknown, treeGrantsUnknown bool
+	warnings                             []Warning
 }
 
 // MasteryChoice is an allocated mastery node and its chosen effect.
@@ -191,10 +196,10 @@ func Check(b *Build, s *dataset.Store) (*Checked, []Warning, error) {
 	c.checkChoices()
 	c.checkOverrides()
 	c.checkMasteries()
-	if err := c.checkSkills(); err != nil {
+	if err := c.checkGear(); err != nil {
 		return nil, nil, err
 	}
-	if err := c.checkGear(); err != nil {
+	if err := c.checkSkills(); err != nil {
 		return nil, nil, err
 	}
 	c.checkConnected()
@@ -355,7 +360,8 @@ func nodeAbout(id uint32) Warning {
 	return Warning{Subject: fmt.Sprintf("node %d", id), Nodes: []uint32{id}}
 }
 
-// checkGear checks the items and jewels, sets the weapon swap aside and finds the notables the
+// checkGear checks the items and jewels, finds the skills items and passives grant, sets the
+// weapon swap aside and finds the notables the
 // items and jewel pairs allocate, what the timeless jewels conquer, the small passives jewels
 // change by allocation, the passives whose attributes jewels transform, those jewels make give
 // other or more stats and the passives jewels let be allocated without a connection.
@@ -363,9 +369,13 @@ func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
 	}
+	if err := c.findItemGrants(); err != nil {
+		return err
+	}
 	c.setAsideSwap()
 	c.findItemPassives()
 	c.findJewelPassives()
+	c.findNodeGrants()
 	if err := c.conquer(); err != nil {
 		return err
 	}

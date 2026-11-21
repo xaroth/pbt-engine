@@ -25,13 +25,16 @@ const (
 	MainSkillOutOfRange  Code = "main-skill-out-of-range"
 )
 
-// checkSkills checks the skill groups against the dataset's skills group: it drops unknown gems,
-// clears unknown variants and slots without sockets, corrects which gems are supports, clamps
-// gem levels and quality, and moves a main skill or active gem that does not fit to the first,
-// each with a warning. Without the group, it warns once and keeps the groups as they are.
+// checkSkills checks the skill groups against the dataset's skills group: it matches the groups
+// items and passives grant with the grants (checkGrants), drops unknown gems, clears unknown
+// variants and slots without sockets, corrects which gems are supports, clamps gem levels and
+// quality, and moves a main skill or active gem that does not fit to the first, each with a
+// warning. Without the group, it warns once and keeps the groups as they are. The gems of the
+// groups in the weapon swap are disabled.
 func (c *Checked) checkSkills() error {
+	defer c.disableSwap()
 	sk := &c.build.Skills
-	if !slices.ContainsFunc(sk.Groups, func(g SkillGroup) bool { return len(g.Gems) > 0 }) {
+	if len(c.skillGrants) == 0 && !slices.ContainsFunc(sk.Groups, func(g SkillGroup) bool { return len(g.Gems) > 0 }) {
 		return nil
 	}
 	data, err := c.store.SkillIndex()
@@ -42,6 +45,7 @@ func (c *Checked) checkSkills() error {
 	if err != nil {
 		return fmt.Errorf("build: load skills: %w", err)
 	}
+	c.checkGrants(data)
 	for i := range sk.Groups {
 		c.checkGroup(i, data)
 	}
@@ -99,8 +103,15 @@ func (c *Checked) checkActiveSkill(subject string, g *SkillGroup, data *dataset.
 // ActiveSkills returns which skills of gem are active skills, by index: 0 the gem's first
 // skill, 1 its second. An active gem's first skill is one, and so is a Vaal gem's second (its
 // regular skill); a support's second is one when it grants an active skill, such as Predator's
-// Signal Prey. Nil for a gem data does not have.
+// Signal Prey. A skill an item or passive grants is its first. Nil for a gem data does not
+// have.
 func ActiveSkills(data *dataset.SkillIndex, gem Gem) []int {
+	if gem.Skill != "" {
+		if activeEffect(data, gem.Skill) {
+			return []int{0}
+		}
+		return nil
+	}
 	dg := data.Gem(gem.ID)
 	if dg == nil || len(dg.Effects) == 0 {
 		return nil
@@ -122,8 +133,12 @@ func ActiveSkills(data *dataset.SkillIndex, gem Gem) []int {
 	return out
 }
 
-// checkGem fixes gem as the dataset says, or reports false to drop it.
+// checkGem fixes gem as the dataset says, or reports false to drop it. A granted skill is
+// checkGrants's.
 func (c *Checked) checkGem(subject string, gem *Gem, data *dataset.SkillIndex) bool {
+	if gem.Skill != "" {
+		return true
+	}
 	dg := data.Gem(gem.ID)
 	if dg == nil || len(dg.Effects) == 0 {
 		c.warnf(GemUnknown, subject, "gem %s not in %s; dropped", gem.ID, c.store.Manifest().Version)
@@ -182,4 +197,10 @@ func maxGemLevel(ge *dataset.GrantedEffect) int {
 		return 0
 	}
 	return int(ge.Levels[len(ge.Levels)-1].Level)
+}
+
+// activeEffect reports whether the granted effect id is an active skill.
+func activeEffect(data *dataset.SkillIndex, id string) bool {
+	ge := data.GrantedEffect(id)
+	return ge != nil && !ge.Support && data.ActiveSkill(ge.ActiveSkill) != nil
 }

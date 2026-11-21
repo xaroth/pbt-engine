@@ -388,6 +388,7 @@
       "additionalProperties": false,
       "properties": {
         "slot": { "$ref": "#/$defs/Slot" },
+        "source": { "$ref": "#/$defs/SkillSource" },
         "gems": { "type": "array", "items": { "$ref": "#/$defs/Gem" } },
         "active": { "type": "integer", "minimum": 0 },
         "activeSkill": {
@@ -396,14 +397,25 @@
         }
       }
     },
+    "SkillSource": {
+      "title": "SkillSource",
+      "description": "The item or passive that grants a skill group its skill, its first gem.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "item": { "$ref": "#/$defs/Slot", "description": "The slot of the item that grants it." },
+        "node": { "type": "integer", "minimum": 1, "description": "The passive that grants it." }
+      }
+    },
     "Gem": {
       "title": "Gem",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "level"],
       "properties": {
-        "id": { "type": "string", "description": "The dataset gem id." },
+        "id": { "type": "string", "description": "The dataset gem id; empty for a skill an item or passive grants." },
         "effect": { "type": "string", "description": "The variant's effect id, when not the gem's first." },
+        "skill": { "type": "string", "description": "The effect id of the skill the group's source grants." },
         "level": { "type": "integer" },
         "quality": { "type": "integer" },
         "support": { "type": "boolean" },

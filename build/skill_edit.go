@@ -29,8 +29,7 @@ type SkillAt struct {
 
 // AddSkillGroup appends group g.
 func AddSkillGroup(g SkillGroup) Edit {
-	c := g
-	c.Gems = slices.Clone(g.Gems)
+	c := g.cloned()
 	return Edit{Op: OpAddSkillGroup, SkillGroup: &c}
 }
 
@@ -175,22 +174,31 @@ func (g *SkillGroup) removeGem(j int) {
 func (g *SkillGroup) cloned() SkillGroup {
 	c := *g
 	c.Gems = slices.Clone(g.Gems)
+	if g.Source != nil {
+		src := *g.Source
+		c.Source = &src
+	}
 	return c
 }
 
 // skillsDiff returns the edits that turn a into b: groups b does not have removed from the
 // last, then per shared group its slot, its gems (the gems after the first that differs in id
 // or role removed from the last and b's added, the others' level, quality and enabled set)
-// and its active gem and skill, then b's further groups added, then the main skill.
+// and its active gem and skill, then b's further groups added, then the main skill. Groups are
+// shared up to the first whose source differs.
 func skillsDiff(a, b Skills) []Edit {
 	var out []Edit
-	for i := len(a.Groups) - 1; i >= len(b.Groups); i-- {
+	shared := 0
+	for shared < min(len(a.Groups), len(b.Groups)) && sameSource(a.Groups[shared].Source, b.Groups[shared].Source) {
+		shared++
+	}
+	for i := len(a.Groups) - 1; i >= shared; i-- {
 		out = append(out, RemoveSkillGroup(i))
 	}
-	for i := range min(len(a.Groups), len(b.Groups)) {
+	for i := range shared {
 		out = append(out, groupDiff(i, a.Groups[i], b.Groups[i])...)
 	}
-	for _, g := range b.Groups[min(len(a.Groups), len(b.Groups)):] {
+	for _, g := range b.Groups[shared:] {
 		out = append(out, AddSkillGroup(g))
 	}
 	// Removals move the main skill, so compare with where the edits so far leave it.
@@ -204,13 +212,22 @@ func skillsDiff(a, b Skills) []Edit {
 	return out
 }
 
+// sameGem reports whether a and b are the same gem or granted skill in the same role.
+func sameGem(a, b Gem) bool {
+	return a.GemID == b.GemID && a.Skill == b.Skill && a.Support == b.Support
+}
+
+func sameSource(a, b *SkillSource) bool {
+	return a == nil && b == nil || a != nil && b != nil && *a == *b
+}
+
 func groupDiff(i int, a, b SkillGroup) []Edit {
 	var out []Edit
 	if a.Slot != b.Slot {
 		out = append(out, SetSkillSlot(i, b.Slot))
 	}
 	same := 0
-	for same < min(len(a.Gems), len(b.Gems)) && a.Gems[same].GemID == b.Gems[same].GemID && a.Gems[same].Support == b.Gems[same].Support {
+	for same < min(len(a.Gems), len(b.Gems)) && sameGem(a.Gems[same], b.Gems[same]) {
 		same++
 	}
 	// Removals move the active gem, so compare with where they leave it.

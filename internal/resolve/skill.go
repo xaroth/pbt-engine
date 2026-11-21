@@ -27,8 +27,14 @@ const (
 // GemSource is a gem in a skill group, by index in build.Skills.Groups and in the group's gems.
 type GemSource struct {
 	Group, Gem int
-	// ID is the gem's dataset Gem.ID.
+	// ID is the gem's dataset Gem.ID, or the GrantedEffect ID of a skill an item or passive
+	// grants.
 	ID string
+}
+
+// gemSource returns the source of gem j of group i.
+func gemSource(i, j int, gem build.Gem) GemSource {
+	return GemSource{Group: i, Gem: j, ID: cmp.Or(gem.ID, gem.Skill)}
 }
 
 func (s GemSource) String() string {
@@ -258,7 +264,7 @@ func (s *SkillResolver) All() []SkillWarnings {
 			for _, which := range build.ActiveSkills(s.r.data, gem) {
 				sk := s.skill(skillKey{i, j, which})
 				out = append(out, SkillWarnings{
-					Skill: sk.skill, Warnings: sk.warnings, Source: GemSource{Group: i, Gem: j, ID: gem.ID}, Which: which, Err: sk.err,
+					Skill: sk.skill, Warnings: sk.warnings, Source: gemSource(i, j, gem), Which: which, Err: sk.err,
 				})
 			}
 		}
@@ -311,7 +317,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	if err != nil {
 		return nil, fmt.Errorf("group %d: %w", i+1, err)
 	}
-	src := GemSource{Group: i, Gem: j, ID: gem.ID}
+	src := gemSource(i, j, gem)
 	sk := &Skill{
 		Source: src, Which: which, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime,
 		WeaponRestrictions: slices.Clone(r.data.ActiveSkill(ge.ActiveSkill).WeaponRestrictions),
@@ -319,12 +325,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	}
 	types := r.supportedTypes(src, ge, sk)
 
-	tags := r.tags(gem)
-	level, quality := r.characterBonus(src, gem, tags)
-	for _, sp := range sk.Supports {
-		l, q := r.bonuses.supportedBonus(sp.Stats, gem.Support, tags)
-		level, quality = level+l, quality+q
-	}
+	level, quality := r.gemBonus(src, gem, sk.Supports)
 	sk.Quality = gem.Quality + quality
 	sk.Level = r.clampLevel(src, ge, gem.Level+level)
 	row := ge.Levels[rowAt(ge.Levels, sk.Level, effectLevel)]
@@ -353,6 +354,21 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	}
 	sk.Types = r.typeNames(types)
 	return sk, nil
+}
+
+// gemBonus returns the levels and quality gem gets from the character's stats and from
+// supports. A skill an item or passive grants is no gem, so it gets none.
+func (r *skillResolver) gemBonus(src GemSource, gem build.Gem, supports []Support) (level, quality int) {
+	if gem.Skill != "" {
+		return 0, 0
+	}
+	tags := r.tags(gem)
+	level, quality = r.characterBonus(src, gem, tags)
+	for _, sp := range supports {
+		l, q := r.bonuses.supportedBonus(sp.Stats, gem.Support, tags)
+		level, quality = level+l, quality+q
+	}
+	return level, quality
 }
 
 // otherHasSet reports whether the gem's other skill than which has the stat set the gem
@@ -434,19 +450,37 @@ func (r *skillResolver) tags(gem build.Gem) []string {
 // skillEffect returns skill which (0 the first, 1 the second) of gem, which must be an active
 // skill with levels.
 func (r *skillResolver) skillEffect(gem build.Gem, which int) (*dataset.GrantedEffect, error) {
-	e := r.gemEffect(gem)
-	if e == nil {
-		return nil, fmt.Errorf("resolve: gem %s: %w", gem.ID, dataset.ErrNotInDataset)
-	}
-	id := e.GrantedEffect
-	if which == 1 {
-		id = e.SecondaryGrantedEffect
+	id, err := r.effectID(gem, which)
+	if err != nil {
+		return nil, err
 	}
 	ge := r.data.GrantedEffect(id)
 	if ge == nil || ge.Support || r.data.ActiveSkill(ge.ActiveSkill) == nil || len(ge.Levels) == 0 {
-		return nil, fmt.Errorf("%w: skill %d of gem %s", ErrNoActiveSkill, which+1, gem.ID)
+		return nil, fmt.Errorf("%w: skill %d of %s", ErrNoActiveSkill, which+1, cmp.Or(gem.ID, gem.Skill))
 	}
 	return ge, nil
+}
+
+// effectID returns the granted effect id of skill which of gem: a granted skill's own, which
+// is its first, or one of its gem's.
+func (r *skillResolver) effectID(gem build.Gem, which int) (string, error) {
+	if gem.Skill != "" {
+		if r.data.GrantedEffect(gem.Skill) == nil {
+			return "", fmt.Errorf("resolve: granted skill %s: %w", gem.Skill, dataset.ErrNotInDataset)
+		}
+		if which != 0 {
+			return "", fmt.Errorf("%w: skill %d of granted skill %s", ErrNoActiveSkill, which+1, gem.Skill)
+		}
+		return gem.Skill, nil
+	}
+	e := r.gemEffect(gem)
+	switch {
+	case e == nil:
+		return "", fmt.Errorf("resolve: gem %s: %w", gem.ID, dataset.ErrNotInDataset)
+	case which == 1:
+		return e.SecondaryGrantedEffect, nil
+	}
+	return e.GrantedEffect, nil
 }
 
 // clampLevel returns level within the levels of ge, warning when it is beyond them.

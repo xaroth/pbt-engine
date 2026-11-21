@@ -64,8 +64,8 @@ func (r *skillResolver) typeSet(ts []uint16) []bool {
 }
 
 // candidates returns the supports that can support gem src: those the item it is socketed in
-// grants, its group's other gems', then those socketed in the slots linked to its own and those
-// the items there grant.
+// grants, its group's other gems', for a skill an item grants those socketed in the item, then
+// those socketed in the slots linked to its own and those the items there grant.
 func (r *skillResolver) candidates(src GemSource) []supportGem {
 	slot := r.groups[src.Group].Slot
 	l := supportList{r: r}
@@ -77,6 +77,7 @@ func (r *skillResolver) candidates(src GemSource) []supportGem {
 		own[i].own = true
 	}
 	l.add(own...)
+	l.add(r.socketedInItem(src.Group)...)
 	if slot == "" || slot.Swap() {
 		return l.list
 	}
@@ -89,6 +90,23 @@ func (r *skillResolver) candidates(src GemSource) []supportGem {
 		}
 	}
 	return l.list
+}
+
+// socketedInItem returns, for group i whose skill the item in its slot grants, the supports of
+// the other groups socketed in that item: they support the skill the item grants, as in Path of
+// Building (CalcSetup.lua).
+func (r *skillResolver) socketedInItem(i int) []supportGem {
+	g := r.groups[i]
+	if g.Source == nil || g.Source.Item == "" || g.Source.Item != g.Slot {
+		return nil
+	}
+	var out []supportGem
+	for j, other := range r.groups {
+		if j != i && other.Slot == g.Slot {
+			out = append(out, r.groupSupports(j, -1)...)
+		}
+	}
+	return out
 }
 
 // supportList is a list of supports with one of each effect: the one at the highest level, then
@@ -138,7 +156,7 @@ func (r *skillResolver) groupSupports(i, skip int) []supportGem {
 		if ge == nil || !ge.Support {
 			continue
 		}
-		src := GemSource{Group: i, Gem: j, ID: gem.ID}
+		src := gemSource(i, j, gem)
 		level, quality := r.characterBonus(src, gem, r.tags(gem))
 		out = append(out, supportGem{src: src, effect: ge, level: gem.Level + level, quality: gem.Quality + quality})
 	}
