@@ -456,10 +456,10 @@ func TestParse(t *testing.T) {
 			[]build.Code{items.RollAssumed, items.LineUnread},
 		},
 		{
-			"normal ring: no explicit mods, so the game's order, with a warning",
+			"normal ring: no explicit mods, and local armour does not roll on rings",
 			"Rarity: NORMAL\nIron Ring\nImplicits: 0\n+30 to Armour\n",
 			build.Item{Rarity: build.Normal, Base: ringBase, Mods: []build.ModLine{line(build.Explicit, "+30 to Armour", "armour", 30)}},
-			[]build.Code{items.LineAmbiguous},
+			nil,
 		},
 		{
 			"magic ring: global armour",
@@ -492,10 +492,10 @@ func TestParse(t *testing.T) {
 			nil,
 		},
 		{
-			"armour only a Ruthless mod of the belt has: the game's order, with a warning",
+			"armour only a Ruthless mod of the belt has, and local armour does not roll on belts",
 			"Rarity: RARE\nX\nIron Belt\nImplicits: 0\n+30 to Armour\n",
 			rare(beltBase, line(build.Explicit, "+30 to Armour", "armour", 30)),
-			[]build.Code{items.LineAmbiguous},
+			nil,
 		},
 		{
 			"an exact retired mod of rings and amulets over a current one out of range",
@@ -546,10 +546,10 @@ func TestParse(t *testing.T) {
 			nil,
 		},
 		{
-			"a unique knife's armour: a local stat that does not roll on it is not preferred",
+			"a unique knife's armour: a local stat that rolls elsewhere but not on it is not read",
 			"Rarity: UNIQUE\nX\nKnife\nImplicits: 0\n+30 to Armour\n",
 			unique(knifeBase, line(build.Explicit, "+30 to Armour", "armour", 30)),
-			[]build.Code{items.LineAmbiguous},
+			nil,
 		},
 		{
 			"an eldritch implicit over a unique's mod",
@@ -717,7 +717,7 @@ func TestParse(t *testing.T) {
 			"a crafted line reads bench crafts only",
 			"Rarity: RARE\nX\nIron Ring\nImplicits: 0\n{crafted}+30 to Armour\n",
 			rare(ringBase, line(build.Crafted, "+30 to Armour", "armour", 30)),
-			[]build.Code{items.LineAmbiguous},
+			nil,
 		},
 		{
 			"a bench craft on a weapon: the local stat that rolls on it",
