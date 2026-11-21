@@ -258,8 +258,7 @@ func (c *Checked) checkMods(about Warning, it *Item, readElsewhere []string) {
 	}
 }
 
-// setAsideSwap leaves out the items in the weapon-swap slots and disables the gems socketed in
-// them, so the skills they grant or hold are disabled too. Neither has a warning: the swap is
+// setAsideSwap leaves out the items in the weapon-swap slots, without a warning: the swap is
 // not in use.
 func (c *Checked) setAsideSwap() {
 	for s := range c.build.Items {
@@ -267,6 +266,11 @@ func (c *Checked) setAsideSwap() {
 			delete(c.build.Items, s)
 		}
 	}
+}
+
+// disableSwap disables the gems socketed in the weapon-swap slots, so the skills they grant or
+// hold are disabled too, without a warning: the swap is not in use.
+func (c *Checked) disableSwap() {
 	for i := range c.build.Skills.Groups {
 		g := &c.build.Skills.Groups[i]
 		if !g.Slot.Swap() {

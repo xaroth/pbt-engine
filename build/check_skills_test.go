@@ -20,6 +20,10 @@ func predator() build.GemID { return build.GemID{ID: "Metadata/Items/Gems/Suppor
 // skill is the active Signal Prey.
 func skillsStore(t *testing.T) *dataset.Store {
 	t.Helper()
+	return openStore(t, skillsDataset())
+}
+
+func skillsDataset() *dataset.Dataset {
 	d := testDataset()
 	levels := func(top int32) []dataset.EffectLevel { return []dataset.EffectLevel{{Level: 1}, {Level: top}} }
 	d.Skills = &dataset.Skills{
@@ -52,7 +56,7 @@ func skillsStore(t *testing.T) *dataset.Store {
 			{ID: "signal_prey", Types: []uint16{0}},
 		},
 	}
-	return openStore(t, d)
+	return d
 }
 
 // TestCheckSkills: each skill check warns and fixes as its message says.

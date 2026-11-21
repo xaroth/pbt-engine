@@ -138,7 +138,7 @@ func (r *skillResolver) groupSupports(i, skip int) []supportGem {
 		if ge == nil || !ge.Support {
 			continue
 		}
-		src := GemSource{Group: i, Gem: j, ID: gem.ID}
+		src := gemSource(i, j, gem)
 		level, quality := r.characterBonus(src, gem, r.tags(gem))
 		out = append(out, supportGem{src: src, effect: ge, level: gem.Level + level, quality: gem.Quality + quality})
 	}
