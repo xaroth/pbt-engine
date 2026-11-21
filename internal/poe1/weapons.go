@@ -2,6 +2,7 @@ package poe1
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -130,6 +131,7 @@ const (
 	localPhysicalDamageInc  = "local_physical_damage_+%"
 	localElementalDamageInc = "local_elemental_damage_+%"
 	localAttackSpeedInc     = "local_attack_speed_+%"
+	localAttackSpeedPer8Q   = "local_attack_speed_+%_per_8%_quality"
 	localCriticalChance     = "local_critical_strike_chance"
 	localCriticalChanceInc  = "local_critical_strike_chance_+%"
 	localNoPhysicalDamage   = "local_weapon_no_physical_damage"
@@ -143,7 +145,7 @@ const (
 // localWeaponStats are the stats that change a weapon's own values.
 func localWeaponStats() map[string]bool {
 	local := map[string]bool{
-		localPhysicalDamageInc: true, localElementalDamageInc: true, localAttackSpeedInc: true,
+		localPhysicalDamageInc: true, localElementalDamageInc: true, localAttackSpeedInc: true, localAttackSpeedPer8Q: true,
 		localCriticalChance: true, localCriticalChanceInc: true, localNoPhysicalDamage: true,
 		localAccuracy: true, localAccuracyInc: true, localAlwaysHit: true,
 		localToRandomElement: true, localAsColdOrLightning: true,
@@ -162,7 +164,8 @@ func localWeaponStats() map[string]bool {
 // weapon. Physical damage is the base's plus local added damage, times the local increase and,
 // separately, the quality; elemental damage is the local added damage times the local elemental
 // increase; each rounded half up. Attacks per second are the base's, rounded to hundredths,
-// times the local increase, rounded again; critical strike chance is the base's plus the local
+// times the local increase, rounded again; the increase per 8% quality counts whole steps of
+// 8%, rounded down after multiplying; critical strike chance is the base's plus the local
 // addition, times the local increase, rounded to hundredths. Its accuracy stats apply to its
 // attacks only, as PoB makes them local (Item.lua). Order and roundings follow PoB
 // (Item.lua, BuildModListForSlotNum; the base's attacks per second from Export/Scripts/bases.lua);
@@ -177,12 +180,22 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 	}
 	b := base.Weapon
 	w := &Weapon{Name: it.Name, Class: base.Class, Kinds: ks, Damage: weaponDamage(it, b, sums), Sockets: it.Sockets}
-	w.AttackRate = roundHundredths(attackRate(b.AttackTime) * (1 + sums[localAttackSpeedInc]/percentScale))
+	w.AttackRate = roundHundredths(attackRate(b.AttackTime) * (1 + localAttackSpeed(it, sums)/percentScale))
 	crit := float64(b.CriticalChance)/critPermyriadToPercent + sums[localCriticalChance]/critPermyriadToPercent
 	w.CriticalChance = roundHundredths(crit * (1 + sums[localCriticalChanceInc]/percentScale))
 	w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded = sums[localAccuracy], sums[localAccuracyInc], sums[localAlwaysHit] != 0
 	w.ConvertedToRandomElement, w.GainedAsColdOrLightning = sums[localToRandomElement], sums[localAsColdOrLightning]
 	return w
+}
+
+// qualityStep is the quality per step of a weapon's attack speed per 8% quality.
+const qualityStep = 8
+
+// localAttackSpeed returns the local increased attack speed of it, given sums of its stats: its
+// own and that per 8% quality, which PoB rounds down after scaling by quality / 8 (Item.lua,
+// AlternateQualityLocalAttackSpeedPer8Quality).
+func localAttackSpeed(it *build.Item, sums map[string]float64) float64 {
+	return sums[localAttackSpeedInc] + math.Floor(float64(it.Quality)/qualityStep*sums[localAttackSpeedPer8Q])
 }
 
 // attackRate returns the attacks per second of an attack time in milliseconds, rounded to

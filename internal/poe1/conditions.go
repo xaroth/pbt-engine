@@ -106,6 +106,7 @@ func conditions() []condition {
 		{Leeching, statIsLeeching, "Leeching"},
 		{Focused, statIsFocused, "Focused"},
 		{Fortified, statIsFortified, "Fortified"},
+		{ArcaneSurge, statHasArcaneSurge, "Arcane Surge"},
 	}, chargeConditions())
 }
 
