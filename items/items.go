@@ -43,7 +43,8 @@ const (
 	// whose possible mods differ on it; the value most of them share is kept, the highest on a
 	// tie.
 	ValueAssumed build.Code = "item-value-assumed"
-	// RollAssumed is a mod line with a range of values, such as "(30-50)"; the highest is kept.
+	// RollAssumed is a mod line with a range of values, such as "(30-50)", and no roll; the
+	// highest is kept.
 	RollAssumed build.Code = "item-roll-assumed"
 )
 
@@ -203,8 +204,10 @@ func ascendancyPassives(s *dataset.Store, names map[int32]string) (map[string]in
 //
 // Path of Building's text is "Rarity:", the name lines, properties such as "Quality: 20" up to
 // "Implicits: N", then the mod lines, the first N of them implicit, each optionally tagged
-// "{crafted}", "{fractured}" or "{enchant}". Properties Path of Building adds for itself, such
-// as "LevelReq" or "Prefix", are ignored.
+// "{crafted}", "{fractured}" or "{enchant}". A unique's lines tagged "{variant:n,...}" are read
+// only when one of n is its "Selected Variant" or a selected alt variant, and a line tagged
+// "{range:r}" has its ranges set at r (see withRoll). Properties Path of Building adds for itself,
+// such as "LevelReq" or "Prefix", are ignored.
 //
 // The game's text is sections between "--------" lines: the item class, rarity and names, the
 // properties, then the mods, whose kind its mod headers or line suffixes such as " (implicit)"

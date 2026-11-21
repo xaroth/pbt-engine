@@ -81,7 +81,7 @@ func readMagnitude(text string) (magnitude, bool) {
 	if err != nil {
 		return magnitude{}, false
 	}
-	if m[2] == "reduced" {
+	if m[2] == reduced {
 		n = -n
 	}
 	if m[3] == "explicit physical and chaos damage" {
