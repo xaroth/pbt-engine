@@ -24,13 +24,14 @@ func slots() map[string]build.Slot {
 }
 
 // skills imports the active skill set's groups. A gem resolves by its gem id, variant and skill
-// id when the dataset has them, else by its name; one that does not resolve is dropped. Groups
-// an item or the tree grants are left out, and so is every group when the dataset has no
-// skills group to resolve gems with. A disabled group's gems are disabled.
+// id when the dataset has them, else by its name; one that does not resolve is dropped. A group
+// an item or the tree grants keeps its source, with the granted skill by its skill id
+// (grantedSkill). PoB's group of enemies exploding is left out, and so is every group when the
+// dataset has no skills group to resolve gems with. A disabled group's gems are disabled.
 //
-// The main group is PoB's mainSocketGroup, 1-based over every group of the set, those an item
-// or the tree grants included; PoB uses the first group when it is unset and the last when it
-// is past the end (CalcSetup.lua). A main group that is left out warns, and group 1 is used.
+// The main group is PoB's mainSocketGroup, 1-based over every group of the set; PoB uses the
+// first group when it is unset and the last when it is past the end (CalcSetup.lua). A main
+// group that is left out warns, and group 1 is used.
 func (im *importer) skills(store *dataset.Store) (build.Skills, error) {
 	var out build.Skills
 	if len(im.file.Skills) == 0 {
@@ -48,12 +49,17 @@ func (im *importer) skills(store *dataset.Store) (build.Skills, error) {
 	}
 	index := map[int]int{}
 	for i, g := range im.file.Skills {
+		var src *build.SkillSource
 		if g.Source != "" {
-			im.warnf(SkillIgnored, groupSubject(g, i), "granted by %s; skills an item or the tree grants are not imported", g.Source)
-			continue
+			var ok bool
+			if src, ok = im.skillSource(g, i); !ok {
+				continue
+			}
 		}
 		index[i] = len(out.Groups)
-		out.Groups = append(out.Groups, im.group(g, i, store, data))
+		group := im.group(g, i, store, data)
+		group.Source = src
+		out.Groups = append(out.Groups, group)
 	}
 	im.mainGroup(&out, index)
 	return out, nil
@@ -68,20 +74,62 @@ func (im *importer) mainGroup(out *build.Skills, index map[int]int) {
 		return
 	}
 	im.warnf(MainSkillIgnored, groupSubject(groups[main], main),
-		"the main skill group, granted by %s, is not imported; group 1 used", groups[main].Source)
+		"the main skill group, from %s, is not imported; group 1 used", groups[main].Source)
+}
+
+// skillSource returns what grants group g, the i-th of the file, from PoB's source: "Item:<id>:<name>"
+// with the item's slot as the group's, or "Tree:<node>". Others warn and report false, such as
+// "Explode", PoB's group of the enemies a build's stats make explode, which nothing grants.
+func (im *importer) skillSource(g pobxml.SkillGroup, i int) (*build.SkillSource, bool) {
+	kind, rest, _ := strings.Cut(g.Source, ":")
+	switch kind {
+	case "Item":
+		if s, ok := itemSlots()[g.Slot]; ok {
+			return &build.SkillSource{Item: s}, true
+		}
+	case "Tree":
+		if n, err := strconv.ParseUint(rest, 10, 32); err == nil {
+			return &build.SkillSource{Node: uint32(n)}, true
+		}
+	}
+	im.warnf(SkillIgnored, groupSubject(g, i), "from %s, which is neither an item in a slot nor a passive; not imported", g.Source)
+	return nil, false
+}
+
+// pobSkillIDs maps the skill ids PoB gives some granted skills to the game's.
+func pobSkillIDs() map[string]string {
+	return map[string]string{"AssassinsMark": "AssassinsMarkTriggeredAssassin", "BloodRage": "JunTriggeredBloodRage"}
+}
+
+// groupGem imports gem pg of group g: the skill g's source grants, a gem with a skill id and no
+// gem id, or else a gem as gem does.
+func (im *importer) groupGem(g pobxml.SkillGroup, pg pobxml.Gem, store *dataset.Store, data *dataset.SkillIndex) (build.Gem, bool) {
+	if g.Source != "" && pg.GemID == "" && pg.SkillID != "" {
+		return grantedSkill(pg), true
+	}
+	return im.gem(pg, store, data)
+}
+
+// grantedSkill imports the skill a group's source grants, by its skill id in the game's name.
+func grantedSkill(g pobxml.Gem) build.Gem {
+	id := g.SkillID
+	if game, ok := pobSkillIDs()[id]; ok {
+		id = game
+	}
+	return build.Gem{Skill: id, Level: g.Level, Quality: g.Quality, Disabled: !g.Enabled}
 }
 
 // group imports group g, the i-th of the file.
 func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data *dataset.SkillIndex) build.SkillGroup {
 	subject := groupSubject(g, i)
 	out := build.SkillGroup{Slot: slots()[g.Slot]}
-	if out.Slot == "" && g.Slot != "" {
+	if out.Slot == "" && g.Slot != "" && g.Source == "" {
 		im.warnf(SlotIgnored, subject, "slot %q has no sockets; group imported without a slot", g.Slot)
 	}
 	var skills []gemSkill // each active skill PoB counts for the main active skill
 	first := gemSkill{gem: -1}
 	for _, pg := range g.Gems {
-		gem, ok := im.gem(pg, store, data)
+		gem, ok := im.groupGem(g, pg, store, data)
 		if !ok {
 			continue
 		}
