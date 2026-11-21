@@ -37,6 +37,11 @@ func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 
 func (ex *exporter) group(g build.SkillGroup, data *dataset.SkillIndex, text *dataset.Text) outSkill {
 	out := outSkill{Enabled: xmlTrue, Slot: pobSlot(g.Slot)}
+	if g.Source != nil && g.Source.Node != 0 {
+		// PoB matches the group to the grant it finds on the node. Items are not exported, so
+		// the skill an item grants is written as a group of the player's.
+		out.Source = "Tree:" + strconv.FormatUint(uint64(g.Source.Node), 10)
+	}
 	// PoB's main active skill counts the active skills of enabled gems in order, 1-based; both
 	// switches of every gem are written on. See countedSkills.
 	main := 0
@@ -67,6 +72,9 @@ func activeSkillsOf(data *dataset.SkillIndex, gem build.Gem) []int {
 
 // gem writes gem.
 func (ex *exporter) gem(gem build.Gem, data *dataset.SkillIndex, text *dataset.Text) outGem {
+	if gem.Skill != "" {
+		return grantedGem(gem)
+	}
 	out := outGem{
 		GemID: gem.ID, VariantID: gem.Effect, Level: gem.Level, Quality: gem.Quality,
 		Enabled: strconv.FormatBool(!gem.Disabled), EnableGlobal1: xmlTrue, EnableGlobal2: xmlTrue,
@@ -93,6 +101,20 @@ func (ex *exporter) gem(gem build.Gem, data *dataset.SkillIndex, text *dataset.T
 	return out
 }
 
+// grantedGem writes a skill an item or passive grants by its skill id alone, as PoB does.
+func grantedGem(gem build.Gem) outGem {
+	id := gem.Skill
+	for pobID, game := range pobSkillIDs() {
+		if game == id {
+			id = pobID
+		}
+	}
+	return outGem{
+		SkillID: id, Level: gem.Level, Quality: gem.Quality,
+		Enabled: strconv.FormatBool(!gem.Disabled), EnableGlobal1: xmlTrue, EnableGlobal2: xmlTrue,
+	}
+}
+
 // pobSlot is the inverse of slots.
 func pobSlot(s build.Slot) string {
 	for name, slot := range slots() {
@@ -116,13 +138,14 @@ type outSkillSet struct {
 type outSkill struct {
 	Enabled    string   `xml:"enabled,attr"`
 	Slot       string   `xml:"slot,attr,omitempty"`
+	Source     string   `xml:"source,attr,omitempty"`
 	MainActive string   `xml:"mainActiveSkill,attr"`
 	Gems       []outGem `xml:"Gem"`
 }
 
 type outGem struct {
 	Name          string `xml:"nameSpec,attr,omitempty"`
-	GemID         string `xml:"gemId,attr"`
+	GemID         string `xml:"gemId,attr,omitempty"`
 	VariantID     string `xml:"variantId,attr,omitempty"`
 	SkillID       string `xml:"skillId,attr,omitempty"`
 	Level         int    `xml:"level,attr"`
