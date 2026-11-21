@@ -60,6 +60,7 @@ func TestOutputKeys(t *testing.T) {
 		poe1.OffHandFireMinimum, poe1.OffHandFireMaximum, poe1.OffHandColdMinimum, poe1.OffHandColdMaximum,
 		poe1.OffHandLightningMinimum, poe1.OffHandLightningMaximum, poe1.OffHandChaosMinimum, poe1.OffHandChaosMaximum,
 		poe1.DotDPS, poe1.IgniteDPS, poe1.BleedDPS, poe1.PoisonDPS,
+		poe1.MinionAverageHit, poe1.MinionHitChance, poe1.MinionHitsPerSecond, poe1.MinionHitDPS,
 	}
 	outputs := poe1.Outputs()
 	if len(outputs) != len(keys) {
@@ -90,7 +91,7 @@ func TestOutputGroupsAndOrder(t *testing.T) {
 	}
 	want := []string{
 		poe1.GroupAttributes, poe1.GroupLife, poe1.GroupMana, poe1.GroupEnergyShield, poe1.GroupResistances,
-		poe1.GroupDefences, poe1.GroupSkill,
+		poe1.GroupDefences, poe1.GroupSkill, poe1.GroupMinion,
 	}
 	if !slices.Equal(groups, want) {
 		t.Errorf("groups %v, want %v", groups, want)

@@ -538,8 +538,8 @@ func hitBases(sk *resolve.Skill) []hitBase {
 	return out
 }
 
-// addHitRules adds sk's hit bases in slot.
-func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error) {
+// addHitRules adds sk's hit bases in slot, those of actor.
+func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int, actor core.ActorID) (core.SourceID, error) {
 	src := sh.newSource(Source{RuleID: "skill-hit", Rule: "hit of " + sk.Source.String()})
 	pred, err := predicate(sh.session.Model(), semantics.ContextFilter{}, sh.ctx, slot)
 	if err != nil {
@@ -549,13 +549,15 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 		if b.value == 0 {
 			continue
 		}
-		mod := core.Modifier{Stat: sh.stats[b.stat], Op: b.op, Value: b.value, Source: src, Pred: pred}
+		mod := core.Modifier{Stat: sh.stats[b.stat], Actor: actor, Op: b.op, Value: b.value, Source: src, Pred: pred}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return 0, fmt.Errorf("sheet: skill hit: %w", err)
 		}
 	}
 	repeats := core.Scale{Ref: core.SelfRef(sh.stats[statRepeatDamage]), Step: 1, Ratio: true}
-	mod := core.Modifier{Stat: sh.stats[statDamage], Op: core.OpMore, Value: 1, Source: src, Pred: pred, Scales: []core.Scale{repeats}}
+	mod := core.Modifier{
+		Stat: sh.stats[statDamage], Actor: actor, Op: core.OpMore, Value: 1, Source: src, Pred: pred, Scales: []core.Scale{repeats},
+	}
 	if _, err := sh.session.AddModifier(mod); err != nil {
 		return 0, fmt.Errorf("sheet: skill hit: %w", err)
 	}
@@ -566,9 +568,9 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 // 100%.
 const baseSpeed = 100
 
-// addBaseSpeeds adds the base cast, attack and action speed, hit frequency, trap throwing and
-// mine laying speed, and the one trap and mine a throw places, as a rule's source each, so
-// increases, more multipliers and additions apply to them by the default rule.
+// addBaseSpeeds adds every actor's base cast, attack and action speed, hit frequency, trap
+// throwing and mine laying speed, and the one trap and mine a throw places, as a rule's source
+// each, so increases, more multipliers and additions apply to them by the default rule.
 func (sh *Sheet) addBaseSpeeds() error {
 	for _, b := range []struct {
 		stat, id, rule string
@@ -584,9 +586,11 @@ func (sh *Sheet) addBaseSpeeds() error {
 		{statMinesPerThrow, "base-mines-per-throw", "one mine per throw", 1},
 	} {
 		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
-		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: b.value, Source: src}
-		if _, err := sh.session.AddModifier(mod); err != nil {
-			return fmt.Errorf("sheet: %s: %w", b.rule, err)
+		for actor := range sheetActors {
+			mod := core.Modifier{Stat: sh.stats[b.stat], Actor: actor, Op: core.OpBase, Value: b.value, Source: src}
+			if _, err := sh.session.AddModifier(mod); err != nil {
+				return fmt.Errorf("sheet: %s: %w", b.rule, err)
+			}
 		}
 	}
 	return nil

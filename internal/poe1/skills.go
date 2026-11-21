@@ -130,7 +130,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.Source
 	if err != nil {
 		return nil, err
 	}
-	hit, err := sh.addHitRules(sk, slot)
+	hit, err := sh.addHitRules(sk, slot, playerActor)
 	if err != nil {
 		return nil, err
 	}
@@ -290,14 +290,16 @@ func (sh *Sheet) wieldOf(i int, read handRead) wield {
 // baseDamage is damage before modifiers: the base damage, 100%.
 const baseDamage = 100
 
-// addBaseDamage adds the base damage, and of the smallest and largest damage alone, as a rule's
-// source, so increases and more multipliers apply to them by the default rule.
+// addBaseDamage adds every actor's base damage, and of the smallest and largest damage alone, as
+// a rule's source, so increases and more multipliers apply to them by the default rule.
 func (sh *Sheet) addBaseDamage() error {
 	src := sh.newSource(Source{RuleID: "base-damage", Rule: "base damage (100%)"})
-	for _, stat := range []string{statDamage, statMinimumDamage, statMaximumDamage} {
-		mod := core.Modifier{Stat: sh.stats[stat], Op: core.OpBase, Value: baseDamage, Source: src}
-		if _, err := sh.session.AddModifier(mod); err != nil {
-			return fmt.Errorf("sheet: base damage: %w", err)
+	for actor := range sheetActors {
+		for _, stat := range []string{statDamage, statMinimumDamage, statMaximumDamage} {
+			mod := core.Modifier{Stat: sh.stats[stat], Actor: actor, Op: core.OpBase, Value: baseDamage, Source: src}
+			if _, err := sh.session.AddModifier(mod); err != nil {
+				return fmt.Errorf("sheet: base damage: %w", err)
+			}
 		}
 	}
 	return nil

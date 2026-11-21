@@ -145,7 +145,7 @@ func TestDotOutputGiven(t *testing.T) {
 		{"damage over time", skill(0, "Spell", "DamageOverTime"), true},
 		{"damage over time hit by a totem", skill(0, "Spell", "Damage", "DamageOverTime", "SummonsTotem"), false},
 	} {
-		if got := poe1.Gives(dot, c.skill, poe1.Hands{}); got != c.want {
+		if got := poe1.Gives(dot, c.skill, nil, poe1.Hands{}); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
 		}
 	}
