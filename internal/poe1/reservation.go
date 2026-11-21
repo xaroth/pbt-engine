@@ -148,7 +148,7 @@ func reservationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			instead, none := flags()
 			amt := skillAmount{
 				isMana: isMana, base: skillBases{own: mustID(ids, p.base), mana: mustID(ids, mana.base)},
-				efficiency: mustID(ids, p.efficiency), instead: instead, zero: none, hasZero: true,
+				efficiency: mustID(ids, p.efficiency), instead: instead, zeros: []core.StatID{none},
 			}
 			def.Formula, def.FormulaName, def.Attribute = amt.formula(), formulaSkillReservation, amt.attribute()
 		case p.permyriad:
@@ -158,7 +158,7 @@ func reservationDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			instead, none := flags()
 			amt := skillAmount{
 				isMana: isMana, base: skillBases{own: mustID(ids, p.basePermyriad), mana: mustID(ids, mana.basePermyriad)},
-				efficiency: mustID(ids, p.efficiency), instead: instead, zero: none, hasZero: true,
+				efficiency: mustID(ids, p.efficiency), instead: instead, zeros: []core.StatID{none},
 			}
 			def.Formula, def.FormulaName, def.Attribute = amt.formula(), formulaSkillReservation, amt.attribute()
 		case p.reserved:
@@ -188,25 +188,30 @@ type skillBases struct {
 // skillAmount is a skill's cost or reservation of one pool, read in the skill's context: its
 // own base, plus the mana base for life while instead is set, times the stat's increases and
 // more multipliers, divided by efficiency. The mana pool's is 0 while instead is set, and both
-// are while zero is.
+// are while one of zeros is.
 type skillAmount struct {
 	isMana     bool
 	base       skillBases
 	efficiency core.StatID
 	instead    core.StatID
-	zero       core.StatID
-	hasZero    bool
-	// cost rounds after the increases and after the more multipliers, and adds the stat's flat
-	// terms after efficiency.
+	zeros      []core.StatID
+	// cost rounds after the increases and after the more multipliers, adds the stat's flat
+	// terms after efficiency, and takes the shares below.
 	cost bool
+	// share is the percentage of the mana cost paid with life instead, and gain the percentage
+	// of the mana base added to the life base. Life's base takes both shares of the mana base,
+	// rounded; mana keeps the rest of its cost, rounded down.
+	share, gain core.StatID
 }
 
 // off returns the flag that makes the amount 0, if one is set.
 func (s skillAmount) off(get func(core.StatID) float64) (core.StatID, bool) {
-	switch {
-	case s.hasZero && get(s.zero) != 0:
-		return s.zero, true
-	case s.isMana && get(s.instead) != 0:
+	for _, z := range s.zeros {
+		if get(z) != 0 {
+			return z, true
+		}
+	}
+	if s.isMana && get(s.instead) != 0 {
 		return s.instead, true
 	}
 	return 0, false
@@ -217,9 +222,18 @@ func (s skillAmount) moved(get func(core.StatID) float64) bool {
 	return !s.isMana && get(s.instead) != 0
 }
 
+// shared is the part of the mana base life's cost takes: both shares of it, rounded half up, as
+// PoB rounds it (CalcOffence.lua).
+func (s skillAmount) shared(get func(core.StatID) float64) float64 {
+	if !s.cost || s.isMana || s.moved(get) {
+		return 0
+	}
+	return roundHalf(get(s.base.mana) * (get(s.share) + get(s.gain)) / percentScale)
+}
+
 // scaled is the amount before efficiency: the bases with the increases and more multipliers.
 func (s skillAmount) scaled(get func(core.StatID) float64, a core.Agg) float64 {
-	v := get(s.base.own)
+	v := get(s.base.own) + s.shared(get)
 	if s.moved(get) {
 		v += get(s.base.mana)
 	}
@@ -230,7 +244,17 @@ func (s skillAmount) scaled(get func(core.StatID) float64, a core.Agg) float64 {
 	return roundCost(v*a.More, a.More < 1)
 }
 
-func (s skillAmount) value(get func(core.StatID) float64, a core.Agg) float64 {
+// kept is the mana cost v leaves after the share paid with life, rounded down; v for other
+// amounts.
+func (s skillAmount) kept(get func(core.StatID) float64, v float64) float64 {
+	if !s.cost || !s.isMana || get(s.share) <= 0 {
+		return v
+	}
+	return max(math.Floor((1-get(s.share)/percentScale)*v), 0)
+}
+
+// unshared is the amount before the share paid with life is taken from the mana cost.
+func (s skillAmount) unshared(get func(core.StatID) float64, a core.Agg) float64 {
 	if _, ok := s.off(get); ok {
 		return 0
 	}
@@ -245,43 +269,69 @@ func (s skillAmount) value(get func(core.StatID) float64, a core.Agg) float64 {
 	return v
 }
 
+func (s skillAmount) value(get func(core.StatID) float64, a core.Agg) float64 {
+	return s.kept(get, s.unshared(get, a))
+}
+
 func (s skillAmount) formula() core.Formula {
 	return func(rd core.Reader, a core.Agg) float64 { return s.value(rd.Stat, a) }
 }
 
-// attribute splits the amount: the bases, then the increases and more multipliers over them,
-// then what efficiency and rounding change, credited to the efficiency's sources, then flat
-// terms. While a flag makes it 0, the flag's sources are listed at 0.
+// attribute splits the amount: the bases and the shares of the mana base, then the increases
+// and more multipliers over them, then what efficiency and rounding change, credited to the
+// efficiency's sources, then flat terms, then the share of the mana cost paid with life. While a
+// flag makes it 0, the flag's sources are listed at 0.
 func (s skillAmount) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		if f, ok := s.off(a.Stat); ok {
 			return core.Attribution{Parts: a.Spread(core.SelfRef(f), 0, core.OpFlag)}
 		}
-		var base []core.Part
-		if v := a.Stat(s.base.own); v != 0 {
-			base = append(base, a.Spread(core.SelfRef(s.base.own), v, core.OpBase)...)
-		}
-		if v := a.Stat(s.base.mana); v != 0 && s.moved(a.Stat) {
-			base = append(base, a.Spread(core.SelfRef(s.base.mana), v, core.OpBase)...)
-		}
-		parts := a.Layers(base)
+		parts := a.Layers(s.baseParts(a))
 		e := a.Explanation()
-		flat := 0.0
+		// unshared is what the share paid with life leaves; reservation's total holds its
+		// rounding (def.Round).
+		flat, unshared := 0.0, e.Total
 		if s.cost {
-			flat = e.Agg.Base
+			flat, unshared = e.Agg.Base, s.unshared(a.Stat, e.Agg)
 		}
 		sum := 0.0
 		for _, p := range parts {
 			sum += p.Value
 		}
-		if rest := e.Total - flat - sum; rest != 0 {
+		if rest := unshared - flat - sum; rest != 0 {
 			parts = append(parts, a.Spread(core.SelfRef(s.efficiency), rest, core.OpMore)...)
 		}
 		if s.cost {
 			parts = append(parts, a.BaseTerms()...)
 		}
+		if d := e.Total - unshared; d != 0 {
+			parts = append(parts, a.Spread(core.SelfRef(s.share), d, core.OpMore)...)
+		}
 		return core.Attribution{Parts: parts, Amount: e.Total}
 	}
+}
+
+// baseParts are the parts of the bases and of the shares of the mana base, each share credited
+// to its own stat's sources.
+func (s skillAmount) baseParts(a *core.Attributor) []core.Part {
+	var base []core.Part
+	if v := a.Stat(s.base.own); v != 0 {
+		base = append(base, a.Spread(core.SelfRef(s.base.own), v, core.OpBase)...)
+	}
+	if v := a.Stat(s.base.mana); v != 0 && s.moved(a.Stat) {
+		base = append(base, a.Spread(core.SelfRef(s.base.mana), v, core.OpBase)...)
+	}
+	v := s.shared(a.Stat)
+	if v == 0 {
+		return base
+	}
+	share, gain := a.Stat(s.share), a.Stat(s.gain)
+	for _, st := range []core.StatID{s.share, s.gain} {
+		if pct := a.Stat(st); pct != 0 {
+			base = append(base, a.Spread(core.SelfRef(st), v*pct/(share+gain), core.OpBase)...)
+		}
+	}
+	return base
 }
 
 // percentReserved is the part of pool permyriad hundredths of a percent reserve, rounded up.

@@ -103,6 +103,8 @@ const (
 	needsDot
 	// needsAilment is a hit whose damaging ailments the sheet gives (ailmentSkill).
 	needsAilment
+	// needsCost is a skill the character pays the cost of (paysCost).
+	needsCost
 )
 
 // IsSkill reports whether o is read in the main skill's context.
@@ -143,6 +145,8 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 		return dotOrAilmentSkill(sk, hands)
 	case needsAilment:
 		return ailmentSkill(sk, hands)
+	case needsCost:
+		return paysCost(sk)
 	case needsSkill:
 	}
 	return true
@@ -204,8 +208,8 @@ func Outputs() []Output {
 		{Key: ColdDamageModifier, Label: "Cold Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Cold},
 		{Key: LightningDamageModifier, Label: "Lightning Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Lightning},
 		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
-		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost},
-		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost},
+		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost, needs: needsCost},
+		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost, needs: needsCost},
 		{Key: TotemLife, Label: "Totem Life", Better: output.Higher, stat: statTotemLife, needs: needsTotem},
 	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()), group(GroupSkill, igniteOutputs()),
 		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()))
@@ -366,7 +370,7 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	}
 	var form damageForm
 	switch o.needs {
-	case needsSkill, needsDot, needsTotem:
+	case needsSkill, needsDot, needsTotem, needsCost:
 		form = formNone
 	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
 		form = formHit
