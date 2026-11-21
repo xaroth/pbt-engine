@@ -2,12 +2,14 @@ package simulator_test
 
 import (
 	"encoding/xml"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
+	"testing/fstest"
 
 	gocmp "github.com/google/go-cmp/cmp"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/pob"
+	"github.com/xaroth/pbt-engine/poe1"
 	"github.com/xaroth/pbt-engine/simulator"
 )
 
@@ -66,6 +69,35 @@ func TestFilesReal(t *testing.T) {
 	})
 	checkAll(t, "import", slices.Collect(maps.Keys(importDeclared)), imported)
 	checkAll(t, "reading items", simulator.ItemFiles(m), itemsRead)
+}
+
+// TestSimulateFilesMonsters simulates a build against a boss on a store holding only the files
+// SimulateFiles names, which must include the monsters file.
+func TestSimulateFilesMonsters(t *testing.T) {
+	t.Parallel()
+	full := realdata.Open(t, realdata.Current)
+	m := full.Manifest()
+	b := &build.Build{Format: 1, Game: "poe1", Version: "3.29", Class: marauder, Level: 90}
+	src := os.DirFS(filepath.Join(realdata.Root(t), m.Version))
+	only := fstest.MapFS{}
+	for _, name := range append(simulator.SimulateFiles(m, b), dataset.ManifestName) {
+		data, err := fs.ReadFile(src, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		only[name] = &fstest.MapFile{Data: data}
+	}
+	s, err := dataset.Open(only)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sim, err := simulator.New(s, simulator.Set(poe1.Enemy, poe1.EnemyBoss))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sim.Simulate(b); err != nil {
+		t.Errorf("simulate on the listed files: %v", err)
+	}
 }
 
 // checkAll checks that the builds together opened every file declared.
@@ -127,7 +159,7 @@ func simulateRecorded(t *testing.T, m dataset.Manifest, b *build.Build) {
 			}
 		}
 	}
-	if diff := gocmp.Diff(sorted(simulator.SimulateFiles(m, b)), rec.Opened()); diff != "" {
+	if diff := gocmp.Diff(withoutMonsters(simulator.SimulateFiles(m, b)), withoutMonsters(rec.Opened())); diff != "" {
 		t.Errorf("simulate and explain, %d gem groups, %d items (-SimulateFiles +opened):\n%s", len(b.Skills.Groups), len(b.Items), diff)
 	}
 }
@@ -143,14 +175,14 @@ func compareRecorded(t *testing.T, m dataset.Manifest, b *build.Build) {
 	if _, err := sim.Compare(b, less); err != nil {
 		t.Fatal(err)
 	}
-	if diff := gocmp.Diff(sorted(simulator.SimulateFiles(m, b, less)), rec.Opened()); diff != "" {
+	if diff := gocmp.Diff(withoutMonsters(simulator.SimulateFiles(m, b, less)), withoutMonsters(rec.Opened())); diff != "" {
 		t.Errorf("compare (-SimulateFiles +opened):\n%s", diff)
 	}
 	rec, _, sim = recorded(t)
 	if _, err := sim.Sweep(b, [][]build.Edit{{build.Deallocate(b.Nodes...)}}); err != nil {
 		t.Fatal(err)
 	}
-	if diff := gocmp.Diff(sorted(simulator.SimulateFiles(m, b)), rec.Opened()); diff != "" {
+	if diff := gocmp.Diff(withoutMonsters(simulator.SimulateFiles(m, b)), withoutMonsters(rec.Opened())); diff != "" {
 		t.Errorf("sweep (-SimulateFiles +opened):\n%s", diff)
 	}
 }
@@ -198,6 +230,13 @@ func readItemsRecorded(t *testing.T, m dataset.Manifest, b *build.Build, data []
 		t.Errorf("reading items opened %v, which ItemFiles lacks", extra)
 	}
 	return out, opened
+}
+
+// withoutMonsters returns the sorted files of s but the monsters file. SimulateFiles lists it for
+// every build, and a simulation reads it only for an enemy kind that needs it and a skill that
+// hits, so the files a simulation opened differ from the list by it alone.
+func withoutMonsters(s []string) []string {
+	return slices.Sorted(slices.Values(slices.DeleteFunc(slices.Clone(s), func(f string) bool { return f == dataset.MonstersFile })))
 }
 
 func sorted(s []string) []string { return slices.Sorted(slices.Values(s)) }

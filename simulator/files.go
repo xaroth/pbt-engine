@@ -39,10 +39,13 @@ func ItemFiles(m dataset.Manifest) []string {
 // layout of its variant and the English text when it has a cluster jewel, whose lines say
 // which passives it adds, and the layout when it has a jewel that transforms the attributes of
 // the passives in its radius (build.TransformsAttributes) or otherwise changes them
-// (build.ChangesRadiusPassives). Compare, Sweep and Stats.Explain read no more than the simulations
-// of the builds they take or make; Stats.Text reads the text of its language.
+// (build.ChangesRadiusPassives). It lists the monsters file for every build, though only an
+// enemy kind with a normal monster's armour and evasion reads it: the kind can come from a
+// Simulate option, which this function does not see. Compare, Sweep and Stats.Explain read no
+// more than the simulations of the builds they take or make; Stats.Text reads the text of its
+// language.
 func SimulateFiles(m dataset.Manifest, builds ...*build.Build) []string {
-	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile, dataset.SkillsFile}
+	files := []string{dataset.StatsFile, dataset.CharactersFile, dataset.ConstantsFile, dataset.QuestsFile, dataset.SkillsFile, dataset.MonstersFile}
 	for _, b := range builds {
 		files = append(files, dataset.TreeFile(cmp.Or(b.Variant, build.DefaultVariant)))
 		if len(b.Items) > 0 || len(b.Jewels) > 0 {
