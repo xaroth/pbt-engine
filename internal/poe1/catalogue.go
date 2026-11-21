@@ -87,8 +87,10 @@ const (
 	needsSkill skillNeed = iota
 	// needsHit is a hit (Hit).
 	needsHit
-	// needsRate is a hit the character uses itself.
+	// needsRate is a hit whose rate the sheet gives (rateHit).
 	needsRate
+	// needsTotemRate is a hit whose rate the sheet gives and that a totem uses.
+	needsTotemRate
 	// needsOneHandAttackHit is an attack's hit with one hand.
 	needsOneHandAttackHit
 	// needsOneHandHit is a hit that is not an attack's with both hands.
@@ -108,9 +110,10 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 // hands: an output of the sheet always, one of the skill group for a main skill; its hit only
 // for a hit, its accuracy only for an attack's with one hand, its hit per damage type only for
 // a hit with one hand, its hit and accuracy per hand only for an attack's with both, its rate
-// of hits and hit damage per second only for a hit the character uses itself, its damage over
-// time only for a skill that deals it or a hit whose ailments it gives, and its ignite,
-// bleeding and poison only for a hit the character uses itself with one hand.
+// of hits and hit damage per second only for a hit whose rate it gives, that of every totem
+// only for such a hit a totem uses, its damage over time only for a skill that deals it or a
+// hit whose ailments it gives, and its ignite, bleeding and poison only for a hit the character
+// uses itself with one hand.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -127,13 +130,11 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 	case needsHit:
 		return Hit(sk, hands)
 	case needsRate:
-		return selfUsedHit(sk, hands)
-	case needsOneHandAttackHit:
-		return oneHandAttackHit(sk, hands)
-	case needsOneHandHit:
-		return Hit(sk, hands) && !bothHandsHit(sk, hands)
-	case needsBothHandsHit:
-		return bothHandsHit(sk, hands)
+		return rateHit(sk, hands)
+	case needsTotemRate:
+		return totemRateHit(sk, hands)
+	case needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit:
+		return n.metByHands(sk, hands)
 	case needsDot:
 		return dotOrAilmentSkill(sk, hands)
 	case needsAilment:
@@ -141,6 +142,19 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 	case needsSkill:
 	}
 	return true
+}
+
+// metByHands reports whether sk with hands is what n needs of the hands it hits with: an
+// attack's with one hand, a hit that is not an attack's with both, or an attack's with both.
+func (n skillNeed) metByHands(sk *resolve.Skill, hands Hands) bool {
+	if n == needsOneHandAttackHit {
+		return oneHandAttackHit(sk, hands)
+	}
+	both := bothHandsHit(sk, hands)
+	if n == needsBothHandsHit {
+		return both
+	}
+	return Hit(sk, hands) && !both
 }
 
 // Outputs returns the catalogue of outputs, in display order.
@@ -217,8 +231,8 @@ const (
 
 // hitOutputs are the main skill's hit outputs: what the enemy takes from an average hit, and
 // from each hand's of an attack with both, an attack's accuracy, and each hand's of an attack
-// with both, the chance to hit and that a use strikes critically, hits per second and hit
-// damage per second, and per damage type the smallest and largest hit that is not critical, of
+// with both, the chance to hit and that a use strikes critically, hits per second, hit damage
+// per second and that of every totem, and per damage type the smallest and largest hit that is not critical, of
 // a hit with one hand or of each hand of an attack with both.
 func hitOutputs() []Output {
 	return append([]Output{
@@ -250,6 +264,10 @@ func hitOutputs() []Output {
 			stat: statHitsPerSecond, needs: needsRate,
 		},
 		{Key: HitDPS, Label: "Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsRate},
+		{
+			Key: TotemsHitDPS, Label: "Hit DPS of Every Totem", Better: output.Higher, Places: hitPlaces,
+			stat: statTotemsHitDPS, needs: needsTotemRate,
+		},
 	}, hitTypeOutputs()...)
 }
 
@@ -345,7 +363,7 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	switch o.needs {
 	case needsSkill, needsDot:
 		form = formNone
-	case needsHit, needsRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
+	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
 		form = formHit
 	}
 	return sh.skillHandNode(i, o.stat, damage, form, o.hand)
