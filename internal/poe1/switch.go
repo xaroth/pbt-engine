@@ -22,6 +22,8 @@ type Switch struct {
 	Budget Budget
 	// Enemy is what the main skill's hits are measured against.
 	Enemy EnemyStats
+	// Totems gives the base life of the skills' totems.
+	Totems TotemLives
 	// Warnings are the skills' (SheetSkillsOf), then the budget's (PointBudget).
 	Warnings []build.Warning
 }
@@ -29,7 +31,8 @@ type Switch struct {
 // SwitchOf returns what a sheet is switched to for c under cfg with its compiled items; with
 // every, each skill of the build goes on the sheet (SheetSkillsOf). The enemy is the default
 // one unless the sheet gives the hit of a skill whose outputs are read; it reads the monsters
-// group of c's dataset only when its kind takes a normal monster's armour and evasion.
+// group of c's dataset only when its kind takes a normal monster's armour and evasion, or for
+// the totem life of a totem skill whose outputs are read.
 func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, every bool) (Switch, error) {
 	sw := Switch{Checked: c, Config: cfg, Items: items, Hands: HandsOf(items, c.Character())}
 	var err error
@@ -45,7 +48,26 @@ func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, every bool) (
 	if sw.Enemy, err = enemyOf(&sw); err != nil {
 		return sw, err
 	}
+	if sw.Totems, err = totemsOf(&sw); err != nil {
+		return sw, err
+	}
 	return sw, nil
+}
+
+// totemsOf returns the base life of totems from the monsters group of sw's dataset when a skill
+// whose outputs are read is a totem's; none otherwise or without the group.
+func totemsOf(sw *Switch) (TotemLives, error) {
+	if !slices.ContainsFunc(sw.Skills.Read(), func(sk *resolve.Skill) bool { return hasTypes(sk, typeSummonsTotem) }) {
+		return TotemLives{}, nil
+	}
+	m, err := sw.Checked.Store().Monsters()
+	switch {
+	case errors.Is(err, dataset.ErrNotInDataset):
+		return TotemLives{}, nil
+	case err != nil:
+		return TotemLives{}, err //nolint:wrapcheck // wrapped by the caller
+	}
+	return TotemLivesOf(m), nil
 }
 
 // enemyOf resolves the enemy of sw's config when the sheet gives the hit of a skill whose
@@ -68,7 +90,8 @@ func enemyOf(sw *Switch) (EnemyStats, error) {
 	return EnemyOf(sw.Config, sw.Checked.Build().Level, levels)
 }
 
-// Switch switches sh to sw's level, nodes, masteries, items, hands, skills, config and enemy.
+// Switch switches sh to sw's level, nodes, masteries, items, hands, totem lives, skills, config
+// and enemy.
 func (sh *Sheet) Switch(sw *Switch) error {
 	cb := sw.Checked.Build()
 	if err := sh.SetLevel(cb.Level); err != nil {
@@ -81,6 +104,7 @@ func (sh *Sheet) Switch(sw *Switch) error {
 	if err := sh.SetHands(sw.Hands); err != nil {
 		return err
 	}
+	sh.SetTotemLives(sw.Totems)
 	if err := sh.SetSkills(sw.Skills.Skills); err != nil {
 		return err
 	}

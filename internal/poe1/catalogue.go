@@ -91,6 +91,8 @@ const (
 	needsRate
 	// needsTotemRate is a hit whose rate the sheet gives and that a totem uses.
 	needsTotemRate
+	// needsTotem is a skill a totem uses.
+	needsTotem
 	// needsOneHandAttackHit is an attack's hit with one hand.
 	needsOneHandAttackHit
 	// needsOneHandHit is a hit that is not an attack's with both hands.
@@ -111,9 +113,9 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill }
 // for a hit, its accuracy only for an attack's with one hand, its hit per damage type only for
 // a hit with one hand, its hit and accuracy per hand only for an attack's with both, its rate
 // of hits and hit damage per second only for a hit whose rate it gives, that of every totem
-// only for such a hit a totem uses, its damage over time only for a skill that deals it or a
-// hit whose ailments it gives, and its ignite, bleeding and poison only for a hit the character
-// uses itself with one hand.
+// only for such a hit a totem uses, totem life only for a skill a totem uses, its damage over
+// time only for a skill that deals it or a hit whose ailments it gives, and its ignite,
+// bleeding and poison only for a hit the character uses itself with one hand.
 func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
@@ -133,6 +135,8 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 		return rateHit(sk, hands)
 	case needsTotemRate:
 		return totemRateHit(sk, hands)
+	case needsTotem:
+		return hasTypes(sk, typeSummonsTotem)
 	case needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit:
 		return n.metByHands(sk, hands)
 	case needsDot:
@@ -202,6 +206,7 @@ func Outputs() []Output {
 		{Key: ChaosDamageModifier, Label: "Chaos Damage Modifier", Better: output.Higher, Unit: UnitPercent, stat: statDamage, damage: Chaos},
 		{Key: ManaCost, Label: "Mana Cost", Better: output.Lower, Places: costPlaces, stat: statManaCost},
 		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost},
+		{Key: TotemLife, Label: "Totem Life", Better: output.Higher, stat: statTotemLife, needs: needsTotem},
 	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()), group(GroupSkill, igniteOutputs()),
 		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()))
 	for i := range out {
@@ -361,7 +366,7 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	}
 	var form damageForm
 	switch o.needs {
-	case needsSkill, needsDot:
+	case needsSkill, needsDot, needsTotem:
 		form = formNone
 	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
 		form = formHit

@@ -3,6 +3,7 @@ package poe1_test
 import (
 	"testing"
 
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
@@ -72,4 +73,29 @@ func TestAncestralBondOnce(t *testing.T) {
 	if got, want := outputOf(t, sh, poe1.TotemsHitDPS), outputOf(t, sh, poe1.HitDPS)*2; got != want {
 		t.Errorf("hit DPS of every totem %v, want 2 totems' %v", got, want)
 	}
+}
+
+// A totem's base life is an allied monster's at its level, by default the skill's level
+// requirement, times its totem's life multiplier, rounded down: 1,000 x 120%. A totem support's
+// level wins. Increases and more multipliers scale it, rounded half up.
+func TestTotemLife(t *testing.T) {
+	t.Parallel()
+	lives := poe1.TotemLivesOf(&dataset.Monsters{
+		Levels:    []dataset.MonsterLevel{{Level: 60, AllyLife: 1000}, {Level: 70, AllyLife: 1501}},
+		Varieties: []dataset.MonsterVariety{{ID: "Totem", LifeMultiplier: 120}},
+		Totems:    []dataset.Totem{{Key: 5, Skins: []dataset.TotemSkin{{Skin: 0, Variety: "Totem"}}}},
+	})
+	tree := bundle(resolve.NodeSource{ID: 1}, resolve.Global, stat("totem_life_+%", 25), stat("totem_life_+%_final", 10))
+	totem := spellWith([]string{"SummonsTotem"})
+	totem.LevelRequirement, totem.Totem = 60, 5
+	sh := open(t, resolved(tree))
+	sh.SetTotemLives(lives)
+	setSkills(t, sh, totem)
+	wantOutputs(t, sh, map[output.Key]float64{poe1.TotemLife: 1650})
+
+	supported := spellWith([]string{"SummonsTotem"})
+	supported.LevelRequirement = 60
+	supported.Supports = []resolve.Support{{Source: resolve.GemSource{Gem: 1, ID: "support"}, Stats: []resolve.StatValue{stat("totem_support_gem_level", 70)}}}
+	setSkills(t, sh, supported)
+	wantOutputs(t, sh, map[output.Key]float64{poe1.TotemLife: 2064})
 }

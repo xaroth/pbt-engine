@@ -133,6 +133,8 @@ type Sheet struct {
 	equipment equipmentMods
 	// exposure holds the enemy's Exposure by damage type.
 	exposure map[DamageType]core.ModID
+	// totems gives a totem's base life (SetTotemLives).
+	totems TotemLives
 	// outputs is the catalogue by key.
 	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
