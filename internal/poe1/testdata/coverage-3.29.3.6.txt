@@ -1,8 +1,9 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 359 authored, 101 unknown, 1 display-only, 0 gaps, 1448 outside
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 364 authored, 101 unknown, 1 display-only, 0 gaps, 1443 outside
 unknown by reason: condition 68, items 18, event 7, reservation 4, context 2, scale 1, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unvalidated accuracy_rating_per_level global, uses 13: counts the levels after the first, as PoB does (CalcSetup.lua); the text says per Level and does not say which. A level 1 character's accuracy rating in game would validate it
+unvalidated base_total_number_of_sigils_allowed global, uses 11: no description text; read from the stat id as how many brands the character may have out, as PoB's base of 3 is
 unvalidated area_damage_+% global, uses 10: that all damage of a skill with the Area type is area damage is our reading; the game data does not mark which of a skill's damage is area damage. A skill that hits both in and outside an area would validate it; a skill's damage over time is area damage only for the ground and aura effects PoB lists, since the game data does not mark them
 unknown armour_evasion_+%_while_leeching global, uses 9: condition: leeching
 omitted base_all_ailment_duration_+% global, uses 9: the duration of non-damaging ailments, which the sheet does not give
@@ -124,6 +125,7 @@ omitted keystone_magebane global, uses 1: +1% Chance to Suppress Spell Damage pe
 omitted keystone_miracle_of_thaumaturgy global, uses 1: While not on Full Life, Sacrifice 20% of Mana per Second to Recover that much Life
 unvalidated keystone_precise_technique global, uses 1: higher than is read as strictly higher, and each hand's accuracy rating is compared on its own, as PoB does
 unknown keystone_projectile_evasion global, uses 1: context: changes evasion rating against projectile and melee attacks only; the sheet's evasion rating has no attack context
+omitted keystone_runebinder global, uses 1: the totem limit, which the sheet does not model
 omitted keystone_solipsism global, uses 1: 2% reduced Duration of Elemental Ailments on you per 15 Intelligence
 omitted keystone_versatile_combatant global, uses 1: -10% to maximum Chance to Block Attack Damage; +2% Chance to Block Spell Damage for each 1% Overcapped Chance to Block Attack Damage, since the chance to block attack damage is not a sheet value yet
 unknown keystone_veterans_awareness global, uses 1: condition: affected by a non-Vaal Guard Skill
