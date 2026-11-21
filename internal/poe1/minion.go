@@ -62,9 +62,33 @@ type Minion struct {
 	AttackRate                   float64
 	// CriticalStrikeMultiplier is every monster's, from Monster.ot.
 	CriticalStrikeMultiplier float64
-	// Skill is the minion's main skill, its variety's first, at the minion's level; nil when it
-	// has none that resolves.
+	// Skill is the minion's main skill, its variety's first, at the minion's level, with the
+	// summoning skill's supports that support it; nil when it has none that resolves.
 	Skill *resolve.Skill
+	// Passed are the summoning skill's own stats that its minion's skill has too
+	// (passedStats).
+	Passed []resolve.StatValue
+}
+
+// passedStats are, by granted effect, the stats of a summoning skill that its minion's skill
+// has too, as PoB's skill data passes them (Data/Skills, a statMap entry with a MinionModifier):
+// a stat whose meaning is the skill's own, which other skills do not pass. Stats only minions
+// read, such as minion_damage_+%, reach them through the table.
+func passedStats() map[string][]string {
+	conversion := []string{"skill_physical_damage_%_to_convert_to_lightning"}
+	return map[string][]string{"Absolution": conversion, "AbsolutionAltX": conversion}
+}
+
+// passed returns the stats of sk that its minion's skill has too.
+func passed(sk *resolve.Skill) []resolve.StatValue {
+	ids := passedStats()[sk.GrantedEffect]
+	var out []resolve.StatValue
+	for _, sv := range sk.Set().Stats {
+		if slices.Contains(ids, sv.Stat) {
+			out = append(out, sv)
+		}
+	}
+	return out
 }
 
 // Hit reports whether the sheet gives mn's hit: its main skill is an attack with the minion's
@@ -125,7 +149,10 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dat
 	mn.CriticalStrikeMultiplier = monsterBase(m, stats, statMonsterBaseCriticalStrikeMultiplier, 0)
 	if len(v.GrantedEffects) > 0 {
 		// Not an error: a minion whose skill does not resolve has no hit.
-		mn.Skill, _ = resolve.MonsterSkill(x, stats, v.GrantedEffects[0], mn.Level, sk.Source)
+		mn.Skill, _ = resolve.MinionSkill(x, stats, v.GrantedEffects[0], mn.Level, sk)
+	}
+	if mn.Skill != nil {
+		mn.Passed = passed(sk)
 	}
 	return mn, true, nil
 }
@@ -330,6 +357,27 @@ func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 // addMinion adds mn's base values, and its skill's stats and hit, as sources whose modifiers
 // reach the minion actor in the context of the skill in slot.
 func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
+	src, err := sh.addMinionBases(mn, slot)
+	if err != nil {
+		return nil, err
+	}
+	if mn.Skill == nil {
+		return []core.SourceID{src}, nil
+	}
+	srcs, err := sh.addBundles([]core.SourceID{src}, mn.bundles(), slot)
+	if err != nil {
+		return nil, err
+	}
+	hit, err := sh.addHitRules(mn.Skill, slot, minionActor)
+	if err != nil {
+		return nil, err
+	}
+	return append(srcs, hit), nil
+}
+
+// addMinionBases adds mn's base values to the minion actor in the context of the skill in slot,
+// and returns their source.
+func (sh *Sheet) addMinionBases(mn *Minion, slot int) (core.SourceID, error) {
 	src := sh.newSource(Source{RuleID: "minion-base", Rule: fmt.Sprintf("base values of %s at level %d", mn.Variety, mn.Level)})
 	attack, ok := sh.session.Model().Bit(dimType + "." + typeAttack)
 	if !ok {
@@ -343,27 +391,32 @@ func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
 		pred := core.Predicate{Req: append([]core.Mask{skill}, b.req...)}
 		mod := core.Modifier{Actor: minionActor, Stat: sh.stats[b.stat], Op: b.op, Value: b.value, Source: src, Pred: pred}
 		if _, err := sh.session.AddModifier(mod); err != nil {
-			return nil, fmt.Errorf("sheet: minion %s: %w", mn.Variety, err)
+			return 0, fmt.Errorf("sheet: minion %s: %w", mn.Variety, err)
 		}
 	}
-	srcs := []core.SourceID{src}
-	if mn.Skill == nil {
-		return srcs, nil
-	}
+	return src, nil
+}
+
+// bundles returns the bundles of the stats of mn's skill: its stat set's, those the summoning
+// skill passes and its supports', less the support stats that act on the character.
+func (mn *Minion) bundles() []resolve.Bundle {
 	sk := mn.Skill
+	var out []resolve.Bundle
 	if len(sk.StatSets) > 0 {
-		bd := resolve.Bundle{Actor: resolve.Minion, Scope: resolve.Global, Source: sk.Source, Stats: sk.Set().Stats}
-		own, err := sh.add(&bd, sh.table, sh.gameVersion, slot)
-		if err != nil {
-			return nil, err
-		}
-		srcs = append(srcs, own)
+		out = append(out, minionBundle(sk.Source, sk.Set().Stats))
 	}
-	hit, err := sh.addHitRules(sk, slot, minionActor)
-	if err != nil {
-		return nil, err
+	if len(mn.Passed) > 0 {
+		out = append(out, minionBundle(sk.Source, mn.Passed))
 	}
-	return append(srcs, hit), nil
+	for _, sp := range sk.Supports {
+		own, _ := splitCharacterStats(sp.Stats)
+		out = append(out, minionBundle(sp.Source, own))
+	}
+	return out
+}
+
+func minionBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {
+	return resolve.Bundle{Actor: resolve.Minion, Scope: resolve.Global, Source: src, Stats: stats}
 }
 
 // minionNode returns the node of engine stat name of the minion of skill i, in that skill's

@@ -233,6 +233,45 @@ func MonsterSkill(x *dataset.SkillIndex, stats []dataset.Stat, id string, level 
 	return sk, nil
 }
 
+// MinionSkill resolves granted effect id as MonsterSkill does, as the skill of the minion summon
+// summons: supported by summon's supports, with the types they add, as PoB has it
+// (CalcActiveSkill.lua createMinionSkills, CalcTools.lua canGrantedEffectSupportActiveSkill). A
+// support of the summoning skill supports the minion's skill unless that skill cannot be
+// supported or the support needs a weapon the skill is not used with: the skill types a support
+// needs are checked on the summoning skill.
+func MinionSkill(x *dataset.SkillIndex, stats []dataset.Stat, id string, level int, summon *Skill) (*Skill, error) {
+	sk, err := MonsterSkill(x, stats, id, level, summon.Source)
+	if err != nil {
+		return nil, err
+	}
+	if x.GrantedEffect(id).CannotBeSupported {
+		return sk, nil
+	}
+	r := &skillResolver{data: x, stats: stats}
+	types := r.typeSet(nil)
+	for _, t := range sk.Types {
+		types[slices.Index(x.Types, t)] = true
+	}
+	for _, sp := range summon.Supports {
+		ge := x.GrantedEffect(sp.GrantedEffect)
+		if ge == nil || !usedWith(sk.WeaponRestrictions, ge.SupportWeaponRestrictions) {
+			continue
+		}
+		sk.Supports = append(sk.Supports, sp)
+		for _, t := range ge.AddedTypes {
+			types[t] = true
+		}
+	}
+	sk.Types = r.typeNames(types)
+	return sk, nil
+}
+
+// usedWith reports whether a skill used with the weapons restrictions names can be supported by a
+// support that needs one of weapons: always when the support needs none.
+func usedWith(restrictions, weapons []string) bool {
+	return len(weapons) == 0 || slices.ContainsFunc(restrictions, func(c string) bool { return slices.Contains(weapons, c) })
+}
+
 // unsupported resolves granted effect id at its level row row, without supports, as a skill
 // of src. It fails with ErrNoActiveSkill when id is not an active skill with levels.
 func (r *skillResolver) unsupported(id string, row int, src GemSource) (*Skill, error) {
