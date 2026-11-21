@@ -69,7 +69,8 @@ func (sh *Sheet) skillKeys(skills []*resolve.Skill) []skillKey {
 // its own stats (the stat set it uses, quality included, and each applied support) go on,
 // those of other skills off. A skill's own stats reach that skill's values only. Every skill
 // that reserves life or mana reserves it from the sheet's pools, and the buffs of aura, herald,
-// guard and golem skills affect you, each skill's once and one guard skill's; outputs of the
+// guard and golem skills affect you, each skill's once and one guard skill's; a skill a support
+// grants and triggers reads the rate of the skill triggering it (setTriggers); outputs of the
 // skill group read skill 0. A skill not seen yet in its slot gets its sources added once;
 // adding is refused while a checkpoint is open (ErrCheckpointOpen).
 func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
@@ -107,7 +108,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 		}
 		sh.skillSources[k] = srcs
 	}
-	return nil
+	return sh.setTriggers()
 }
 
 // addSkill adds the sources of sk's own stats in slot, of the buff it grants you when buff is

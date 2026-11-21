@@ -519,3 +519,30 @@ func TestStatSetChoice(t *testing.T) {
 		t.Errorf("set 3: %s, warnings %v; want the primary set and %s", third.Set().ID, ws, resolve.StatSetUnknown)
 	}
 }
+
+// TestSupportGrantedSkill checks the skill a support gem grants: Void Shockwave, granted for the
+// melee skills of its group it supports, Ground Slam and not Fireball, with its level row's
+// cooldown.
+func TestSupportGrantedSkill(t *testing.T) {
+	t.Parallel()
+	const voidShockwaveGem = "Metadata/Items/Gems/SupportGemVoidShockwave"
+	r := skillsOf(t, []build.SkillGroup{{Gems: []build.Gem{
+		active(fireballGem, 0), support(voidShockwaveGem, 1), active(groundSlamGem, 0),
+	}}}, nil, nil)
+	var got *resolve.Skill
+	for _, sw := range r.All() {
+		if sw.Skill != nil && sw.Skill.GrantedEffect == "TriggeredSupportVoidShockwave" {
+			got = sw.Skill
+		}
+	}
+	if got == nil {
+		t.Fatal("Void Shockwave not resolved")
+	}
+	want := []resolve.SkillRef{{Source: resolve.GemSource{Gem: 2, ID: groundSlamGem}}}
+	if diff := cmp.Diff(want, got.Supported); diff != "" {
+		t.Errorf("supported (-want +got):\n%s", diff)
+	}
+	if got.Cooldown != 500 {
+		t.Errorf("cooldown = %d ms, want 500", got.Cooldown)
+	}
+}

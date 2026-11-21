@@ -116,6 +116,9 @@ type Sheet struct {
 	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.
 	skillSources map[skillKey][]core.SourceID
+	// triggers maps a link of a triggered skill to the skill that triggers it to its source
+	// (setTriggers).
+	triggers map[triggerKey]core.SourceID
 	// buffs are the skill buffs the rules model, the model's.
 	buffs buffRules
 	// deriveFrom is the first skill slot whose skill is on the sheet only to derive conditions
