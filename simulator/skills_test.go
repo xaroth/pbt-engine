@@ -149,6 +149,71 @@ func TestReservation(t *testing.T) {
 	}
 }
 
+// Tempest Shield requires a shield. Determination, Tempest Shield and Enlighten 3 in one group
+// reserve 46% and 23% of mana (25% and 50% at Enlighten's 92%). Without a shield in the off hand
+// Tempest Shield is off: it reserves nothing and the sheet warns, naming it, while Determination
+// keeps its 46%. As the main skill it is off too, and warned about once.
+func TestSkillNeedsShield(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s := realSim(t)
+	shield, _, err := s.Data().Item(shieldText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	group := func(gem ...build.Gem) build.SkillGroup { return build.SkillGroup{Gems: gem} }
+	tempest := build.Gem{ID: gems + "SkillGemTempestShield", Level: 20}
+	det := build.Gem{ID: gems + "SkillGemDetermination", Level: 20}
+	enlighten := build.Gem{ID: gems + "SupportGemAdditionalXP", Level: 3, Support: true}
+	fireball := build.Gem{ID: gems + "SkillGemFireball", Level: 20}
+	pct := func(pool, permyriad float64) float64 { return math.Ceil(pool * permyriad / 10000) }
+	build1 := func(withShield bool, groups ...build.SkillGroup) *build.Build {
+		b := marauderBuild(90)
+		if withShield {
+			if err := b.Apply(build.Equip(build.SlotOffhand, shield)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, g := range groups {
+			b.Skills.AddGroup(g)
+		}
+		return b
+	}
+	testCases := []struct {
+		name       string
+		build      *build.Build
+		permyriad  float64
+		warnings   int
+		wantSubstr string
+	}{
+		{"with a shield", build1(true, group(fireball), group(det, tempest, enlighten)), 4600 + 2300, 0, ""},
+		{"without a shield", build1(false, group(fireball), group(det, tempest, enlighten)), 4600, 1, "Tempest Shield"},
+		{"as the main skill", build1(false, group(tempest)), 0, 1, "Tempest Shield"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			st := simulate(t, s, testCase.build)
+			mana := get(t, st, poe1.Mana)
+			if got, want := get(t, st, poe1.ReservedMana), pct(mana, testCase.permyriad); got != want {
+				t.Errorf("reserved mana %v, want %v", got, want)
+			}
+			var got []simulator.Warning
+			for _, w := range st.Warnings() {
+				if w.Code == simulator.SkillNeedsShield {
+					got = append(got, w)
+				}
+			}
+			if len(got) != testCase.warnings {
+				t.Fatalf("%d %s warnings %v, want %d", len(got), simulator.SkillNeedsShield, got, testCase.warnings)
+			}
+			if len(got) == 1 && !strings.Contains(got[0].Message, testCase.wantSubstr) {
+				t.Errorf("warning %q does not name %s", got[0].Message, testCase.wantSubstr)
+			}
+		})
+	}
+}
+
 // Fireball 20 alone on a level 90 Marauder without passives: its level row's 1883 to 2825 fire
 // damage, against the default enemy's 50% fire resistance, with the class's 5% critical strike
 // chance and 150% multiplier, cast every 0.75 seconds. An enemy without fire resistance takes it whole. The skill is

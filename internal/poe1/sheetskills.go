@@ -18,7 +18,13 @@ const (
 	// SkillUnresolved is a skill asked for that the dataset does not resolve, such as one without
 	// levels: it has no outputs.
 	SkillUnresolved build.Code = "skill-unresolved"
+	// SkillNeedsShield is a skill that requires a shield in a build whose off hand holds none:
+	// the skill is off, it reserves nothing, gives no buff and no hit.
+	SkillNeedsShield build.Code = "skill-needs-shield"
 )
+
+// typeRequiresShield is the skill type of a skill that cannot be used without a shield.
+const typeRequiresShield = "RequiresShield"
 
 // SheetSkills are the skills a build puts in a sheet's skill slots (SetSkills).
 type SheetSkills struct {
@@ -36,6 +42,10 @@ type SheetSkills struct {
 	// conditions they cause (Sheet.DeriveOnly).
 	Kept     int
 	Warnings []build.Warning
+	// off are the skills left out because they need a shield and the hands hold none.
+	off []*resolve.Skill
+	// store names the skills in warnings.
+	store *dataset.Store
 }
 
 // SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, the
@@ -43,10 +53,11 @@ type SheetSkills struct {
 // as when it has no groups, none when the dataset has no skills group or lacks the main gem
 // (the build check warns about that), the other skills that reserve life or mana, grant you a
 // buff or apply a curse and each other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
-// skill are read. It warns about the gems whose hits the sheet does not give and, with every,
-// about the skills that do not resolve or do not fit the sheet.
+// skill are read. A skill that requires a shield is left out, with a warning, while hands hold
+// none, as the game does not let it be used. It warns about the gems whose hits the sheet does
+// not give and, with every, about the skills that do not resolve or do not fit the sheet.
 func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, error) {
-	out := SheetSkills{Every: every}
+	out := SheetSkills{Every: every, store: c.Store()}
 	sk := c.Build().Skills
 	skills, err := resolve.NewSkillResolver(c, GemRules())
 	switch {
@@ -55,24 +66,14 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 	case err != nil:
 		return out, fmt.Errorf("sheet skills: %w", err)
 	default:
-		main, warnings, err := skills.Group(sk.MainGroup)
-		if errors.Is(err, resolve.ErrNoActiveSkill) {
-			main, err = skills.Default()
-		}
-		switch {
-		case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
-		case err != nil:
-			return out, fmt.Errorf("sheet skills: %w", err)
-		default:
-			out.Main = main
-			out.Skills = append(out.Skills, main)
-			out.Warnings = append(out.Warnings, warnings...)
+		if err := out.addMain(skills, hands, sk.MainGroup); err != nil {
+			return out, err
 		}
 	}
 	if skills != nil {
 		out.addOthers(skills.All(), hands, sk.Groups)
 	}
-	if w, ok := notSimulated(sk, out.Read(), hands); ok {
+	if w, ok := notSimulated(sk, out.Read(), out.off, hands); ok {
 		out.Warnings = append(out.Warnings, w)
 	}
 	return out, nil
@@ -89,6 +90,27 @@ func (s *SheetSkills) Read() []*resolve.Skill {
 	return s.Skills[:1]
 }
 
+// addMain makes the skill of group the main skill, unless the dataset lacks it or it needs a
+// shield hands lack.
+func (s *SheetSkills) addMain(skills *resolve.SkillResolver, hands Hands, group int) error {
+	main, warnings, err := skills.Group(group)
+	if errors.Is(err, resolve.ErrNoActiveSkill) {
+		main, err = skills.Default()
+	}
+	switch {
+	case errors.Is(err, resolve.ErrNoActiveSkill), errors.Is(err, dataset.ErrNotInDataset):
+		return nil
+	case err != nil:
+		return fmt.Errorf("sheet skills: %w", err)
+	}
+	s.Warnings = append(s.Warnings, warnings...)
+	if !s.needsShield(main, hands) {
+		s.Main = main
+		s.Skills = append(s.Skills, main)
+	}
+	return nil
+}
+
 // addOthers adds the skills of all other than the main skill: those that reserve or whose buff
 // affects you (buffList), then those that curse (curseList), then the rest, warning with Every about those that do not resolve or
 // do not fit and with the rest's own warnings, whose outputs are then read. Without Every the
@@ -97,6 +119,7 @@ func (s *SheetSkills) Read() []*resolve.Skill {
 func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands, groups []build.SkillGroup) {
 	var rest []resolve.SkillWarnings
 	var curses curseList
+	all = s.usable(all, hands)
 	buffs := s.buffList(all)
 	for _, sw := range all {
 		switch {
@@ -116,6 +139,40 @@ func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands, groups
 	if s.Every {
 		s.Kept = len(s.Skills)
 	}
+}
+
+// usable returns all without the skills that need a shield hands lack.
+func (s *SheetSkills) usable(all []resolve.SkillWarnings, hands Hands) []resolve.SkillWarnings {
+	return slices.DeleteFunc(slices.Clone(all), func(sw resolve.SkillWarnings) bool {
+		return sw.Skill != nil && s.needsShield(sw.Skill, hands)
+	})
+}
+
+// needsShield reports whether sk requires a shield that hands lack. Such a skill is left out
+// of the sheet's skills, and warned about once.
+func (s *SheetSkills) needsShield(sk *resolve.Skill, hands Hands) bool {
+	if hands.Shield || !slices.Contains(sk.Types, typeRequiresShield) {
+		return false
+	}
+	// The main skill comes again with the others.
+	if slices.ContainsFunc(s.off, func(o *resolve.Skill) bool { return o.Source == sk.Source && o.Which == sk.Which }) {
+		return true
+	}
+	s.off = append(s.off, sk)
+	s.Warnings = append(s.Warnings, build.Warning{
+		Code: SkillNeedsShield, Subject: sk.Source.String(), Message: s.skillName(sk) + " needs a shield; it is off",
+	})
+	return true
+}
+
+// skillName is the English name of sk's active skill, its id when the dataset has no name.
+func (s *SheetSkills) skillName(sk *resolve.Skill) string {
+	if text, err := s.store.Text("en"); err == nil {
+		if i := slices.IndexFunc(text.SkillNames, func(n dataset.Name) bool { return n.ID == sk.ActiveSkill }); i >= 0 {
+			return text.SkillNames[i].Name
+		}
+	}
+	return sk.ActiveSkill
 }
 
 // keeps reports whether sk is kept beside the main skill for itself: it reserves life or mana
@@ -173,11 +230,15 @@ func (s *SheetSkills) addRest(rest []resolve.SkillWarnings) {
 }
 
 // notSimulated warns about the gems of s outside the groups of read whose hit the sheet gives
-// with hands.
-func notSimulated(s build.Skills, read []*resolve.Skill, hands Hands) (build.Warning, bool) {
+// with hands. A group with a skill in off is left out: its own warning says why.
+func notSimulated(s build.Skills, read, off []*resolve.Skill, hands Hands) (build.Warning, bool) {
 	gems, groups := 0, 0
+	inGroup := func(i int) func(*resolve.Skill) bool {
+		return func(sk *resolve.Skill) bool { return sk.Source.Group == i }
+	}
 	for i, g := range s.Groups {
-		if len(g.Gems) == 0 || slices.ContainsFunc(read, func(sk *resolve.Skill) bool { return sk.Source.Group == i && Hit(sk, hands) }) {
+		if len(g.Gems) == 0 || slices.ContainsFunc(off, inGroup(i)) ||
+			slices.ContainsFunc(read, func(sk *resolve.Skill) bool { return inGroup(i)(sk) && Hit(sk, hands) }) {
 			continue
 		}
 		gems += len(g.Gems)
