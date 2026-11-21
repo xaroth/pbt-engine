@@ -248,6 +248,78 @@ func TestReadNames(t *testing.T) {
 	}
 }
 
+// conquerors names a conqueror by its keystone, version and revision.
+type conquerors map[[3]int32]string
+
+func (c conquerors) Name(v []int32) (string, bool) {
+	n, ok := c[[3]int32(v)]
+	return n, ok
+}
+
+func (c conquerors) Values(name string) ([]int32, bool) {
+	for k, n := range c {
+		if n == name {
+			return k[:], true
+		}
+	}
+	return nil, false
+}
+
+// A handler with Args shows the name of the values of all its stats, and reads the name back to
+// each of them, a stat the text does not show included.
+func TestReadNamesOfSeveralStats(t *testing.T) {
+	t.Parallel()
+	stats := []string{"version", "seed", "keystone", "revision"}
+	s, err := statdesc.NewSet([]statdesc.Scope{{Name: "s", Descriptions: []statdesc.Description{{
+		Stats: stats,
+		Variants: []statdesc.Variant{{
+			Limits:   []statdesc.Limit{{Min: 1, Max: 2}, anyValue(), anyValue(), anyValue()},
+			Text:     "Bathed in the blood of {1} sacrificed in the name of {2}\\nPassives in radius are Conquered by the {0}",
+			Handlers: []statdesc.Handler{{Name: "version_name"}, {Name: "keystone_name", Stat: 2, Args: []int{0, 3}}},
+		}},
+	}}}},
+		statdesc.WithNames("version_name", map[int32]string{1: "Vaal", 2: "Karui"}),
+		statdesc.WithNamer("keystone_name", conquerors{{2, 1, 0}: "Zerphi", {2, 1, 1}: "Ahuana", {1, 2, 0}: "Kaom"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	vaal := func(seed, conqueror string) []string {
+		return []string{"Bathed in the blood of " + seed + " sacrificed in the name of " + conqueror, "Passives in radius are Conquered by the Vaal"}
+	}
+	testCases := []struct {
+		name   string
+		values []int32
+		lines  []string
+	}{
+		{name: "first revision", values: []int32{1, 2000, 2, 0}, lines: vaal("2000", "Zerphi")},
+		{name: "later revision", values: []int32{1, 8000, 2, 1}, lines: vaal("8000", "Ahuana")},
+		{name: "conqueror of another version", lines: vaal("2000", "Kaom")},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			var want []statdesc.Reading
+			if testCase.values != nil {
+				want = []statdesc.Reading{{Stats: stats, Values: testCase.values, Lines: 2}}
+				vals := map[string]int32{}
+				for i, st := range stats {
+					vals[st] = testCase.values[i]
+				}
+				lines, err := s.Describe("s", vals)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got, w := lines[0].Text, strings.Join(testCase.lines, "\n"); len(lines) != 1 || got != w {
+					t.Fatalf("Describe: got %v, want %q", lines, w)
+				}
+			}
+			if diff := cmp.Diff(want, read(t, s, "s", testCase.lines...)); diff != "" {
+				t.Errorf("Read (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestReadUnknownScope(t *testing.T) {
 	t.Parallel()
 	if _, err := testSet(t).Read("missing", []string{"x"}); !errors.Is(err, statdesc.ErrUnknownScope) {

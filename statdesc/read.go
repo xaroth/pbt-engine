@@ -126,6 +126,9 @@ func (s *Set) read(d Description, e textEntry, text string) ([]int32, bool) {
 		}
 	}
 	s.avoidZeros(v, shown, vals)
+	if !s.nameArgs(v.Handlers, shown, vals) {
+		return nil, false
+	}
 	stats := make(map[string]int32, len(d.Stats))
 	for i, st := range d.Stats {
 		stats[st] = vals[i]
@@ -138,12 +141,34 @@ func (s *Set) read(d Description, e textEntry, text string) ([]int32, bool) {
 // else as invert reads it.
 func (s *Set) shownValue(handlers []Handler, i int, shown string) (int32, bool) {
 	for _, h := range handlers {
-		if values, ok := s.values[h.Name]; ok && h.Stat == i {
-			v, ok := values[shown]
-			return v, ok
+		if n, ok := s.namers[h.Name]; ok && h.Stat == i {
+			v, ok := n.Values(shown)
+			if !ok || len(v) != 1+len(h.Args) {
+				return 0, false
+			}
+			return v[0], true
 		}
 	}
 	return s.invert(handlers, i, shown, false)
+}
+
+// nameArgs sets the Args of each handler showing a name to the values the name gives them, and
+// reports false when one the text also shows has another value.
+func (s *Set) nameArgs(handlers []Handler, shown []string, vals []int32) bool {
+	for _, h := range handlers {
+		n, ok := s.namers[h.Name]
+		if !ok || len(h.Args) == 0 || shown[h.Stat] == "" {
+			continue
+		}
+		v, _ := n.Values(shown[h.Stat]) // shownValue checked it
+		for k, a := range h.Args {
+			if shown[a] != "" && vals[a] != v[k+1] {
+				return false
+			}
+			vals[a] = v[k+1]
+		}
+	}
+	return true
 }
 
 // avoidZeros sets the values of stats the text does not show. Stats that are all 0 render
@@ -173,6 +198,9 @@ func (s *Set) invert(handlers []Handler, i int, shown string, nonZero bool) (int
 	}
 	var hs []handler
 	for _, h := range handlers {
+		if s.named(h.Name) {
+			continue // a name, which shownValue reads
+		}
 		f, ok := s.handlers[h.Name]
 		if !ok {
 			return 0, false
