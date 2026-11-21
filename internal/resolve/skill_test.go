@@ -73,8 +73,8 @@ func TestMainSkillFireball(t *testing.T) {
 			"Spell", "Projectile", "Damage", "Area", "Trappable", "Totemable", "Mineable", "Multicastable", "Fire",
 			"Triggerable", "ProjectilesFromUser", "CanRapidFire", "AreaSpell",
 		},
-		CastTime: 750,
-		Costs:    []dataset.Cost{{Type: "Mana", Amount: 20}},
+		CastTime: 750, LevelRequirement: 70, Totem: 22,
+		Costs: []dataset.Cost{{Type: "Mana", Amount: 20}},
 		StatSets: []resolve.SkillStatSet{{
 			ID: "Fireball", SpellCritChance: 500, DamageEffectiveness: 38000,
 			Stats: []resolve.StatValue{

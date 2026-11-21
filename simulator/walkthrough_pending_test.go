@@ -26,7 +26,6 @@ func capabilities() []string {
 	return []string{
 		"skills on a build",
 		"minions",
-		"totems",
 		"a party",
 	}
 }

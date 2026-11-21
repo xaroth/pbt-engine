@@ -66,6 +66,10 @@ type Skill struct {
 	// CastTime is the skill's in milliseconds; AttackTime and AttackSpeedMultiplier are its
 	// level row's.
 	CastTime, AttackTime, AttackSpeedMultiplier int32
+	// LevelRequirement is the character level its level row requires; Totem is its active
+	// skill's SkillTotemId, 0 for none.
+	LevelRequirement int
+	Totem            int32
 	// Costs are the skill's level row costs, before supports' multipliers.
 	Costs []dataset.Cost
 	// Reservation is what the skill reserves before supports' multipliers: its level row's, or
@@ -190,6 +194,7 @@ func (s *SkillResolver) Default() (*Skill, error) {
 	}
 	row := ge.Levels[0]
 	sk.AttackTime, sk.AttackSpeedMultiplier = row.AttackTime, row.AttackSpeedMultiplier
+	sk.LevelRequirement = int(row.PlayerLevel)
 	for _, id := range ge.StatSets {
 		sk.StatSets = append(sk.StatSets, s.r.statSet(s.r.data.StatSet(id), sk.Level))
 	}
@@ -277,6 +282,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	sk := &Skill{
 		Source: src, Which: which, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime,
 		WeaponRestrictions: slices.Clone(r.data.ActiveSkill(ge.ActiveSkill).WeaponRestrictions),
+		Totem:              r.data.ActiveSkill(ge.ActiveSkill).Totem,
 	}
 	types := r.supportedTypes(src, ge, sk)
 
@@ -290,6 +296,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	sk.Level = r.clampLevel(src, ge, gem.Level+level)
 	row := ge.Levels[rowAt(ge.Levels, sk.Level, effectLevel)]
 	sk.AttackTime, sk.AttackSpeedMultiplier = row.AttackTime, row.AttackSpeedMultiplier
+	sk.LevelRequirement = int(row.PlayerLevel)
 	sk.Costs = slices.Clone(row.Costs)
 	sk.Reservation = rowReservation(row)
 	for _, sp := range sk.Supports {

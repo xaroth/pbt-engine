@@ -57,6 +57,7 @@ const (
 	HitsPerSecond               = rules.HitsPerSecond
 	HitDPS                      = rules.HitDPS
 	TotemsHitDPS                = rules.TotemsHitDPS
+	TotemLife                   = rules.TotemLife
 	DotDPS                      = rules.DotDPS
 	IgniteDPS                   = rules.IgniteDPS
 	BleedDPS                    = rules.BleedDPS
