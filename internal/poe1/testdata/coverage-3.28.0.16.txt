@@ -1,4 +1,4 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 387 authored, 108 unknown, 1 display-only, 0 gaps, 1346 outside
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 388 authored, 108 unknown, 1 display-only, 0 gaps, 1345 outside
 unknown by reason: condition 74, items 20, event 7, reservation 4, context 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated dual_wield_or_shield_block_% global, uses 16: a shield is not a weapon, so the character never both dual wields and holds a shield and the two modifiers never add up

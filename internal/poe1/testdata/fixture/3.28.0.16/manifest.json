@@ -2,15 +2,15 @@
   "format": 1,
   "game": "poe1",
   "version": "3.28.0.16",
-  "id": "ce59f254a64f17e566f10916c4a754f804098eb4407b1b110af3c2ffb03fb8fa",
+  "id": "2701b89171d46b2c480bf446f01a0de9541d2a8522503ef8bebb658b01f18f61",
   "source": {
     "fixtureOf": "400942a0b5778859dd8204a898f3c9997997cba5e315014dda2e1ac9bb102916"
   },
   "files": [
     {
       "name": "stats.fb",
-      "size": 53336,
-      "sha256": "8ca49904a6b18b905a50c5a8701f07655de4cfcf063a98c33fa8ab184e686bdb"
+      "size": 53432,
+      "sha256": "ef6a00a5d00045634cd2c822ba22aafc5af579a3be1e9a3f4bd8583557ee5b07"
     },
     {
       "name": "characters.fb",
@@ -29,13 +29,13 @@
     },
     {
       "name": "tree-standard.fb",
-      "size": 162400,
-      "sha256": "45fa0d75c31542f2f2aa9098a080758af5b145880ce139d2ba0929c53c1ba15b"
+      "size": 162564,
+      "sha256": "f2f85ec3d7ad32de0abe131eaadbe8cbb2b9445eeed8d23aa92705cae11f80d8"
     },
     {
       "name": "text-en.fb",
-      "size": 173192,
-      "sha256": "69860c6ce3b183797e17ba685f6777eb9ba5082c5cd4c1c1eff2e6c35674c295"
+      "size": 173524,
+      "sha256": "697f5cb5adc7eeb5f459d88a0a422bb03b8f4204058ac5236ce1ecf1439b7a49"
     },
     {
       "name": "names-en.fb",
