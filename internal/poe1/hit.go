@@ -43,6 +43,7 @@ const (
 	typeRemoteMined  = "RemoteMined"
 	typeSummonsTotem = "SummonsTotem"
 	typeTriggered    = "Triggered"
+	typeMelee        = "Melee"
 	typeCooldown     = "Cooldown"
 	typeProjectile   = "Projectile"
 	typeArea         = "Area"
@@ -103,9 +104,10 @@ func Hit(sk *resolve.Skill, h Hands) bool {
 
 // rateHit reports whether the sheet gives sk's rate of hits with hands: a hit the character, a
 // totem, trap or mine uses, channelled or a brand included, without a cooldown or trigger,
-// whose rates these rules do not give.
+// whose rates these rules do not give, unless a support grants it and the skills it supports
+// trigger it.
 func rateHit(sk *resolve.Skill, h Hands) bool {
-	return Hit(sk, h) && !hasAnyType(sk, typeTriggered, typeCooldown)
+	return Hit(sk, h) && (!hasAnyType(sk, typeTriggered, typeCooldown) || supportTriggered(sk))
 }
 
 // selfUsedHit reports whether sk with hands is a rate hit the character uses itself, not a
@@ -180,7 +182,7 @@ func hitMechanic() mechanic {
 			statAttackRate,
 			statAttackSpeed,
 			statActionSpeed,
-		}, slices.Concat(rateStats(), deliveryStats(), []string{
+		}, slices.Concat(rateStats(), triggerStats(), deliveryStats(), []string{
 			statHitsPerSecond,
 			statHitDPS,
 			statTotemsHitDPS,
@@ -202,7 +204,8 @@ func hitMechanic() mechanic {
 // Hits per second are the cast time divided by the cast speed, rounded to hundredths, times the
 // action speed, which a totem does not take, at most one per server tick for each time a use
 // repeats, or no cap for a channelled skill; a skill with a hit interval hits at that instead
-// (rateDef), and one a trap or mine delivers at its throws (deliveryDef). Hit DPS is the
+// (rateDef), one a trap or mine delivers at its throws (deliveryDef), and a triggered skill at
+// the rate of the skill triggering it (triggeredRate). Hit DPS is the
 // average hit times the chance to hit times hits per second, times the brands attached for a
 // brand. The order, roundings and cap follow PoB (CalcOffence.lua, CalcPerform.lua
 // actionSpeedMod); the game text gives none of them.
@@ -542,7 +545,7 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	if err != nil {
 		return 0, err
 	}
-	for _, b := range slices.Concat(hitBases(sk), rateBases(sk), dotBases(sk), sh.totemBases(sk)) {
+	for _, b := range slices.Concat(hitBases(sk), rateBases(sk), triggerBases(sk), dotBases(sk), sh.totemBases(sk)) {
 		if b.value == 0 {
 			continue
 		}
