@@ -56,6 +56,7 @@ const (
 	CriticalStrikeChance        = rules.CriticalStrikeChance
 	HitsPerSecond               = rules.HitsPerSecond
 	HitDPS                      = rules.HitDPS
+	TotemsHitDPS                = rules.TotemsHitDPS
 	DotDPS                      = rules.DotDPS
 	IgniteDPS                   = rules.IgniteDPS
 	BleedDPS                    = rules.BleedDPS

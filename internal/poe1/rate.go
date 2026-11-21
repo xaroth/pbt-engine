@@ -261,15 +261,16 @@ func rateBases(sk *resolve.Skill) []hitBase {
 	return nil
 }
 
-// hitRate is a skill's hits per second: one with a hit interval hits at that, scaled by its hit
-// frequency; else an attack's from its attack rate and speed, another skill's from its cast
-// time and speed, either times the action speed and capped by the server tick, times the uses
-// and their repeats, unless channelled.
+// hitRate is a skill's hits per second: one a trap or mine delivers hits at its throws; one
+// with a hit interval at that, scaled by its hit frequency; else an attack's from its attack
+// rate and speed, another skill's from its cast time and speed, either times the action speed
+// unless a totem uses it, and capped by the server tick, times the uses and their repeats,
+// unless channelled.
 type hitRate struct {
 	castTime, castSpeed, attackRate, attackSpeed, action core.StatID
-	interval, activations, frequency, repeats            core.StatID
-	// attack and channel are the Attack and Channel types' context bits.
-	attack, channel core.Mask
+	interval, activations, frequency, repeats, throws    core.StatID
+	// attack, channel and totem are the Attack, Channel and SummonsTotem types' context bits.
+	attack, channel, totem core.Mask
 }
 
 func newHitRate(ids map[string]core.StatID) hitRate {
@@ -279,8 +280,19 @@ func newHitRate(ids map[string]core.StatID) hitRate {
 		attackRate: mustID(ids, statAttackRate), attackSpeed: mustID(ids, statAttackSpeed),
 		action: mustID(ids, statActionSpeed), interval: mustID(ids, statHitInterval),
 		activations: mustID(ids, statActivationsPerHit), frequency: mustID(ids, statHitFrequency),
-		repeats: mustID(ids, statRepeatCount), attack: typeMask(c, typeAttack), channel: typeMask(c, typeChannel),
+		repeats: mustID(ids, statRepeatCount), throws: mustID(ids, statThrowRate),
+		attack: typeMask(c, typeAttack), channel: typeMask(c, typeChannel), totem: typeMask(c, typeSummonsTotem),
 	}
+}
+
+// actionSpeed returns the action speed multiplier of a skill used in context m, with stat
+// reading a stat: the character's, or none for a totem's skill, as PoB has it (CalcOffence.lua
+// TotemActionSpeed, whose modifiers the rules do not model).
+func (h hitRate) actionSpeed(m core.Mask, stat func(core.StatID) float64) float64 {
+	if m.Intersects(h.totem) {
+		return 1
+	}
+	return stat(h.action) / percentScale
 }
 
 // period returns the seconds between the skill's hits at its hit interval before its hit
@@ -312,10 +324,13 @@ func (h hitRate) limit(m core.Mask, stat func(core.StatID) float64) float64 {
 
 func (h hitRate) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
+		if t := r.Stat(h.throws); t > 0 {
+			return t
+		}
 		if p := h.period(r.Stat); p > 0 {
 			return r.Stat(h.frequency) / percentScale / p
 		}
-		action := r.Stat(h.action) / percentScale
+		action := h.actionSpeed(r.Mask(), r.Stat)
 		limit := h.limit(r.Mask(), r.Stat)
 		if r.Mask().Intersects(h.attack) {
 			rate := r.Stat(h.attackRate) * roundHundredths(r.Stat(h.attackSpeed)/percentScale) * action
@@ -329,12 +344,17 @@ func (h hitRate) formula() core.Formula {
 	}
 }
 
-// attribute credits the uses per second before speed to the sources of the hit interval, or the
-// attack rate or cast time, then the speed's increases and more multipliers over them, then the
-// action speed's over those; what rounding and the tick cap change goes to the speed's sources.
+// attribute credits the hits of traps and mines to the sources of their throws, the uses per
+// second before speed to the sources of the hit interval, or the attack rate or cast time, then
+// the speed's increases and more multipliers over them, then the action speed's over those
+// unless a totem uses the skill; what rounding and the tick cap change goes to the speed's
+// sources.
 func (h hitRate) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		total := a.Explanation().Total
+		if t := a.Stat(h.throws); t > 0 {
+			return core.Attribution{Parts: a.Spread(core.SelfRef(h.throws), total, core.OpBase), Amount: total}
+		}
 		if p := h.period(a.Stat); p > 0 {
 			parts := a.Spread(core.SelfRef(h.interval), 1/p, core.OpBase)
 			return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(h.frequency)), Amount: total}
@@ -348,7 +368,10 @@ func (h hitRate) attribute() core.Attribute {
 		if isAttack {
 			from = h.attackRate
 		}
-		parts := a.LayersOver(core.SelfRef(h.action), a.LayersOver(core.SelfRef(speed), a.Spread(core.SelfRef(from), base, core.OpBase)))
+		parts := a.LayersOver(core.SelfRef(speed), a.Spread(core.SelfRef(from), base, core.OpBase))
+		if !a.Mask().Intersects(h.totem) {
+			parts = a.LayersOver(core.SelfRef(h.action), parts)
+		}
 		return core.Attribution{Parts: rest(a, parts, total, core.SelfRef(speed)), Amount: total}
 	}
 }

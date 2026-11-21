@@ -76,12 +76,13 @@ func SpellHit(sk *resolve.Skill) bool {
 // attackHit reports whether the sheet gives sk's hit as an attack's with hands: an attack the
 // character makes with what it holds in the main hand, a weapon or its bare hand, when the skill
 // can be used with it and with the off hand weapon, if any, unless it attacks with the main hand
-// only; not a minion's and not made by a totem, trap or mine. A weapon in the off hand the skill
-// cannot be used with keeps it from being used, as PoB has it (CalcActiveSkill.lua).
+// only; not a minion's and not made by a trap or mine. A totem attacks with the character's
+// weapons. A weapon in the off hand the skill cannot be used with keeps it from being used, as
+// PoB has it (CalcActiveSkill.lua).
 func attackHit(sk *resolve.Skill, h Hands) bool {
 	return hasTypes(sk, typeAttack) && h.MainHand != nil && h.MainHand.usableWith(sk.WeaponRestrictions) &&
 		(h.OffHand == nil || h.OffHand.usableWith(sk.WeaponRestrictions) || hasTypes(sk, typeMainHandOnly)) &&
-		!hasAnyType(sk, typeMinion, typeTrapped, typeRemoteMined, typeSummonsTotem)
+		!hasAnyType(sk, typeMinion, typeTrapped, typeRemoteMined)
 }
 
 // bothHandsHit reports whether the sheet gives sk's hit as an attack's with both hands.
@@ -100,11 +101,27 @@ func Hit(sk *resolve.Skill, h Hands) bool {
 	return sk != nil && (SpellHit(sk) || attackHit(sk, h))
 }
 
-// selfUsedHit reports whether the sheet gives sk's rate of hits with hands: a hit the character
-// uses itself, channelled or a brand included, without a cooldown, trap, mine, totem or
-// trigger, whose rates these rules do not give.
+// rateHit reports whether the sheet gives sk's rate of hits with hands: a hit the character, a
+// totem, trap or mine uses, channelled or a brand included, without a cooldown or trigger,
+// whose rates these rules do not give.
+func rateHit(sk *resolve.Skill, h Hands) bool {
+	return Hit(sk, h) && !hasAnyType(sk, typeTriggered, typeCooldown)
+}
+
+// selfUsedHit reports whether sk with hands is a rate hit the character uses itself, not a
+// totem, trap or mine.
 func selfUsedHit(sk *resolve.Skill, h Hands) bool {
-	return Hit(sk, h) && !hasAnyType(sk, typeTrapped, typeRemoteMined, typeSummonsTotem, typeTriggered, typeCooldown)
+	return rateHit(sk, h) && !delivered(sk)
+}
+
+// totemRateHit reports whether sk with hands is a rate hit a totem uses.
+func totemRateHit(sk *resolve.Skill, h Hands) bool {
+	return rateHit(sk, h) && hasTypes(sk, typeSummonsTotem)
+}
+
+// delivered reports whether a totem, trap or mine uses sk.
+func delivered(sk *resolve.Skill) bool {
+	return hasAnyType(sk, typeTrapped, typeRemoteMined, typeSummonsTotem)
 }
 
 func hasTypes(sk *resolve.Skill, types ...string) bool {
@@ -163,10 +180,11 @@ func hitMechanic() mechanic {
 			statAttackRate,
 			statAttackSpeed,
 			statActionSpeed,
-		}, append(rateStats(),
+		}, slices.Concat(rateStats(), deliveryStats(), []string{
 			statHitsPerSecond,
 			statHitDPS,
-		)...),
+			statTotemsHitDPS,
+		})...),
 		def: hitDef,
 	}
 }
@@ -182,8 +200,9 @@ func hitMechanic() mechanic {
 // multiply the hit before the enemy reduces it. The average hit weighs the non-critical and
 // critical averages of every type by the chance that a use strikes critically (accuracyDef).
 // Hits per second are the cast time divided by the cast speed, rounded to hundredths, times the
-// action speed, at most one per server tick for each time a use repeats, or no cap for a
-// channelled skill; a skill with a hit interval hits at that instead (rateDef). Hit DPS is the
+// action speed, which a totem does not take, at most one per server tick for each time a use
+// repeats, or no cap for a channelled skill; a skill with a hit interval hits at that instead
+// (rateDef), and one a trap or mine delivers at its throws (deliveryDef). Hit DPS is the
 // average hit times the chance to hit times hits per second, times the brands attached for a
 // brand. The order, roundings and cap follow PoB (CalcOffence.lua, CalcPerform.lua
 // actionSpeedMod); the game text gives none of them.
@@ -213,7 +232,7 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		}
 		def.FormulaName, def.Formula, def.Attribute = formulaHitDPS, h.formula(), h.attribute()
 	default:
-		def = rateDef(def, ids)
+		def = deliveryDef(rateDef(def, ids), ids)
 	}
 	return def
 }
@@ -540,20 +559,29 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	return src, nil
 }
 
-// baseSpeed is cast, attack, action speed and hit frequency before modifiers: 100%.
+// baseSpeed is cast, attack, action speed, hit frequency and throwing speeds before modifiers:
+// 100%.
 const baseSpeed = 100
 
-// addBaseSpeeds adds the base cast, attack and action speed and hit frequency as a rule's
-// source each, so increases and more multipliers apply to them by the default rule.
+// addBaseSpeeds adds the base cast, attack and action speed, hit frequency, trap throwing and
+// mine laying speed, and the one trap and mine a throw places, as a rule's source each, so
+// increases, more multipliers and additions apply to them by the default rule.
 func (sh *Sheet) addBaseSpeeds() error {
-	for _, b := range []struct{ stat, id, rule string }{
-		{statCastSpeed, "base-cast-speed", "base cast speed (100%)"},
-		{statAttackSpeed, "base-attack-speed", "base attack speed (100%)"},
-		{statActionSpeed, "base-action-speed", "base action speed (100%)"},
-		{statHitFrequency, "base-hit-frequency", "base hit frequency (100%)"},
+	for _, b := range []struct {
+		stat, id, rule string
+		value          float64
+	}{
+		{statCastSpeed, "base-cast-speed", "base cast speed (100%)", baseSpeed},
+		{statAttackSpeed, "base-attack-speed", "base attack speed (100%)", baseSpeed},
+		{statActionSpeed, "base-action-speed", "base action speed (100%)", baseSpeed},
+		{statHitFrequency, "base-hit-frequency", "base hit frequency (100%)", baseSpeed},
+		{statTrapThrowingSpeed, "base-trap-throwing-speed", "base trap throwing speed (100%)", baseSpeed},
+		{statMineLayingSpeed, "base-mine-laying-speed", "base mine laying speed (100%)", baseSpeed},
+		{statTrapsPerThrow, "base-traps-per-throw", "one trap per throw", 1},
+		{statMinesPerThrow, "base-mines-per-throw", "one mine per throw", 1},
 	} {
 		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
-		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: baseSpeed, Source: src}
+		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: b.value, Source: src}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return fmt.Errorf("sheet: %s: %w", b.rule, err)
 		}
