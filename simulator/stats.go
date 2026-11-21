@@ -35,7 +35,9 @@ type Stats struct {
 	enemy poe1.EnemyStats
 	// totems gives the base life of the skills' totems.
 	totems poe1.TotemLives
-	sim    *Sim
+	// minions are the minions of the skills whose outputs are read, by slot.
+	minions []*poe1.Minion
+	sim     *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
 	explainMu    sync.Mutex
@@ -172,6 +174,9 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 		if err := sh.SetSkills(st.sheetSkills); err != nil {
 			return nil, fmt.Errorf("simulator: explain: %w", err)
 		}
+	}
+	if err := sh.SetMinions(st.minions); err != nil {
+		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
 	sh.SetEnemy(st.enemy)
 	if _, _, err := sh.DeriveConditions(st.cfg); err != nil {

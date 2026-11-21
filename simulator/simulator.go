@@ -405,7 +405,7 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	st := &Stats{
 		keys: skillKeys(keys, cat, main, r.sheet.Minion(0), hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
 		build: r.build, checked: r.checked, items: r.sheet.Items, hands: hands, skill: main, sheetSkills: r.sheet.Skills.Skills,
-		enemy: r.sheet.Enemy, totems: r.sheet.Totems, sim: s,
+		enemy: r.sheet.Enemy, totems: r.sheet.Totems, minions: r.sheet.Minions, sim: s,
 	}
 	if st.values, err = readOutputs(st.keys, func(k output.Key) (float64, error) { return sh.Output(k) }); err != nil {
 		return nil, err
