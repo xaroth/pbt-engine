@@ -234,7 +234,7 @@ func buffScale(ref core.Ref, stat string, op core.Op, v float64) core.Scale {
 // count an aura or herald and, for an aura, give the attack and cast speed auras grant. It
 // returns the sources of both.
 func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatValue, slot int, ctx core.CtxID) ([]core.SourceID, error) {
-	effect := core.Ref{Actor: 0, Stat: sh.stats[statBuffEffect], Ctx: int64(ctx)}
+	effect := core.Ref{Actor: int32(playerActor), Stat: sh.stats[statBuffEffect], Ctx: int64(ctx)}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: sk.Source, Stats: stats}
 	buff, err := sh.addBundle(&bd, sh.table, sh.gameVersion, -1, &carried{effect: effect})
 	if err != nil {
