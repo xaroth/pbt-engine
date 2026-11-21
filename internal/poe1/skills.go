@@ -118,20 +118,12 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.SourceID, error) {
 	b, buffs := sh.buffs.of(sk)
 	bundles, character, buffStats, curseStats := sh.skillBundles(sk, b, buffs)
-	srcs := make([]core.SourceID, 0, len(bundles)+len(character)+1)
-	for i := range bundles {
-		src, err := sh.add(&bundles[i], sh.table, sh.gameVersion, slot)
-		if err != nil {
-			return nil, err
-		}
-		srcs = append(srcs, src)
+	srcs, err := sh.addBundles(nil, bundles, slot)
+	if err != nil {
+		return nil, err
 	}
-	for i := range character {
-		src, err := sh.add(&character[i], sh.table, sh.gameVersion, -1)
-		if err != nil {
-			return nil, err
-		}
-		srcs = append(srcs, src)
+	if srcs, err = sh.addBundles(srcs, character, -1); err != nil {
+		return nil, err
 	}
 	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, wield{}, nil, formNone))
 	src, err := sh.addSkillRules(sk, slot, ctx)
@@ -159,6 +151,18 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.Source
 		return nil, err
 	}
 	return append(srcs, stages...), nil
+}
+
+// addBundles adds bundles as add does, in slot, and returns srcs with their sources.
+func (sh *Sheet) addBundles(srcs []core.SourceID, bundles []resolve.Bundle, slot int) ([]core.SourceID, error) {
+	for i := range bundles {
+		src, err := sh.add(&bundles[i], sh.table, sh.gameVersion, slot)
+		if err != nil {
+			return nil, err
+		}
+		srcs = append(srcs, src)
+	}
+	return srcs, nil
 }
 
 // addStages gives skill_stages the stages sk's gem says, in slot, and returns its source; none

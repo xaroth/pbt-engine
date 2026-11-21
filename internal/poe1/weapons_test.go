@@ -64,6 +64,13 @@ func TestCompileWeapon(t *testing.T) {
 	if d := poe1.CompileItem(it, base).Weapon.Damage[poe1.Physical]; d != (poe1.DamageRange{}) {
 		t.Errorf("weapon with no physical damage: got %v", d)
 	}
+	// 3% increased attack speed per 8% quality at 20% quality is 7.5%, rounded down to 7%, beside
+	// the axe's own 10%: 1.25 x 1.17 = 1.4625, rounded to 1.46.
+	it, base = axe()
+	it.Mods = append(it.Mods, build.ModLine{Kind: build.Explicit, Stats: []build.StatValue{{Stat: "local_attack_speed_+%_per_8%_quality", Value: 3}}})
+	if got := poe1.CompileItem(it, base).Weapon.AttackRate; got != 1.46 {
+		t.Errorf("attack rate with attack speed per 8%% quality: got %v, want 1.46", got)
+	}
 	if poe1.CompileItem(&build.Item{}, &dataset.ItemBase{Class: "Shield"}).Weapon != nil {
 		t.Error("a shield compiled to a weapon")
 	}

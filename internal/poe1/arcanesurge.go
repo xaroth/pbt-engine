@@ -66,12 +66,15 @@ func (sh *Sheet) addArcaneSurge() error {
 	src := sh.newSource(Source{RuleID: "arcane-surge", Rule: "Arcane Surge"})
 	effect := core.Scale{Ref: core.SelfRef(sh.stats[statArcaneSurgeEffect]), Step: baseBuffEffect, Ratio: true}
 	holds := []core.Cond{{Ref: core.SelfRef(sh.stats[statHasArcaneSurge]), Cmp: core.CmpNE}}
-	mods := []core.Modifier{
+	granted := [][2]string{{statCastSpeed, statArcaneSurgeCastSpeed}, {statManaRegenerationRate, statArcaneSurgeManaRegeneration}}
+	bases := []core.Modifier{
 		{Stat: sh.stats[statArcaneSurgeEffect], Op: core.OpBase, Value: baseBuffEffect, Source: src},
 		{Stat: sh.stats[statArcaneSurgeCastSpeed], Op: core.OpBase, Value: arcaneSurgeCastSpeed, Source: src},
 		{Stat: sh.stats[statArcaneSurgeManaRegeneration], Op: core.OpBase, Value: arcaneSurgeManaRegeneration, Source: src},
 	}
-	for _, g := range [][2]string{{statCastSpeed, statArcaneSurgeCastSpeed}, {statManaRegenerationRate, statArcaneSurgeManaRegeneration}} {
+	mods := make([]core.Modifier, 0, len(bases)+len(granted))
+	mods = append(mods, bases...)
+	for _, g := range granted {
 		mods = append(mods, core.Modifier{
 			Stat: sh.stats[g[0]], Op: core.OpInc, Value: 1, Source: src, Conds: holds,
 			Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[g[1]]), Step: 1}, effect},
