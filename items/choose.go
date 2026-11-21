@@ -44,8 +44,10 @@ const (
 const (
 	defaultTag      = "default"
 	localStatPrefix = "local_"
-	corruptedFlag   = "Corrupted"
-	anointClass     = "Amulet"
+	// retiredStatPrefix names a stat the game marks not to use, which the engine does not model.
+	retiredStatPrefix = "old_do_not_use_"
+	corruptedFlag     = "Corrupted"
+	anointClass       = "Amulet"
 )
 
 // influences maps an item's influence flag to the suffix of the tags it gives, as in
@@ -123,8 +125,9 @@ func (r *Reader) keeps(s step, rd statdesc.RangeReading) bool {
 //  5. a retired mod with the values in range;
 //  6. a current mod or bench craft with any values, which is out of range.
 //
-// Then the readings whose local stats can be on the item (see canHaveLocal), then on armour and
-// weapons the readings with a local stat, then the first in the game's order.
+// Then the readings that are not retired stats (see dropRetired), those whose local stats can be
+// on the item (see canHaveLocal), then on armour and weapons the readings with a local stat, then
+// the first in the game's order.
 // A value the text does not show is the value of the mods that give the reading. A mod's range
 // is scaled by scale.
 func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading, scale scaler) choice {
@@ -147,6 +150,7 @@ func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind,
 		steps[i].scale = scale
 	}
 	keep, won, ok := r.narrow(rs, steps)
+	keep = dropRetired(keep)
 	keep = r.canHaveLocal(keep, t)
 	if b.Armour != nil || b.Weapon != nil {
 		keep = r.preferLocal(keep, t)
@@ -186,6 +190,22 @@ func (r *Reader) preferLocal(rs []statdesc.RangeReading, t target) []statdesc.Ra
 		return rs
 	}
 	return defence
+}
+
+// dropRetired returns the readings of rs that have a stat that is not a retired one, or rs when
+// there are none. A unique's mods include an older version of a mod that gives a retired stat,
+// which passes every step as the current one does and comes first in the game's order.
+func dropRetired(rs []statdesc.RangeReading) []statdesc.RangeReading {
+	var out []statdesc.RangeReading
+	for _, rd := range rs {
+		if slices.ContainsFunc(rd.Stats, func(st string) bool { return !strings.HasPrefix(st, retiredStatPrefix) }) {
+			out = append(out, rd)
+		}
+	}
+	if len(out) == 0 {
+		return rs
+	}
+	return out
 }
 
 // canHaveLocal returns the readings of rs whose local stats can be on t, or rs when there are
