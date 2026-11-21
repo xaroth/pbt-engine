@@ -121,7 +121,8 @@ func (r *Reader) keeps(s step, rd statdesc.RangeReading) bool {
 //  5. a retired mod with the values in range;
 //  6. a current mod or bench craft with any values, which is out of range.
 //
-// Then on armour and weapons the readings with a local stat, then the first in the game's order.
+// Then the readings whose local stats can be on the item (see canHaveLocal), then on armour and
+// weapons the readings with a local stat, then the first in the game's order.
 // A value the text does not show is the value of the mods that give the reading.
 func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading) choice {
 	t := r.newTarget(it, b)
@@ -140,6 +141,7 @@ func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind,
 		}},
 		step{mods: anyCurrent, warn: RollOutOfRange})
 	keep, won, ok := r.narrow(rs, steps)
+	keep = r.canHaveLocal(keep, t)
 	if b.Armour != nil || b.Weapon != nil {
 		keep = r.preferLocal(keep, t)
 	}
@@ -178,6 +180,36 @@ func (r *Reader) preferLocal(rs []statdesc.RangeReading, t target) []statdesc.Ra
 		return rs
 	}
 	return defence
+}
+
+// canHaveLocal returns the readings of rs whose local stats can be on t, or rs when there are
+// none. A local stat changes its own item, so it can be on t only where it rolls: as t's base's
+// implicit or in a mod that spawns on t. "+40 to Accuracy Rating" on a helmet is not local
+// accuracy, which rolls on weapons only. A local stat that rolls nowhere, as a unique jewel's,
+// can be on any item, and on armour so can a stat of the item's own defences (see preferLocal).
+func (r *Reader) canHaveLocal(rs []statdesc.RangeReading, t target) []statdesc.RangeReading {
+	var out []statdesc.RangeReading
+	for _, rd := range rs {
+		if !slices.ContainsFunc(rd.Stats, func(st string) bool { return !r.localOn(st, t) }) {
+			out = append(out, rd)
+		}
+	}
+	if len(out) == 0 {
+		return rs
+	}
+	return out
+}
+
+// localOn reports whether stat st can be on t: a stat that is not local, or a local one as
+// canHaveLocal says.
+func (r *Reader) localOn(st string, t target) bool {
+	if !isLocal(st) || t.base.Armour != nil && itemdefence.IsLocal(st) {
+		return true
+	}
+	rolls := r.mods.rolls[st]
+	return len(rolls) == 0 || slices.ContainsFunc(rolls, func(m *dataset.Mod) bool {
+		return slices.Contains(t.base.Implicits, m.ID) || spawnsOn(m, t.tags)
+	})
 }
 
 // finish returns rd with the values the mods of step s store, and the warnings of s and of the

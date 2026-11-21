@@ -17,16 +17,24 @@ type modStat struct {
 	min, max int32
 }
 
-// modIndex holds mods by the ids of their stats, and each mod's stat ids.
+// modIndex holds mods by the ids of their stats, each mod's stat ids, and by local stat the mods
+// with it that roll on some item: a base's implicit or a mod that spawns.
 type modIndex struct {
 	byStat map[string][]modStat
 	stats  map[*dataset.Mod][]string
+	rolls  map[string][]*dataset.Mod
 }
 
 // indexMods indexes mods by the ids of their stats. Mods of Ruthless only are left out: items
 // are read for the standard game.
-func indexMods(mods []dataset.Mod, stats []dataset.Stat) modIndex {
-	x := modIndex{byStat: map[string][]modStat{}, stats: map[*dataset.Mod][]string{}}
+func indexMods(mods []dataset.Mod, stats []dataset.Stat, bases []dataset.ItemBase) modIndex {
+	implicit := map[string]bool{}
+	for i := range bases {
+		for _, id := range bases[i].Implicits {
+			implicit[id] = true
+		}
+	}
+	x := modIndex{byStat: map[string][]modStat{}, stats: map[*dataset.Mod][]string{}, rolls: map[string][]*dataset.Mod{}}
 	for i := range mods {
 		if mods[i].GameMode == gameModeRuthless {
 			continue
@@ -35,6 +43,9 @@ func indexMods(mods []dataset.Mod, stats []dataset.Stat) modIndex {
 			id := stats[st.Stat].ID
 			x.byStat[id] = append(x.byStat[id], modStat{mod: &mods[i], min: min(st.Min, st.Max), max: max(st.Min, st.Max)})
 			x.stats[&mods[i]] = append(x.stats[&mods[i]], id)
+			if isLocal(id) && (implicit[mods[i].ID] || spawns(&mods[i])) {
+				x.rolls[id] = append(x.rolls[id], &mods[i])
+			}
 		}
 	}
 	return x

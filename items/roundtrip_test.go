@@ -64,7 +64,7 @@ func TestRoundTrip(t *testing.T) {
 		"corrupted":      {476, 0, 0, 0, 0},
 		"enchant":        {2922, 0, 4, 0, 0},
 		"essence":        {5038, 0, 1, 1, 0},
-		"unique":         {17608, 128, 775, 0, 0},
+		"unique":         {17608, 128, 360, 0, 0},
 		"crafted":        {8284, 0, 0, 0, 0},
 		"unmarked craft": {8284, 0, 0, 0, 0},
 	}
