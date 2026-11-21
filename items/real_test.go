@@ -87,6 +87,53 @@ func TestParseHelmet(t *testing.T) {
 	}
 }
 
+// A local stat reads only on an item it rolls on: accuracy rolls local on weapons, attack speed
+// too, and armour on armour, so on other items these lines are the global stats.
+func TestParseLocalElsewhere(t *testing.T) {
+	t.Parallel()
+	r, _ := realReader(t)
+	for _, c := range []struct {
+		name, text, line, stat string
+	}{
+		{
+			name: "rare helmet",
+			text: "Rarity: RARE\nRapture Visor\nLion Pelt\nEvasion Rating: 900\nItem Level: 84\nQuality: 20\nImplicits: 0\n" +
+				"+90 to maximum Life\n+40 to Accuracy Rating\n80% increased Evasion Rating\n+42% to Cold Resistance\n+30 to Dexterity\n",
+			line: "+40 to Accuracy Rating", stat: "accuracy_rating",
+		},
+		{
+			name: "unique helmet",
+			text: "Rarity: UNIQUE\nDevoto's Devotion\nNightmare Bascinet\nImplicits: 0\n16% increased Attack Speed\n",
+			line: "16% increased Attack Speed", stat: "attack_speed_+%",
+		},
+		{
+			name: "unique sword",
+			text: "Rarity: UNIQUE\nReplica Dreamfeather\nEternal Sword\nImplicits: 0\n+190 to Armour\n",
+			line: "+190 to Armour", stat: "base_physical_damage_reduction_rating",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			it, warnings, err := r.Parse(c.text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, w := range warnings {
+				if w.Code == items.LineAmbiguous {
+					t.Errorf("warning: %v", w)
+				}
+			}
+			i := slices.IndexFunc(it.Mods, func(m build.ModLine) bool { return m.Text == c.line })
+			if i < 0 {
+				t.Fatalf("no line %q in %v", c.line, it.Mods)
+			}
+			if got := it.Mods[i].Stats; len(got) != 1 || got[0].Stat != c.stat {
+				t.Errorf("%q read as %v, want %s", c.line, got, c.stat)
+			}
+		})
+	}
+}
+
 // A line naming a passive reads as the passive's node id: Impossible Escape as Path of
 // Building writes it, around The Impaler (node 57257).
 func TestParsePassiveName(t *testing.T) {
@@ -163,13 +210,13 @@ func TestSampleReadings(t *testing.T) {
 			t.Errorf("golden file line %q matches no line of the sample that needs it", key)
 		}
 	}
-	// Lines the description reader cannot read; lines left ambiguous; ranges such as "(38-43)%";
+	// Lines the description reader cannot read; ranges such as "(38-43)%";
 	// values no mod of the line's kind the item can have rolls; and levels the text does not show
 	// that the mods a line can be differ on. The sample's items were made in Path of Building,
 	// which allows lines no roll of the game gives, and its lines lost their markers such as
 	// {crafted}.
 	wantWarned := map[build.Code]int{
-		items.LineUnread: 6, items.LineAmbiguous: 2, items.RollAssumed: 4, items.RollOutOfRange: 14, items.ValueAssumed: 2,
+		items.LineUnread: 6, items.RollAssumed: 4, items.RollOutOfRange: 14, items.ValueAssumed: 2,
 	}
 	if diff := cmp.Diff(wantWarned, warned); diff != "" {
 		t.Errorf("warnings by code (-want +got):\n%s", diff)

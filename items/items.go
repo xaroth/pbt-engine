@@ -124,7 +124,7 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	}
 	r := &Reader{
 		set: set, bases: map[string]*dataset.ItemBase{}, byName: map[string][]*dataset.ItemBase{},
-		mods: indexMods(mods, stats), crafting: newCrafting(it), version: s.Manifest().Version,
+		mods: indexMods(mods, stats, it.Bases), crafting: newCrafting(it), version: s.Manifest().Version,
 		passiveStats: passiveStats(text.Descriptions), passiveNames: names, ascendancyPassives: ascendancy,
 	}
 	r.index(it.Bases, text.BaseNames)
