@@ -39,6 +39,11 @@ func TestSpellBlock(t *testing.T) {
 			want:  map[string]float64{"maximum_spell_block_chance": 90, "spell_block_chance_capped": 90},
 		},
 		{
+			name:  "total rounded half up",
+			extra: []resolve.StatValue{{Stat: "base_spell_block_%", Value: 20}, {Stat: "block_chance_+%", Value: 18}},
+			want:  map[string]float64{"spell_block_chance": 24, "spell_block_chance_capped": 24},
+		},
+		{
 			name:  "Glancing Blows doubles",
 			extra: []resolve.StatValue{{Stat: "base_spell_block_%", Value: 30}, {Stat: "keystone_glancing_blows", Value: 1}},
 			want:  map[string]float64{"spell_block_chance_capped": 60},
@@ -144,6 +149,20 @@ func TestAttackBlock(t *testing.T) {
 				{Stat: "additional_block_%", Value: 20}, {Stat: "base_spell_block_%", Value: 10}, {Stat: "block_chance_+%", Value: 50},
 			},
 			want: map[string]float64{"attack_block_chance_capped": 30, "spell_block_chance_capped": 15},
+		},
+		// 20 * 1.18 = 23.6 rounds to 24
+		{
+			name:  "total rounded half up",
+			extra: []resolve.StatValue{{Stat: "additional_block_%", Value: 20}, {Stat: "block_chance_+%", Value: 18}},
+			want: map[string]float64{
+				"attack_block_chance": 24, "attack_block_chance_capped": 24, "attack_block_chance_overcapped": 0,
+			},
+		},
+		// 74 * 1.05 = 77.7 rounds to 78, 3 over the maximum
+		{
+			name:  "overcapped is whole",
+			extra: []resolve.StatValue{{Stat: "additional_block_%", Value: 74}, {Stat: "block_chance_+%", Value: 5}},
+			want:  map[string]float64{"attack_block_chance_capped": 75, "attack_block_chance_overcapped": 3},
 		},
 		// Block Mastery: 23% attack block is 4 whole steps of 5
 		{
