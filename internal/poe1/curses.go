@@ -79,7 +79,9 @@ func (sh *Sheet) splitCurse(stats []resolve.StatValue) (own, curse []resolve.Sta
 // the curses in later slots either way, but for a mark that an earlier one displaces. It
 // returns the sources of both.
 func (sh *Sheet) addCurse(sk *resolve.Skill, stats []resolve.StatValue, slot int, ctx core.CtxID) ([]core.SourceID, error) {
-	at := func(stat string) core.Ref { return core.Ref{Actor: 0, Stat: sh.stats[stat], Ctx: int64(ctx)} }
+	at := func(stat string) core.Ref {
+		return core.Ref{Actor: int32(playerActor), Stat: sh.stats[stat], Ctx: int64(ctx)}
+	}
 	mark := isMark(sk)
 	holds := []core.Cond{{Ref: at(statCursesLeft), Cmp: core.CmpGT}}
 	if mark {

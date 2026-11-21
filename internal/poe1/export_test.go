@@ -1,6 +1,7 @@
 package poe1
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/xaroth/pbt-engine/dataset"
@@ -40,4 +41,16 @@ func Rules() map[string]*regexp.Regexp {
 		}
 	}
 	return out
+}
+
+// MinionAttackValue returns engine stat name of the minion of skill i in the context of that
+// skill's slot and of attacks, reading the part of its damage whose chain is damage, until the
+// minion's own skill has a context.
+func (sh *Sheet) MinionAttackValue(i int, name string, damage ...DamageType) (float64, error) {
+	ctx := sh.session.InternContext(sh.ctx.skillMask(i, []string{typeAttack}, wield{}, damage, formNone))
+	v, err := sh.session.Get(core.Node{Actor: minionActor, Stat: sh.stats[name], Ctx: ctx})
+	if err != nil {
+		return 0, fmt.Errorf("minion %s: %w", name, err)
+	}
+	return v, nil
 }

@@ -416,7 +416,7 @@ func (sh *Sheet) addSkillRules(sk *resolve.Skill, slot int, ctx core.CtxID) (cor
 	mana, life := reservationPools()
 	for _, p := range []reservationPool{mana, life} {
 		for _, sum := range [][2]string{{p.reserved, p.flat}, {p.reservedPermyriad, p.permyriad}} {
-			ref := core.Ref{Actor: 0, Stat: sh.stats[sum[1]], Ctx: int64(ctx)}
+			ref := core.Ref{Actor: int32(playerActor), Stat: sh.stats[sum[1]], Ctx: int64(ctx)}
 			mod := core.Modifier{Stat: sh.stats[sum[0]], Op: core.OpBase, Value: 1, Source: src, Scales: []core.Scale{{Ref: ref, Step: 1}}}
 			if err := sh.addRuleMod(mod); err != nil {
 				return 0, err

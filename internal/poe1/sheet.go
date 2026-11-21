@@ -140,6 +140,8 @@ type Sheet struct {
 	exposure map[DamageType]core.ModID
 	// totems gives a totem's base life (SetTotemLives).
 	totems TotemLives
+	// minions maps a skill's minion, by slot and base values, to its source (SetMinions).
+	minions map[minionKey]core.SourceID
 	// outputs is the catalogue by key.
 	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
@@ -200,7 +202,7 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 		return nil, fmt.Errorf("sheet: dataset %s: %w", r.Version, err)
 	}
 	md := modelFor(r.Counters)
-	s, err := core.NewSession(md.model, 1)
+	s, err := core.NewSession(md.model, int(sheetActors))
 	if err != nil {
 		return nil, fmt.Errorf("sheet: %w", err)
 	}
