@@ -49,6 +49,8 @@ func chieftain(t *testing.T) *build.Build {
 			// The skill Predator grants counts before the main gem, and can be the main skill.
 			{Slot: build.SlotBoots, Gems: []build.Gem{support("Predator"), gem("Punishment", 1, 0)}, Active: 1},
 			{Gems: []build.Gem{support("Predator"), gem("Frostblink", 1, 0)}, ActiveSkill: 1},
+			// A passive's skill, which PoB names otherwise than the game.
+			{Source: &build.SkillSource{Node: 4139}, Gems: []build.Gem{{Skill: "AssassinsMarkTriggeredAssassin", Level: 20}}},
 		}, MainGroup: 1},
 	}
 }

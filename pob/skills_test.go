@@ -136,10 +136,10 @@ func TestFromXMLSkills(t *testing.T) {
 // skillCases holds what the real file does not: gems by name only, a transfigured gem by its
 // variant and by its name, a Vaal gem whose skills count twice for the main active skill and
 // one of which is switched off, a disabled group, a disabled gem before the group's first
-// enabled active gem, an unknown gem, a slot without sockets, a group an item grants, and the
-// main group after it.
+// enabled active gem, an unknown gem, a slot without sockets, a group an item grants, PoB's
+// group of enemies exploding, and the main group after them.
 const skillCases = `<PathOfBuilding>
-	<Build level="90" className="Marauder" ascendClassName="Chieftain" mainSocketGroup="4"/>
+	<Build level="90" className="Marauder" ascendClassName="Chieftain" mainSocketGroup="5"/>
 	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
 	<Skills activeSkillSet="2">
 		<SkillSet id="1"><Skill><Gem nameSpec="Punishment"/></Skill></SkillSet>
@@ -151,7 +151,8 @@ const skillCases = `<PathOfBuilding>
 				<Gem nameSpec="Firestorm of Pelting" level="1"/>
 			</Skill>
 			<Skill enabled="false" slot="Ring 1"><Gem nameSpec="Frostblink" level="5"/><Gem nameSpec="Blink Arrow" level="5"/></Skill>
-			<Skill source="Item:3:Doom Crown"><Gem nameSpec="Envy" level="15"/></Skill>
+			<Skill source="Item:3:Doom Crown, Prophet Crown" slot="Helmet"><Gem nameSpec="Envy" skillId="Envy" level="15"/></Skill>
+			<Skill source="Explode" label="On Kill Monster Explosion"><Gem skillId="EnemyExplode" level="1"/></Skill>
 			<Skill slot="Gloves"><Gem nameSpec="Punishment" level="20" enabled="false"/><Gem nameSpec="Fireball of Splitting" level="2"/></Skill>
 		</SkillSet>
 	</Skills>
@@ -175,8 +176,9 @@ func TestFromXMLSkillCases(t *testing.T) {
 	want := build.Skills{Groups: []build.SkillGroup{
 		{Slot: build.SlotBodyArmour, Gems: []build.Gem{gem("Vaal Fireball", 20, 0), support("Inspiration"), splitting}, Active: 2},
 		{Gems: []build.Gem{disabled(gem("Frostblink", 5, 0))}},
+		{Slot: build.SlotHelmet, Source: &build.SkillSource{Item: build.SlotHelmet}, Gems: []build.Gem{{Skill: "Envy", Level: 15}}},
 		{Slot: build.SlotGloves, Gems: []build.Gem{disabled(gem("Punishment", 20, 0)), splitting2}, Active: 1},
-	}, MainGroup: 2}
+	}, MainGroup: 3}
 	if diff := cmp.Diff(want, b.Skills); diff != "" {
 		t.Errorf("skills (-want +got):\n%s", diff)
 	}
@@ -185,7 +187,10 @@ func TestFromXMLSkillCases(t *testing.T) {
 		{Code: pob.GemUnknown, Subject: "Firestorm of Pelting", Message: "gem not in dataset 3.29.3.5; dropped"},
 		{Code: pob.SlotIgnored, Subject: "Frostblink", Message: `slot "Ring 1" has no sockets; group imported without a slot`},
 		{Code: pob.GemUnknown, Subject: "Blink Arrow", Message: "gem not in dataset 3.29.3.5; dropped"},
-		{Code: pob.SkillIgnored, Subject: "Envy", Message: "granted by Item:3:Doom Crown; skills an item or the tree grants are not imported"},
+		{
+			Code: pob.SkillIgnored, Subject: "On Kill Monster Explosion",
+			Message: "from Explode, which is neither an item in a slot nor a passive; not imported",
+		},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
@@ -229,14 +234,14 @@ func TestFromXMLSkillPart(t *testing.T) {
 	}
 }
 
-// skillResolution holds a gem with only a skill id, a name of two gems, and a main group an
-// item grants.
+// skillResolution holds a gem with only a skill id, a name of two gems, and a main group a
+// passive grants, whose skill PoB names otherwise than the game.
 const skillResolution = `<PathOfBuilding>
 	<Build level="90" className="Marauder" ascendClassName="Chieftain" mainSocketGroup="2"/>
 	<Tree activeSpec="1"><Spec treeVersion="3_29" nodes=""/></Tree>
 	<Skills>
 		<Skill><Gem skillId="FireballofSplitting" level="20"/><Gem nameSpec="Twin" level="1"/></Skill>
-		<Skill source="Tree:12345"><Gem nameSpec="Frostblink" level="20"/></Skill>
+		<Skill source="Tree:12345"><Gem skillId="AssassinsMark" level="20"/></Skill>
 	</Skills>
 </PathOfBuilding>`
 
@@ -253,14 +258,15 @@ func TestFromXMLSkillResolution(t *testing.T) {
 	splitting := gem("Fireball", 20, 0)
 	splitting.Effect = "FireballofSplitting"
 	twin := build.Gem{ID: "Metadata/Items/Gems/SkillGemTwinA", Level: 1}
-	want := build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{splitting, twin}}}}
+	want := build.Skills{Groups: []build.SkillGroup{
+		{Gems: []build.Gem{splitting, twin}},
+		{Source: &build.SkillSource{Node: 12345}, Gems: []build.Gem{{Skill: "AssassinsMarkTriggeredAssassin", Level: 20}}},
+	}, MainGroup: 1}
 	if diff := cmp.Diff(want, b.Skills); diff != "" {
 		t.Errorf("skills (-want +got):\n%s", diff)
 	}
 	wantWarnings := []build.Warning{
 		{Code: pob.GemAmbiguous, Subject: "Twin", Message: "also the gem of Metadata/Items/Gems/SkillGemTwinB; Metadata/Items/Gems/SkillGemTwinA imported"},
-		{Code: pob.SkillIgnored, Subject: "Frostblink", Message: "granted by Tree:12345; skills an item or the tree grants are not imported"},
-		{Code: pob.MainSkillIgnored, Subject: "Frostblink", Message: "the main skill group, granted by Tree:12345, is not imported; group 1 used"},
 	}
 	if diff := cmp.Diff(wantWarnings, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)
