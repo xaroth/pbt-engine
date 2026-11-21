@@ -430,7 +430,7 @@
     "order": 45
   },
   {
-    "key": "delivery.total_dps",
+    "key": "skill.totems_hit_dps",
     "label": "Hit DPS of Every Totem",
     "unit": "",
     "places": 1,
