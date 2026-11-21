@@ -102,13 +102,15 @@ type step struct {
 	sums    bool
 	also    func(statdesc.RangeReading) bool
 	warn    build.Code
+	// scale scales the mods' ranges the values are in.
+	scale scaler
 }
 
 func (r *Reader) keeps(s step, rd statdesc.RangeReading) bool {
 	if s.also != nil && !s.also(rd) {
 		return false
 	}
-	return r.gives(rd, s.inRange, s.mods) || s.sums && r.givesSum(rd, s.mods)
+	return r.gives(rd, s.inRange, s.mods, s.scale) || s.sums && r.givesSum(rd, s.mods, s.scale)
 }
 
 // choose returns the reading of a line of kind on item it of base b. The line's kind and the
@@ -123,8 +125,9 @@ func (r *Reader) keeps(s step, rd statdesc.RangeReading) bool {
 //
 // Then the readings whose local stats can be on the item (see canHaveLocal), then on armour and
 // weapons the readings with a local stat, then the first in the game's order.
-// A value the text does not show is the value of the mods that give the reading.
-func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading) choice {
+// A value the text does not show is the value of the mods that give the reading. A mod's range
+// is scaled by scale.
+func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind, rs []statdesc.RangeReading, scale scaler) choice {
 	t := r.newTarget(it, b)
 	src := r.sources(t, kind)
 	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
@@ -137,9 +140,12 @@ func (r *Reader) choose(it *build.Item, b *dataset.ItemBase, kind build.ModKind,
 		step{mods: src.retired, inRange: true, also: func(rd statdesc.RangeReading) bool {
 			// A former implicit has other stats than the base's implicit; else it is the base's
 			// implicit out of range.
-			return kind != build.Implicit || !r.gives(rd, false, ofBase)
+			return kind != build.Implicit || !r.gives(rd, false, ofBase, nil)
 		}},
 		step{mods: anyCurrent, warn: RollOutOfRange})
+	for i := range steps {
+		steps[i].scale = scale
+	}
 	keep, won, ok := r.narrow(rs, steps)
 	keep = r.canHaveLocal(keep, t)
 	if b.Armour != nil || b.Weapon != nil {
@@ -219,7 +225,7 @@ func (r *Reader) finish(rd statdesc.RangeReading, s step, kind build.ModKind) (s
 	if s.warn != "" {
 		warnings = append(warnings, build.Warning{Code: s.warn, Message: warnMessage(s.warn, kind)})
 	}
-	rd, w := r.storedValues(rd, s.mods, s.inRange)
+	rd, w := r.storedValues(rd, s.mods, s.inRange, s.scale)
 	if w != nil {
 		warnings = append(warnings, *w)
 	}

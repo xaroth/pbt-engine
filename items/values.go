@@ -14,13 +14,13 @@ import (
 // "Curse Enemies with Despair on Hit", set to that stat's value on the mods passing ok that give
 // rd (the reader can only give such a stat a placeholder). Where those mods differ on the value,
 // the one most of them share is kept, the highest on a tie, with a warning.
-func (r *Reader) storedValues(rd statdesc.RangeReading, ok func(*dataset.Mod) bool, inRange bool) (statdesc.RangeReading, *build.Warning) {
+func (r *Reader) storedValues(rd statdesc.RangeReading, ok func(*dataset.Mod) bool, inRange bool, scale scaler) (statdesc.RangeReading, *build.Warning) {
 	var warning *build.Warning
 	for k, st := range rd.Stats {
 		if !shown(rd, k) {
 			continue
 		}
-		v, set, w := r.storedValue(rd, k, r.modValues(rd, st, ok, inRange))
+		v, set, w := r.storedValue(rd, k, r.modValues(rd, st, ok, inRange, scale))
 		if set {
 			rd = withValue(rd, k, v)
 		}
@@ -32,10 +32,10 @@ func (r *Reader) storedValues(rd statdesc.RangeReading, ok func(*dataset.Mod) bo
 }
 
 // modValues returns the values of stat st on the mods passing ok that give rd, one per mod.
-func (r *Reader) modValues(rd statdesc.RangeReading, st string, ok func(*dataset.Mod) bool, inRange bool) []int32 {
+func (r *Reader) modValues(rd statdesc.RangeReading, st string, ok func(*dataset.Mod) bool, inRange bool, scale scaler) []int32 {
 	var vals []int32
 	for _, ms := range r.mods.byStat[st] {
-		if ok(ms.mod) && r.has(ms.mod, rd, inRange) {
+		if ok(ms.mod) && r.has(ms.mod, rd, inRange, scale) {
 			vals = append(vals, ms.max)
 		}
 	}
