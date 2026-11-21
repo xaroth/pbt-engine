@@ -231,8 +231,8 @@ func buffScale(ref core.Ref, stat string, op core.Op, v float64) core.Scale {
 
 // addBuff adds the buff b of sk, in slot with context ctx, from its buff stats: those stats
 // apply everywhere, scaled by the skill's buff effect, and the rules set its affected_by_ stat,
-// count an aura or herald and, for an aura, give the attack and cast speed auras grant. It
-// returns the sources of both.
+// count an aura or herald and, for an aura, give the attack and cast speed auras grant. An
+// aura's stats reach your minions too (addMinionAura). It returns the sources.
 func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatValue, slot int, ctx core.CtxID) ([]core.SourceID, error) {
 	effect := core.Ref{Actor: int32(playerActor), Stat: sh.stats[statBuffEffect], Ctx: int64(ctx)}
 	bd := resolve.Bundle{Actor: resolve.Player, Scope: resolve.Global, Source: sk.Source, Stats: stats}
@@ -240,6 +240,7 @@ func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatVal
 	if err != nil {
 		return nil, err
 	}
+	srcs := []core.SourceID{buff}
 	src := sh.newSource(Source{RuleID: "skill-buff", Rule: "buff of " + sk.Source.String()})
 	pred, err := predicate(sh.session.Model(), semantics.ContextFilter{}, sh.ctx, slot)
 	if err != nil {
@@ -257,19 +258,45 @@ func (sh *Sheet) addBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatVal
 		mods = append(mods, core.Modifier{Stat: sh.stats[b.affected], Op: core.OpFlag, Value: 1, Source: src})
 	}
 	if aura {
-		granted := core.Scale{Ref: core.SelfRef(sh.stats[statAuraGrantedAttackCastRate]), Step: 1}
-		for _, stat := range []string{statAttackSpeed, statCastSpeed} {
-			mods = append(mods, core.Modifier{
-				Stat: sh.stats[stat], Op: core.OpInc, Value: 1, Source: src, Scales: []core.Scale{granted, buffScale(effect, stat, core.OpInc, 1)},
-			})
+		minion, err := sh.addMinionAura(sk, stats, ctx)
+		if err != nil {
+			return nil, err
 		}
+		srcs = append(srcs, minion)
+		mods = append(mods, sh.auraMods(effect, src, pred)...)
 	}
 	for _, m := range mods {
 		if _, err := sh.session.AddModifier(m); err != nil {
 			return nil, fmt.Errorf("sheet: buff of %s: %w", sk.Source, err)
 		}
 	}
-	return []core.SourceID{buff, src}, nil
+	return append(srcs, src), nil
+}
+
+// auraMods are the rules' modifiers of an aura's buff from src, with effect its effect on you
+// and pred the aura's context: the aura's effect on the minion before increases, and the attack
+// and cast speed auras grant you.
+func (sh *Sheet) auraMods(effect core.Ref, src core.SourceID, pred core.Predicate) []core.Modifier {
+	granted := core.Scale{Ref: core.SelfRef(sh.stats[statAuraGrantedAttackCastRate]), Step: 1}
+	speed := func(stat string) core.Modifier {
+		return core.Modifier{
+			Stat: sh.stats[stat], Op: core.OpInc, Value: 1, Source: src, Scales: []core.Scale{granted, buffScale(effect, stat, core.OpInc, 1)},
+		}
+	}
+	return []core.Modifier{
+		{Actor: minionActor, Stat: sh.stats[statBuffEffect], Op: core.OpBase, Value: baseBuffEffect, Source: src, Pred: pred},
+		speed(statAttackSpeed), speed(statCastSpeed),
+	}
+}
+
+// addMinionAura adds the stats of aura sk's buff to the minion actor, as an aura reaches your
+// minions too, and returns their source. They are scaled by the aura's effect on the minion,
+// buff_effect on the minion actor in the aura's context ctx: the increases of the aura's effect,
+// not those of its effect on you (PoB CalcPerform.lua, an aura's buff on the minion).
+func (sh *Sheet) addMinionAura(sk *resolve.Skill, stats []resolve.StatValue, ctx core.CtxID) (core.SourceID, error) {
+	effect := core.Ref{Actor: int32(minionActor), Stat: sh.stats[statBuffEffect], Ctx: int64(ctx)}
+	bd := minionBundle(sk.Source, stats)
+	return sh.addBundle(&bd, sh.table, sh.gameVersion, -1, &carried{effect: effect})
 }
 
 // buffList picks, of skills in order, those whose buffs affect you: of the skills granting the

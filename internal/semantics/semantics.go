@@ -263,6 +263,9 @@ type Mod struct {
 	// ("against Chilled Enemies") or a count ("while Fortified"). Empty means always.
 	While   string
 	Context ContextFilter
+	// Actor is the actor the modifier applies to, relative to the stat's owner: Player for the
+	// owner itself, Minion for the owner's minions ("Minions deal 10% increased Damage").
+	Actor resolve.Actor
 }
 
 // Entry is the meaning of one stat in one scope over a range of game versions.
@@ -370,6 +373,7 @@ type fileMod struct {
 	While  string     `json:"while"`
 	In     [][]string `json:"in"`
 	NotIn  []string   `json:"notIn"`
+	Actor  string     `json:"actor"`
 }
 
 type fileCount struct {
@@ -679,19 +683,40 @@ func parseMod(f *fileMod, vocab Vocabulary) (Mod, error) {
 		return Mod{}, fmt.Errorf("%w %s on %s; only override may set a value of 0", errFactor, factor, op)
 	}
 	m := Mod{Stat: f.Stat, Op: op, Factor: factor}
-	if m.Per, err = parsePer(f.Per, vocab); err != nil {
+	if err := parseWhereWhen(&m, f, vocab); err != nil {
 		return Mod{}, err
 	}
-	if m.If, err = parseCount(f.If, vocab); err != nil {
-		return Mod{}, err
-	}
-	if m.While, err = parseWhile(f.While, vocab); err != nil {
-		return Mod{}, err
-	}
-	if m.Context, err = parseContext(f.In, f.NotIn, vocab); err != nil {
+	if m.Actor, err = parseActor(f.Actor); err != nil {
 		return Mod{}, err
 	}
 	return m, nil
+}
+
+// parseWhereWhen reads where and when f applies into m: its count, conditions and contexts.
+func parseWhereWhen(m *Mod, f *fileMod, vocab Vocabulary) error {
+	var err error
+	if m.Per, err = parsePer(f.Per, vocab); err != nil {
+		return err
+	}
+	if m.If, err = parseCount(f.If, vocab); err != nil {
+		return err
+	}
+	if m.While, err = parseWhile(f.While, vocab); err != nil {
+		return err
+	}
+	m.Context, err = parseContext(f.In, f.NotIn, vocab)
+	return err
+}
+
+// parseActor reads a modifier's actor: empty for the stat's owner, "minion" for its minions.
+func parseActor(s string) (resolve.Actor, error) {
+	switch s {
+	case "":
+		return resolve.Player, nil
+	case resolve.Minion.String():
+		return resolve.Minion, nil
+	}
+	return 0, fmt.Errorf("%w actor %q", errUnknown, s)
 }
 
 // parseContext checks that every name is a context value of vocab and no term is empty.

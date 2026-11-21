@@ -169,8 +169,7 @@ func (r *skillResolver) notSupported(ge *dataset.GrantedEffect, active *dataset.
 	if ge.CannotBeSupported {
 		return "the skill cannot be supported"
 	}
-	w := support.SupportWeaponRestrictions
-	if len(w) > 0 && !slices.ContainsFunc(active.WeaponRestrictions, func(c string) bool { return slices.Contains(w, c) }) {
+	if w := support.SupportWeaponRestrictions; !usedWith(active.WeaponRestrictions, w) {
 		return "the skill is not used with " + strings.Join(w, ", ")
 	}
 	if len(support.ExcludedTypes) > 0 && r.typesMatch(support.ExcludedTypes, func(t uint16) bool { return types[t] }) {

@@ -162,6 +162,49 @@ func TestMinionHit(t *testing.T) {
 	}
 }
 
+// What reaches a minion from the character: the supports linked to its gem, which support the
+// minion's skill (Melee Physical Damage) or give minion stats (Minion Damage at quality 20: more
+// and increased damage), an aura (Anger's added fire damage at its effect on the minion), and
+// the summoning skill's own stats it passes (Absolution's half of physical damage converted to
+// lightning). Path of Building 2.67.2 gives the same average hit
+// and hit damage per second for each gem at level 20 on a level 90 Marauder without passives or
+// items.
+func TestMinionHitReached(t *testing.T) {
+	t.Parallel()
+	zombie := build.Gem{ID: "Metadata/Items/Gems/SkillGemRaiseZombie", Level: 20}
+	for _, c := range []struct {
+		name     string
+		groups   []build.SkillGroup
+		hit, dps float64
+	}{
+		{"supports", []build.SkillGroup{{Gems: []build.Gem{
+			zombie,
+			{ID: "Metadata/Items/Gems/SupportGemMinionDamage", Level: 20, Quality: 20, Support: true},
+			{ID: "Metadata/Items/Gems/SupportGemMeleePhysicalDamage", Level: 20, Support: true},
+		}}}, 370.601875, 285.07836538462},
+		{"aura", []build.SkillGroup{
+			{Gems: []build.Gem{zombie}},
+			{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemAnger", Level: 20}}},
+		}, 229.64375, 196.27670940171},
+		{"passed", []build.SkillGroup{{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemAbsolution", Level: 20}}}}, 414.0565625, 353.89449786325},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: c.groups}}
+			sh := switchedSheet(t, &b)
+			for k, want := range map[output.Key]float64{poe1.MinionAverageHit: c.hit, poe1.MinionHitDPS: c.dps} {
+				got, err := sh.Output(k)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if math.Abs(got-want) > 1e-9*want {
+					t.Errorf("%s %v, want %v", k, got, want)
+				}
+			}
+		})
+	}
+}
+
 // The sheet gives a minion's hit for a skill whose minion attacks with damage of its own: not
 // for one whose minion attacks with items (Animate Guardian) or casts spells (Flame Golem), nor
 // for a skill without a minion.
