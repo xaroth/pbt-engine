@@ -15,8 +15,9 @@ type parsed struct {
 	baseName string
 	lines    []modText
 	// game is text the game copied, not Path of Building.
-	game    bool
-	scaling scaling
+	game     bool
+	scaling  scaling
+	variants variants
 }
 
 type modText struct {
@@ -99,11 +100,18 @@ func (p *parsed) modLines(lines []string, implicits int) {
 			p.item.Flags = append(p.item.Flags, l)
 			continue
 		}
-		kind, text, unscalable := tagged(l)
-		if k < implicits && kind == build.Explicit {
-			kind = build.Implicit
+		t := tagged(l)
+		if k < implicits && t.kind == build.Explicit {
+			t.kind = build.Implicit
 		}
-		p.lines = append(p.lines, modText{kind: kind, text: text, unscalable: unscalable})
+		if !p.variants.keeps(t.variants) {
+			continue
+		}
+		text := t.text
+		if t.rolled {
+			text = withRoll(text, t.roll)
+		}
+		p.lines = append(p.lines, modText{kind: t.kind, text: text, unscalable: t.unscalable})
 	}
 }
 
@@ -126,16 +134,10 @@ func (p *parsed) property(l string) int {
 	if key == "Sockets" {
 		p.item.Sockets = val
 	}
-	if p.scaling.property(key, n, val) {
+	if p.scaling.property(key, n, val) || p.variants.property(key, n) {
 		return -1
 	}
-	if d, ok := basePercentiles()[key]; ok {
-		if roll, err := strconv.ParseFloat(val, 64); err == nil {
-			if p.item.DefenceRolls == nil {
-				p.item.DefenceRolls = map[build.Defence]float64{}
-			}
-			p.item.DefenceRolls[d] = roll
-		}
+	if p.defenceRoll(key, val) {
 		return -1
 	}
 	fields := map[string]*int{
@@ -148,6 +150,21 @@ func (p *parsed) property(l string) int {
 	return -1
 }
 
+// defenceRoll reads a property that gives a defence's roll and reports whether key is one.
+func (p *parsed) defenceRoll(key, val string) bool {
+	d, ok := basePercentiles()[key]
+	if !ok {
+		return false
+	}
+	if roll, err := strconv.ParseFloat(val, 64); err == nil {
+		if p.item.DefenceRolls == nil {
+			p.item.DefenceRolls = map[build.Defence]float64{}
+		}
+		p.item.DefenceRolls[d] = roll
+	}
+	return true
+}
+
 // basePercentiles are Path of Building's properties that give a defence's roll.
 func basePercentiles() map[string]build.Defence {
 	return map[string]build.Defence{
@@ -156,27 +173,55 @@ func basePercentiles() map[string]build.Defence {
 	}
 }
 
-// tagged strips the leading {tag} markers of a mod line and returns its kind by them and
-// whether it is marked unscalable.
-func tagged(l string) (build.ModKind, string, bool) {
-	kind := build.Explicit
-	unscalable := false
+// lineTags are the leading {tag} markers of a Path of Building mod line.
+type lineTags struct {
+	kind build.ModKind
+	text string
+	// variants are the unique's variants the line belongs to; none is every variant.
+	variants []int
+	// roll is where the line's ranges roll, 0 to 1, when rolled.
+	roll   float64
+	rolled bool
+	// unscalable is a line nothing scales from its mod's range (see scaling).
+	unscalable bool
+}
+
+// tagged strips the leading {tag} markers of a mod line and returns them with the line.
+func tagged(l string) lineTags {
+	t := lineTags{kind: build.Explicit}
 	for strings.HasPrefix(l, "{") {
 		end := strings.IndexByte(l, '}')
 		if end < 0 {
 			break
 		}
-		switch tag, _, _ := strings.Cut(l[1:end], ":"); tag {
-		case "crafted":
-			kind = build.Crafted
-		case "fractured":
-			kind = build.Fractured
-		case "enchant":
-			kind = build.Enchant
-		case "unscalable":
-			unscalable = true
-		}
+		tag, val, _ := strings.Cut(l[1:end], ":")
+		t.set(tag, val)
 		l = l[end+1:]
 	}
-	return kind, l, unscalable
+	t.text = l
+	return t
+}
+
+// set reads one tag with its value.
+func (t *lineTags) set(tag, val string) {
+	switch tag {
+	case "crafted":
+		t.kind = build.Crafted
+	case "fractured":
+		t.kind = build.Fractured
+	case "enchant":
+		t.kind = build.Enchant
+	case "unscalable":
+		t.unscalable = true
+	case "variant":
+		for v := range strings.SplitSeq(val, ",") {
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				t.variants = append(t.variants, n)
+			}
+		}
+	case "range":
+		if r, err := strconv.ParseFloat(val, 64); err == nil {
+			t.roll, t.rolled = r, true
+		}
+	}
 }
