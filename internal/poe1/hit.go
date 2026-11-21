@@ -47,6 +47,8 @@ const (
 	typeProjectile   = "Projectile"
 	typeArea         = "Area"
 	typeMainHandOnly = "MainHandOnly"
+	typeInstant      = "Instant"
+	typeRetaliation  = "Retaliation"
 )
 
 // Hit limits. The rate cap is the server tick: a skill used more often than once a tick still
@@ -99,11 +101,10 @@ func Hit(sk *resolve.Skill, h Hands) bool {
 }
 
 // selfUsedHit reports whether the sheet gives sk's rate of hits with hands: a hit the character
-// uses itself, without a cooldown, channelling, brand, trap, mine, totem or trigger, whose
-// rates these rules do not give.
+// uses itself, channelled or a brand included, without a cooldown, trap, mine, totem or
+// trigger, whose rates these rules do not give.
 func selfUsedHit(sk *resolve.Skill, h Hands) bool {
-	return Hit(sk, h) &&
-		!hasAnyType(sk, typeChannel, typeBrand, typeTrapped, typeRemoteMined, typeSummonsTotem, typeTriggered, typeCooldown)
+	return Hit(sk, h) && !hasAnyType(sk, typeTrapped, typeRemoteMined, typeSummonsTotem, typeTriggered, typeCooldown)
 }
 
 func hasTypes(sk *resolve.Skill, types ...string) bool {
@@ -153,7 +154,7 @@ const mechanicHit = "hit"
 func hitMechanic() mechanic {
 	return mechanic{
 		name: mechanicHit, after: []string{mechanicDamage, mechanicEnemy, mechanicConversion, mechanicAccuracy, mechanicHitEffects},
-		stats: []string{
+		stats: append([]string{
 			statEffectiveMinimumHitDamage,
 			statEffectiveMaximumHitDamage,
 			statAverageHit,
@@ -162,9 +163,10 @@ func hitMechanic() mechanic {
 			statAttackRate,
 			statAttackSpeed,
 			statActionSpeed,
+		}, append(rateStats(),
 			statHitsPerSecond,
 			statHitDPS,
-		},
+		)...),
 		def: hitDef,
 	}
 }
@@ -180,8 +182,10 @@ func hitMechanic() mechanic {
 // multiply the hit before the enemy reduces it. The average hit weighs the non-critical and
 // critical averages of every type by the chance that a use strikes critically (accuracyDef).
 // Hits per second are the cast time divided by the cast speed, rounded to hundredths, times the
-// action speed, at most one per server tick; hit DPS is the average hit times the chance to hit
-// times hits per second. The order, roundings and cap follow PoB (CalcOffence.lua, CalcPerform.lua
+// action speed, at most one per server tick for each time a use repeats, or no cap for a
+// channelled skill; a skill with a hit interval hits at that instead (rateDef). Hit DPS is the
+// average hit times the chance to hit times hits per second, times the brands attached for a
+// brand. The order, roundings and cap follow PoB (CalcOffence.lua, CalcPerform.lua
 // actionSpeedMod); the game text gives none of them.
 func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
@@ -198,17 +202,18 @@ func hitDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		h := newAverageHit(ids)
 		def.FormulaName, def.Formula, def.Attribute = formulaAverageHit, h.formula(), h.attribute()
 	case statHitsPerSecond:
-		h := hitRate{
-			castTime: mustID(ids, statCastTime), castSpeed: mustID(ids, statCastSpeed),
-			attackRate: mustID(ids, statAttackRate), attackSpeed: mustID(ids, statAttackSpeed),
-			action: mustID(ids, statActionSpeed), attack: attackMask(),
-		}
+		h := newHitRate(ids)
 		def.FormulaName, def.Formula, def.Attribute = formulaHitsPerSecond, h.formula(), h.attribute()
 	case statActionSpeed:
 		def.HasMin = true
 	case statHitDPS:
-		h := hitDPS{average: mustID(ids, statAverageHit), chance: mustID(ids, statHitChance), rate: mustID(ids, statHitsPerSecond)}
+		h := hitDPS{
+			average: mustID(ids, statAverageHit), chance: mustID(ids, statHitChance), rate: mustID(ids, statHitsPerSecond),
+			brands: mustID(ids, statBrandsAttached), brand: typeMask(modelContexts(), typeBrand),
+		}
 		def.FormulaName, def.Formula, def.Attribute = formulaHitDPS, h.formula(), h.attribute()
+	default:
+		def = rateDef(def, ids)
 	}
 	return def
 }
@@ -518,7 +523,7 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	if err != nil {
 		return 0, err
 	}
-	for _, b := range slices.Concat(hitBases(sk), dotBases(sk)) {
+	for _, b := range slices.Concat(hitBases(sk), rateBases(sk), dotBases(sk)) {
 		if b.value == 0 {
 			continue
 		}
@@ -527,19 +532,25 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 			return 0, fmt.Errorf("sheet: skill hit: %w", err)
 		}
 	}
+	repeats := core.Scale{Ref: core.SelfRef(sh.stats[statRepeatDamage]), Step: 1, Ratio: true}
+	mod := core.Modifier{Stat: sh.stats[statDamage], Op: core.OpMore, Value: 1, Source: src, Pred: pred, Scales: []core.Scale{repeats}}
+	if _, err := sh.session.AddModifier(mod); err != nil {
+		return 0, fmt.Errorf("sheet: skill hit: %w", err)
+	}
 	return src, nil
 }
 
-// baseSpeed is cast, attack and action speed before modifiers: 100%.
+// baseSpeed is cast, attack, action speed and hit frequency before modifiers: 100%.
 const baseSpeed = 100
 
-// addBaseSpeeds adds the base cast, attack and action speed as a rule's source each, so
-// increases and more multipliers apply to them by the default rule.
+// addBaseSpeeds adds the base cast, attack and action speed and hit frequency as a rule's
+// source each, so increases and more multipliers apply to them by the default rule.
 func (sh *Sheet) addBaseSpeeds() error {
 	for _, b := range []struct{ stat, id, rule string }{
 		{statCastSpeed, "base-cast-speed", "base cast speed (100%)"},
 		{statAttackSpeed, "base-attack-speed", "base attack speed (100%)"},
 		{statActionSpeed, "base-action-speed", "base action speed (100%)"},
+		{statHitFrequency, "base-hit-frequency", "base hit frequency (100%)"},
 	} {
 		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
 		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: baseSpeed, Source: src}

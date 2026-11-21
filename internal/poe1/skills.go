@@ -11,9 +11,16 @@ import (
 	"github.com/xaroth/pbt-engine/internal/semantics"
 )
 
-// statSkillStages, read in a skill's context, is the stages the skill has built up, as its gem
-// says; the skill's stats per stage scale with it.
-const statSkillStages = "skill_stages"
+// Engine stats of a skill's stages, read in its context. skill_stages is the stages the skill
+// has built up: as many as its gem says, at most skill_maximum_stages where the skill has a
+// maximum, or that maximum when the gem says none, as PoB does (CalcActiveSkill.lua
+// activeStageCount). skill_stages_after_first is those beyond the first. The skill's stats per
+// stage scale with one of them.
+const (
+	statSkillStages           = "skill_stages"
+	statSkillMaximumStages    = "skill_maximum_stages"
+	statSkillStagesAfterFirst = "skill_stages_after_first"
+)
 
 // Errors of a sheet's skills.
 var (
@@ -279,5 +286,69 @@ func (sh *Sheet) addBaseDamage() error {
 }
 
 func skillStageMechanic() mechanic {
-	return mechanic{name: "skill stages", stats: []string{statSkillStages}}
+	return mechanic{
+		name: "skill stages", stats: []string{statSkillMaximumStages, statSkillStages, statSkillStagesAfterFirst},
+		def: stageDef,
+	}
+}
+
+// Formula names shown in explanations.
+const (
+	formulaSkillStages           = "skill stages"
+	formulaSkillStagesAfterFirst = "skill stages after the first"
+)
+
+// stageDef completes def when it is a stat of a skill's stages.
+func stageDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
+	switch def.Name {
+	case statSkillStages:
+		maximum := mustID(ids, statSkillMaximumStages)
+		def.FormulaName, def.Formula = formulaSkillStages, func(r core.Reader, a core.Agg) float64 {
+			return stages(a.Base, r.Stat(maximum))
+		}
+		def.Attribute = func(a *core.Attributor) core.Attribution {
+			total := a.Explanation().Total
+			if total == 0 {
+				return core.Attribution{}
+			}
+			from := a.BaseTerms()
+			if len(from) == 0 || a.Stat(maximum) < a.Explanation().Agg.Base {
+				from = a.Spread(core.SelfRef(maximum), total, core.OpBase)
+			}
+			return core.Attribution{Parts: scaled(from, total/sum(from)), Amount: total}
+		}
+	case statSkillStagesAfterFirst:
+		all := mustID(ids, statSkillStages)
+		def.FormulaName, def.Formula = formulaSkillStagesAfterFirst, func(r core.Reader, _ core.Agg) float64 {
+			return max(r.Stat(all)-1, 0)
+		}
+		def.Attribute = func(a *core.Attributor) core.Attribution {
+			total := a.Explanation().Total
+			if total == 0 {
+				return core.Attribution{}
+			}
+			return core.Attribution{Parts: a.Spread(core.SelfRef(all), total, core.OpBase), Amount: total}
+		}
+	}
+	return def
+}
+
+// stages returns the stages of a skill whose gem says set, 0 for none, and whose maximum is
+// maximum, 0 for none.
+func stages(set, maximum float64) float64 {
+	switch {
+	case maximum <= 0:
+		return set
+	case set <= 0:
+		return maximum
+	}
+	return min(set, maximum)
+}
+
+func sum(parts []core.Part) float64 {
+	s := 0.0
+	for _, p := range parts {
+		s += p.Value
+	}
+	return s
 }
