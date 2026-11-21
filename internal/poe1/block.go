@@ -35,10 +35,12 @@ const (
 )
 
 // blockDef completes def when it is a block stat. A total is its base times its increases and
-// more multipliers, capped by its maximum; neither is rounded. Both follow PoB (CalcDefence.lua,
-// Block); unvalidated.
+// more multipliers, rounded half up, then capped by its maximum; the part above the maximum is
+// whole too. All follow PoB (CalcDefence.lua, Block); unvalidated.
 func blockDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
+	case statAttackBlockChance, statSpellBlockChance:
+		def.Round = core.RoundHalf
 	case statMaximumAttackBlockChance, statMaximumSpellBlockChance:
 		def.HasMax, def.Max = true, blockChanceCap
 	case statAttackBlockChanceCapped:
