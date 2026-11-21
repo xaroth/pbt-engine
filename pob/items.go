@@ -112,8 +112,9 @@ func (im *importer) socketNodes() map[int]uint32 {
 }
 
 // readAbyssJewel reads it, in abyssal socket i of slot, into out, or warns.
-func (im *importer) readAbyssJewel(out *[]abyssJewel, it pobxml.Item, slot build.Slot, i int, read func(pobxml.Item) (build.Item, error)) error {
-	item, err := read(it)
+func (im *importer) readAbyssJewel(out *[]abyssJewel, it pobxml.Item, slot build.Slot, i int, read readItem) error {
+	item, warnings, err := read(it)
+	im.itemWarnings(it, warnings)
 	switch {
 	case err == nil:
 		*out = append(*out, abyssJewel{slot: slot, index: i, name: itemSubject(it), item: item})
@@ -140,12 +141,13 @@ func (im *importer) setAbyssJewel(out build.Items, j abyssJewel) {
 }
 
 // socket reads it into out at the socket node, or warns.
-func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read func(pobxml.Item) (build.Item, error)) error {
+func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read readItem) error {
 	if node > maxTreeNode {
 		im.warnNodef(JewelIgnored, node, "jewel %q is in a cluster jewel's socket; not imported", it.Name)
 		return nil
 	}
-	item, err := read(it)
+	item, warnings, err := read(it)
+	im.itemWarnings(it, warnings)
 	switch {
 	case err == nil:
 		if *out == nil {
@@ -161,13 +163,14 @@ func (im *importer) socket(out *build.Jewels, it pobxml.Item, node uint32, read 
 }
 
 // equip reads it into out at PoB's slot name, or warns.
-func (im *importer) equip(out *build.Items, it pobxml.Item, name string, read func(pobxml.Item) (build.Item, error)) error {
+func (im *importer) equip(out *build.Items, it pobxml.Item, name string, read readItem) error {
 	slot, ok := ItemSlot(name)
 	if !ok {
 		im.warnf(ItemIgnored, itemSubject(it), "slot %q is not an equipment slot; not imported", name)
 		return nil
 	}
-	item, err := read(it)
+	item, warnings, err := read(it)
+	im.itemWarnings(it, warnings)
 	switch {
 	case err == nil:
 		if *out == nil {
@@ -184,19 +187,32 @@ func (im *importer) equip(out *build.Items, it pobxml.Item, name string, read fu
 
 func itemSubject(it pobxml.Item) string { return cmp.Or(it.Name, "item "+strconv.Itoa(it.ID)) }
 
+// readItem reads an item's text, with the reader's warnings.
+type readItem func(pobxml.Item) (build.Item, []build.Warning, error)
+
 // itemReader returns a function that reads an item's text with the store's reader, made on
 // first use.
-func itemReader(store *dataset.Store) func(pobxml.Item) (build.Item, error) {
-	return func(it pobxml.Item) (build.Item, error) {
+func itemReader(store *dataset.Store) readItem {
+	return func(it pobxml.Item) (build.Item, []build.Warning, error) {
 		r, err := items.ReaderOf(store)
 		if err != nil {
-			return build.Item{}, fmt.Errorf("%w", err)
+			return build.Item{}, nil, fmt.Errorf("%w", err)
 		}
-		item, _, err := r.Parse(it.Text)
+		item, warnings, err := r.Parse(it.Text)
 		if err != nil {
-			return build.Item{}, fmt.Errorf("%w", err)
+			return build.Item{}, nil, fmt.Errorf("%w", err)
 		}
-		return item, nil
+		return item, warnings, nil
+	}
+}
+
+// itemWarnings passes on the reader's warnings about it, with the item as their subject. Lines
+// not read are left to build.Check, which warns about them.
+func (im *importer) itemWarnings(it pobxml.Item, warnings []build.Warning) {
+	for _, w := range warnings {
+		if w.Code != items.LineUnread {
+			im.warnf(w.Code, itemSubject(it), "%q: %s", w.Subject, w.Message)
+		}
 	}
 }
 

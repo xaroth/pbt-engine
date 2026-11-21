@@ -11,6 +11,7 @@ import (
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/realdata"
+	"github.com/xaroth/pbt-engine/items"
 	"github.com/xaroth/pbt-engine/pob"
 )
 
@@ -142,5 +143,60 @@ func TestFromXMLAbyssJewel(t *testing.T) {
 	}
 	if got := c.Build().Items[build.SlotBelt].AbyssJewels[1].Name; got != "Grim Lens" {
 		t.Errorf("checked belt's abyss jewel %q, want Grim Lens", got)
+	}
+}
+
+// FromXML reads a unique's selected variant at its rolls and passes on the reader's warnings
+// about an item, such as a range with no roll, with the item as their subject.
+func TestFromXMLItemRolls(t *testing.T) {
+	t.Parallel()
+	reg := &dataset.Registry{}
+	if _, err := reg.Add(realdata.Record(t, realdata.Current)); err != nil {
+		t.Fatal(err)
+	}
+	data := `<PathOfBuilding>
+	<Build level="90" className="Witch" ascendClassName="None"/>
+	<Tree activeSpec="1"><Spec treeVersion="3_29" classId="3" ascendClassId="0" nodes=""/></Tree>
+	<Items activeItemSet="1">
+		<Item id="1">Rarity: UNIQUE
+Wake of Destruction
+Mesh Boots
+Variant: Pre 2.6.0
+Variant: Pre 3.11.0
+Variant: Current
+Selected Variant: 3
+Implicits: 0
+Adds 1 to 120 Lightning Damage to Attacks
+{range:0.5}(20-60)% increased Armour and Energy Shield
+Gain (10-20) Life per Enemy Killed
+{variant:2,3}15% increased Movement Speed
+{variant:1,2}10% chance to Cause Monsters to Flee
+{variant:3}Drops Shocked Ground while moving, lasting 2 seconds</Item>
+		<ItemSet id="1"><Slot name="Boots" itemId="1"/></ItemSet>
+	</Items>
+</PathOfBuilding>`
+	b, warnings, err := pob.FromXML([]byte(data), reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods := b.Items[build.SlotBoots].Mods
+	lines := make([]string, 0, len(mods))
+	for _, m := range mods {
+		lines = append(lines, m.Text)
+	}
+	wantLines := []string{
+		"Adds 1 to 120 Lightning Damage to Attacks", "40% increased Armour and Energy Shield",
+		"Gain (10-20) Life per Enemy Killed", "15% increased Movement Speed",
+		"Drops Shocked Ground while moving, lasting 2 seconds",
+	}
+	if diff := cmp.Diff(wantLines, lines); diff != "" {
+		t.Errorf("boots' lines (-want +got):\n%s", diff)
+	}
+	want := []build.Warning{{
+		Code: items.RollAssumed, Subject: "Wake of Destruction",
+		Message: `"Gain (10-20) Life per Enemy Killed": a range of values; the highest used`,
+	}}
+	if diff := cmp.Diff(want, warnings); diff != "" {
+		t.Errorf("warnings (-want +got):\n%s", diff)
 	}
 }
