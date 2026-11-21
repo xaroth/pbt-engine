@@ -12,11 +12,14 @@ import (
 	"github.com/xaroth/pbt-engine/output"
 )
 
-// switchedSheet opens the sheet of b on the real dataset of version and switches it to b.
-func switchedSheet(t *testing.T, version string, b *build.Build) *poe1.Sheet {
+// minionVersion is the dataset the minion tests read.
+const minionVersion = "3.29.3.6"
+
+// switchedSheet opens the sheet of b on the real dataset of minionVersion and switches it to b.
+func switchedSheet(t *testing.T, b *build.Build) *poe1.Sheet {
 	t.Helper()
-	b.Format, b.Game, b.Version = 1, "poe1", version
-	s := realdata.Open(t, version)
+	b.Format, b.Game, b.Version = 1, "poe1", minionVersion
+	s := realdata.Open(t, minionVersion)
 	c, _, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +75,7 @@ func TestMinionBaseValues(t *testing.T) {
 			b := build.Build{Class: marauder, Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
 				{Gems: []build.Gem{{ID: c.gem, Level: 20}}},
 			}}}
-			sh := switchedSheet(t, "3.29.3.6", &b)
+			sh := switchedSheet(t, &b)
 			for name, w := range common {
 				wantMinion(t, sh, name, w)
 			}
@@ -98,7 +101,7 @@ func TestMinionDamage(t *testing.T) {
 		b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
 			{Gems: []build.Gem{{ID: c.gem, Level: 20}}},
 		}}}
-		sh := switchedSheet(t, "3.29.3.6", &b)
+		sh := switchedSheet(t, &b)
 		for name, w := range map[string]float64{"base_minimum_damage": c.min, "base_maximum_damage": c.max, "attack_rate": c.rate} {
 			got, err := sh.MinionAttackValue(0, name, poe1.Physical)
 			if err != nil {
@@ -145,7 +148,7 @@ func TestMinionHit(t *testing.T) {
 			b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
 				{Gems: []build.Gem{{ID: c.gem, Level: 20}}},
 			}}}
-			sh := switchedSheet(t, "3.29.3.6", &b)
+			sh := switchedSheet(t, &b)
 			for k, want := range map[output.Key]float64{poe1.MinionAverageHit: c.hit, poe1.MinionHitDPS: c.dps, poe1.MinionHitChance: 100} {
 				got, err := sh.Output(k)
 				if err != nil {
@@ -175,7 +178,7 @@ func TestMinionHitGiven(t *testing.T) {
 			Format: 1, Game: "poe1", Version: "3.29.3.6", Class: "Metadata/Characters/Str/Str", Level: 90,
 			Skills: build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{{ID: gem, Level: 20}}}}},
 		}
-		c, _, err := build.Check(&b, realdata.Open(t, "3.29.3.6"))
+		c, _, err := build.Check(&b, realdata.Open(t, minionVersion))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -189,5 +192,37 @@ func TestMinionHitGiven(t *testing.T) {
 		if got := poe1.Gives(hit, sw.Skills.Main, sw.Minion(0), sw.Hands); got != want {
 			t.Errorf("%s: minion hit given %v, want %v", gem, got, want)
 		}
+	}
+}
+
+// Switching a sheet again to the same build adds no sources: each switch resolves the minion's
+// skill anew, and the sheet knows it by its values, as a pooled sheet reused for every
+// simulation needs.
+func TestMinionSwitchAddsOnce(t *testing.T) {
+	t.Parallel()
+	b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
+		{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemSummonSkeletons", Level: 20}}},
+	}}}
+	sh := switchedSheet(t, &b)
+	c, _, err := build.Check(&b, realdata.Open(t, minionVersion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := sh.SourceCount()
+	for range 3 {
+		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := sh.Switch(&sw); err != nil {
+			t.Fatal(err)
+		}
+		if got := sh.SourceCount(); got != want {
+			t.Fatalf("%d sources after switching again, want %d", got, want)
+		}
+	}
+	got, err := sh.Output(poe1.MinionAverageHit)
+	if err != nil || got != 165.064375 {
+		t.Errorf("minion average hit %v (%v), want 165.064375", got, err)
 	}
 }

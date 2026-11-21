@@ -244,8 +244,12 @@ type minionKey struct {
 	key  string
 }
 
+// keyOf returns mn's key in slot, by its values and its skill's, not the skill's address: each
+// switch resolves the skill anew.
 func keyOf(slot int, mn *Minion) minionKey {
-	k := minionKey{slot: slot, key: fmt.Sprint(*mn)}
+	values := *mn
+	values.Skill = nil
+	k := minionKey{slot: slot, key: fmt.Sprint(values)}
 	if mn.Skill != nil {
 		k.key += fmt.Sprint(*mn.Skill)
 	}
