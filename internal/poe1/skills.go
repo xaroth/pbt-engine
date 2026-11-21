@@ -108,6 +108,7 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 		}
 		sh.skillSources[k] = srcs
 	}
+	sh.setSpellHits()
 	return sh.setTriggers()
 }
 
@@ -116,14 +117,13 @@ func (sh *Sheet) SetSkills(skills []*resolve.Skill) error {
 // its stages.
 func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.SourceID, error) {
 	b, buffs := sh.buffs.of(sk)
-	bundles, buffStats, curseStats := sh.skillBundles(sk, b, buffs)
-	srcs := make([]core.SourceID, 0, len(bundles)+1)
-	for i := range bundles {
-		src, err := sh.add(&bundles[i], sh.table, sh.gameVersion, slot)
-		if err != nil {
-			return nil, err
-		}
-		srcs = append(srcs, src)
+	bundles, character, buffStats, curseStats := sh.skillBundles(sk, b, buffs)
+	srcs, err := sh.addBundles(nil, bundles, slot)
+	if err != nil {
+		return nil, err
+	}
+	if srcs, err = sh.addBundles(srcs, character, -1); err != nil {
+		return nil, err
 	}
 	ctx := sh.session.InternContext(sh.ctx.skillMask(slot, sk.Types, wield{}, nil, formNone))
 	src, err := sh.addSkillRules(sk, slot, ctx)
@@ -153,6 +153,18 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.Source
 	return append(srcs, stages...), nil
 }
 
+// addBundles adds bundles as add does, in slot, and returns srcs with their sources.
+func (sh *Sheet) addBundles(srcs []core.SourceID, bundles []resolve.Bundle, slot int) ([]core.SourceID, error) {
+	for i := range bundles {
+		src, err := sh.add(&bundles[i], sh.table, sh.gameVersion, slot)
+		if err != nil {
+			return nil, err
+		}
+		srcs = append(srcs, src)
+	}
+	return srcs, nil
+}
+
 // addStages gives skill_stages the stages sk's gem says, in slot, and returns its source; none
 // for a gem without stages.
 func (sh *Sheet) addStages(sk *resolve.Skill, slot int) ([]core.SourceID, error) {
@@ -172,9 +184,10 @@ func (sh *Sheet) addStages(sk *resolve.Skill, slot int) ([]core.SourceID, error)
 }
 
 // skillBundles returns the bundles of sk's own stats: its stat set's and its supports'. Of its
-// stat set, it returns apart the stats of its buff b when buffs is set, and those of its curse
-// when it is one, non-nil then.
-func (sh *Sheet) skillBundles(sk *resolve.Skill, b skillBuff, buffs bool) (bundles []resolve.Bundle, buff, curse []resolve.StatValue) {
+// supports, it returns apart the bundles of the stats that act on the character
+// (supportCharacterStats). Of its stat set, it returns apart the stats of its buff b when buffs
+// is set, and those of its curse when it is one, non-nil then.
+func (sh *Sheet) skillBundles(sk *resolve.Skill, b skillBuff, buffs bool) (bundles, character []resolve.Bundle, buff, curse []resolve.StatValue) {
 	bundles = make([]resolve.Bundle, 0, 1+len(sk.Supports))
 	if len(sk.StatSets) > 0 {
 		own := sk.Set().Stats
@@ -187,9 +200,13 @@ func (sh *Sheet) skillBundles(sk *resolve.Skill, b skillBuff, buffs bool) (bundl
 		bundles = append(bundles, skillBundle(sk.Source, own))
 	}
 	for _, sp := range sk.Supports {
-		bundles = append(bundles, skillBundle(sp.Source, sp.Stats))
+		own, ch := splitCharacterStats(sp.Stats)
+		bundles = append(bundles, skillBundle(sp.Source, own))
+		if ch != nil {
+			character = append(character, skillBundle(sp.Source, ch))
+		}
 	}
-	return bundles, buff, curse
+	return bundles, character, buff, curse
 }
 
 func skillBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {

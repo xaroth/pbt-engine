@@ -28,6 +28,7 @@ func conditionInputs() []conditionInput {
 		{"useEnduranceCharges", poe1.EnduranceCharges},
 		{"conditionFocused", poe1.Focused},
 		{"buffFortification", poe1.Fortified},
+		{"buffArcaneSurge", poe1.ArcaneSurge},
 		{"conditionLeeching", poe1.Leeching},
 		{"conditionEnemyBleeding", poe1.EnemyBleeding},
 		{"conditionEnemyMoving", poe1.EnemyMoving},
