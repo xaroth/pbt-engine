@@ -540,3 +540,24 @@ func TestWhileAffectedByAura(t *testing.T) {
 		t.Errorf("critical strike chance with Hatred enabled %v, disabled %v; want 6 and 5", enabled, disabled)
 	}
 }
+
+// Hatred an item grants holds as the gem's does: an amulet granting it with +1% to Critical
+// Strike Chance while affected by Hatred raises Fireball's 5% to 6%.
+func TestWhileAffectedByGrantedAura(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	text := "Rarity: RARE\nGale Pendant\nOnyx Amulet\nImplicits: 1\nGrants Level 21 Hatred Skill\n" +
+		"+1% to Critical Strike Chance while affected by Hatred\n"
+	it, _, err := s.Data().Item(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := marauderBuild(90)
+	if err := b.Apply(build.Equip(build.SlotAmulet, it)); err != nil {
+		t.Fatal(err)
+	}
+	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20}}})
+	if got := get(t, simulate(t, s, b), poe1.CriticalStrikeChance); got != 6 {
+		t.Errorf("critical strike chance with the amulet's Hatred: got %v, want 6", got)
+	}
+}

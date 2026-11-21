@@ -32,8 +32,9 @@ type LinkedSupport struct {
 }
 
 // socketColours returns the colour of the socket each gem of groups is in, by group and gem;
-// 0 for a gem in no socket. The gems of the groups in one slot fill the item's sockets in group
-// and gem order, as the build does not say which socket holds which gem.
+// 0 for a gem in no socket, and for a skill an item or passive grants, which takes none. The
+// gems of the groups in one slot fill the item's sockets in group and gem order, as the build
+// does not say which socket holds which gem.
 func socketColours(groups []build.SkillGroup, items build.Items) [][]dataset.GemColour {
 	out := make([][]dataset.GemColour, len(groups))
 	used := map[build.Slot]int{}
@@ -43,12 +44,15 @@ func socketColours(groups []build.SkillGroup, items build.Items) [][]dataset.Gem
 			continue
 		}
 		sockets := socketsOf(items[g.Slot].Sockets)
-		for j := range g.Gems {
-			if k := used[g.Slot] + j; k < len(sockets) {
+		for j, gem := range g.Gems {
+			if gem.Skill != "" {
+				continue
+			}
+			if k := used[g.Slot]; k < len(sockets) {
 				out[i][j] = sockets[k]
 			}
+			used[g.Slot]++
 		}
-		used[g.Slot] += len(g.Gems)
 	}
 	return out
 }

@@ -428,7 +428,8 @@ func TestAll(t *testing.T) {
 // TestSupportsBeyondTheGroup checks supports from outside the skill's group: the support an item
 // grants to the gems socketed in it, at the item's level and no quality; of one support twice,
 // the one at the higher level; and the support gems of an off-hand or amulet whose supports also
-// support the main hand's or body armour's skills.
+// support the main hand's or body armour's skills. A skill an item grants takes the supports
+// of the other groups socketed in that item.
 func TestSupportsBeyondTheGroup(t *testing.T) {
 	t.Parallel()
 	const body, shield = "Metadata/Items/Armours/BodyArmours/BodyStr1", "Metadata/Items/Armours/Shields/ShieldStr1"
@@ -437,6 +438,7 @@ func TestSupportsBeyondTheGroup(t *testing.T) {
 	}
 	totemArmour := build.Items{build.SlotBodyArmour: item(body, build.StatValue{Stat: "local_display_socketed_gems_get_spell_totem_level", Value: 20})}
 	linking := build.Items{build.SlotOffhand: item(shield, build.StatValue{Stat: "support_gems_socketed_in_off_hand_also_support_main_hand_skills", Value: 1})}
+	hatredArmour := build.Items{build.SlotBodyArmour: item(body, build.StatValue{Stat: "local_display_grants_skill_hatred_level", Value: 21})}
 	fireball := []build.Gem{active(fireballGem, 0)}
 	testCases := []struct {
 		name   string
@@ -467,6 +469,22 @@ func TestSupportsBeyondTheGroup(t *testing.T) {
 			build.Items{build.SlotAmulet: item("Metadata/Items/Amulets/Amulet1",
 				build.StatValue{Stat: "support_gems_socketed_in_amulet_also_support_body_skills", Value: 1})},
 			[]resolve.Support{{Source: resolve.GemSource{Group: 1, Gem: 0, ID: addedFireGem}, GrantedEffect: "SupportAddedFireDamage", Level: 20}}, false,
+		},
+		{
+			"a skill the item grants, with the item's other gems",
+			[]build.SkillGroup{
+				{Slot: build.SlotBodyArmour, Source: &build.SkillSource{Item: build.SlotBodyArmour}, Gems: []build.Gem{{Skill: "Hatred", Level: 21}}},
+				{Slot: build.SlotBodyArmour, Gems: []build.Gem{support(empowerGem, 3)}},
+			},
+			hatredArmour, []resolve.Support{{Source: resolve.GemSource{Group: 1, Gem: 0, ID: empowerGem}, GrantedEffect: "SupportEmpower", Level: 3}}, false,
+		},
+		{
+			"a skill the item grants, gems in another slot",
+			[]build.SkillGroup{
+				{Slot: build.SlotBodyArmour, Source: &build.SkillSource{Item: build.SlotBodyArmour}, Gems: []build.Gem{{Skill: "Hatred", Level: 21}}},
+				{Slot: build.SlotHelmet, Gems: []build.Gem{support(empowerGem, 3)}},
+			},
+			hatredArmour, nil, false,
 		},
 		{
 			"main hand not linked to the off-hand",

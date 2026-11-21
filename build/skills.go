@@ -16,10 +16,15 @@ type Skills struct {
 	MainGroup int `json:"main,omitzero"`
 }
 
-// SkillGroup is a group of linked gems.
+// SkillGroup is a group of linked gems, or the skill an item or a passive grants with the gems
+// that support it.
 type SkillGroup struct {
 	// Slot is the item slot the gems are socketed in; empty when they are in none.
 	Slot Slot `json:"slot,omitzero"`
+	// Source is the item or passive that grants the group's skill, its first gem; nil for a group
+	// of the player's gems. Check adds a group for each skill the build's items and passives
+	// grant and removes those whose source grants none.
+	Source *SkillSource `json:"source,omitzero"`
 	// Gems keep their order. A gem can be in several groups, and the same support more than
 	// once in one.
 	Gems []Gem `json:"gems,omitzero"`
@@ -30,6 +35,21 @@ type SkillGroup struct {
 	ActiveSkill int `json:"activeSkill,omitzero"`
 }
 
+// SkillSource is what grants a skill group its skill: the item in a slot or an allocated passive.
+type SkillSource struct {
+	// Item is the slot of the item that grants it; empty for a passive.
+	Item Slot `json:"item,omitzero"`
+	// Node is the id of the passive that grants it; 0 for an item.
+	Node uint32 `json:"node,omitzero"`
+}
+
+func (s SkillSource) String() string {
+	if s.Item != "" {
+		return "the item in " + string(s.Item)
+	}
+	return fmt.Sprintf("node %d", s.Node)
+}
+
 // GemID names a gem: the dataset Gem.ID, and the GemEffect.ID of the variant when it is not
 // the gem's first, such as a transfigured gem.
 type GemID struct {
@@ -37,13 +57,16 @@ type GemID struct {
 	Effect string `json:"effect,omitzero"`
 }
 
-// Gem is a gem in a skill group.
+// Gem is a gem in a skill group, or the skill an item or a passive grants.
 type Gem struct {
 	GemID
 
-	Level   int  `json:"level"`
-	Quality int  `json:"quality,omitzero"`
-	Support bool `json:"support,omitzero"`
+	// Skill is the GrantedEffect id of the skill the group's Source grants, which is no gem; ID
+	// is then empty, and Level is the grant's.
+	Skill   string `json:"skill,omitzero"`
+	Level   int    `json:"level"`
+	Quality int    `json:"quality,omitzero"`
+	Support bool   `json:"support,omitzero"`
 	// Disabled gems stay in the group and do nothing.
 	Disabled bool `json:"disabled,omitzero"`
 	// StatSet is which stat set of the gem's skill is used: 0 its primary set, 1 its second.
@@ -94,7 +117,7 @@ func (s *Skills) clone() Skills {
 	c := *s
 	c.Groups = slices.Clone(s.Groups)
 	for i := range c.Groups {
-		c.Groups[i].Gems = slices.Clone(c.Groups[i].Gems)
+		c.Groups[i] = c.Groups[i].cloned()
 	}
 	return c
 }
