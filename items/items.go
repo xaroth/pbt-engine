@@ -224,6 +224,7 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 	if err != nil {
 		return build.Item{}, nil, err
 	}
+	p.scaling.addMagnitudes(p.lines)
 	base, err := r.base(p)
 	if err != nil {
 		return build.Item{}, nil, err
@@ -241,7 +242,11 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 		for k := range texts {
 			texts[k] = p.lines[i+k].text
 		}
-		line, ws, n, err := r.readLine(&it, base, p.lines[i].kind, texts)
+		sc := p.scaling
+		if p.lines[i].unscalable {
+			sc = scaling{}
+		}
+		line, ws, n, err := r.readLine(&it, base, p.lines[i].kind, texts, sc.scaler(p.lines[i].kind))
 		if err != nil {
 			return build.Item{}, nil, err
 		}
@@ -278,9 +283,11 @@ func (r *Reader) index(bases []dataset.ItemBase, names []dataset.Name) {
 	}
 }
 
-// readLine reads the mod line at the start of texts, all of kind, and returns it with how many
-// lines it spans.
-func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.ModKind, texts []string) (build.ModLine, []build.Warning, int, error) {
+// readLine reads the mod line at the start of texts, all of kind, its values scaled from its
+// mods' ranges by scale, and returns it with how many lines it spans.
+func (r *Reader) readLine(
+	it *build.Item, base *dataset.ItemBase, kind build.ModKind, texts []string, scale scaler,
+) (build.ModLine, []build.Warning, int, error) {
 	readings, err := r.set.ReadRange(statScope, texts)
 	if err != nil {
 		return build.ModLine{}, nil, 0, fmt.Errorf("items: %w", err)
@@ -289,7 +296,7 @@ func (r *Reader) readLine(it *build.Item, base *dataset.ItemBase, kind build.Mod
 		w := build.Warning{Code: LineUnread, Subject: texts[0], Message: "no stat description reads it; left out"}
 		return build.ModLine{Kind: kind, Text: texts[0]}, []build.Warning{w}, 1, nil
 	}
-	rd := r.choose(it, base, kind, readings)
+	rd := r.choose(it, base, kind, readings, scale)
 	line := build.ModLine{Kind: kind, Text: strings.Join(texts[:rd.Lines], "\n")}
 	var warnings []build.Warning
 	if len(rd.others) > 0 {
@@ -364,8 +371,9 @@ func (r *Reader) byImplicits(bases []*dataset.ItemBase, p parsed) *dataset.ItemB
 		}
 	}
 	best, bestScore := bases[0], [3]int{-1, -1, -1}
+	scale := p.scaling.scaler(build.Implicit)
 	for _, b := range bases {
-		read := r.implicitsRead(b, readings)
+		read := r.implicitsRead(b, readings, scale)
 		if score := [3]int{read[0], read[1], printedDefences(b, &p.item)}; slices.Compare(score[:], bestScore[:]) > 0 {
 			best, bestScore = b, score
 		}
@@ -374,15 +382,15 @@ func (r *Reader) byImplicits(bases []*dataset.ItemBase, p parsed) *dataset.ItemB
 }
 
 // implicitsRead counts the lines, by their readings, that an implicit mod of b reads with the
-// values in range, and with any values.
-func (r *Reader) implicitsRead(b *dataset.ItemBase, readings [][]statdesc.RangeReading) [2]int {
+// values in range, scaled by scale, and with any values.
+func (r *Reader) implicitsRead(b *dataset.ItemBase, readings [][]statdesc.RangeReading, scale scaler) [2]int {
 	ofBase := func(m *dataset.Mod) bool { return slices.Contains(b.Implicits, m.ID) }
 	var score [2]int
 	for _, rs := range readings {
-		if slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.gives(rd, true, ofBase) }) {
+		if slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.gives(rd, true, ofBase, scale) }) {
 			score[0]++
 		}
-		if slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.gives(rd, false, ofBase) }) {
+		if slices.ContainsFunc(rs, func(rd statdesc.RangeReading) bool { return r.gives(rd, false, ofBase, nil) }) {
 			score[1]++
 		}
 	}

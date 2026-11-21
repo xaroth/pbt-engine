@@ -344,3 +344,50 @@ func sampleItems(t *testing.T) []sampleItem {
 	}
 	return out
 }
+
+// A catalyst's quality and a magnitude line scale the mods' ranges the item's values are in.
+// The Iron Ring's top life mod rolls 100 to 114, its top fire resistance mod 46 to 48, and the
+// Vaal Regalia's top faster start of energy shield recharge mod 61% to 66%.
+func TestParseScaled(t *testing.T) {
+	t.Parallel()
+	r, _ := realReader(t)
+	ring := "Rarity: RARE\nX\nIron Ring\n%sImplicits: 0\n%s\n"
+	fertile := "Catalyst: Fertile\nCatalystQuality: 20\n"
+	regalia := "Rarity: RARE\nX\nVaal Regalia\nImplicits: %d\n%s%s\n"
+	magnitude := "8% increased Explicit Defence Modifier magnitudes\n"
+	recharge := func(n int) string { return fmt.Sprintf("%d%% faster start of Energy Shield Recharge", n) }
+	for _, c := range []struct {
+		name, text string
+		codes      []build.Code
+	}{
+		// 114 * 1.2 = 136.8.
+		{"life at 1.2 times the top, Fertile at 20", fmt.Sprintf(ring, fertile, "+136 to maximum Life"), nil},
+		{"life at 1.2 times the top, no catalyst", fmt.Sprintf(ring, "", "+136 to maximum Life"), []build.Code{items.RollOutOfRange}},
+		{
+			"Prismatic does not scale life", fmt.Sprintf(ring, "Catalyst: Prismatic\nCatalystQuality: 20\n", "+136 to maximum Life"),
+			[]build.Code{items.RollOutOfRange},
+		},
+		{"Fertile does not scale an unscalable line", fmt.Sprintf(ring, fertile, "{unscalable}+136 to maximum Life"), []build.Code{items.RollOutOfRange}},
+		{"Fertile at 20 when the quality is not given", fmt.Sprintf(ring, "Catalyst: Fertile\n", "+136 to maximum Life"), nil},
+		{"the game's quality line", fmt.Sprintf(ring, "Quality (Life and Mana Modifiers): +20% (augmented)\n", "+136 to maximum Life"), nil},
+		// 66 * 1.08 = 71.28.
+		{"recharge at 1.08 times the top, rounded down", fmt.Sprintf(regalia, 1, magnitude, recharge(71)), nil},
+		{"recharge at 1.08 times the top, no magnitude line", fmt.Sprintf(regalia, 0, "", recharge(71)), []build.Code{items.RollOutOfRange}},
+		{"recharge above 1.08 times the top", fmt.Sprintf(regalia, 1, magnitude, recharge(72)), []build.Code{items.RollOutOfRange}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			_, warnings, err := r.Parse(c.text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			codes := make([]build.Code, 0, len(warnings))
+			for _, w := range warnings {
+				codes = append(codes, w.Code)
+			}
+			if !slices.Equal(c.codes, codes) {
+				t.Errorf("codes %v, want %v: %v", codes, c.codes, warnings)
+			}
+		})
+	}
+}

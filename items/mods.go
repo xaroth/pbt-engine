@@ -67,14 +67,14 @@ func firstShown(rd statdesc.RangeReading) int {
 }
 
 // gives reports whether some mod that passes ok has every stat rd shows (see has), with rd's
-// values in the mod's ranges when inRange is set.
-func (r *Reader) gives(rd statdesc.RangeReading, inRange bool, ok func(*dataset.Mod) bool) bool {
+// values in the mod's ranges scaled by scale when inRange is set.
+func (r *Reader) gives(rd statdesc.RangeReading, inRange bool, ok func(*dataset.Mod) bool, scale scaler) bool {
 	for k, st := range rd.Stats {
 		if !shown(rd, k) {
 			continue
 		}
 		for _, ms := range r.mods.byStat[st] {
-			if ok(ms.mod) && r.has(ms.mod, rd, inRange) {
+			if ok(ms.mod) && r.has(ms.mod, rd, inRange, scale) {
 				return true
 			}
 		}
@@ -82,22 +82,23 @@ func (r *Reader) gives(rd statdesc.RangeReading, inRange bool, ok func(*dataset.
 	return false
 }
 
-// givesSum reports whether two mods that pass ok, of no shared family, add up to rd's values:
-// the game shows mods of one stat, such as a prefix and a suffix, as one line.
-func (r *Reader) givesSum(rd statdesc.RangeReading, ok func(*dataset.Mod) bool) bool {
+// givesSum reports whether two mods that pass ok, of no shared family, add up to rd's values,
+// as they are or each scaled by scale: the game shows mods of one stat, such as a prefix and a suffix, as one
+// line.
+func (r *Reader) givesSum(rd statdesc.RangeReading, ok func(*dataset.Mod) bool, scale scaler) bool {
 	k := firstShown(rd)
 	if k < 0 {
 		return false
 	}
 	var mods []*dataset.Mod
 	for _, ms := range r.mods.byStat[rd.Stats[k]] {
-		if ok(ms.mod) && r.has(ms.mod, rd, false) && !slices.Contains(mods, ms.mod) {
+		if ok(ms.mod) && r.has(ms.mod, rd, false, nil) && !slices.Contains(mods, ms.mod) {
 			mods = append(mods, ms.mod)
 		}
 	}
 	for i, a := range mods {
 		for _, b := range mods[i+1:] {
-			if !slices.ContainsFunc(a.Families, func(f string) bool { return slices.Contains(b.Families, f) }) && r.sums(a, b, rd) {
+			if !slices.ContainsFunc(a.Families, func(f string) bool { return slices.Contains(b.Families, f) }) && r.sums(a, b, rd, scale) {
 				return true
 			}
 		}
@@ -105,14 +106,22 @@ func (r *Reader) givesSum(rd statdesc.RangeReading, ok func(*dataset.Mod) bool) 
 	return false
 }
 
-// sums reports whether a and b add up to rd's values for each stat rd shows.
-func (r *Reader) sums(a, b *dataset.Mod, rd statdesc.RangeReading) bool {
+// sums reports whether a and b, as they are or scaled by scale, add up to rd's values for each
+// stat rd shows.
+func (r *Reader) sums(a, b *dataset.Mod, rd statdesc.RangeReading, scale scaler) bool {
+	return r.sumsScaled(a, b, rd, 1, 1) || r.sumsScaled(a, b, rd, scale.of(a), scale.of(b))
+}
+
+// sumsScaled reports whether a scaled by fa and b by fb add up to rd's values for each stat rd
+// shows.
+func (r *Reader) sumsScaled(a, b *dataset.Mod, rd statdesc.RangeReading, fa, fb float64) bool {
 	for k, st := range rd.Stats {
 		if !shown(rd, k) {
 			continue
 		}
 		x, okA := r.rangeOf(a, st)
 		y, okB := r.rangeOf(b, st)
+		x, y = x.scaled(fa), y.scaled(fb)
 		if !okA || !okB || rd.Min[k] < x.min+y.min || rd.Max[k] > x.max+y.max {
 			return false
 		}
@@ -121,12 +130,11 @@ func (r *Reader) sums(a, b *dataset.Mod, rd statdesc.RangeReading) bool {
 }
 
 // has reports whether m has every stat rd shows, with rd's values in m's ranges when inRange is
-// set; a stat whose value the text does not show need not be m's, and a passive's name is in
-// any range. A value out of range still fits when the mod at its own values renders the same
-// text, as for a number the description writes as fixed words, such as "30%".
-func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) bool {
-	own := map[string]int32{}
-	out := false
+// set, as they are or scaled by scale; a stat whose value the text does not show need not be
+// m's, and a passive's name is in any range. The game does not scale every stat, and the data
+// does not say which it scales, so an unscaled value fits too.
+func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool, scale scaler) bool {
+	ranges := make(map[string]modStat, len(rd.Stats))
 	for k, st := range rd.Stats {
 		if !shown(rd, k) {
 			continue
@@ -139,10 +147,29 @@ func (r *Reader) has(m *dataset.Mod, rd statdesc.RangeReading, inRange bool) boo
 			}
 			return false
 		}
+		ranges[st] = ms
+	}
+	f := scale.of(m)
+	return !inRange || r.inRanges(rd, ranges, 1) || f != 1 && r.inRanges(rd, ranges, f)
+}
+
+// inRanges reports whether rd's values are in ranges, by stat, scaled by f. A value out of range
+// still fits when the mod at its own values renders the same text, as for a number the
+// description writes as fixed words, such as "30%", or a scaled value the text rounds, such as
+// "2.2%" for 2.15.
+func (r *Reader) inRanges(rd statdesc.RangeReading, ranges map[string]modStat, f float64) bool {
+	own := make(map[string]int32, len(ranges))
+	out := false
+	for k, st := range rd.Stats {
+		ms, ok := ranges[st]
+		if !ok || !shown(rd, k) {
+			continue
+		}
+		ms = ms.scaled(f)
 		own[st] = ms.min
 		out = out || !r.passiveStats[st] && (rd.Min[k] < ms.min || rd.Max[k] > ms.max)
 	}
-	return !inRange || !out || r.sameText(rd, own)
+	return !out || r.sameText(rd, own)
 }
 
 // sameText reports whether rd's stats render the same text at their low values and with the
