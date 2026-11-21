@@ -14,9 +14,9 @@ const namesPrefix = "names-"
 // NamesFile returns the file name of the names of language, such as "en".
 func NamesFile(language string) string { return namesPrefix + language + fbSuffix }
 
-// Names are the character, ascendancy, node, override and timeless replacement names of one
-// language: the part of its Text a host needs to show a class, a node, an override or a
-// timeless jewel's passive by name without the stat descriptions. Write writes them beside each text as names-<language>.fb.
+// Names are the character, ascendancy, node, override, timeless and conqueror names of one
+// language: the part of its Text a host needs to show a class, a node, an override, a timeless
+// jewel or its passives by name without the stat descriptions. Write writes them beside each text as names-<language>.fb.
 type Names struct {
 	Language string
 	// NodeNames are sorted by ID.
@@ -29,6 +29,8 @@ type Names struct {
 	OverrideNames []Name
 	// TimelessNames are keyed by TimelessReplacement.ID.
 	TimelessNames []Name
+	// TimelessVersionNames, TimelessJewelNames and ConquerorNames are as in Text.
+	TimelessVersionNames, TimelessJewelNames, ConquerorNames []Name
 }
 
 // Names returns the names of t, sharing its slices.
@@ -36,6 +38,7 @@ func (t *Text) Names() Names {
 	return Names{
 		Language: t.Language, NodeNames: t.NodeNames, CharacterNames: t.CharacterNames,
 		AscendancyNames: t.AscendancyNames, OverrideNames: t.OverrideNames, TimelessNames: t.TimelessNames,
+		TimelessVersionNames: t.TimelessVersionNames, TimelessJewelNames: t.TimelessJewelNames, ConquerorNames: t.ConquerorNames,
 	}
 }
 
@@ -80,6 +83,9 @@ func encodeNamesGroup(n Names) []byte {
 	ascs := ascendancyNameVector(b, fb.NamesStartAscendancyNamesVector, n.AscendancyNames)
 	addOverrides := optionalNames(b, nameList{fb.NamesStartOverrideNamesVector, fb.NamesAddOverrideNames, n.OverrideNames})
 	addTimeless := optionalNames(b, nameList{fb.NamesStartTimelessNamesVector, fb.NamesAddTimelessNames, n.TimelessNames})
+	addConquerors := optionalNames(b, nameList{fb.NamesStartTimelessVersionNamesVector, fb.NamesAddTimelessVersionNames, n.TimelessVersionNames},
+		nameList{fb.NamesStartTimelessJewelNamesVector, fb.NamesAddTimelessJewelNames, n.TimelessJewelNames},
+		nameList{fb.NamesStartConquerorNamesVector, fb.NamesAddConquerorNames, n.ConquerorNames})
 	lang := b.CreateString(n.Language)
 	fb.NamesStart(b)
 	fb.NamesAddLanguage(b, lang)
@@ -88,6 +94,7 @@ func encodeNamesGroup(n Names) []byte {
 	fb.NamesAddAscendancyNames(b, ascs)
 	addOverrides()
 	addTimeless()
+	addConquerors()
 	fb.FinishNamesBuffer(b, fb.NamesEnd(b))
 	return b.FinishedBytes()
 }
@@ -98,11 +105,14 @@ func decodeNamesGroup(buf []byte) (Names, error) {
 	}
 	root := fb.GetRootAsNames(buf, 0)
 	return Names{
-		Language:        string(root.Language()),
-		NodeNames:       decodeNodeNames(root.NodeNamesLength(), root.NodeNames),
-		CharacterNames:  decodeNames(root.CharacterNamesLength(), root.CharacterNames),
-		AscendancyNames: decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames),
-		OverrideNames:   decodeNames(root.OverrideNamesLength(), root.OverrideNames),
-		TimelessNames:   decodeNames(root.TimelessNamesLength(), root.TimelessNames),
+		Language:             string(root.Language()),
+		NodeNames:            decodeNodeNames(root.NodeNamesLength(), root.NodeNames),
+		CharacterNames:       decodeNames(root.CharacterNamesLength(), root.CharacterNames),
+		AscendancyNames:      decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames),
+		OverrideNames:        decodeNames(root.OverrideNamesLength(), root.OverrideNames),
+		TimelessNames:        decodeNames(root.TimelessNamesLength(), root.TimelessNames),
+		TimelessVersionNames: decodeNames(root.TimelessVersionNamesLength(), root.TimelessVersionNames),
+		TimelessJewelNames:   decodeNames(root.TimelessJewelNamesLength(), root.TimelessJewelNames),
+		ConquerorNames:       decodeNames(root.ConquerorNamesLength(), root.ConquerorNames),
 	}, nil
 }

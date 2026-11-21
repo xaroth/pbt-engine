@@ -57,6 +57,12 @@ type Text struct {
 	OverrideNames []Name
 	// TimelessNames are keyed by TimelessReplacement.ID.
 	TimelessNames []Name
+	// TimelessVersionNames and TimelessJewelNames are keyed by TimelessVersion.ID: the faction,
+	// such as "Vaal", and the unique jewel, such as "Glorious Vanity".
+	TimelessVersionNames, TimelessJewelNames []Name
+	// ConquerorNames are keyed by the TimelessReplacement.ID of a conqueror's keystone: the
+	// conqueror, such as "Doryani".
+	ConquerorNames []Name
 }
 
 // NodeName is the display name of a passive node.

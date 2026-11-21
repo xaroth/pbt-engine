@@ -12,6 +12,8 @@ struct Limit {
 table Handler {
   name: string (required);
   stat: uint8;
+  // Further stats the handler reads, such as a name that depends on more than one stat.
+  args: [uint8];
 }
 
 table Variant {
@@ -74,6 +76,12 @@ table Text {
   override_names: [Name];
   // Keyed by timeless replacement passive id; absent in datasets without timeless names.
   timeless_names: [Name];
+  // Keyed by timeless version id: the faction, such as "Vaal", and the unique jewel, such as
+  // "Glorious Vanity". Keyed by the id of the keystone replacement passive of the conqueror:
+  // the conqueror, such as "Doryani". All absent in datasets without them.
+  timeless_version_names: [Name];
+  timeless_jewel_names: [Name];
+  conqueror_names: [Name];
 }
 
 root_type Text;
