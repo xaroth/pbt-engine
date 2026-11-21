@@ -110,6 +110,7 @@ const (
 	LifeRegeneration            output.Key = "player.life_regeneration"
 	ManaRegeneration            output.Key = "player.mana_regeneration"
 	EnergyShieldRegeneration    output.Key = "player.energy_shield_regeneration"
+	BlockChance                 output.Key = "player.block_chance"
 	SpellBlockChance            output.Key = "player.spell_block_chance"
 	MovementSpeed               output.Key = "player.movement_speed"
 	PhysicalDamageModifier      output.Key = "skill.physical_damage_modifier"

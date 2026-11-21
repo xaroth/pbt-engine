@@ -199,6 +199,7 @@ func Outputs() []Output {
 	)), group(GroupDefences, []Output{
 		{Key: Armour, Label: "Armour", Better: output.Higher, stat: statArmour},
 		{Key: EvasionRating, Label: "Evasion Rating", Better: output.Higher, stat: statEvasionRating},
+		{Key: BlockChance, Label: "Chance to Block Attack Damage", Better: output.Higher, Unit: UnitPercent, stat: statAttackBlockChanceCapped},
 		{Key: SpellBlockChance, Label: "Chance to Block Spell Damage", Better: output.Higher, Unit: UnitPercent, stat: statSpellBlockChanceCapped},
 		{Key: MovementSpeed, Label: "Movement Speed", Better: output.Higher, Unit: UnitPercent, stat: statMovementSpeed},
 	}), group(GroupSkill, []Output{

@@ -394,7 +394,7 @@ func (sh *Sheet) addBaseValues() error {
 	for _, add := range []func() error{
 		sh.addBaseMovementSpeed, sh.addBaseDamage, sh.addBaseSpeeds, sh.addBaseAilmentValues,
 		sh.addConditions, sh.addArcaneSurge, sh.addResonance, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
-		sh.addBaseEfficiencies, sh.addCurseLimit,
+		sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock,
 	} {
 		if err := add(); err != nil {
 			return err

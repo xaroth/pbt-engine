@@ -53,7 +53,7 @@ func mechanics() []mechanic {
 		heldMechanic(),
 		equipmentMechanic(),
 		chargeMechanic(),
-		spellBlockMechanic(),
+		blockMechanic(),
 		movementMechanic(),
 		skillStageMechanic(),
 		transferMechanic(),
