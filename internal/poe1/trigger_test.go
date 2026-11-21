@@ -17,10 +17,7 @@ func TestTriggeredRate(t *testing.T) {
 	t.Parallel()
 	attack := skill(0, "Attack", "Damage", "Melee")
 	attack.StatSets = []resolve.SkillStatSet{{}}
-	triggered := skill(0, "Attack", "Damage", "Melee", "Triggered", "Cooldown")
-	triggered.Source.Gem, triggered.Which = 1, 1
-	triggered.StatSets = []resolve.SkillStatSet{{}}
-	triggered.Supported = []resolve.SkillRef{{Source: attack.Source}}
+	triggered := triggeredSkill(attack, "TriggeredSupportVoidShockwave")
 
 	sh := accuracySheet(t, stat("attack_speed_+%", 100))
 	setSkills(t, sh, triggered, attack)
@@ -35,4 +32,41 @@ func TestTriggeredRate(t *testing.T) {
 	if got, want := outputOf(t, sh, poe1.HitsPerSecond), 1/0.528; math.Abs(got-want) > want/100 {
 		t.Errorf("cooldown: got %v hits per second, want about %v", got, want)
 	}
+}
+
+// Of the skills supports grant and trigger, only those triggered on each melee hit get a rate:
+// Call the Pyre, which PoB triggers at 50% against ignited enemies, gets none, nor does Void
+// Shockwave granted for a skill that is not melee.
+func TestTriggeredRateExcluded(t *testing.T) {
+	t.Parallel()
+	melee := skill(0, "Attack", "Damage", "Melee")
+	melee.StatSets = []resolve.SkillStatSet{{}}
+	ranged := skill(0, "Attack", "Damage", "Projectile")
+	ranged.StatSets = []resolve.SkillStatSet{{}}
+	for name, c := range map[string]struct {
+		triggering    *resolve.Skill
+		grantedEffect string
+	}{
+		"call the pyre":       {melee, "TriggeredSupportPyre"},
+		"not melee triggered": {ranged, "TriggeredSupportVoidShockwave"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			sh := accuracySheet(t)
+			setSkills(t, sh, triggeredSkill(c.triggering, c.grantedEffect), c.triggering)
+			if got := outputOf(t, sh, poe1.HitsPerSecond); got != 0 {
+				t.Errorf("got %v hits per second, want 0", got)
+			}
+		})
+	}
+}
+
+// triggeredSkill is a melee attack with granted effect id, granted by a support for triggering.
+func triggeredSkill(triggering *resolve.Skill, id string) *resolve.Skill {
+	sk := skill(0, "Attack", "Damage", "Melee", "Triggered", "Cooldown")
+	sk.GrantedEffect = id
+	sk.Source.Gem, sk.Which = 1, 1
+	sk.StatSets = []resolve.SkillStatSet{{}}
+	sk.Supported = []resolve.SkillRef{{Source: triggering.Source}}
+	return sk
 }

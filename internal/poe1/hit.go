@@ -43,6 +43,7 @@ const (
 	typeRemoteMined  = "RemoteMined"
 	typeSummonsTotem = "SummonsTotem"
 	typeTriggered    = "Triggered"
+	typeMelee        = "Melee"
 	typeCooldown     = "Cooldown"
 	typeProjectile   = "Projectile"
 	typeArea         = "Area"

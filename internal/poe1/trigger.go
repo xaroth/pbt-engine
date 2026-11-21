@@ -60,10 +60,19 @@ func triggerBases(sk *resolve.Skill) []hitBase {
 	return []hitBase{{statCooldown, core.OpBase, float64(sk.Cooldown) / millisecondsPerSecond}}
 }
 
-// supportTriggered reports whether sk is triggered by the skills it is granted for: a triggered
-// skill a support grants, such as Void Shockwave.
+// meleeHitTriggered reports whether granted effect id is one a support grants and triggers on
+// each melee hit of the skills it supports, those PoB rates with its default handler
+// (CalcTriggers.lua configTable "shockwave" and "void shockwave"). PoB rates other
+// support-granted triggers otherwise, such as Call the Pyre at 50% against ignited enemies or
+// Voidstorm on use, or not at all.
+func meleeHitTriggered(id string) bool {
+	return id == "SupportBluntWeaponShockwave" || id == "TriggeredSupportVoidShockwave"
+}
+
+// supportTriggered reports whether sk is triggered by each melee hit of the skills it is granted
+// for, such as Void Shockwave.
 func supportTriggered(sk *resolve.Skill) bool {
-	return hasTypes(sk, typeTriggered) && len(sk.Supported) > 0
+	return hasTypes(sk, typeTriggered) && meleeHitTriggered(sk.GrantedEffect) && len(sk.Supported) > 0
 }
 
 // triggerKey is a triggered skill's slot, the context its triggering skill's values are read
@@ -74,8 +83,8 @@ type triggerKey struct {
 	skill, triggering resolve.SkillRef
 }
 
-// setTriggers links each skill of the sheet a support grants and triggers to the first skill
-// on the sheet it is granted for: its trigger_rate and trigger_hit_chance read that skill's
+// setTriggers links each skill of the sheet a support grants and triggers to the first melee
+// skill on the sheet it is granted for: its trigger_rate and trigger_hit_chance read that skill's
 // hits per second and chance to hit. A link not seen yet gets its source added once; adding is
 // refused while a checkpoint is open (ErrCheckpointOpen).
 func (sh *Sheet) setTriggers() error {
@@ -116,13 +125,13 @@ func skillRef(sk *resolve.Skill) resolve.SkillRef {
 	return resolve.SkillRef{Source: sk.Source, Which: sk.Which}
 }
 
-// triggerSlot returns the slot of the skill that triggers sk, -1 for none.
+// triggerSlot returns the slot of the melee skill that triggers sk, -1 for none.
 func (sh *Sheet) triggerSlot(sk *resolve.Skill) int {
 	if !supportTriggered(sk) {
 		return -1
 	}
 	for j, sl := range sh.skills {
-		if slices.Contains(sk.Supported, skillRef(sl.skill)) {
+		if hasTypes(sl.skill, typeMelee) && slices.Contains(sk.Supported, skillRef(sl.skill)) {
 			return j
 		}
 	}

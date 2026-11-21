@@ -326,15 +326,15 @@ func (h hitRate) limit(m core.Mask, stat func(core.StatID) float64) float64 {
 	return (1 + stat(h.repeats)) / serverTickSeconds
 }
 
-// triggeredBy reports whether a skill used in context m with stat reading a stat is triggered
-// by a skill on the sheet.
-func (h hitRate) triggeredBy(m core.Mask, stat func(core.StatID) float64) bool {
-	return m.Intersects(h.triggered) && stat(h.trigger) > 0
+// triggeredBy reports whether a skill used in context m is triggered by another, so hits only
+// at that skill's rate: none when no skill on the sheet triggers it.
+func (h hitRate) triggeredBy(m core.Mask) bool {
+	return m.Intersects(h.triggered)
 }
 
 func (h hitRate) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
-		if h.triggeredBy(r.Mask(), r.Stat) {
+		if h.triggeredBy(r.Mask()) {
 			return triggeredRate(r.Stat(h.trigger), r.Stat(h.triggerChance), r.Stat(h.cooldown))
 		}
 		if t := r.Stat(h.throws); t > 0 {
@@ -365,7 +365,7 @@ func (h hitRate) formula() core.Formula {
 func (h hitRate) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		total := a.Explanation().Total
-		if h.triggeredBy(a.Mask(), a.Stat) {
+		if h.triggeredBy(a.Mask()) {
 			if total == 0 {
 				return core.Attribution{}
 			}
