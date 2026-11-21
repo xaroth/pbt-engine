@@ -457,6 +457,11 @@
       "source": "default"
     },
     {
+      "key": "arcane-surge",
+      "value": false,
+      "source": "default"
+    },
+    {
       "key": "power-charges",
       "value": false,
       "source": "default"

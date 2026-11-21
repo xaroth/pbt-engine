@@ -24,6 +24,8 @@ Life: 66  [marginal, dataset 3.29.3.6]
 
 Mana Regeneration: 0.8/s  [tree, dataset 3.29.3.6]
   mana_regeneration = 0.8 [regeneration]
+    increased 0  Arcane Surge on mana_regeneration_rate (condition not met)
+    has_arcane_surge = 0
     maximum_mana = 47 [conversion and gain as extra]
       base 34  character Metadata/Characters/Str/Str
       base 6  character Metadata/Characters/Str/Str

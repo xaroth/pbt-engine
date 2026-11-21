@@ -1,4 +1,4 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 368 authored, 103 unknown, 1 display-only, 0 gaps, 1370 outside
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 371 authored, 103 unknown, 1 display-only, 0 gaps, 1367 outside
 unknown by reason: condition 67, items 21, event 7, reservation 4, context 2, scale 1, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
@@ -29,6 +29,7 @@ omitted base_elemental_status_ailment_duration_+% global, uses 6: the duration o
 unvalidated base_physical_damage_%_to_convert_to_cold global, uses 6: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 omitted chance_to_freeze_shock_ignite_% global, uses 6: the chance to Freeze, which the sheet does not give
 unvalidated chance_to_inflict_cold_exposure_on_hit_with_cold_damage_% global, uses 6: a hit is taken to have the chance whether or not it deals cold damage, as PoB does
+unvalidated curse_cast_speed_+% global, uses 6: that Curse Skills are the Hex and Mark skills, as for curse_effect_+%
 unvalidated dexterity_accuracy_bonus_grants_accuracy_rating_+3_per_dexterity_instead global, uses 6: the +3 is in the stat id and the text, not in the value, which is read as 1
 unknown energy_shield_from_helmet_+% global, uses 6: items: depends on equipped items, which an entry cannot check yet
 unvalidated exposure_you_inflict_has_minimum_resistance_% global, uses 6: applied to any Exposure the enemy has, after what is added to it, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
@@ -73,6 +74,7 @@ unvalidated evasion_rating_+%_per_10_intelligence global, uses 2: the text says 
 unknown evasion_rating_+%_while_you_have_energy_shield global, uses 2: condition: current energy shield above 0
 unknown every_4_seconds_regenerate_%_of_armour_and_evasion_as_life_over_1_second global, uses 2: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unvalidated exposure_you_inflict_applies_extra_%_to_affected_resistance global, uses 2: applied to any Exposure the enemy has, as PoB does; the engine does not yet tell Exposure the character inflicts from other Exposure
+unvalidated gain_arcane_surge_on_spell_hit_by_you_or_your_totems global, uses 2: read as having Arcane Surge while a spell of the build that you use, not a totem, trap or mine, hits, as when it hits all the time; PoB counts the main skill only, and a totem's hits not at all (CalcPerform.lua HitSpellRecently), though the text names them
 unvalidated mana_%_to_add_as_energy_shield global, uses 2: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unknown mana_regeneration_rate_+%_while_stationary global, uses 2: condition: stationary
 unvalidated maximum_life_%_to_add_as_maximum_energy_shield global, uses 2: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
