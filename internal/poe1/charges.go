@@ -12,7 +12,8 @@ import (
 // has_maximum_fortification is set, else none, as PoB counts it by default (not Fortified);
 // fortification_above_20 is the part above 20. The character also has its maximum while the
 // config says it is Fortified (is_fortified). inspiration_charges are the Inspiration Charges
-// the character has: its maximum_inspiration_charges, as PoB counts them by default.
+// the character has: its maximum_inspiration_charges, as PoB counts them by default; the same
+// for blood_charges, Reap's Blood Charges.
 const (
 	statMaximumEnduranceChargesAreMaximumFrenzyCharges = "maximum_endurance_charges_are_maximum_frenzy_charges"
 	statHasMaximumFortification                        = "has_maximum_fortification"
@@ -30,6 +31,8 @@ const (
 	statFortificationAbove20                           = "fortification_above_20"
 	statMaximumInspirationCharges                      = "maximum_inspiration_charges"
 	statInspirationCharges                             = "inspiration_charges"
+	statMaximumBloodCharges                            = "maximum_blood_charges"
+	statBloodCharges                                   = "blood_charges"
 	statUsesPowerCharges                               = "uses_power_charges"
 	statUsesFrenzyCharges                              = "uses_frenzy_charges"
 	statUsesEnduranceCharges                           = "uses_endurance_charges"
@@ -79,6 +82,7 @@ const (
 	formulaDefaultFortification        = "maximum fortification while fortified"
 	formulaFortificationAboveThreshold = "fortification above 20"
 	formulaDefaultInspirationCharges   = "maximum inspiration charges"
+	formulaDefaultBloodCharges         = "maximum blood charges"
 )
 
 // chargeDef completes def when it is one of a charge's stats. A charge's limits are at least
@@ -103,20 +107,28 @@ func chargeDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	case statMaximumEnduranceCharges:
 		def.Formula, def.Attribute = maximumEnduranceCharges(ids)
 		def.FormulaName = formulaMaximumEnduranceCharges
-	case statMaximumInspirationCharges:
+	case statMaximumInspirationCharges, statMaximumBloodCharges:
 		def.HasMin = true
 	case statInspirationCharges:
-		// PoB gives the player its maximum Inspiration Charges unless the config says otherwise
-		// (CalcPerform.lua doActorCharges).
-		maximum := mustID(ids, statMaximumInspirationCharges)
-		def.Formula = func(rd core.Reader, _ core.Agg) float64 { return rd.Stat(maximum) }
+		// PoB gives the player its maximum Inspiration Charges and Blood Charges unless the
+		// config says otherwise (CalcPerform.lua doActorCharges).
+		def.Formula, def.Attribute = maximumCharges(mustID(ids, statMaximumInspirationCharges))
 		def.FormulaName = formulaDefaultInspirationCharges
-		def.Attribute = func(a *core.Attributor) core.Attribution {
-			parts, amount := a.Of(core.SelfRef(maximum))
-			return core.Attribution{Parts: parts, Amount: amount}
-		}
+	case statBloodCharges:
+		def.Formula, def.Attribute = maximumCharges(mustID(ids, statMaximumBloodCharges))
+		def.FormulaName = formulaDefaultBloodCharges
 	}
 	return def
+}
+
+// maximumCharges is the character's maximum charges of a kind, maximum.
+func maximumCharges(maximum core.StatID) (core.Formula, core.Attribute) {
+	formula := func(rd core.Reader, _ core.Agg) float64 { return rd.Stat(maximum) }
+	attribute := func(a *core.Attributor) core.Attribution {
+		parts, amount := a.Of(core.SelfRef(maximum))
+		return core.Attribution{Parts: parts, Amount: amount}
+	}
+	return formula, attribute
 }
 
 // currentCharges is the charges of c the character has.
@@ -222,6 +234,8 @@ func chargeMechanic() mechanic {
 			statFortificationAbove20,
 			statMaximumInspirationCharges,
 			statInspirationCharges,
+			statMaximumBloodCharges,
+			statBloodCharges,
 		},
 		def: func(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			return fortificationDef(chargeDef(def, ids), ids)
