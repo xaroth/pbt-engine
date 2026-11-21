@@ -114,7 +114,11 @@ func NewReader(s *dataset.Store) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	set, err := statdesc.NewSet(text.Descriptions, statdesc.WithNames(passiveHandler, names))
+	timeless, err := timelessNames(s, text)
+	if err != nil {
+		return nil, err
+	}
+	set, err := statdesc.NewSet(text.Descriptions, append(timeless, statdesc.WithNames(passiveHandler, names))...)
 	if err != nil {
 		return nil, fmt.Errorf("items: %w", err)
 	}
