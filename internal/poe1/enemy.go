@@ -2,6 +2,7 @@ package poe1
 
 import (
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/config"
@@ -108,9 +109,9 @@ const (
 )
 
 // enemyPreset is what an enemy kind sets. A zero level means the character's level, at most
-// maxPresetLevel. MonsterDefences means the game's armour and evasion of a monster of the
-// enemy's level (DefaultMonsterStats) in place of Armour and Evasion. DamageTaken is the more
-// multiplier of the damage the enemy takes, in percent.
+// maxPresetLevel. MonsterDefences means the armour (monsterArmour) and the game's evasion
+// (DefaultMonsterStats) of a monster of the enemy's level in place of Armour and Evasion.
+// DamageTaken is the more multiplier of the damage the enemy takes, in percent.
 type enemyPreset struct {
 	Level               MonsterLevel
 	ElementalResistance int
@@ -173,8 +174,8 @@ func enemyReadsMonsters(cfg config.Resolved) bool {
 
 // EnemyOf resolves the enemy of cfg for a character of characterLevel: each value cfg sets,
 // else the enemy kind's. levels are the game's monster values per level (DefaultMonsterStats);
-// a kind without its own armour and evasion reads them there, and a level they lack is an
-// error.
+// a kind without its own armour and evasion takes a monster's armour from monsterArmour and its
+// evasion from levels, and a level they lack is an error.
 func EnemyOf(cfg config.Resolved, characterLevel int, levels []dataset.MonsterLevel) (EnemyStats, error) {
 	kind, src := config.Lookup(cfg, Enemy)
 	if src == config.Default {
@@ -193,7 +194,7 @@ func EnemyOf(cfg config.Resolved, characterLevel int, levels []dataset.MonsterLe
 		if i < 0 {
 			return EnemyStats{}, fmt.Errorf("poe1: no monster values for enemy level %d: %w", level, dataset.ErrNotInDataset)
 		}
-		p.Armour, p.Evasion = Rating(levels[i].Armour), Rating(levels[i].Evasion)
+		p.Armour, p.Evasion = Rating(monsterArmour(level)), Rating(levels[i].Evasion)
 	}
 	return EnemyStats{
 		Kind:                kind,
@@ -205,6 +206,26 @@ func EnemyOf(cfg config.Resolved, characterLevel int, levels []dataset.MonsterLe
 		Armour:              int(set(cfg, EnemyArmour, p.Armour)),
 		Evasion:             int(set(cfg, EnemyEvasion, p.Evasion)),
 	}, nil
+}
+
+// monsterDamageReductionImprovement is the game constant MonsterDamageReductionImprovement, in
+// percent per monster level.
+const monsterDamageReductionImprovement = 6.7
+
+// monsterArmourBase and monsterArmourPerLevel are the armour a monster has before the
+// improvement: 10 plus 2 per level.
+const (
+	monsterArmourBase     = 10
+	monsterArmourPerLevel = 2
+)
+
+// monsterArmour is the armour of a monster of the given level: floor((10 + 2 level) *
+// (1 + 6.7% per level)). The game's own table is wrong; Path of Building computes this one.
+// Source: Path of Building v2.67.2, Export/Scripts/miscdata.lua and Data/Misc.lua
+// (monsterArmourTable). The dataset holds no game constants.
+func monsterArmour(level int) int {
+	l := float64(level)
+	return int(math.Floor((monsterArmourBase + monsterArmourPerLevel*l) * math.Pow(1+monsterDamageReductionImprovement/100, l)))
 }
 
 // set returns k's value in cfg, or preset when cfg has only its default.

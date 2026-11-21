@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,13 +31,13 @@ func TestEnemyOf(t *testing.T) {
 		{name: "uber", build: config.Values{"enemy": raw(`"uber"`)}, character: 60, want: poe1.EnemyStats{Kind: poe1.EnemyUber,
 			Level: 85, FireResistance: 50, ColdResistance: 50, LightningResistance: 50, ChaosResistance: 30, Armour: 55739, Evasion: 9778}},
 		{name: "boss at the character's level", build: config.Values{"enemy": raw(`"boss"`)}, character: 60, want: poe1.EnemyStats{
-			Kind: poe1.EnemyBoss, Level: 60, FireResistance: 40, ColdResistance: 40, LightningResistance: 40, ChaosResistance: 25, Armour: 600, Evasion: 6000}},
+			Kind: poe1.EnemyBoss, Level: 60, FireResistance: 40, ColdResistance: 40, LightningResistance: 40, ChaosResistance: 25, Armour: 6365, Evasion: 6000}},
 		{name: "monster at most level 85", build: config.Values{"enemy": raw(`"none"`)}, character: 100,
-			want: poe1.EnemyStats{Kind: poe1.EnemyNone, Level: 85, Armour: 850, Evasion: 8500}},
+			want: poe1.EnemyStats{Kind: poe1.EnemyNone, Level: 85, Armour: 44591, Evasion: 8500}},
 		{name: "set values win over the kind's", character: 90,
 			build: config.Values{"enemy": raw(`"none"`), "enemy-level": raw(`60`), "enemy-fire-resistance": raw(`-20`),
 				"enemy-chaos-resistance": raw(`75`), "enemy-evasion": raw(`0`)},
-			want: poe1.EnemyStats{Kind: poe1.EnemyNone, Level: 60, FireResistance: -20, ChaosResistance: 75, Armour: 600, Evasion: 0}},
+			want: poe1.EnemyStats{Kind: poe1.EnemyNone, Level: 60, FireResistance: -20, ChaosResistance: 75, Armour: 6365, Evasion: 0}},
 		{name: "pinnacle armour and evasion stay at another level", character: 90,
 			build: config.Values{"enemy-level": raw(`60`), "enemy-armour": raw(`1000`)},
 			want: poe1.EnemyStats{Kind: poe1.EnemyPinnacle, Level: 60, FireResistance: 50, ColdResistance: 50, LightningResistance: 50,
@@ -57,6 +58,26 @@ func TestEnemyOf(t *testing.T) {
 				t.Errorf("enemy (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// A monster's armour is Path of Building's table (monsterArmourTable), not the game's.
+func TestEnemyOfMonsterArmour(t *testing.T) {
+	t.Parallel()
+	levels := []dataset.MonsterLevel{{Level: 1}, {Level: 70}, {Level: 84}, {Level: 100}}
+	for level, want := range map[int]int{1: 12, 70: 14047, 84: 41326, 100: 137613} {
+		cfg, problems := config.Resolve(poe1.ConfigSpecs(), config.Layer{Source: config.FromBuild,
+			Values: config.Values{"enemy": raw(`"none"`), "enemy-level": raw(strconv.Itoa(level))}})
+		if len(problems) > 0 {
+			t.Fatal(problems)
+		}
+		got, err := poe1.EnemyOf(cfg, 90, levels)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Armour != want {
+			t.Errorf("level %d: armour %d, want %d", level, got.Armour, want)
+		}
 	}
 }
 

@@ -40,8 +40,8 @@ func switchedSheet(t *testing.T, b *build.Build) *poe1.Sheet {
 }
 
 // A minion at gem level 20 is level 70, the level its level row gives it. On 3.29, an allied
-// monster at level 70 has 1,478 life, 332.05 damage, 33,714 armour and 5,081 evasion
-// (DefaultMonsterStats); every monster's maximum resistances are 75% (Monster.ot).
+// monster at level 70 has 1,478 life, 332.05 damage and 5,081 evasion (DefaultMonsterStats)
+// and 14,047 armour (monsterArmour); every monster's maximum resistances are 75% (Monster.ot).
 //   - Raging Spirit (SummonedSkull): life 1,478 x 216% = 3,192; damage 332.05 x 102% x 0.57 s
 //     attack time = 193.05, spread 20%: 154 to 232; 1 / 0.57 attacks per second; resistances
 //     MinionGeneric's 40/40/40/20.
@@ -55,7 +55,7 @@ func TestMinionBaseValues(t *testing.T) {
 	const marauder = "Metadata/Characters/Str/Str"
 	type want = map[string]float64
 	common := want{
-		"level": 70, "armour": 33714, "evasion_rating": 5081, "maximum_fire_resistance": 75,
+		"level": 70, "armour": 14047, "evasion_rating": 5081, "maximum_fire_resistance": 75,
 		"maximum_cold_resistance": 75, "maximum_lightning_resistance": 75, "maximum_chaos_resistance": 75,
 		"cold_resistance": 40, "lightning_resistance": 40, "chaos_resistance": 20,
 	}

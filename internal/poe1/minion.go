@@ -158,7 +158,7 @@ func minionOf(v *dataset.MonsterVariety, t *dataset.MonsterType, l *dataset.Mons
 		Variety:           v.ID,
 		Level:             int(l.Level),
 		Life:              math.Floor(life * (float64(v.LifeMultiplier) / percentScale)),
-		Armour:            roundHalf(float64(l.Armour) * typeScale(t.Armour)),
+		Armour:            roundHalf(float64(monsterArmour(int(l.Level))) * typeScale(t.Armour)),
 		Evasion:           roundHalf(float64(l.Evasion) * typeScale(t.Evasion)),
 		MaximumResistance: maxRes,
 	}
