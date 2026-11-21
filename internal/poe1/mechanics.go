@@ -48,6 +48,7 @@ func mechanics() []mechanic {
 		resistanceMechanic(),
 		regenerationMechanic(),
 		conditionMechanic(),
+		arcaneSurgeMechanic(),
 		resonanceMechanic(),
 		heldMechanic(),
 		equipmentMechanic(),
