@@ -95,6 +95,14 @@ func enemyOf(sw *Switch) (EnemyStats, error) {
 	return EnemyOf(sw.Config, sw.Checked.Build().Level, levels)
 }
 
+// Minion returns the minion of the skill in slot whose outputs are read, nil for none.
+func (sw *Switch) Minion(slot int) *Minion {
+	if slot < 0 || slot >= len(sw.Minions) {
+		return nil
+	}
+	return sw.Minions[slot]
+}
+
 // Switch switches sh to sw's level, nodes, masteries, items, hands, totem lives, skills, their
 // minions, config and enemy.
 func (sh *Sheet) Switch(sw *Switch) error {

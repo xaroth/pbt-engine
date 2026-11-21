@@ -140,8 +140,10 @@ type Sheet struct {
 	exposure map[DamageType]core.ModID
 	// totems gives a totem's base life (SetTotemLives).
 	totems TotemLives
-	// minions maps a skill's minion, by slot and base values, to its source (SetMinions).
-	minions map[minionKey]core.SourceID
+	// minions maps a skill's minion, by slot and values, to its sources (SetMinions), and
+	// slotMinions are the minions SetMinions last got, by slot.
+	minions     map[minionKey][]core.SourceID
+	slotMinions []*Minion
 	// outputs is the catalogue by key.
 	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.
@@ -346,14 +348,14 @@ func (sh *Sheet) add(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersi
 // addBundle adds bd as add does; with buff set, slot is negative and each modifier is a buff's
 // or a curse's, scaled by its effect (buffScale) and held while it applies.
 func (sh *Sheet) addBundle(bd *resolve.Bundle, t *semantics.Table, v dataset.GameVersion, slot int, buff *carried) (core.SourceID, error) {
-	// Every modifier lands on core actor 0, so another actor's stats would stack onto the player.
-	if bd.Actor != resolve.Player {
-		return 0, fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
+	actor, err := bundleActor(bd, slot, buff)
+	if err != nil {
+		return 0, err
 	}
 	b := *bd
 	src := sh.newSource(Source{Bundle: &b})
 	for _, sv := range bd.Stats {
-		if sh.counters[sv.Stat] {
+		if sh.counters[sv.Stat] && actor == playerActor {
 			if err := sh.addCount(sv, src); err != nil {
 				return 0, err
 			}
@@ -363,7 +365,7 @@ func (sh *Sheet) addBundle(bd *resolve.Bundle, t *semantics.Table, v dataset.Gam
 		ruled := false
 		if ok && e.Status == semantics.Authored {
 			var err error
-			if ruled, err = sh.addEntry(e, sv.Value, src, slot, buff); err != nil {
+			if ruled, err = sh.addEntry(e, sv.Value, src, slot, actor, buff); err != nil {
 				return 0, err
 			}
 		}
@@ -375,12 +377,24 @@ func (sh *Sheet) addBundle(bd *resolve.Bundle, t *semantics.Table, v dataset.Gam
 	return src, nil
 }
 
+// bundleActor returns the session actor of bd's stats, added in slot, with buff set for a buff's
+// or curse's. A minion's stats are its skill's: they need a slot and are no buff.
+func bundleActor(bd *resolve.Bundle, slot int, buff *carried) (core.ActorID, error) {
+	switch {
+	case bd.Actor == resolve.Player:
+		return playerActor, nil
+	case bd.Actor == resolve.Minion && slot >= 0 && buff == nil:
+		return minionActor, nil
+	}
+	return 0, fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
+}
+
 // addEntry adds the modifiers and rule of authored entry e for a stat of value v, and reports
 // whether its rule was applied. Rules act on the sheet's values, which a skill's own stats (slot
 // not negative) do not reach and which a buff's effect does not scale, so they are not applied
 // to them.
-func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot int, buff *carried) (bool, error) {
-	if err := sh.addMods(e, v, src, slot, buff); err != nil {
+func (sh *Sheet) addEntry(e *semantics.Entry, v float64, src core.SourceID, slot int, actor core.ActorID, buff *carried) (bool, error) {
+	if err := sh.addMods(e, v, src, slot, actor, buff); err != nil {
 		return false, err
 	}
 	if slot >= 0 || buff != nil {
@@ -457,16 +471,16 @@ func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 	return out
 }
 
-// addMods adds e's modifiers for a stat of value from src; a modifier of the skill in slot
-// requires the slot's context, and slot is negative outside a skill. With buff set, each
+// addMods adds e's modifiers of actor for a stat of value from src; a modifier of the skill in
+// slot requires the slot's context, and slot is negative outside a skill. With buff set, each
 // modifier is a buff's or a curse's, scaled by its effect and held while it applies.
-func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int, buff *carried) error {
+func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int, actor core.ActorID, buff *carried) error {
 	for _, m := range e.Mods {
 		group, err := moreGroup(&m, slot >= 0)
 		if err != nil {
 			return fmt.Errorf("sheet: %s: %w", e.Stat, err)
 		}
-		mod := core.Modifier{Stat: sh.stats[m.Stat], Op: m.Op, Value: m.Factor.Apply(value), Source: src, Group: group}
+		mod := core.Modifier{Stat: sh.stats[m.Stat], Actor: actor, Op: m.Op, Value: m.Factor.Apply(value), Source: src, Group: group}
 		if !m.Context.IsZero() || slot >= 0 {
 			p, err := predicate(sh.session.Model(), m.Context, sh.ctx, slot)
 			if err != nil {

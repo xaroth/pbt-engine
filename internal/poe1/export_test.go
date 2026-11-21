@@ -54,3 +54,6 @@ func (sh *Sheet) MinionAttackValue(i int, name string, damage ...DamageType) (fl
 	}
 	return v, nil
 }
+
+// SourceCount returns how many sources the sheet has added.
+func (sh *Sheet) SourceCount() int { return len(sh.sources) }

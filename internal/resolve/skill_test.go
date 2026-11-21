@@ -564,3 +564,30 @@ func TestSupportGrantedSkill(t *testing.T) {
 		t.Errorf("cooldown = %d ms, want 500", got.Cooldown)
 	}
 }
+
+// A monster uses a skill at its highest level row whose level requirement it meets, else at its
+// first. RagingSpiritMeleeAttack's rows require levels 4, 6, 9 and so on, its 23rd 74.
+func TestMonsterSkillLevel(t *testing.T) {
+	t.Parallel()
+	s := realdata.Open(t, realdata.Current)
+	x, err := s.SkillIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stats, err := s.Stats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ level, want, requires int }{{1, 1, 4}, {8, 2, 6}, {9, 3, 9}, {100, 23, 74}} {
+		sk, err := resolve.MonsterSkill(x, stats, "RagingSpiritMeleeAttack", c.level, resolve.GemSource{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sk.Level != c.want || sk.LevelRequirement != c.requires {
+			t.Errorf("monster level %d: skill level %d requiring %d, want %d requiring %d", c.level, sk.Level, sk.LevelRequirement, c.want, c.requires)
+		}
+	}
+	if _, err := resolve.MonsterSkill(x, stats, "SupportFasterAttack", 1, resolve.GemSource{}); !errors.Is(err, resolve.ErrNoActiveSkill) {
+		t.Errorf("a support: %v, want ErrNoActiveSkill", err)
+	}
+}
