@@ -53,7 +53,7 @@ func getAll(s *dataset.Store) {
 	_, _ = s.Items()
 	_, _ = s.Mods()
 	_, _ = s.SkillIndex()
-	_, _ = s.ItemSupports()
+	_, _ = s.ItemGrants()
 	_, _ = s.Buffs()
 	_, _ = s.Monsters()
 }
