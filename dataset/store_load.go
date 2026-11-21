@@ -119,7 +119,7 @@ func (s *Store) loadTasks(language string) []loadTask {
 	}
 	_, hasMods := s.files[ModsFile]
 	if _, hasSkills := s.files[SkillsFile]; hasMods && hasSkills {
-		tasks = append(tasks, loadTask{"", func() error { _, err := s.ItemSupports(); return err }})
+		tasks = append(tasks, loadTask{"", func() error { _, err := s.ItemGrants(); return err }})
 	}
 	return tasks
 }
