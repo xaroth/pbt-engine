@@ -52,6 +52,9 @@ const (
 	// SkillUnresolved is a skill asked for (EverySkill) that the dataset does not resolve: it
 	// has no outputs.
 	SkillUnresolved = poe1.SkillUnresolved
+	// SkillNeedsShield is a skill that requires a shield in a build whose off hand holds none:
+	// it is off, so it reserves nothing, gives no buff and no hit.
+	SkillNeedsShield = poe1.SkillNeedsShield
 	// NoConditionSource is a condition the build can cause itself (EnemyShocked,
 	// EnemyChilled, EnemyIgnited, and the enemy's Exposure of an element) that the config sets
 	// on while no skill of the build inflicts it: it applies as set.
