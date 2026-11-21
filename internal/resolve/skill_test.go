@@ -26,6 +26,7 @@ const (
 	addedFireGem     = "Metadata/Items/Gems/SupportGemAddedFireDamage"
 	spellEchoGem     = "Metadata/Items/Gems/SupportGemMulticast"
 	groundSlamGem    = "Metadata/Items/Gems/SkillGemGroundSlam"
+	inspirationGem   = "Metadata/Items/Gems/SupportGemReducedMana"
 )
 
 func active(id string, quality int) build.Gem {
@@ -92,6 +93,28 @@ func TestMainSkillFireball(t *testing.T) {
 	}
 	if len(ws) > 0 {
 		t.Errorf("warnings %v, want none", ws)
+	}
+}
+
+// TestSupportQualitySharesLevelStat checks Inspiration at level 20 with 20% quality: its level
+// row's 34% less mana cost and the quality's 0.25% per 1% are one value, 39% less, so the cost
+// takes one multiplier, as in the game and Path of Building.
+func TestSupportQualitySharesLevelStat(t *testing.T) {
+	t.Parallel()
+	inspiration := build.Gem{ID: inspirationGem, Level: 20, Quality: 20, Support: true}
+	sk, _ := mainSkill(t, build.SkillGroup{Gems: []build.Gem{active(fireballGem, 0), inspiration}}, nil, nil)
+	if len(sk.Supports) != 1 {
+		t.Fatalf("supports %v, want Inspiration", sk.Supports)
+	}
+	var got []resolve.StatValue
+	for _, sv := range sk.Supports[0].Stats {
+		if sv.Stat == "support_inspiration_mana_cost_+%_final" {
+			got = append(got, sv)
+		}
+	}
+	want := []resolve.StatValue{{Stat: "support_inspiration_mana_cost_+%_final", Value: -39}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Inspiration 20/20 mana cost stat (-want +got):\n%s", diff)
 	}
 }
 
