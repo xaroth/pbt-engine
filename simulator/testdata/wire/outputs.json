@@ -340,13 +340,22 @@
     "order": 35
   },
   {
+    "key": "delivery.totem_life",
+    "label": "Totem Life",
+    "unit": "",
+    "places": 0,
+    "group": "skill",
+    "better": "higher",
+    "order": 36
+  },
+  {
     "key": "skill.average_hit",
     "label": "Average Hit",
     "unit": "",
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 36
+    "order": 37
   },
   {
     "key": "skill.main_hand_average_hit",
@@ -355,7 +364,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 37
+    "order": 38
   },
   {
     "key": "skill.off_hand_average_hit",
@@ -364,7 +373,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 38
+    "order": 39
   },
   {
     "key": "skill.accuracy_rating",
@@ -373,7 +382,7 @@
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 39
+    "order": 40
   },
   {
     "key": "skill.main_hand_accuracy_rating",
@@ -382,7 +391,7 @@
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 40
+    "order": 41
   },
   {
     "key": "skill.off_hand_accuracy_rating",
@@ -391,7 +400,7 @@
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 41
+    "order": 42
   },
   {
     "key": "skill.hit_chance",
@@ -400,7 +409,7 @@
     "places": 0,
     "group": "skill",
     "better": "higher",
-    "order": 42
+    "order": 43
   },
   {
     "key": "skill.critical_strike_chance",
@@ -409,7 +418,7 @@
     "places": 2,
     "group": "skill",
     "better": "higher",
-    "order": 43
+    "order": 44
   },
   {
     "key": "skill.hits_per_second",
@@ -418,7 +427,7 @@
     "places": 2,
     "group": "skill",
     "better": "higher",
-    "order": 44
+    "order": 45
   },
   {
     "key": "skill.hit_dps",
@@ -427,7 +436,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 45
+    "order": 46
   },
   {
     "key": "skill.totems_hit_dps",
@@ -436,7 +445,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 46
+    "order": 47
   },
   {
     "key": "skill.physical_minimum",
@@ -445,7 +454,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 47
+    "order": 48
   },
   {
     "key": "skill.physical_maximum",
@@ -454,7 +463,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 48
+    "order": 49
   },
   {
     "key": "skill.fire_minimum",
@@ -463,7 +472,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 49
+    "order": 50
   },
   {
     "key": "skill.fire_maximum",
@@ -472,7 +481,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 50
+    "order": 51
   },
   {
     "key": "skill.cold_minimum",
@@ -481,7 +490,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 51
+    "order": 52
   },
   {
     "key": "skill.cold_maximum",
@@ -490,7 +499,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 52
+    "order": 53
   },
   {
     "key": "skill.lightning_minimum",
@@ -499,7 +508,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 53
+    "order": 54
   },
   {
     "key": "skill.lightning_maximum",
@@ -508,7 +517,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 54
+    "order": 55
   },
   {
     "key": "skill.chaos_minimum",
@@ -517,7 +526,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 55
+    "order": 56
   },
   {
     "key": "skill.chaos_maximum",
@@ -526,7 +535,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 56
+    "order": 57
   },
   {
     "key": "skill.main_hand_physical_minimum",
@@ -535,7 +544,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 57
+    "order": 58
   },
   {
     "key": "skill.main_hand_physical_maximum",
@@ -544,7 +553,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 58
+    "order": 59
   },
   {
     "key": "skill.main_hand_fire_minimum",
@@ -553,7 +562,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 59
+    "order": 60
   },
   {
     "key": "skill.main_hand_fire_maximum",
@@ -562,7 +571,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 60
+    "order": 61
   },
   {
     "key": "skill.main_hand_cold_minimum",
@@ -571,7 +580,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 61
+    "order": 62
   },
   {
     "key": "skill.main_hand_cold_maximum",
@@ -580,7 +589,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 62
+    "order": 63
   },
   {
     "key": "skill.main_hand_lightning_minimum",
@@ -589,7 +598,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 63
+    "order": 64
   },
   {
     "key": "skill.main_hand_lightning_maximum",
@@ -598,7 +607,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 64
+    "order": 65
   },
   {
     "key": "skill.main_hand_chaos_minimum",
@@ -607,7 +616,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 65
+    "order": 66
   },
   {
     "key": "skill.main_hand_chaos_maximum",
@@ -616,7 +625,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 66
+    "order": 67
   },
   {
     "key": "skill.off_hand_physical_minimum",
@@ -625,7 +634,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 67
+    "order": 68
   },
   {
     "key": "skill.off_hand_physical_maximum",
@@ -634,7 +643,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 68
+    "order": 69
   },
   {
     "key": "skill.off_hand_fire_minimum",
@@ -643,7 +652,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 69
+    "order": 70
   },
   {
     "key": "skill.off_hand_fire_maximum",
@@ -652,7 +661,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 70
+    "order": 71
   },
   {
     "key": "skill.off_hand_cold_minimum",
@@ -661,7 +670,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 71
+    "order": 72
   },
   {
     "key": "skill.off_hand_cold_maximum",
@@ -670,7 +679,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 72
+    "order": 73
   },
   {
     "key": "skill.off_hand_lightning_minimum",
@@ -679,7 +688,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 73
+    "order": 74
   },
   {
     "key": "skill.off_hand_lightning_maximum",
@@ -688,7 +697,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 74
+    "order": 75
   },
   {
     "key": "skill.off_hand_chaos_minimum",
@@ -697,7 +706,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 75
+    "order": 76
   },
   {
     "key": "skill.off_hand_chaos_maximum",
@@ -706,7 +715,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 76
+    "order": 77
   },
   {
     "key": "skill.dot_dps",
@@ -715,7 +724,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 77
+    "order": 78
   },
   {
     "key": "skill.ignite_dps",
@@ -724,7 +733,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 78
+    "order": 79
   },
   {
     "key": "skill.bleed_dps",
@@ -733,7 +742,7 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 79
+    "order": 80
   },
   {
     "key": "skill.poison_dps",
@@ -742,6 +751,6 @@
     "places": 1,
     "group": "skill",
     "better": "higher",
-    "order": 80
+    "order": 81
   }
 ]

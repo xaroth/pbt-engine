@@ -132,12 +132,7 @@ func actorSteps() []step {
 zombie.Get(poe1.Life)
 zombie.Skill(zombieSlam).Get(poe1.AverageHit)`,
 		}},
-		{name: "place a skill with a totem", pending: &pending{
-			needs: "totems", waitsOn: []string{"poe1.TotemLife"},
-			code: `group.AddSupport(spellTotem, 20, 0)
-stats.Skill(fireball).Get(poe1.TotemLife)
-stats.Skill(fireball).Get(poe1.TotalDPS) // includes the totem count`,
-		}},
+		{name: "place a skill with a totem", run: placeTotem},
 		{name: "simulate with an ally whose aura reaches the player", pending: &pending{
 			needs: "a party", waitsOn: []string{"simulator.Party"},
 			code: `stats, err = sim.Simulate(next, simulator.Party(ally))
@@ -482,6 +477,33 @@ func readSkillHit(t *testing.T, w *walk) {
 	hit, ok := stats.Skill(fireball).Get(poe1.AverageHit)
 	if main := get(t, stats, poe1.AverageHit); !ok || hit != main {
 		t.Errorf("Fireball's average hit %v, %v; want the main skill's %v", hit, ok, main)
+	}
+}
+
+// placeTotem: Spell Totem makes Fireball a totem's: it has totem life, and the hit DPS of every
+// totem is a whole number of totems times one's. The character's own Fireball has neither.
+func placeTotem(t *testing.T, w *walk) {
+	spellTotem, _ := w.sim.Data().Gem("Spell Totem")
+	b := w.next.Clone()
+	group := b.Skills.Main()
+	group.AddSupport(spellTotem, 20, 0)
+	if group.Err() != nil {
+		t.Fatal(group.Err())
+	}
+	fireball := simulator.SkillRef{Group: 0, Gem: 0, Skill: 0}
+	skill := simulate(t, w.sim, b, simulator.EverySkill()).Skill(fireball)
+	life, ok := skill.Get(poe1.TotemLife)
+	if !ok || life <= 0 {
+		t.Errorf("totem life %v, %v; want some", life, ok)
+	}
+	hit, _ := skill.Get(poe1.HitDPS)
+	all, ok := skill.Get(poe1.TotemsHitDPS)
+	if n := all / hit; !ok || hit <= 0 || n < 1 || math.Abs(n-math.Round(n)) > 1e-9 {
+		t.Errorf("hit DPS of every totem %v, %v; want a whole number of totems times %v", all, ok, hit)
+	}
+	own := simulate(t, w.sim, w.next, simulator.EverySkill()).Skill(fireball)
+	if _, ok := own.Get(poe1.TotemLife); ok {
+		t.Error("totem life for the character's own Fireball")
 	}
 }
 

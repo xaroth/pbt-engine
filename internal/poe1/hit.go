@@ -542,7 +542,7 @@ func (sh *Sheet) addHitRules(sk *resolve.Skill, slot int) (core.SourceID, error)
 	if err != nil {
 		return 0, err
 	}
-	for _, b := range slices.Concat(hitBases(sk), rateBases(sk), dotBases(sk)) {
+	for _, b := range slices.Concat(hitBases(sk), rateBases(sk), dotBases(sk), sh.totemBases(sk)) {
 		if b.value == 0 {
 			continue
 		}

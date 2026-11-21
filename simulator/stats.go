@@ -33,7 +33,9 @@ type Stats struct {
 	perSkill []SkillStats
 	// enemy is what the main skill's hits are measured against.
 	enemy poe1.EnemyStats
-	sim   *Sim
+	// totems gives the base life of the skills' totems.
+	totems poe1.TotemLives
+	sim    *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
 	explainMu    sync.Mutex
@@ -165,6 +167,7 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	if err := sh.SetHands(st.hands); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
+	sh.SetTotemLives(st.totems)
 	if len(st.sheetSkills) > 0 {
 		if err := sh.SetSkills(st.sheetSkills); err != nil {
 			return nil, fmt.Errorf("simulator: explain: %w", err)

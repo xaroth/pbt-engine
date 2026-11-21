@@ -1,7 +1,12 @@
 package poe1
 
 import (
+	"math"
+	"slices"
+
+	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/core"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 )
 
 // Engine stats of a skill a totem, trap or mine uses, read in its context, beside its hit rate
@@ -12,7 +17,8 @@ import (
 // throw places, 1 before modifiers. throw_rate is the skill's uses per second when a trap or
 // mine delivers it, 0 otherwise. totems_summoned is how many totems a totem skill has out at
 // once, 0 for another skill, one more with ancestral_bond, which a second Ancestral Bond does
-// not add to; totems_hit_dps is the hit damage per second of all of them.
+// not add to; totems_hit_dps is the hit damage per second of all of them. totem_life is the
+// life of one of them.
 const (
 	statTrapThrowingSpeed = "trap_throwing_speed"
 	statMineLayingSpeed   = "mine_laying_speed"
@@ -22,6 +28,7 @@ const (
 	statAncestralBond     = "ancestral_bond"
 	statTotemsSummoned    = "totems_summoned"
 	statTotemsHitDPS      = "totems_hit_dps"
+	statTotemLife         = "totem_life"
 )
 
 // deliveryStats are the stats of delivery.go the hit mechanic registers before hits per second.
@@ -29,7 +36,7 @@ const (
 func deliveryStats() []string {
 	return []string{
 		statTrapThrowingSpeed, statMineLayingSpeed, statTrapsPerThrow, statMinesPerThrow, statThrowRate,
-		statAncestralBond, statTotemsSummoned,
+		statAncestralBond, statTotemsSummoned, statTotemLife,
 	}
 }
 
@@ -47,6 +54,7 @@ const (
 	formulaThrowRate      = "uses per second of traps and mines"
 	formulaTotemsSummoned = "totems summoned"
 	formulaTotemsHitDPS   = "hit damage per second of every totem"
+	formulaTotemLife      = "totem life"
 )
 
 // deliveryDef completes def when it is a stat of delivery.go.
@@ -55,8 +63,9 @@ const (
 // seconds, slowed by a tenth for each mine past the first a throw places; both scale with action
 // speed, are capped at one throw per server tick and use the skill once per trap or mine
 // placed, and a mine that throws traps once per trap of each. A totem skill counts the totems it
-// can have out. These follow PoB (CalcOffence.lua TrapThrowingSpeed, MineLayingSpeed,
-// timeOverride, ActiveTotemLimit).
+// can have out. A totem's life is its base life (TotemLives) times its increases and more
+// multipliers, rounded half up. These follow PoB (CalcOffence.lua TrapThrowingSpeed,
+// MineLayingSpeed, timeOverride, ActiveTotemLimit, calcTotemLife).
 func deliveryDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	c := modelContexts()
 	switch def.Name {
@@ -69,6 +78,19 @@ func deliveryDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 		def.FormulaName, def.Formula, def.Attribute = formulaThrowRate, t.formula(), t.attribute()
 	case statAncestralBond:
 		def.Flag = true
+	case statTotemLife:
+		def.FormulaName = formulaTotemLife
+		def.Formula = func(_ core.Reader, a core.Agg) float64 {
+			return roundHalf(a.Base * (1 + a.Inc/percentScale) * a.More)
+		}
+		def.Attribute = func(a *core.Attributor) core.Attribution {
+			total := a.Explanation().Total
+			parts := a.Default()
+			if s := sum(parts); total != 0 && s != 0 {
+				return core.Attribution{Parts: scaled(parts, total/s), Amount: total}
+			}
+			return core.Attribution{Amount: total}
+		}
 	case statTotemsSummoned:
 		t := totemsSummoned{bond: mustID(ids, statAncestralBond), totem: typeMask(c, typeSummonsTotem)}
 		def.FormulaName, def.Formula, def.Attribute = formulaTotemsSummoned, t.formula(), t.attribute()
@@ -186,4 +208,80 @@ func (t totemsSummoned) attribute() core.Attribute {
 		}
 		return core.Attribution{Parts: parts, Amount: total}
 	}
+}
+
+// TotemLives gives the base life of totems: an allied monster's life at the totem's level
+// (totemLevel), times the life multiplier of the totem's first variety, rounded down, as PoB
+// has it (CalcOffence.lua calcTotemLife, Misc.lua totemLifeMult). A totem without varieties,
+// such as one a support makes, has a multiplier of 1, as PoB's totems by gem colour do.
+type TotemLives struct {
+	// allyLife is by level; multiplier in percent by SkillTotemId.
+	allyLife   map[int]int32
+	multiplier map[int32]int32
+}
+
+// TotemLivesOf returns the base life of the totems of the monsters group m.
+func TotemLivesOf(m *dataset.Monsters) TotemLives {
+	t := TotemLives{allyLife: make(map[int]int32, len(m.Levels)), multiplier: make(map[int32]int32, len(m.Totems))}
+	for _, l := range m.Levels {
+		t.allyLife[int(l.Level)] = l.AllyLife
+	}
+	varieties := make(map[string]int32, len(m.Varieties))
+	for _, v := range m.Varieties {
+		varieties[v.ID] = v.LifeMultiplier
+	}
+	for _, tt := range m.Totems {
+		if len(tt.Skins) > 0 {
+			if mult, ok := varieties[tt.Skins[0].Variety]; ok {
+				t.multiplier[tt.Key] = mult
+			}
+		}
+	}
+	return t
+}
+
+// Stats that set a totem's level: a totem support's and a totem skill's own.
+const (
+	statTotemSupportGemLevel      = "totem_support_gem_level"
+	statBaseActiveSkillTotemLevel = "base_active_skill_totem_level"
+)
+
+// totemLevel returns the level of sk's totem: the level its totem support or, without one, the
+// skill itself sets, else the level its level row requires, as PoB has it (CalcActiveSkill.lua
+// totemLevel, overridden by the stats' skill data).
+func totemLevel(sk *resolve.Skill) int {
+	for _, sp := range sk.Supports {
+		if i := slices.IndexFunc(sp.Stats, func(sv resolve.StatValue) bool { return sv.Stat == statTotemSupportGemLevel }); i >= 0 {
+			return int(sp.Stats[i].Value)
+		}
+	}
+	stats := sk.Set().Stats
+	if i := slices.IndexFunc(stats, func(sv resolve.StatValue) bool { return sv.Stat == statBaseActiveSkillTotemLevel }); i >= 0 {
+		return int(stats[i].Value)
+	}
+	return sk.LevelRequirement
+}
+
+// base returns the base life of sk's totem, 0 when the levels do not hold its totem's level.
+func (t TotemLives) base(sk *resolve.Skill) float64 {
+	life, ok := t.allyLife[totemLevel(sk)]
+	if !ok {
+		return 0
+	}
+	mult, ok := t.multiplier[sk.Totem]
+	if !ok {
+		mult = percentScale
+	}
+	return math.Floor(float64(life) * float64(mult) / percentScale)
+}
+
+// SetTotemLives sets the base life of the totems of skills set after it.
+func (sh *Sheet) SetTotemLives(t TotemLives) { sh.totems = t }
+
+// totemBases is the base life of sk's totem, for a skill a totem uses.
+func (sh *Sheet) totemBases(sk *resolve.Skill) []hitBase {
+	if !hasTypes(sk, typeSummonsTotem) {
+		return nil
+	}
+	return []hitBase{{statTotemLife, core.OpBase, sh.totems.base(sk)}}
 }
