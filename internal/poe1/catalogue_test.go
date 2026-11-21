@@ -46,7 +46,7 @@ func TestOutputKeys(t *testing.T) {
 		poe1.ColdResistance, poe1.MaximumColdResistance, poe1.UncappedColdResistance,
 		poe1.LightningResistance, poe1.MaximumLightningResistance, poe1.UncappedLightningResistance,
 		poe1.ChaosResistance, poe1.MaximumChaosResistance, poe1.UncappedChaosResistance,
-		poe1.Armour, poe1.EvasionRating, poe1.SpellBlockChance, poe1.MovementSpeed,
+		poe1.Armour, poe1.EvasionRating, poe1.BlockChance, poe1.SpellBlockChance, poe1.MovementSpeed,
 		poe1.PhysicalDamageModifier, poe1.FireDamageModifier, poe1.ColdDamageModifier, poe1.LightningDamageModifier,
 		poe1.ChaosDamageModifier, poe1.ManaCost, poe1.LifeCost, poe1.TotemLife,
 		poe1.AverageHit, poe1.MainHandAverageHit, poe1.OffHandAverageHit, poe1.AccuracyRating,

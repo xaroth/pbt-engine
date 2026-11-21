@@ -1,6 +1,7 @@
-coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 385 authored, 101 unknown, 1 display-only, 0 gaps, 1422 outside
-unknown by reason: condition 68, items 18, event 7, reservation 4, context 2, scale 1, unestablished 1
+coverage poe1 3.29.3.6 standard tree and characters: 1909 stats; 397 authored, 107 unknown, 1 display-only, 0 gaps, 1404 outside
+unknown by reason: condition 76, items 17, event 7, reservation 4, context 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
+unvalidated dual_wield_or_shield_block_% global, uses 16: a shield is not a weapon, so the character never both dual wields and holds a shield and the two modifiers never add up
 unvalidated life_mastery_count_maximum_life_+%_final global, uses 14: the 6 is in the text, not in a stat; the count is the Life group's count stat, which PassiveSkillMasteryGroups.MasteryCountStat names and every Life Mastery carries at 1
 unvalidated accuracy_rating_per_level global, uses 13: counts the levels after the first, as PoB does (CalcSetup.lua); the text says per Level and does not say which. A level 1 character's accuracy rating in game would validate it
 unvalidated base_total_number_of_sigils_allowed global, uses 11: no description text; read from the stat id as how many brands the character may have out, as PoB's base of 3 is
@@ -19,11 +20,11 @@ unvalidated base_number_of_totems_allowed global, uses 7: every totem the skill 
 unvalidated dexterity_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unvalidated dual_wield_inherent_attack_speed_+%_final global, uses 7: no description text; read from the stat id as the character's more attack speed while dual wielding, as PoB does
 unknown evasion_+%_if_hit_recently global, uses 7: condition: hit recently
+unvalidated inherent_block_while_dual_wielding_% global, uses 7: no description text; read from the stat id, as PoB does (CalcSetup.lua)
 unvalidated intelligence_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 unvalidated level global, uses 7: its description has no text; meaning read from the stat id. The level bundle carries the build's level under it
 unvalidated mana_per_level global, uses 7: the text says per Level; whether it counts the character level or the levels gained since 1 is not stated. A level 1 character's maximum mana in game would validate it
 unvalidated reduce_enemy_elemental_resistance_with_weapons_% global, uses 7: damage with weapons read as an attack's made with a weapon, not unarmed
-unknown spell_block_while_dual_wielding_% global, uses 7: items: depends on equipped items, which an entry cannot check yet
 unvalidated strength_per_level global, uses 7: no description text; meaning read from the stat id. Every class has 0, so no sheet shows it; a non-zero value in game data or an in-game observation would validate it
 omitted base_elemental_status_ailment_duration_+% global, uses 6: the duration of the non-damaging elemental ailments, which the sheet does not give
 unvalidated base_physical_damage_%_to_convert_to_cold global, uses 6: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
@@ -40,15 +41,18 @@ unknown armour_+%_per_second_while_stationary_up_to_100 global, uses 5: conditio
 unknown armour_from_gloves_and_boots_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
 unvalidated base_physical_damage_%_to_convert_to_lightning global, uses 5: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unknown body_armour_evasion_rating_+% global, uses 5: items: depends on equipped items, which an entry cannot check yet
+unknown chance_to_block_attack_damage_if_stunned_an_enemy_recently_+% global, uses 5: condition: stunned an enemy recently
+unvalidated chance_to_block_attack_damage_per_5%_chance_to_block_on_equipped_shield_+% global, uses 5: counted in whole steps of the shield's own chance, as PoB does (PerStat on ShieldBlockChance); the text does not say
 omitted defences_+%_while_wielding_staff global, uses 5: Ward, which is not a sheet value
 unknown evasion_rating_+%_while_tincture_active global, uses 5: condition: active Tincture
 unknown life_regeneration_%_per_minute_if_detonated_mine_recently global, uses 5: condition: detonated a mine recently
 unknown movement_speed_+%_if_have_not_taken_damage_recently global, uses 5: condition: not taken damage recently
 unknown armour_and_evasion_+%_if_red_and_green_socket_on_main_hand_weapon global, uses 4: items: depends on equipped items, which an entry cannot check yet
+unknown chance_to_block_attack_damage_if_not_blocked_recently_% global, uses 4: condition: not blocked recently
 unvalidated chance_to_throw_4_additional_traps_% global, uses 4: the text says a chance; the traps are averaged over throws, the chance times their number, as PoB does
 unknown guardian_gain_life_regeneration_per_minute_%_for_1_second_every_10_seconds global, uses 4: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
 unknown movement_speed_+%_per_5_rage global, uses 4: condition: per Rage
-unknown spell_block_%_per_5_attack_block global, uses 4: scale: scales with the chance to block attack damage, which is not a sheet value yet
+unvalidated spell_block_%_per_5_attack_block global, uses 4: the chance is the capped one, counted in whole steps, as PoB does (PerStat on BlockChance); the text does not say
 unvalidated attack_damage_+%_while_you_have_fortify global, uses 3: that Damage with Attack Skills includes their ailments, unlike Attack Damage, is our reading, as PoB's
 unvalidated base_physical_damage_%_to_convert_to_chaos global, uses 3: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unknown movement_speed_+%_while_dual_wielding global, uses 3: items: depends on equipped items, which an entry cannot check yet
@@ -81,7 +85,10 @@ unvalidated physical_damage_%_to_add_as_chaos global, uses 2: conversion in the 
 unvalidated physical_damage_%_to_add_as_cold global, uses 2: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unvalidated physical_damage_%_to_add_as_fire global, uses 2: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unknown regenerate_energy_shield_equal_to_%_evasion_rating_over_1_second_every_4_seconds global, uses 2: event: recovers on an event or every few seconds, not as a rate; whether the sheet's regeneration includes it is not established
+unknown you_and_allies_additional_block_%_if_have_attacked_recently global, uses 2: condition: attacked recently
 unknown you_and_allies_additional_spell_block_%_if_cast_spell_recently global, uses 2: condition: cast a spell recently
+unknown additional_attack_block_%_per_summoned_skeleton global, uses 1: condition: per Summoned Skeleton
+unknown additional_block_%_if_you_have_crit_recently global, uses 1: condition: dealt a critical strike recently
 unknown additional_chaos_resistance_against_damage_over_time_% global, uses 1: context: applies against damage over time only; the sheet's resistance has no damage context
 unknown additional_maximum_all_elemental_resistances_%_if_killed_cursed_enemy_recently global, uses 1: condition: killed a cursed enemy recently
 unknown armour_+%_if_have_been_hit_recently global, uses 1: condition: hit recently
@@ -89,11 +96,14 @@ unknown armour_+%_per_rage global, uses 1: condition: per Rage
 unknown armour_+_per_10_unreserved_max_mana global, uses 1: reservation: depends on reserved life or mana, which needs skills
 unknown armour_and_evasion_+%_during_onslaught global, uses 1: condition: Onslaught
 unknown armour_and_evasion_+%_while_fortified global, uses 1: condition: Fortified
+unknown attack_block_%_while_at_max_endurance_charges global, uses 1: condition: at maximum Endurance Charges
 unknown banner_resist_all_elements_% global, uses 1: condition: a placed Banner
 unvalidated base_cold_damage_%_to_convert_to_chaos global, uses 1: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unvalidated base_fire_damage_%_to_convert_to_chaos global, uses 1: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unvalidated base_lightning_damage_%_to_convert_to_chaos global, uses 1: conversion in the order physical, lightning, cold, fire, chaos, the skill's own conversion first, conversion above 100% scaled down and the source type's modifiers applying to what it gives follow PoB; the game data does not hold them
 unknown body_armour_defences_doubled_while_no_gems_in_body_armour global, uses 1: items: depends on equipped items, which an entry cannot check yet
+unknown chance_to_block_attack_damage_if_used_retaliation_recently_% global, uses 1: condition: used a Retaliation Skill recently
+unknown chance_to_block_attacks_%_while_channelling global, uses 1: condition: channelling
 unknown chance_to_block_spells_%_if_cast_a_spell_recently global, uses 1: condition: cast a spell recently
 unknown chance_to_block_spells_%_if_used_retaliation_recently global, uses 1: condition: used a Retaliation Skill recently
 unknown chance_to_block_spells_%_while_channelling global, uses 1: condition: channelling
@@ -126,7 +136,7 @@ unknown keystone_divine_shield global, uses 1: condition: physical damage preven
 unvalidated keystone_elemental_overload global, uses 1: the 40% more holds while the skill's chance to strike critically is above 0, as PoB counts it (CalcOffence.lua CritInPast8Sec); the text says for skills that have dealt a critical strike in the past 8 seconds
 omitted keystone_eternal_youth global, uses 1: 50% less maximum Total Life Recovery per Second from Leech; Energy Shield Recharge instead applies to Life
 unvalidated keystone_glancing_blows global, uses 1: the text does not say whether doubling applies before or after other modifiers; the total is doubled, as PoB does (a 100% more multiplier)
-omitted keystone_glancing_blows global, uses 1: Chance to Block Attack Damage is doubled; You take 65% of Damage from Blocked Hits
+omitted keystone_glancing_blows global, uses 1: You take 65% of Damage from Blocked Hits
 unvalidated keystone_iron_reflexes global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unvalidated keystone_lightning_purist global, uses 1: the hit of each other type is 0 after conversion, so what it converts to the type it deals still counts, as PoB does (CalcOffence.lua canDeal); the text does not say; the more and less apply to lightning's own damage, not to what earlier types convert to it, where PoB applies them to both when lightning has damage of its own
 omitted keystone_magebane global, uses 1: +1% Chance to Suppress Spell Damage per 15 Dexterity
@@ -135,7 +145,7 @@ unvalidated keystone_precise_technique global, uses 1: higher than is read as st
 unknown keystone_projectile_evasion global, uses 1: context: changes evasion rating against projectile and melee attacks only; the sheet's evasion rating has no attack context
 omitted keystone_runebinder global, uses 1: the totem limit, which the sheet does not model
 omitted keystone_solipsism global, uses 1: 2% reduced Duration of Elemental Ailments on you per 15 Intelligence
-omitted keystone_versatile_combatant global, uses 1: -10% to maximum Chance to Block Attack Damage; +2% Chance to Block Spell Damage for each 1% Overcapped Chance to Block Attack Damage, since the chance to block attack damage is not a sheet value yet
+unvalidated keystone_versatile_combatant global, uses 1: the overcapped chance is counted in whole steps, as PoB does (PerStat on BlockChanceOverCap); the text does not say
 unknown keystone_veterans_awareness global, uses 1: condition: affected by a non-Vaal Guard Skill
 unknown life_recovery_rate_+% global, uses 1: unestablished: whether Life Recovery rate scales regeneration is not stated by its text; an in-game observation would establish it
 unknown life_regeneration_%_per_minute_if_player_minion_died_recently global, uses 1: condition: a minion died recently

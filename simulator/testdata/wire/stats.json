@@ -288,13 +288,23 @@
       "value": 0
     },
     {
+      "key": "player.block_chance",
+      "label": "Chance to Block Attack Damage",
+      "unit": "%",
+      "places": 0,
+      "group": "defences",
+      "better": "higher",
+      "order": 27,
+      "value": 0
+    },
+    {
       "key": "player.spell_block_chance",
       "label": "Chance to Block Spell Damage",
       "unit": "%",
       "places": 0,
       "group": "defences",
       "better": "higher",
-      "order": 27,
+      "order": 28,
       "value": 0
     },
     {
@@ -304,7 +314,7 @@
       "places": 0,
       "group": "defences",
       "better": "higher",
-      "order": 28,
+      "order": 29,
       "value": 100
     }
   ],

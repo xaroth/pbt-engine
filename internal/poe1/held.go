@@ -7,21 +7,22 @@ import (
 	"github.com/xaroth/pbt-engine/internal/core"
 )
 
-// Engine stats of what the character holds, set from its hands (SetHands): is_holding_shield
-// and is_wielding_staff are 1 while it holds a shield or wields a staff, and the staff_ stats
-// count the red and blue sockets of the staff it wields, 0 without one. Table modifiers hold on
-// them ("while", "if") or scale with them ("per").
+// Engine stats of what the character holds, set from its hands (SetHands): is_holding_shield,
+// is_wielding_staff and is_dual_wielding are 1 while it holds a shield, wields a staff or holds
+// a weapon in each hand, and the staff_ stats count the red and blue sockets of the staff it
+// wields, 0 without one. Table modifiers hold on them ("while", "if") or scale with them ("per").
 const (
 	statIsHoldingShield  = "is_holding_shield"
 	statIsWieldingStaff  = "is_wielding_staff"
+	statIsDualWielding   = "is_dual_wielding"
 	statStaffRedSockets  = "staff_red_sockets"
 	statStaffBlueSockets = "staff_blue_sockets"
 )
 
 // heldMods are the sources and modifiers that hold those stats on a sheet.
 type heldMods struct {
-	shield, staff core.SourceID
-	red, blue     core.ModID
+	shield, staff, dual core.SourceID
+	red, blue           core.ModID
 }
 
 // addHeld adds the sources of what the character holds, all off and the counts 0.
@@ -32,6 +33,7 @@ func (sh *Sheet) addHeld() error {
 	}{
 		{statIsHoldingShield, "holding a shield", &sh.held.shield},
 		{statIsWieldingStaff, "wielding a staff", &sh.held.staff},
+		{statIsDualWielding, "dual wielding", &sh.held.dual},
 	}
 	for _, f := range flags {
 		*f.src = sh.newSource(Source{RuleID: "held-" + f.stat, Rule: f.rule})
@@ -66,6 +68,7 @@ func (sh *Sheet) setHeld(h Hands) {
 	// The sources and modifiers are this session's, so these cannot fail.
 	_ = sh.session.SetSourceEnabled(sh.held.shield, h.Shield)
 	_ = sh.session.SetSourceEnabled(sh.held.staff, staff)
+	_ = sh.session.SetSourceEnabled(sh.held.dual, h.dualWielding())
 	_ = sh.session.SetModifierValue(sh.held.red, float64(red))
 	_ = sh.session.SetModifierValue(sh.held.blue, float64(blue))
 }
@@ -73,9 +76,9 @@ func (sh *Sheet) setHeld(h Hands) {
 func heldMechanic() mechanic {
 	return mechanic{
 		name:  "held",
-		stats: []string{statIsHoldingShield, statIsWieldingStaff, statStaffBlueSockets, statStaffRedSockets},
+		stats: []string{statIsHoldingShield, statIsWieldingStaff, statIsDualWielding, statStaffBlueSockets, statStaffRedSockets},
 		def: func(def core.StatDef, _ map[string]core.StatID) core.StatDef {
-			if def.Name == statIsHoldingShield || def.Name == statIsWieldingStaff {
+			if def.Name == statIsHoldingShield || def.Name == statIsWieldingStaff || def.Name == statIsDualWielding {
 				def.Flag = true
 			}
 			return def
