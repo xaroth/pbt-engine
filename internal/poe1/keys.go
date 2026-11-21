@@ -163,4 +163,5 @@ const (
 	MainHandChaosMaximum        output.Key = "skill.main_hand_chaos_maximum"
 	OffHandChaosMinimum         output.Key = "skill.off_hand_chaos_minimum"
 	OffHandChaosMaximum         output.Key = "skill.off_hand_chaos_maximum"
+	TotemsHitDPS                output.Key = "delivery.total_dps"
 )
