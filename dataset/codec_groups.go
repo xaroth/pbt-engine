@@ -69,9 +69,20 @@ func encodeVariant(b *flatbuffers.Builder, v statdesc.Variant) flatbuffers.UOffs
 	hOffs := make([]flatbuffers.UOffsetT, len(v.Handlers))
 	for hi, h := range v.Handlers {
 		name := b.CreateSharedString(h.Name)
+		var args flatbuffers.UOffsetT
+		if len(h.Args) > 0 {
+			fb.HandlerStartArgsVector(b, len(h.Args))
+			for _, a := range slices.Backward(h.Args) {
+				b.PrependByte(byte(a)) //nolint:gosec // validate bounds args as it does Stat
+			}
+			args = b.EndVector(len(h.Args))
+		}
 		fb.HandlerStart(b)
 		fb.HandlerAddName(b, name)
 		fb.HandlerAddStat(b, byte(h.Stat)) //nolint:gosec // validate bounds h.Stat by a description's at most 256 stats
+		if args != 0 {
+			fb.HandlerAddArgs(b, args)
+		}
 		hOffs[hi] = fb.HandlerEnd(b)
 	}
 	handlers := tableVector(b, fb.VariantStartHandlersVector, hOffs)
@@ -101,6 +112,9 @@ func encodeText(t Text) []byte {
 	addMonsters := optionalNames(b, nameList{fb.TextStartMonsterNamesVector, fb.TextAddMonsterNames, t.MonsterNames})
 	addOverrides := optionalNames(b, nameList{fb.TextStartOverrideNamesVector, fb.TextAddOverrideNames, t.OverrideNames})
 	addTimeless := optionalNames(b, nameList{fb.TextStartTimelessNamesVector, fb.TextAddTimelessNames, t.TimelessNames})
+	addConquerors := optionalNames(b, nameList{fb.TextStartTimelessVersionNamesVector, fb.TextAddTimelessVersionNames, t.TimelessVersionNames},
+		nameList{fb.TextStartTimelessJewelNamesVector, fb.TextAddTimelessJewelNames, t.TimelessJewelNames},
+		nameList{fb.TextStartConquerorNamesVector, fb.TextAddConquerorNames, t.ConquerorNames})
 	lang := b.CreateString(t.Language)
 	fb.TextStart(b)
 	fb.TextAddLanguage(b, lang)
@@ -114,6 +128,7 @@ func encodeText(t Text) []byte {
 	addMonsters()
 	addOverrides()
 	addTimeless()
+	addConquerors()
 	fb.FinishTextBuffer(b, fb.TextEnd(b))
 	return b.FinishedBytes()
 }
@@ -135,6 +150,9 @@ func decodeText(buf []byte) (Text, error) {
 	t.MonsterNames = decodeNames(root.MonsterNamesLength(), root.MonsterNames)
 	t.OverrideNames = decodeNames(root.OverrideNamesLength(), root.OverrideNames)
 	t.TimelessNames = decodeNames(root.TimelessNamesLength(), root.TimelessNames)
+	t.TimelessVersionNames = decodeNames(root.TimelessVersionNamesLength(), root.TimelessVersionNames)
+	t.TimelessJewelNames = decodeNames(root.TimelessJewelNamesLength(), root.TimelessJewelNames)
+	t.ConquerorNames = decodeNames(root.ConquerorNamesLength(), root.ConquerorNames)
 	t.AscendancyNames = decodeAscendancyNames(root.AscendancyNamesLength(), root.AscendancyNames)
 	return t, nil
 }
@@ -274,13 +292,24 @@ func decodeScopes(root *fb.Text) []statdesc.Scope {
 				}
 				for hi := range variant.Handlers {
 					v.Handlers(&h, hi)
-					variant.Handlers[hi] = statdesc.Handler{Name: string(h.Name()), Stat: int(h.Stat())}
+					variant.Handlers[hi] = decodeHandler(&h)
 				}
 				desc.Variants[vi] = variant
 			}
 			s.Descriptions[di] = desc
 		}
 		out[si] = s
+	}
+	return out
+}
+
+func decodeHandler(h *fb.Handler) statdesc.Handler {
+	out := statdesc.Handler{Name: string(h.Name()), Stat: int(h.Stat())}
+	if n := h.ArgsLength(); n > 0 {
+		out.Args = make([]int, n)
+		for i := range n {
+			out.Args[i] = int(h.Args(i))
+		}
 	}
 	return out
 }

@@ -294,10 +294,27 @@ func validateNames(texts []Text, trees []Tree) error {
 				return fmt.Errorf("text %s: name for unknown override %s: %w", t.Language, n.ID, ErrInvalid)
 			}
 		}
-		for _, n := range t.TimelessNames {
-			if !names.timeless[n.ID] {
-				return fmt.Errorf("text %s: name for unknown timeless passive %s: %w", t.Language, n.ID, ErrInvalid)
-			}
+		if err := checkTimelessNames(t, names); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkTimelessNames(t Text, names treeNames) error {
+	for _, n := range t.TimelessNames {
+		if !names.timeless[n.ID] {
+			return fmt.Errorf("text %s: name for unknown timeless passive %s: %w", t.Language, n.ID, ErrInvalid)
+		}
+	}
+	for _, n := range slices.Concat(t.TimelessVersionNames, t.TimelessJewelNames) {
+		if !names.timelessVersions[n.ID] {
+			return fmt.Errorf("text %s: name for unknown timeless version %s: %w", t.Language, n.ID, ErrInvalid)
+		}
+	}
+	for _, n := range t.ConquerorNames {
+		if !names.conquerors[n.ID] {
+			return fmt.Errorf("text %s: conqueror name for %s, not a conqueror's keystone: %w", t.Language, n.ID, ErrInvalid)
 		}
 	}
 	return nil
@@ -309,10 +326,13 @@ type treeNames struct {
 	ascendancies map[string]bool // "<variant>/<id>"
 	overrides    map[string]bool
 	timeless     map[string]bool // TimelessReplacement ids
+	// timelessVersions are TimelessVersion ids; conquerors the ids of conquerors' keystones.
+	timelessVersions, conquerors map[string]bool
 }
 
 func collectTreeNames(trees []Tree) treeNames {
-	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, overrides: map[string]bool{}, timeless: map[string]bool{}}
+	names := treeNames{nodes: map[uint32]bool{}, ascendancies: map[string]bool{}, overrides: map[string]bool{}, timeless: map[string]bool{},
+		timelessVersions: map[string]bool{}, conquerors: map[string]bool{}}
 	for _, t := range trees {
 		for _, n := range t.Nodes {
 			names.nodes[n.ID] = true
@@ -329,8 +349,12 @@ func collectTreeNames(trees []Tree) treeNames {
 			names.overrides[o.ID] = true
 		}
 		for _, v := range t.TimelessVersions {
+			names.timelessVersions[v.ID] = true
 			for _, r := range v.Replacements {
 				names.timeless[r.ID] = true
+				if r.Conqueror != (TimelessConqueror{}) {
+					names.conquerors[r.ID] = true
+				}
 			}
 		}
 	}

@@ -8,13 +8,27 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/statdesc"
 )
 
-// withTimeless returns sample with the standard tree's None, Vaal and Karui timeless versions
-// and the English names of the Vaal replacements.
+// withTimeless returns sample with the standard tree's None, Vaal and Karui timeless versions,
+// the English names of the Vaal replacements, versions and conqueror, and a description that
+// names the conqueror by its keystone, version and revision.
 func withTimeless() *dataset.Dataset {
 	d := sample()
-	d.Texts[0].TimelessNames = []dataset.Name{{ID: "vaal_keystone_1", Name: "Divine Flesh"}, {ID: "vaal_notable_random_1", Name: "Tempered by War"}}
+	en := &d.Texts[0]
+	en.TimelessNames = []dataset.Name{{ID: "vaal_keystone_1", Name: "Divine Flesh"}, {ID: "vaal_notable_random_1", Name: "Tempered by War"}}
+	en.TimelessVersionNames = []dataset.Name{{ID: "Vaal", Name: "Vaal"}, {ID: "Karui", Name: "Karui"}}
+	en.TimelessJewelNames = []dataset.Name{{ID: "Vaal", Name: "Glorious Vanity"}, {ID: "Karui", Name: "Lethal Pride"}}
+	en.ConquerorNames = []dataset.Name{{ID: "vaal_keystone_1", Name: "Xibaqua"}}
+	en.Descriptions[0].Descriptions = append(en.Descriptions[0].Descriptions, statdesc.Description{
+		Stats: []string{"version", "seed", "keystone", "revision"},
+		Variants: []statdesc.Variant{{
+			Limits:   []statdesc.Limit{{Min: 1, Max: 1}, {Min: 0, Max: 0}, {Min: 0, Max: 0}, {Min: 0, Max: 0}},
+			Text:     "Bathed in the blood of {1} sacrificed in the name of {2}",
+			Handlers: []statdesc.Handler{{Name: "alternate_tree_version_keystone", Stat: 2, Args: []int{0, 3}}},
+		}},
+	})
 	d.Trees[0].TimelessVersions = []dataset.TimelessVersion{
 		{ID: "None"},
 		{
@@ -85,6 +99,12 @@ func TestTimelessWriteErrors(t *testing.T) {
 		{name: "name for unknown passive", want: "name for unknown timeless passive vaal_keystone_1", change: func(v []dataset.TimelessVersion) {
 			v[1].Replacements[0].ID = "x0"
 		}},
+		{name: "name for unknown version", want: "name for unknown timeless version Karui", change: func(v []dataset.TimelessVersion) {
+			v[2].ID = "Kalguur"
+		}},
+		{name: "conqueror name for passive of none", want: "conqueror name for vaal_keystone_1, not", change: func(v []dataset.TimelessVersion) {
+			v[1].Replacements[0].Conqueror = dataset.TimelessConqueror{}
+		}},
 		{name: "too many addition stats", want: `version "Vaal" addition 0: 3 stats, at most 2`, change: func(v []dataset.TimelessVersion) {
 			v[1].Additions[0].Stats = []dataset.StatRange{{Stat: 0}, {Stat: 1}, {Stat: 2}}
 		}},
@@ -100,7 +120,7 @@ func TestTimelessWriteErrors(t *testing.T) {
 	}
 }
 
-// TestTimelessNames reads the timeless names from the names file alone.
+// TestTimelessNames reads the timeless and conqueror names from the names file alone.
 func TestTimelessNames(t *testing.T) {
 	t.Parallel()
 	d := withTimeless()
@@ -113,7 +133,7 @@ func TestTimelessNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Names: %v", err)
 	}
-	if diff := gocmp.Diff(d.Texts[0].TimelessNames, got.TimelessNames); diff != "" {
-		t.Errorf("timeless names (-want +got):\n%s", diff)
+	if diff := gocmp.Diff(d.Texts[0].Names(), *got); diff != "" {
+		t.Errorf("names (-want +got):\n%s", diff)
 	}
 }
