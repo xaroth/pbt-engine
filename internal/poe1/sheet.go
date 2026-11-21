@@ -378,12 +378,12 @@ func (sh *Sheet) addBundle(bd *resolve.Bundle, t *semantics.Table, v dataset.Gam
 }
 
 // bundleActor returns the session actor of bd's stats, added in slot, with buff set for a buff's
-// or curse's. A minion's stats are its skill's: they need a slot and are no buff.
+// or curse's. A minion's stats are its skill's, which need a slot, or an aura's, which is a buff.
 func bundleActor(bd *resolve.Bundle, slot int, buff *carried) (core.ActorID, error) {
 	switch {
 	case bd.Actor == resolve.Player:
 		return playerActor, nil
-	case bd.Actor == resolve.Minion && slot >= 0 && buff == nil:
+	case bd.Actor == resolve.Minion && (slot >= 0) != (buff != nil):
 		return minionActor, nil
 	}
 	return 0, fmt.Errorf("sheet: %s bundle %s: %w", bd.Actor, bd.Source, ErrActor)
@@ -471,28 +471,44 @@ func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 	return out
 }
 
+// modActor returns the session actor of a table modifier for actor a of a stat owned by owner:
+// the owner, or the player's minions. A minion has no minions, so a minion's stat gives no
+// modifier for them.
+func modActor(a resolve.Actor, owner core.ActorID) (core.ActorID, bool) {
+	switch {
+	case a == resolve.Player:
+		return owner, true
+	case a == resolve.Minion && owner == playerActor:
+		return minionActor, true
+	}
+	return 0, false
+}
+
+// readOwner makes the counts and conditions of mod, which the stat's owner gives another actor,
+// read the owner's stats: "Minions deal 1% increased Damage per Power Charge" counts yours.
+func readOwner(mod *core.Modifier, owner core.ActorID) {
+	for i := range mod.Scales {
+		if mod.Scales[i].Ref.Actor == core.Self {
+			mod.Scales[i].Ref.Actor = int32(owner)
+		}
+	}
+	for i := range mod.Conds {
+		if mod.Conds[i].Ref.Actor == core.Self {
+			mod.Conds[i].Ref.Actor = int32(owner)
+		}
+	}
+}
+
 // addMods adds e's modifiers of actor for a stat of value from src; a modifier of the skill in
 // slot requires the slot's context, and slot is negative outside a skill. With buff set, each
 // modifier is a buff's or a curse's, scaled by its effect and held while it applies.
 func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, slot int, actor core.ActorID, buff *carried) error {
 	for _, m := range e.Mods {
-		group, err := moreGroup(&m, slot >= 0)
+		mod, ok, err := sh.tableModifier(&m, value, src, slot, actor)
 		if err != nil {
 			return fmt.Errorf("sheet: %s: %w", e.Stat, err)
 		}
-		mod := core.Modifier{Stat: sh.stats[m.Stat], Actor: actor, Op: m.Op, Value: m.Factor.Apply(value), Source: src, Group: group}
-		if !m.Context.IsZero() || slot >= 0 {
-			p, err := predicate(sh.session.Model(), m.Context, sh.ctx, slot)
-			if err != nil {
-				return fmt.Errorf("sheet: %s: %w", e.Stat, err)
-			}
-			mod.Pred = p
-		}
-		if m.Per != nil {
-			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
-		}
-		var holds bool
-		if mod.Conds, holds = sh.conds(&m); !holds {
+		if !ok {
 			continue
 		}
 		if buff != nil {
@@ -503,4 +519,35 @@ func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, s
 		}
 	}
 	return nil
+}
+
+// tableModifier returns table modifier m of a stat of value from src owned by actor, in slot as
+// addMods has it; false when it applies to no actor or its condition can never hold.
+func (sh *Sheet) tableModifier(m *semantics.Mod, value float64, src core.SourceID, slot int, actor core.ActorID) (core.Modifier, bool, error) {
+	to, ok := modActor(m.Actor, actor)
+	if !ok {
+		return core.Modifier{}, false, nil
+	}
+	// What a skill's stats give its minion is the minion's own, as PoB's MinionModifier is.
+	group, err := moreGroup(m, slot >= 0 && to == actor)
+	if err != nil {
+		return core.Modifier{}, false, err
+	}
+	mod := core.Modifier{Stat: sh.stats[m.Stat], Actor: to, Op: m.Op, Value: m.Factor.Apply(value), Source: src, Group: group}
+	if !m.Context.IsZero() || slot >= 0 {
+		if mod.Pred, err = predicate(sh.session.Model(), m.Context, sh.ctx, slot); err != nil {
+			return core.Modifier{}, false, err
+		}
+	}
+	if m.Per != nil {
+		mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
+	}
+	var holds bool
+	if mod.Conds, holds = sh.conds(m); !holds {
+		return core.Modifier{}, false, nil
+	}
+	if to != actor {
+		readOwner(&mod, actor)
+	}
+	return mod, true, nil
 }

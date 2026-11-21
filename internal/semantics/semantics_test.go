@@ -100,6 +100,7 @@ func TestLoad(t *testing.T) {
 			Mods: []semantics.Mod{
 				{Stat: "maximum_fire_resistance", Op: core.OpBase, Factor: one},
 				{Stat: "maximum_cold_resistance", Op: core.OpBase, Factor: one, While: "life"},
+				{Stat: "maximum_fire_resistance", Op: core.OpBase, Factor: one, Actor: resolve.Minion},
 			},
 			Sources: []semantics.Source{
 				{Kind: semantics.ObjectTemplate, Ref: "Metadata/Characters/Character.ot", Text: "maximum_all_resistances_% = 75"},
@@ -185,6 +186,7 @@ func TestLoadRejects(t *testing.T) {
 		{"unknown with omitted", unknown(`"omitted": "o", ` + reason), "only authored entries"},
 		{"unknown with unchecked", unknown(`"unchecked": "c", ` + reason), "only authored entries"},
 		{"unknown engine stat", authored(`"mods": [{"stat": "lifes", "op": "base"}]`), `unknown engine stat "lifes"`},
+		{"unknown actor", authored(`"mods": [{"stat": "life", "op": "base", "actor": "player"}]`), `unknown actor "player"`},
 		{"unknown op", authored(`"mods": [{"stat": "life", "op": "add"}]`), `unknown op "add"`},
 		{"zero factor on base", authored(`"mods": [{"stat": "life", "op": "base", "factor": "0/60"}]`), "only override may set a value of 0"},
 		{
