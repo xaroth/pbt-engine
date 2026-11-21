@@ -15,12 +15,15 @@ type parsed struct {
 	baseName string
 	lines    []modText
 	// game is text the game copied, not Path of Building.
-	game bool
+	game    bool
+	scaling scaling
 }
 
 type modText struct {
 	kind build.ModKind
 	text string
+	// unscalable is a line nothing scales from its mod's range (see scaling).
+	unscalable bool
 }
 
 // flagLines are lines that name a property of the item rather than a mod.
@@ -96,11 +99,11 @@ func (p *parsed) modLines(lines []string, implicits int) {
 			p.item.Flags = append(p.item.Flags, l)
 			continue
 		}
-		kind, text := tagged(l)
+		kind, text, unscalable := tagged(l)
 		if k < implicits && kind == build.Explicit {
 			kind = build.Implicit
 		}
-		p.lines = append(p.lines, modText{kind: kind, text: text})
+		p.lines = append(p.lines, modText{kind: kind, text: text, unscalable: unscalable})
 	}
 }
 
@@ -122,6 +125,9 @@ func (p *parsed) property(l string) int {
 	}
 	if key == "Sockets" {
 		p.item.Sockets = val
+	}
+	if p.scaling.property(key, n, val) {
+		return -1
 	}
 	if d, ok := basePercentiles()[key]; ok {
 		if roll, err := strconv.ParseFloat(val, 64); err == nil {
@@ -150,9 +156,11 @@ func basePercentiles() map[string]build.Defence {
 	}
 }
 
-// tagged strips the leading {tag} markers of a mod line and returns its kind by them.
-func tagged(l string) (build.ModKind, string) {
+// tagged strips the leading {tag} markers of a mod line and returns its kind by them and
+// whether it is marked unscalable.
+func tagged(l string) (build.ModKind, string, bool) {
 	kind := build.Explicit
+	unscalable := false
 	for strings.HasPrefix(l, "{") {
 		end := strings.IndexByte(l, '}')
 		if end < 0 {
@@ -165,8 +173,10 @@ func tagged(l string) (build.ModKind, string) {
 			kind = build.Fractured
 		case "enchant":
 			kind = build.Enchant
+		case "unscalable":
+			unscalable = true
 		}
 		l = l[end+1:]
 	}
-	return kind, l
+	return kind, l, unscalable
 }
