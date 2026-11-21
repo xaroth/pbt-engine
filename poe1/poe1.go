@@ -37,6 +37,7 @@ const (
 	LifeRegeneration            = rules.LifeRegeneration
 	ManaRegeneration            = rules.ManaRegeneration
 	EnergyShieldRegeneration    = rules.EnergyShieldRegeneration
+	BlockChance                 = rules.BlockChance
 	SpellBlockChance            = rules.SpellBlockChance
 	MovementSpeed               = rules.MovementSpeed
 	PhysicalDamageModifier      = rules.PhysicalDamageModifier

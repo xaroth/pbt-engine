@@ -1,41 +1,95 @@
 package poe1
 
-import "github.com/xaroth/pbt-engine/internal/core"
+import (
+	"math"
 
-// Engine stats of spell block. spell_block_chance is the uncapped chance to block spell damage,
-// maximum_spell_block_chance its cap and spell_block_chance_capped the value the sheet shows.
+	"github.com/xaroth/pbt-engine/internal/core"
+)
+
+// Engine stats of block. shield_block_chance is the held shield's own chance to block,
+// attack_block_chance is the uncapped chance to block attack damage,
+// maximum_attack_block_chance its cap, attack_block_chance_capped the value the sheet shows and
+// attack_block_chance_overcapped what the uncapped chance has above the cap; the spell_ stats are
+// the same for spell damage.
 const (
-	statSpellBlockChance        = "spell_block_chance"
-	statMaximumSpellBlockChance = "maximum_spell_block_chance"
-	statSpellBlockChanceCapped  = "spell_block_chance_capped"
+	statShieldBlockChance           = "shield_block_chance"
+	statAttackBlockChance           = "attack_block_chance"
+	statMaximumAttackBlockChance    = "maximum_attack_block_chance"
+	statAttackBlockChanceCapped     = "attack_block_chance_capped"
+	statAttackBlockChanceOvercapped = "attack_block_chance_overcapped"
+	statSpellBlockChance            = "spell_block_chance"
+	statMaximumSpellBlockChance     = "maximum_spell_block_chance"
+	statSpellBlockChanceCapped      = "spell_block_chance_capped"
 )
 
 // blockChanceCap is the most any maximum block chance can be: PoB's BlockChanceCap (Data.lua);
 // unvalidated.
 const blockChanceCap = 90
 
-// formulaCappedSpellBlock is the formula name shown in explanations.
-const formulaCappedSpellBlock = "spell block chance capped by its maximum"
+// Formula names shown in explanations.
+const (
+	formulaCappedBlock     = "block chance capped by its maximum"
+	formulaOvercappedBlock = "block chance above its maximum"
+)
 
-// spellBlockDef completes def when it is a spell block stat. The total is its base times its
-// increases and more multipliers, capped by the maximum; neither is rounded. Both follow PoB
-// (CalcDefence.lua, Block); unvalidated.
-func spellBlockDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
+// blockDef completes def when it is a block stat. A total is its base times its increases and
+// more multipliers, capped by its maximum; neither is rounded. Both follow PoB (CalcDefence.lua,
+// Block); unvalidated.
+func blockDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	switch def.Name {
-	case statMaximumSpellBlockChance:
+	case statMaximumAttackBlockChance, statMaximumSpellBlockChance:
 		def.HasMax, def.Max = true, blockChanceCap
+	case statAttackBlockChanceCapped:
+		return cappedBlockDef(def, mustID(ids, statAttackBlockChance), mustID(ids, statMaximumAttackBlockChance))
 	case statSpellBlockChanceCapped:
-		total, maximum := mustID(ids, statSpellBlockChance), mustID(ids, statMaximumSpellBlockChance)
-		def.Formula = func(rd core.Reader, _ core.Agg) float64 { return min(rd.Stat(total), rd.Stat(maximum)) }
-		def.FormulaName, def.Attribute = formulaCappedSpellBlock, cappedAttribute(total, maximum)
+		return cappedBlockDef(def, mustID(ids, statSpellBlockChance), mustID(ids, statMaximumSpellBlockChance))
+	case statAttackBlockChanceOvercapped:
+		total, maximum := mustID(ids, statAttackBlockChance), mustID(ids, statMaximumAttackBlockChance)
+		def.Formula = func(rd core.Reader, _ core.Agg) float64 { return max(rd.Stat(total)-rd.Stat(maximum), 0) }
+		def.FormulaName = formulaOvercappedBlock
 	}
 	return def
 }
 
-func spellBlockMechanic() mechanic {
-	return mechanic{name: "spell block", stats: []string{
+func cappedBlockDef(def core.StatDef, total, maximum core.StatID) core.StatDef {
+	def.Formula = func(rd core.Reader, _ core.Agg) float64 { return min(rd.Stat(total), rd.Stat(maximum)) }
+	def.FormulaName, def.Attribute = formulaCappedBlock, cappedAttribute(total, maximum)
+	return def
+}
+
+// blockMechanic lists attack block first: spell block reads it.
+func blockMechanic() mechanic {
+	return mechanic{name: "block", stats: []string{
+		statShieldBlockChance,
+		statAttackBlockChance,
+		statMaximumAttackBlockChance,
+		statAttackBlockChanceCapped,
+		statAttackBlockChanceOvercapped,
 		statSpellBlockChance,
 		statMaximumSpellBlockChance,
 		statSpellBlockChanceCapped,
-	}, def: spellBlockDef}
+	}, def: blockDef}
+}
+
+// Stats of a shield's own chance to block. statShieldBlock carries it to the character.
+const (
+	statShieldBlock      = "base_block_chance_%_from_shield"
+	statLocalBlockFlat   = "local_additional_block_chance_%"
+	statLocalBlockInc    = "local_block_chance_+%"
+	statLocalBlockRemove = "local_no_block_chance"
+)
+
+// isLocalBlock reports whether stat changes a shield's own chance to block.
+func isLocalBlock(stat string) bool {
+	return stat == statLocalBlockFlat || stat == statLocalBlockInc || stat == statLocalBlockRemove
+}
+
+// shieldBlock returns a shield's chance to block from its base's and its local stat sums: the
+// base's increased, then the flat added, rounded down, as PoB has it (Item.lua,
+// BuildModListForSlotNum).
+func shieldBlock(base int32, sums map[string]float64) float64 {
+	if sums[statLocalBlockRemove] != 0 {
+		return 0
+	}
+	return math.Floor(float64(base)*(1+sums[statLocalBlockInc]/percentScale) + sums[statLocalBlockFlat])
 }

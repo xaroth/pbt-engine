@@ -66,8 +66,8 @@ func defencelessUniques() []string {
 // CompileItem returns what it gives the character on base: each defence of an armour base as one
 // flat stat (compileDefences), a weapon's own values with its local stats applied
 // (compileWeapon), the rest of its stats as they are. A defenceless unique (defencelessUniques)
-// has no defences, whatever its text gives. An armour base's movement speed penalty is kept
-// apart, as MovementPenalty.
+// has no defences, whatever its text gives. A shield's chance to block is one flat stat
+// (shieldBlock). An armour base's movement speed penalty is kept apart, as MovementPenalty.
 func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 	c := CompiledItem{Shield: base.Class == shieldClass}
 	sums := statSums(it)
@@ -82,9 +82,14 @@ func CompileItem(it *build.Item, base *dataset.ItemBase) CompiledItem {
 			c.Armour = armourOf(c.Stats)
 		}
 	}
+	if c.Shield {
+		if b := shieldBlock(base.Block, sums); b != 0 {
+			c.Stats = append(c.Stats, resolve.StatValue{Stat: statShieldBlock, Value: b})
+		}
+	}
 	for _, m := range it.Mods {
 		for _, sv := range m.Stats {
-			if !local[sv.Stat] && !itemdefence.IsLocal(sv.Stat) {
+			if !local[sv.Stat] && !itemdefence.IsLocal(sv.Stat) && !(c.Shield && isLocalBlock(sv.Stat)) {
 				c.Stats = append(c.Stats, resolve.StatValue{Stat: sv.Stat, Value: float64(sv.Value)})
 			}
 		}
