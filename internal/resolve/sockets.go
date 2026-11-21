@@ -114,7 +114,7 @@ func (r *skillResolver) socketQuality(src GemSource, gem build.Gem) int {
 // in them, by slot, in the order of their mod lines.
 func (r *skillResolver) socketedSupports(store *dataset.Store, items build.Items) (map[build.Slot][]supportGem, error) {
 	out := map[build.Slot][]supportGem{}
-	var index *dataset.ItemSupports
+	var index *dataset.ItemGrants
 	for _, slot := range build.Slots() {
 		it, ok := items[slot]
 		if !ok {
@@ -124,7 +124,7 @@ func (r *skillResolver) socketedSupports(store *dataset.Store, items build.Items
 			for _, sv := range m.Stats {
 				if index == nil {
 					var err error
-					if index, err = store.ItemSupports(); err != nil {
+					if index, err = store.ItemGrants(); err != nil {
 						return nil, fmt.Errorf("resolve: item supports: %w", err)
 					}
 				}
