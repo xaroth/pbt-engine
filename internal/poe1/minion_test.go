@@ -1,19 +1,25 @@
 package poe1_test
 
 import (
+	"math"
+	"slices"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
+	"github.com/xaroth/pbt-engine/output"
 )
 
-// switchedSheet opens the sheet of b on the real dataset of version and switches it to b.
-func switchedSheet(t *testing.T, version string, b *build.Build) *poe1.Sheet {
+// minionVersion is the dataset the minion tests read.
+const minionVersion = "3.29.3.6"
+
+// switchedSheet opens the sheet of b on the real dataset of minionVersion and switches it to b.
+func switchedSheet(t *testing.T, b *build.Build) *poe1.Sheet {
 	t.Helper()
-	b.Format, b.Game, b.Version = 1, "poe1", version
-	s := realdata.Open(t, version)
+	b.Format, b.Game, b.Version = 1, "poe1", minionVersion
+	s := realdata.Open(t, minionVersion)
 	c, _, err := build.Check(b, s)
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +75,7 @@ func TestMinionBaseValues(t *testing.T) {
 			b := build.Build{Class: marauder, Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
 				{Gems: []build.Gem{{ID: c.gem, Level: 20}}},
 			}}}
-			sh := switchedSheet(t, "3.29.3.6", &b)
+			sh := switchedSheet(t, &b)
 			for name, w := range common {
 				wantMinion(t, sh, name, w)
 			}
@@ -95,7 +101,7 @@ func TestMinionDamage(t *testing.T) {
 		b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
 			{Gems: []build.Gem{{ID: c.gem, Level: 20}}},
 		}}}
-		sh := switchedSheet(t, "3.29.3.6", &b)
+		sh := switchedSheet(t, &b)
 		for name, w := range map[string]float64{"base_minimum_damage": c.min, "base_maximum_damage": c.max, "attack_rate": c.rate} {
 			got, err := sh.MinionAttackValue(0, name, poe1.Physical)
 			if err != nil {
@@ -117,5 +123,106 @@ func wantMinion(t *testing.T, sh *poe1.Sheet, name string, want float64) {
 	}
 	if d := got - want; d > 1e-9 || d < -1e-9 {
 		t.Errorf("minion %s %v, want %v", name, got, want)
+	}
+}
+
+// A minion's main skill hits through the hit rules a skill of the character's has, on the
+// minion: its attack has the minion's damage and attack rate, 5% critical strike chance,
+// Monster.ot's 130% critical strike multiplier and always hits, against the default enemy. Path
+// of Building 2.67.2 gives the same average hit (Minion.MainHand.AverageHit) and hit damage per
+// second (Minion.TotalDPS) for each gem at level 20, alone, on a level 90 Marauder without
+// passives or items.
+func TestMinionHit(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		gem      string
+		hit, dps float64
+	}{
+		{"Metadata/Items/Gems/SkillGemRaiseZombie", 162.65375, 139.0202991453},
+		{"Metadata/Items/Gems/SkillGemSummonSkeletons", 165.064375, 206.33046875},
+		{"Metadata/Items/Gems/SkillGemSummonChaosGolem", 244.36125, 244.36125},
+		{"Metadata/Items/Gems/SkillGemSummonIceGolem", 219.113125, 257.78014705882},
+	} {
+		t.Run(c.gem, func(t *testing.T) {
+			t.Parallel()
+			b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
+				{Gems: []build.Gem{{ID: c.gem, Level: 20}}},
+			}}}
+			sh := switchedSheet(t, &b)
+			for k, want := range map[output.Key]float64{poe1.MinionAverageHit: c.hit, poe1.MinionHitDPS: c.dps, poe1.MinionHitChance: 100} {
+				got, err := sh.Output(k)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if math.Abs(got-want) > 1e-9*want {
+					t.Errorf("%s %v, want %v", k, got, want)
+				}
+			}
+		})
+	}
+}
+
+// The sheet gives a minion's hit for a skill whose minion attacks with damage of its own: not
+// for one whose minion attacks with items (Animate Guardian) or casts spells (Flame Golem), nor
+// for a skill without a minion.
+func TestMinionHitGiven(t *testing.T) {
+	t.Parallel()
+	hit := poe1.Outputs()[slices.IndexFunc(poe1.Outputs(), func(o poe1.Output) bool { return o.Key == poe1.MinionAverageHit })]
+	for gem, want := range map[string]bool{
+		"Metadata/Items/Gems/SkillGemSummonRagingSpirit": true,
+		"Metadata/Items/Gems/SkillGemAnimateArmour":      false,
+		"Metadata/Items/Gems/SkillGemSummonFlameGolem":   false,
+		"Metadata/Items/Gems/SkillGemFireball":           false,
+	} {
+		b := build.Build{
+			Format: 1, Game: "poe1", Version: "3.29.3.6", Class: "Metadata/Characters/Str/Str", Level: 90,
+			Skills: build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{{ID: gem, Level: 20}}}}},
+		}
+		c, _, err := build.Check(&b, realdata.Open(t, minionVersion))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if minion := gem != "Metadata/Items/Gems/SkillGemFireball"; (sw.Minion(0) != nil) != minion {
+			t.Errorf("%s: minion %v, want one %v", gem, sw.Minion(0), minion)
+		}
+		if got := poe1.Gives(hit, sw.Skills.Main, sw.Minion(0), sw.Hands); got != want {
+			t.Errorf("%s: minion hit given %v, want %v", gem, got, want)
+		}
+	}
+}
+
+// Switching a sheet again to the same build adds no sources: each switch resolves the minion's
+// skill anew, and the sheet knows it by its values, as a pooled sheet reused for every
+// simulation needs.
+func TestMinionSwitchAddsOnce(t *testing.T) {
+	t.Parallel()
+	b := build.Build{Class: "Metadata/Characters/Str/Str", Level: 90, Skills: build.Skills{Groups: []build.SkillGroup{
+		{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemSummonSkeletons", Level: 20}}},
+	}}}
+	sh := switchedSheet(t, &b)
+	c, _, err := build.Check(&b, realdata.Open(t, minionVersion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := sh.SourceCount()
+	for range 3 {
+		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := sh.Switch(&sw); err != nil {
+			t.Fatal(err)
+		}
+		if got := sh.SourceCount(); got != want {
+			t.Fatalf("%d sources after switching again, want %d", got, want)
+		}
+	}
+	got, err := sh.Output(poe1.MinionAverageHit)
+	if err != nil || got != 165.064375 {
+		t.Errorf("minion average hit %v (%v), want 165.064375", got, err)
 	}
 }

@@ -25,7 +25,13 @@ const (
 	statBaseDisplayMinionActorLevel            = "base_display_minion_actor_level"
 	statMinionActorLevelIsUserLevelUpToMaximum = "minion_actor_level_is_user_level_up_to_maximum"
 	statMonsterBaseMaximumAllResistances       = "base_maximum_all_resistances_%"
+	statMonsterBaseCriticalStrikeMultiplier    = "base_critical_strike_multiplier"
 )
+
+// A minion's attack, as PoB makes it (CalcActiveSkill.lua minion weaponData1, CalcPerform.lua
+// "Minion Attacks always hit"): 5% critical strike chance, and hits that cannot be evaded. The
+// game data read here gives neither.
+const minionAttackCriticalChance = 5
 
 // minionEnergyShieldOfLife is the share of its life a minion has as energy shield per 100 of its
 // monster type's energy shield, as PoB exports it (Export/Scripts/minions.lua energyShield).
@@ -54,6 +60,18 @@ type Minion struct {
 	// attacks per second.
 	MinimumDamage, MaximumDamage float64
 	AttackRate                   float64
+	// CriticalStrikeMultiplier is every monster's, from Monster.ot.
+	CriticalStrikeMultiplier float64
+	// Skill is the minion's main skill, its variety's first, at the minion's level; nil when it
+	// has none that resolves.
+	Skill *resolve.Skill
+}
+
+// Hit reports whether the sheet gives mn's hit: its main skill is an attack with the minion's
+// own damage. A minion that attacks with items, such as an Animated Guardian, has none, and a
+// minion's spell needs its damage at the minion's level, which the dataset does not give.
+func (mn *Minion) Hit() bool {
+	return mn != nil && mn.Skill != nil && hasTypes(mn.Skill, typeAttack) && mn.MaximumDamage > 0
 }
 
 // SummonsMinion reports whether sk summons a minion whose monster the game names.
@@ -79,9 +97,9 @@ func minionLevel(sk *resolve.Skill, characterLevel int) int {
 }
 
 // MinionOf returns the minion sk summons, for a character of characterLevel, from the monsters
-// group m of a dataset with stats; false when sk summons none or m lacks its monster. A level m
-// lacks is an error.
-func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, stats []dataset.Stat) (Minion, bool, error) {
+// group m and skills x of a dataset with stats; false when sk summons none or m lacks its
+// monster. A level m lacks is an error.
+func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dataset.SkillIndex, stats []dataset.Stat) (Minion, bool, error) {
 	if !SummonsMinion(sk) {
 		return Minion{}, false, nil
 	}
@@ -103,7 +121,13 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, stats 
 	if l == nil {
 		return Minion{}, false, fmt.Errorf("poe1: no monster values for minion level %d: %w", level, dataset.ErrNotInDataset)
 	}
-	return minionOf(v, t, l, m, maximumResistance(m, stats)), true, nil
+	mn := minionOf(v, t, l, m, monsterBase(m, stats, statMonsterBaseMaximumAllResistances, enemyBaseMaximumResistance))
+	mn.CriticalStrikeMultiplier = monsterBase(m, stats, statMonsterBaseCriticalStrikeMultiplier, 0)
+	if len(v.GrantedEffects) > 0 {
+		// Not an error: a minion whose skill does not resolve has no hit.
+		mn.Skill, _ = resolve.MonsterSkill(x, stats, v.GrantedEffects[0], mn.Level, sk.Source)
+	}
+	return mn, true, nil
 }
 
 // find returns the first element of s f holds for, nil for none.
@@ -167,15 +191,15 @@ func typeScale(pct int32) float64 {
 	return float64(pct) / percentScale
 }
 
-// maximumResistance is a monster's maximum resistance from the base stats of Monster.ot in m,
-// with stats the dataset's stats; the enemy's base maximum when they hold none.
-func maximumResistance(m *dataset.Monsters, stats []dataset.Stat) float64 {
+// monsterBase is stat id of the base stats of Monster.ot in m, with stats the dataset's stats;
+// otherwise when they do not hold it.
+func monsterBase(m *dataset.Monsters, stats []dataset.Stat, id string, otherwise float64) float64 {
 	for _, sv := range m.BaseStats {
-		if int(sv.Stat) < len(stats) && stats[sv.Stat].ID == statMonsterBaseMaximumAllResistances {
+		if int(sv.Stat) < len(stats) && stats[sv.Stat].ID == id {
 			return float64(sv.Value)
 		}
 	}
-	return enemyBaseMaximumResistance
+	return otherwise
 }
 
 // minionsOf returns the minion of each skill of sw whose outputs are read, which are the first
@@ -197,9 +221,13 @@ func minionsOf(sw *Switch) ([]*Minion, error) {
 	if err != nil {
 		return nil, err //nolint:wrapcheck // wrapped by the caller
 	}
+	x, err := sw.Checked.Store().SkillIndex()
+	if err != nil {
+		return nil, err //nolint:wrapcheck // wrapped by the caller
+	}
 	out := make([]*Minion, len(read))
 	for i, sk := range read {
-		mn, ok, err := MinionOf(sk, sw.Checked.Build().Level, m, stats)
+		mn, ok, err := MinionOf(sk, sw.Checked.Build().Level, m, x, stats)
 		switch {
 		case err != nil:
 			return nil, err
@@ -210,41 +238,54 @@ func minionsOf(sw *Switch) ([]*Minion, error) {
 	return out, nil
 }
 
-// minionKey is a minion's slot and base values.
+// minionKey is a minion's slot and its values with its skill's.
 type minionKey struct {
-	slot   int
-	minion Minion
+	slot int
+	key  string
+}
+
+// keyOf returns mn's key in slot, by its values and its skill's, not the skill's address: each
+// switch resolves the skill anew.
+func keyOf(slot int, mn *Minion) minionKey {
+	values := *mn
+	values.Skill = nil
+	k := minionKey{slot: slot, key: fmt.Sprint(values)}
+	if mn.Skill != nil {
+		k.key += fmt.Sprint(*mn.Skill)
+	}
+	return k
 }
 
 // SetMinions makes minions the minions of the skills of SetSkills, by slot: each nil entry
-// summons none. A minion's base values hold for the minion actor in its skill's context only.
-// A minion not seen yet in its slot gets its source added once; adding is refused while a
-// checkpoint is open (ErrCheckpointOpen).
+// summons none. A minion's base values and its skill's stats and hit hold for the minion actor
+// in its summoning skill's context only. A minion not seen yet in its slot gets its sources
+// added once; adding is refused while a checkpoint is open (ErrCheckpointOpen).
 func (sh *Sheet) SetMinions(minions []*Minion) error {
-	want := map[minionKey]bool{}
+	want := map[minionKey]*Minion{}
 	for i, mn := range minions {
 		if mn != nil {
-			want[minionKey{i, *mn}] = true
+			want[keyOf(i, mn)] = mn
 		}
 	}
-	for k, src := range sh.minions {
-		sh.setSources([]core.SourceID{src}, want[k])
+	for k, srcs := range sh.minions {
+		sh.setSources(srcs, want[k] != nil)
 	}
-	for k := range want {
+	sh.slotMinions = slices.Clone(minions)
+	for k, mn := range want {
 		if _, ok := sh.minions[k]; ok {
 			continue
 		}
 		if sh.marked {
-			return fmt.Errorf("%w: minion %s", ErrCheckpointOpen, k.minion.Variety)
+			return fmt.Errorf("%w: minion %s", ErrCheckpointOpen, mn.Variety)
 		}
-		src, err := sh.addMinion(&k.minion, k.slot)
+		srcs, err := sh.addMinion(mn, k.slot)
 		if err != nil {
 			return err
 		}
 		if sh.minions == nil {
-			sh.minions = map[minionKey]core.SourceID{}
+			sh.minions = map[minionKey][]core.SourceID{}
 		}
-		sh.minions[k] = src
+		sh.minions[k] = srcs
 	}
 	return nil
 }
@@ -253,36 +294,42 @@ func (sh *Sheet) SetMinions(minions []*Minion) error {
 // its skill's.
 type minionBase struct {
 	stat  string
+	op    core.Op
 	value float64
 	req   []core.Mask
 }
 
-// bases returns mn's base values; damage and attack rate in the context of attacks, damage in
-// that of physical damage too, with dim the damage dimension.
+// bases returns mn's base values; damage, attack rate, critical strike chance and that its hits
+// cannot be evaded in the context of attacks, damage in that of physical damage too, with dim
+// the damage dimension.
 func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
+	physicalAttack := []core.Mask{attack, damageBit(dim, Physical)}
 	return []minionBase{
-		{resolve.LevelStat, float64(mn.Level), nil},
-		{statMaximumLife, mn.Life, nil},
-		{statMaximumEnergyShield, mn.EnergyShield, nil},
-		{statArmour, mn.Armour, nil},
-		{statEvasionRating, mn.Evasion, nil},
-		{statFireResistance, float64(mn.Resistances.Fire), nil},
-		{statColdResistance, float64(mn.Resistances.Cold), nil},
-		{statLightningResistance, float64(mn.Resistances.Lightning), nil},
-		{statChaosResistance, float64(mn.Resistances.Chaos), nil},
-		{statMaximumFireResistance, mn.MaximumResistance, nil},
-		{statMaximumColdResistance, mn.MaximumResistance, nil},
-		{statMaximumLightningResistance, mn.MaximumResistance, nil},
-		{statMaximumChaosResistance, mn.MaximumResistance, nil},
-		{statBaseMinimumDamage, mn.MinimumDamage, []core.Mask{attack, damageBit(dim, Physical)}},
-		{statBaseMaximumDamage, mn.MaximumDamage, []core.Mask{attack, damageBit(dim, Physical)}},
-		{statAttackRate, mn.AttackRate, []core.Mask{attack}},
+		{resolve.LevelStat, core.OpBase, float64(mn.Level), nil},
+		{statMaximumLife, core.OpBase, mn.Life, nil},
+		{statMaximumEnergyShield, core.OpBase, mn.EnergyShield, nil},
+		{statArmour, core.OpBase, mn.Armour, nil},
+		{statEvasionRating, core.OpBase, mn.Evasion, nil},
+		{statFireResistance, core.OpBase, float64(mn.Resistances.Fire), nil},
+		{statColdResistance, core.OpBase, float64(mn.Resistances.Cold), nil},
+		{statLightningResistance, core.OpBase, float64(mn.Resistances.Lightning), nil},
+		{statChaosResistance, core.OpBase, float64(mn.Resistances.Chaos), nil},
+		{statMaximumFireResistance, core.OpBase, mn.MaximumResistance, nil},
+		{statMaximumColdResistance, core.OpBase, mn.MaximumResistance, nil},
+		{statMaximumLightningResistance, core.OpBase, mn.MaximumResistance, nil},
+		{statMaximumChaosResistance, core.OpBase, mn.MaximumResistance, nil},
+		{statCriticalStrikeMultiplier, core.OpBase, mn.CriticalStrikeMultiplier, nil},
+		{statBaseMinimumDamage, core.OpBase, mn.MinimumDamage, physicalAttack},
+		{statBaseMaximumDamage, core.OpBase, mn.MaximumDamage, physicalAttack},
+		{statAttackRate, core.OpBase, mn.AttackRate, []core.Mask{attack}},
+		{statCriticalStrikeChance, core.OpBase, minionAttackCriticalChance, []core.Mask{attack}},
+		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}},
 	}
 }
 
-// addMinion adds mn's base values as a source whose modifiers reach the minion actor in the
-// context of the skill in slot.
-func (sh *Sheet) addMinion(mn *Minion, slot int) (core.SourceID, error) {
+// addMinion adds mn's base values, and its skill's stats and hit, as sources whose modifiers
+// reach the minion actor in the context of the skill in slot.
+func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
 	src := sh.newSource(Source{RuleID: "minion-base", Rule: fmt.Sprintf("base values of %s at level %d", mn.Variety, mn.Level)})
 	attack, ok := sh.session.Model().Bit(dimType + "." + typeAttack)
 	if !ok {
@@ -294,12 +341,48 @@ func (sh *Sheet) addMinion(mn *Minion, slot int) (core.SourceID, error) {
 			continue
 		}
 		pred := core.Predicate{Req: append([]core.Mask{skill}, b.req...)}
-		mod := core.Modifier{Actor: minionActor, Stat: sh.stats[b.stat], Op: core.OpBase, Value: b.value, Source: src, Pred: pred}
+		mod := core.Modifier{Actor: minionActor, Stat: sh.stats[b.stat], Op: b.op, Value: b.value, Source: src, Pred: pred}
 		if _, err := sh.session.AddModifier(mod); err != nil {
-			return 0, fmt.Errorf("sheet: minion %s: %w", mn.Variety, err)
+			return nil, fmt.Errorf("sheet: minion %s: %w", mn.Variety, err)
 		}
 	}
-	return src, nil
+	srcs := []core.SourceID{src}
+	if mn.Skill == nil {
+		return srcs, nil
+	}
+	sk := mn.Skill
+	if len(sk.StatSets) > 0 {
+		bd := resolve.Bundle{Actor: resolve.Minion, Scope: resolve.Global, Source: sk.Source, Stats: sk.Set().Stats}
+		own, err := sh.add(&bd, sh.table, sh.gameVersion, slot)
+		if err != nil {
+			return nil, err
+		}
+		srcs = append(srcs, own)
+	}
+	hit, err := sh.addHitRules(sk, slot, minionActor)
+	if err != nil {
+		return nil, err
+	}
+	return append(srcs, hit), nil
+}
+
+// minionNode returns the node of engine stat name of the minion of skill i, in that skill's
+// context with its minion's skill's types, attacking with its main hand, for the damage chain
+// damage in form. Without a minion skill the context has no types.
+func (sh *Sheet) minionNode(i int, name string, damage []DamageType, form damageForm) (core.Node, error) {
+	n, err := sh.skillNode(i, name, damage, form)
+	if err != nil {
+		return core.Node{}, err
+	}
+	var types []string
+	var w wield
+	if i < len(sh.slotMinions) && sh.slotMinions[i] != nil && sh.slotMinions[i].Skill != nil {
+		types = sh.slotMinions[i].Skill.Types
+		if slices.Contains(types, typeAttack) {
+			w = wield{attack: true, hand: handMain}
+		}
+	}
+	return core.Node{Actor: minionActor, Stat: n.Stat, Ctx: sh.session.InternContext(sh.ctx.skillMask(i, types, w, damage, form))}, nil
 }
 
 // MinionValue returns engine stat name of the minion of skill i of SetSkills, in that skill's

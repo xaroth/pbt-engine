@@ -761,5 +761,41 @@
     "group": "skill",
     "better": "higher",
     "order": 82
+  },
+  {
+    "key": "minion.average_hit",
+    "label": "Minion Average Hit",
+    "unit": "",
+    "places": 1,
+    "group": "minion",
+    "better": "higher",
+    "order": 83
+  },
+  {
+    "key": "minion.hit_chance",
+    "label": "Minion Chance to Hit",
+    "unit": "%",
+    "places": 0,
+    "group": "minion",
+    "better": "higher",
+    "order": 84
+  },
+  {
+    "key": "minion.hits_per_second",
+    "label": "Minion Hits per Second",
+    "unit": "/s",
+    "places": 2,
+    "group": "minion",
+    "better": "higher",
+    "order": 85
+  },
+  {
+    "key": "minion.hit_dps",
+    "label": "Minion Hit DPS",
+    "unit": "",
+    "places": 1,
+    "group": "minion",
+    "better": "higher",
+    "order": 86
   }
 ]

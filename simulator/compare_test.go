@@ -15,6 +15,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/benchbuilds"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/simulator"
 )
@@ -303,5 +304,30 @@ func TestStatsExplainCountsExposure(t *testing.T) {
 	}
 	if v := get(t, st, poe1.AverageHit); math.Float64bits(ex.Value) != math.Float64bits(v) {
 		t.Errorf("average hit: explained %v, got %v", ex.Value, v)
+	}
+}
+
+// An explanation of a minion's output reads the minion, as Get does: Summon Skeletons at level
+// 20 on a level 90 Marauder.
+func TestStatsExplainMinion(t *testing.T) {
+	t.Parallel()
+	s := realdata.Open(t, realdata.Current)
+	sim, err := simulator.New(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &build.Build{
+		Format: 1, Game: "poe1", Version: s.Manifest().Version, Class: "Metadata/Characters/Str/Str", Level: 90,
+		Skills: build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemSummonSkeletons", Level: 20}}}}},
+	}
+	st := simulate(t, sim, b)
+	for _, k := range []output.Key{poe1.MinionAverageHit, poe1.MinionHitDPS} {
+		ex, err := st.Explain(k, simulator.Tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := get(t, st, k); v == 0 || math.Float64bits(ex.Value) != math.Float64bits(v) {
+			t.Errorf("%s: explained %v, got %v", k, ex.Value, v)
+		}
 	}
 }

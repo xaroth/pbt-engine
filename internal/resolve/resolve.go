@@ -21,11 +21,16 @@ type Actor uint8
 // Actors.
 const (
 	Player Actor = iota
+	// Minion is the minion a skill summons; its bundles hold the minion's own stats.
+	Minion
 )
 
 func (a Actor) String() string {
-	if a == Player {
+	switch a {
+	case Player:
 		return "player"
+	case Minion:
+		return "minion"
 	}
 	return "actor?"
 }

@@ -115,7 +115,7 @@ func TestGeneralsCryCostsNothing(t *testing.T) {
 		byKey[o.Key] = o
 	}
 	for _, k := range []output.Key{poe1.ManaCost, poe1.LifeCost} {
-		if poe1.Gives(byKey[k], sk, poe1.Hands{}) {
+		if poe1.Gives(byKey[k], sk, nil, poe1.Hands{}) {
 			t.Errorf("%s given", k)
 		}
 	}

@@ -151,7 +151,7 @@ func TestHitOutputsGiven(t *testing.T) {
 			poe1.PhysicalMinimum: c.types, poe1.MainHandAverageHit: c.bothHands, poe1.OffHandAverageHit: c.bothHands,
 			poe1.MainHandAccuracyRating: c.bothHands, poe1.OffHandAccuracyRating: c.bothHands,
 		} {
-			if got := poe1.Gives(byKey[k], c.skill, c.hands); got != want {
+			if got := poe1.Gives(byKey[k], c.skill, nil, c.hands); got != want {
 				t.Errorf("%s: %s given %v, want %v", c.name, k, got, want)
 			}
 		}
