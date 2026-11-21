@@ -99,6 +99,8 @@ func testStats() [][2]string {
 		{"old_enchant_damage", "{0}% increased Skill Damage"}, {"flask_enchant_damage", "{0}% increased Skill Damage"},
 		{"anoint_damage", "{0}% increased Skill Damage"}, {"craft_enchant_damage", "{0}% increased Skill Damage"},
 		{"fire_res", "+{0}% to Fire Resistance"}, {"cold_res", "+{0}% to Cold Resistance"},
+		{"old_do_not_use_cast_speed", "{0}% increased Cast Speed"},
+		{"old_do_not_use_block", "{0}% Chance to Block"}, {"block", "{0}% Chance to Block"},
 	}
 }
 
@@ -290,6 +292,11 @@ func implicitTestMods() []testMod {
 		{id: "FireImplicit", stat: "fire_res", min: 10, max: 50, generation: 3},
 		{id: "ColdImplicit", stat: "cold_res", min: 10, max: 50, generation: 3},
 		{id: "FireImplicitHigh", stat: "fire_res", min: 60, max: 70, generation: 3},
+		// A unique's older version of a mod gives a stat the game marks not to use; one has no
+		// current version.
+		{id: "OldUniqueBlock", stat: "old_do_not_use_block", min: 50, max: 50, generation: 3},
+		{id: "UniqueBlock", stat: "block", min: 10, max: 15, generation: 3},
+		{id: "OldUniqueCastSpeed", stat: "old_do_not_use_cast_speed", min: 10, max: 15, generation: 3},
 	}
 }
 
@@ -1011,6 +1018,18 @@ func TestParse(t *testing.T) {
 			"a Scourge mod whose weights name belts, with a local stat, on a belt",
 			"Rarity: RARE\nX\nIron Belt\nImplicits: 0\n+100 to maximum Energy Shield\n",
 			rare(beltBase, line(build.Explicit, "+100 to maximum Energy Shield", "local_energy_shield", 100)),
+			nil,
+		},
+		{
+			"a retired stat is dropped from a line with another reading",
+			"Rarity: UNIQUE\nX\nIron Ring\nImplicits: 0\n12% Chance to Block\n",
+			unique(ringBase, line(build.Explicit, "12% Chance to Block", "block", 12)),
+			nil,
+		},
+		{
+			"a retired stat is the reading of a line with no other",
+			"Rarity: UNIQUE\nX\nIron Ring\nImplicits: 0\n12% increased Cast Speed\n",
+			unique(ringBase, line(build.Explicit, "12% increased Cast Speed", "old_do_not_use_cast_speed", 12)),
 			nil,
 		},
 		{

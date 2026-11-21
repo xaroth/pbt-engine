@@ -134,6 +134,48 @@ func TestParseLocalElsewhere(t *testing.T) {
 	}
 }
 
+// A unique's mods include an older version of its spell block mod, which gives a stat the game
+// marks not to use: the line reads as the current stat.
+func TestParseSpellBlockUnique(t *testing.T) {
+	t.Parallel()
+	r, _ := realReader(t)
+	for _, c := range []struct {
+		name, text string
+	}{
+		{
+			name: "Svalinn",
+			text: "Rarity: UNIQUE\nSvalinn\nGirded Tower Shield\nImplicits: 1\n+20 to maximum Life\n15% Chance to Block Spell Damage\n" +
+				"+129 to Ward\n-10% to maximum Chance to Block Attack Damage\n-10% to maximum Chance to Block Spell Damage\n",
+		},
+		{
+			name: "Rearguard",
+			text: "Rarity: UNIQUE\nRearguard\nBlunt Arrow Quiver\nImplicits: 2\nGain 12% of Physical Damage as Extra Lightning Damage\n" +
+				"32 to 66 Added Fire Damage with Bow Attacks\n22% Chance to Block Attack Damage\n15% Chance to Block Spell Damage\n",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			it, warnings, err := r.Parse(c.text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, w := range warnings {
+				if w.Code == items.LineAmbiguous {
+					t.Errorf("warning: %v", w)
+				}
+			}
+			want := []build.StatValue{{Stat: "base_spell_block_%", Value: 15}}
+			i := slices.IndexFunc(it.Mods, func(m build.ModLine) bool { return strings.HasPrefix(m.Text, "15% Chance to Block Spell") })
+			if i < 0 {
+				t.Fatalf("no spell block line in %v", it.Mods)
+			}
+			if diff := cmp.Diff(want, it.Mods[i].Stats); diff != "" {
+				t.Errorf("stats (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 // A line naming a passive reads as the passive's node id: Impossible Escape as Path of
 // Building writes it, around The Impaler (node 57257).
 func TestParsePassiveName(t *testing.T) {
