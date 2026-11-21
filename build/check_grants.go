@@ -1,6 +1,7 @@
 package build
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -32,16 +33,33 @@ type grant struct {
 	level  int
 }
 
-// findGrants finds the skills the allocated passives and the items grant, the weapon swap's
-// included, in node id and then slot order. It notes when the dataset does not say what the
-// items or the tree grant, so the groups of that source are kept as they are.
-func (c *Checked) findGrants() error {
+// findNodeGrants finds the skills the allocated passives grant, those items and jewel pairs
+// allocate included, in node id order, ahead of the items' grants. It notes when the dataset
+// does not say what the tree grants, so the groups of passives are kept as they are.
+func (c *Checked) findNodeGrants() {
 	c.treeGrantsUnknown = !slices.ContainsFunc(c.tree.Nodes, func(n dataset.Node) bool { return n.GrantedSkill != nil })
-	for _, n := range c.nodes {
+	nodes := slices.Clone(c.nodes)
+	for _, p := range c.itemPassives {
+		nodes = append(nodes, p.Node)
+	}
+	for _, p := range c.jewelPassives {
+		nodes = append(nodes, p.Node)
+	}
+	slices.SortFunc(nodes, func(a, b *dataset.Node) int { return cmp.Compare(a.ID, b.ID) })
+	items := c.skillGrants
+	c.skillGrants = nil
+	for _, n := range slices.CompactFunc(nodes, func(a, b *dataset.Node) bool { return a.ID == b.ID }) {
 		if g := n.GrantedSkill; g != nil {
 			c.addGrant(SkillSource{Node: n.ID}, *g)
 		}
 	}
+	c.skillGrants = append(c.skillGrants, items...)
+}
+
+// findItemGrants finds the skills the items grant, the weapon swap's included, in slot order.
+// It notes when the dataset does not say what items grant, so the groups of items are kept as
+// they are.
+func (c *Checked) findItemGrants() error {
 	if len(c.build.Items) == 0 {
 		return nil
 	}

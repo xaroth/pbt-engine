@@ -369,12 +369,13 @@ func (c *Checked) checkGear() error {
 	if err := c.checkItems(); err != nil {
 		return err
 	}
-	if err := c.findGrants(); err != nil {
+	if err := c.findItemGrants(); err != nil {
 		return err
 	}
 	c.setAsideSwap()
 	c.findItemPassives()
 	c.findJewelPassives()
+	c.findNodeGrants()
 	if err := c.conquer(); err != nil {
 		return err
 	}

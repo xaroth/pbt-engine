@@ -14,6 +14,10 @@ import (
 // node 3 granting Fireball at level 1, and a Ruthless tree like the standard one.
 func grantsStore(t *testing.T) *dataset.Store {
 	t.Helper()
+	return openStore(t, grantsDataset())
+}
+
+func grantsDataset() *dataset.Dataset {
 	d := skillsDataset()
 	d.Items = itemsDataset().Items
 	d.Stats = append(d.Stats, dataset.Stat{ID: "local_display_grants_skill_fireball_level"}, dataset.Stat{ID: "trigger_fireball_on_kill_%"})
@@ -28,7 +32,7 @@ func grantsStore(t *testing.T) *dataset.Store {
 	ruthless := d.Trees[0]
 	ruthless.Variant = "ruthless"
 	d.Trees = append(d.Trees, ruthless)
-	return openStore(t, d)
+	return d
 }
 
 // TestCheckGrants: an item or passive that grants a skill adds its group; a group whose source
@@ -99,6 +103,85 @@ func TestCheckGrants(t *testing.T) {
 				b.Variant = testCase.variant
 			}
 			b.Items, b.Skills.Groups = testCase.items, testCase.groups
+			c, warnings, err := build.Check(b, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(testCase.codes, codesOf(warnings)); diff != "" {
+				t.Errorf("codes (-want +got):\n%s\n%v", diff, warnings)
+			}
+			if diff := cmp.Diff(testCase.want, c.Build().Skills.Groups); diff != "" {
+				t.Errorf("groups (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestCheckAllocatedGrants: a passive an item or a pair of jewels allocates grants its skill as
+// one on the tree does, and the group goes with the item or jewel. Each case starts with the
+// groups of node 3, the anointed notable 41 and the jewels' ascendancy passive 11.
+func TestCheckAllocatedGrants(t *testing.T) {
+	t.Parallel()
+	const (
+		anointStat = "mod_granted_passive_hash"
+		flameStat  = "unique_jewel_grants_notable_hash_part_1"
+		fleshStat  = "unique_jewel_grants_notable_hash_part_2"
+	)
+	d := grantsDataset()
+	d.Stats = append(d.Stats, dataset.Stat{ID: anointStat}, dataset.Stat{ID: flameStat}, dataset.Stat{ID: fleshStat})
+	d.Items.Classes = append(d.Items.Classes, dataset.ItemClass{ID: "Jewel"})
+	d.Items.Bases = append(d.Items.Bases, dataset.ItemBase{ID: jewelBase, Class: "Jewel"})
+	d.Trees = d.Trees[:1]
+	tree := &d.Trees[0]
+	tree.Nodes[2].Neighbours = append(tree.Nodes[2].Neighbours, 70, 71)
+	tree.Nodes = append(tree.Nodes,
+		dataset.Node{ID: 70, Kind: dataset.JewelSocket, Neighbours: []uint32{3}},
+		dataset.Node{ID: 71, Kind: dataset.JewelSocket, Neighbours: []uint32{3}},
+	)
+	tree.JewelSlots = []uint32{70, 71}
+	for i, n := range tree.Nodes {
+		if n.ID == 11 || n.ID == 41 {
+			tree.Nodes[i].GrantedSkill = &dataset.GrantedSkill{Effect: "Fireball", Level: 40}
+		}
+	}
+	s := openStore(t, d)
+	line := func(stat string, node int32) build.ModLine {
+		return build.ModLine{Kind: build.Explicit, Text: "Allocates", Stats: []build.StatValue{{Stat: stat, Value: node}}}
+	}
+	amulet := build.Item{Rarity: build.Rare, Name: "Amulet", Base: amuletBase, Mods: []build.ModLine{line(anointStat, 41)}}
+	flame := build.Item{Rarity: build.Unique, Name: "Forbidden Flame", Base: jewelBase, Mods: []build.ModLine{line(flameStat, 11)}}
+	flesh := build.Item{Rarity: build.Unique, Name: "Forbidden Flesh", Base: jewelBase, Mods: []build.ModLine{line(fleshStat, 11)}}
+	fromNode := func(id uint32, level int) build.SkillGroup {
+		return build.SkillGroup{Source: &build.SkillSource{Node: id}, Gems: []build.Gem{{Skill: "Fireball", Level: level}}}
+	}
+	testCases := []struct {
+		name   string
+		items  build.Items
+		jewels build.Jewels
+		codes  []build.Code
+		want   []build.SkillGroup
+	}{
+		{
+			name: "an anoint", items: build.Items{build.SlotAmulet: amulet},
+			codes: []build.Code{build.GrantedSkillRemoved}, want: []build.SkillGroup{fromNode(3, 1), fromNode(41, 40)},
+		},
+		{name: "the anoint taken off", codes: []build.Code{build.GrantedSkillRemoved, build.GrantedSkillRemoved}, want: []build.SkillGroup{fromNode(3, 1)}},
+		{
+			name: "a jewel pair", jewels: build.Jewels{70: flame, 71: flesh},
+			codes: []build.Code{build.GrantedSkillRemoved}, want: []build.SkillGroup{fromNode(3, 1), fromNode(11, 40)},
+		},
+		{
+			name: "a jewel without its pair", jewels: build.Jewels{70: flame},
+			codes: []build.Code{build.JewelNotableUnmatched, build.GrantedSkillRemoved, build.GrantedSkillRemoved}, want: []build.SkillGroup{fromNode(3, 1)},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			b := juggernaut()
+			b.Nodes = append(b.Nodes, 70, 71)
+			b.Items, b.Jewels = testCase.items, testCase.jewels
+			b.Skills.Groups = []build.SkillGroup{fromNode(3, 1), fromNode(41, 40), fromNode(11, 40)}
 			c, warnings, err := build.Check(b, s)
 			if err != nil {
 				t.Fatal(err)
