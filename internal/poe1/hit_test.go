@@ -119,7 +119,8 @@ func TestHitOutputsGiven(t *testing.T) {
 	}{
 		{"none", nil, oneWeapon, false, false, false, false, false},
 		{"spell", skill(0, "Spell", "Damage"), poe1.Hands{}, true, false, true, true, false},
-		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), poe1.Hands{}, true, false, false, true, false},
+		{"channelled spell", skill(0, "Spell", "Damage", "Channel"), poe1.Hands{}, true, false, true, true, false},
+		{"brand", skill(0, "Spell", "Damage", "Brand"), poe1.Hands{}, true, false, true, true, false},
 		{"spell of a mine", skill(0, "Spell", "Damage", "RemoteMined"), poe1.Hands{}, true, false, false, true, false},
 		{"attack", skill(0, "Attack", "Damage"), oneWeapon, true, true, true, true, false},
 		{"triggered attack", skill(0, "Attack", "Damage", "Triggered"), oneWeapon, true, true, false, true, false},
