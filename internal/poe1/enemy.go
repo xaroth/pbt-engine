@@ -272,7 +272,33 @@ func (sh *Sheet) addEnemy() error {
 	if _, err := sh.session.AddModifier(core.Modifier{Stat: sh.stats[statEnemyDamageTaken], Op: core.OpBase, Value: percentScale, Source: base}); err != nil {
 		return fmt.Errorf("sheet: enemy: %w", err)
 	}
+	if err := sh.addMinionEnemy(); err != nil {
+		return err
+	}
 	sh.SetEnemy(DefaultEnemy())
+	return nil
+}
+
+// enemyStats are the stats of the enemy a hit reads, which the player actor holds.
+func enemyStats() []string {
+	return []string{
+		statEnemyResistance, statEnemyMaximumResistance, statEnemyExposure, statEnemyArmour, statEnemyEvasion, statEnemyDamageTaken,
+	}
+}
+
+// addMinionEnemy makes the enemy a minion's hits meet the player's: each enemy stat of the
+// minion actor is the player actor's in the same context, so what changes the enemy, such as
+// the config, a curse or Exposure, changes it for both.
+func (sh *Sheet) addMinionEnemy() error {
+	src := sh.newSource(Source{RuleID: "minion-enemy", Rule: "the enemy a minion hits"})
+	for _, stat := range enemyStats() {
+		id := sh.stats[stat]
+		mirror := core.Scale{Ref: core.Ref{Actor: int32(playerActor), Stat: id, Ctx: core.Self}, Step: 1, Ratio: true}
+		mod := core.Modifier{Stat: id, Actor: minionActor, Op: core.OpBase, Value: 1, Source: src, Scales: []core.Scale{mirror}}
+		if _, err := sh.session.AddModifier(mod); err != nil {
+			return fmt.Errorf("sheet: minion enemy: %w", err)
+		}
+	}
 	return nil
 }
 

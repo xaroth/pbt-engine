@@ -59,6 +59,10 @@ const (
 	HitDPS                      = rules.HitDPS
 	TotemsHitDPS                = rules.TotemsHitDPS
 	TotemLife                   = rules.TotemLife
+	MinionAverageHit            = rules.MinionAverageHit
+	MinionHitChance             = rules.MinionHitChance
+	MinionHitsPerSecond         = rules.MinionHitsPerSecond
+	MinionHitDPS                = rules.MinionHitDPS
 	DotDPS                      = rules.DotDPS
 	IgniteDPS                   = rules.IgniteDPS
 	BleedDPS                    = rules.BleedDPS

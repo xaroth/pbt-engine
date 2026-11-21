@@ -43,6 +43,9 @@ const (
 	// GroupSkill is the main skill's values, read in its context. A build without a main
 	// skill has none of them.
 	GroupSkill = "skill"
+	// GroupMinion is the values of the main skill's minion, read in the skill's context. A
+	// build whose main skill summons no minion has none of them.
+	GroupMinion = "minion"
 )
 
 // Relations of an output to others, the keys of Output.Related.
@@ -105,23 +108,29 @@ const (
 	needsAilment
 	// needsCost is a skill the character pays the cost of (paysCost).
 	needsCost
+	// needsMinionHit is a skill whose minion's hit the sheet gives (Minion.Hit).
+	needsMinionHit
 )
 
-// IsSkill reports whether o is read in the main skill's context.
-func (o Output) IsSkill() bool { return o.Group == GroupSkill }
+// IsSkill reports whether o is read in the main skill's context: an output of the skill or the
+// minion group.
+func (o Output) IsSkill() bool { return o.Group == GroupSkill || o.Group == GroupMinion }
 
-// Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, with
-// hands: an output of the sheet always, one of the skill group for a main skill; its hit only
+// Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, and
+// summons mn, nil for none, with hands: an output of the sheet always, one of the minion group
+// when it gives mn's hit (Minion.Hit), one of the skill group for a main skill; its hit only
 // for a hit, its accuracy only for an attack's with one hand, its hit per damage type only for
 // a hit with one hand, its hit and accuracy per hand only for an attack's with both, its rate
 // of hits and hit damage per second only for a hit whose rate it gives, that of every totem
 // only for such a hit a totem uses, totem life only for a skill a totem uses, its damage over
 // time only for a skill that deals it or a hit whose ailments it gives, and its ignite,
 // bleeding and poison only for a hit the character uses itself with one hand.
-func Gives(o Output, sk *resolve.Skill, hands Hands) bool {
+func Gives(o Output, sk *resolve.Skill, mn *Minion, hands Hands) bool {
 	switch {
 	case !o.IsSkill():
 		return true
+	case o.needs == needsMinionHit:
+		return mn.Hit()
 	case sk == nil:
 		return false
 	}
@@ -147,7 +156,7 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 		return ailmentSkill(sk, hands)
 	case needsCost:
 		return paysCost(sk)
-	case needsSkill:
+	case needsSkill, needsMinionHit:
 	}
 	return true
 }
@@ -213,7 +222,7 @@ func Outputs() []Output {
 		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost, needs: needsCost},
 		{Key: TotemLife, Label: "Totem Life", Better: output.Higher, stat: statTotemLife, needs: needsTotem},
 	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()), group(GroupSkill, igniteOutputs()),
-		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()))
+		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()), group(GroupMinion, minionOutputs()))
 	for i := range out {
 		out[i].Order = i
 	}
@@ -279,6 +288,20 @@ func hitOutputs() []Output {
 			stat: statTotemsHitDPS, needs: needsTotemRate,
 		},
 	}, hitTypeOutputs()...)
+}
+
+// minionOutputs are the outputs of the main skill's minion's hit: what the enemy takes from an
+// average hit, the chance to hit, hits per second and hit damage per second.
+func minionOutputs() []Output {
+	return []Output{
+		{Key: MinionAverageHit, Label: "Minion Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsMinionHit},
+		{Key: MinionHitChance, Label: "Minion Chance to Hit", Better: output.Higher, Unit: UnitPercent, stat: statHitChance, needs: needsMinionHit},
+		{
+			Key: MinionHitsPerSecond, Label: "Minion Hits per Second", Better: output.Higher, Unit: UnitPerSecond, Places: ratePlaces,
+			stat: statHitsPerSecond, needs: needsMinionHit,
+		},
+		{Key: MinionHitDPS, Label: "Minion Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsMinionHit},
+	}
 }
 
 // hitTypeOutputs are the smallest and largest hit per damage type that is not critical, of a
@@ -373,8 +396,11 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	switch o.needs {
 	case needsSkill, needsDot, needsTotem, needsCost:
 		form = formNone
-	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment:
+	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment, needsMinionHit:
 		form = formHit
+	}
+	if o.Group == GroupMinion {
+		return sh.minionNode(i, o.stat, damage, form)
 	}
 	return sh.skillHandNode(i, o.stat, damage, form, o.hand)
 }

@@ -403,7 +403,7 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	cat, hands := catalogue(), r.sheet.Hands
 	main := r.sheet.Skills.Main
 	st := &Stats{
-		keys: skillKeys(keys, cat, main, hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
+		keys: skillKeys(keys, cat, main, r.sheet.Minion(0), hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
 		build: r.build, checked: r.checked, items: r.sheet.Items, hands: hands, skill: main, sheetSkills: r.sheet.Skills.Skills,
 		enemy: r.sheet.Enemy, totems: r.sheet.Totems, sim: s,
 	}
@@ -419,9 +419,10 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	return st, nil
 }
 
-// skillKeys returns keys without the skill outputs the sheet does not give for sk with hands.
-func skillKeys(keys []output.Key, cat map[output.Key]Output, sk *resolve.Skill, hands poe1.Hands) []output.Key {
-	return slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !poe1.Gives(cat[k], sk, hands) })
+// skillKeys returns keys without the skill outputs the sheet does not give for sk summoning mn
+// with hands.
+func skillKeys(keys []output.Key, cat map[output.Key]Output, sk *resolve.Skill, mn *poe1.Minion, hands poe1.Hands) []output.Key {
+	return slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !poe1.Gives(cat[k], sk, mn, hands) })
 }
 
 // readOutputs reads keys with read.
@@ -449,7 +450,7 @@ func readSkills(r *run, sh *poe1.Sheet, keys []output.Key, mainValues map[output
 		if sk.Source.Default() || !r.ask.wants(ref) {
 			continue
 		}
-		ss := SkillStats{Ref: ref, GrantedEffect: sk.GrantedEffect, keys: skillKeys(keys, cat, sk, hands)}
+		ss := SkillStats{Ref: ref, GrantedEffect: sk.GrantedEffect, keys: skillKeys(keys, cat, sk, r.sheet.Minion(slot), hands)}
 		if sk == r.sheet.Skills.Main {
 			ss.values = make(map[output.Key]float64, len(ss.keys))
 			for _, k := range ss.keys {

@@ -167,7 +167,7 @@ func TestIgniteOutputGiven(t *testing.T) {
 		{"spell hit by a totem", skill(0, "Spell", "Damage", "SummonsTotem"), false},
 		{"damage over time", skill(0, "Spell", "DamageOverTime"), false},
 	} {
-		if got := poe1.Gives(ignite, c.skill, poe1.Hands{}); got != c.want {
+		if got := poe1.Gives(ignite, c.skill, nil, poe1.Hands{}); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
 		}
 	}

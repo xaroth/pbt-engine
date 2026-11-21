@@ -201,20 +201,54 @@ func NewSkillResolver(c *build.Checked, rules GemRules) (*SkillResolver, error) 
 // (GemRules.DefaultAttack), at level 1 and unsupported. It fails with ErrNoActiveSkill when the
 // rules name none or the dataset does not have it as an active skill with levels.
 func (s *SkillResolver) Default() (*Skill, error) {
-	ge := s.r.data.GrantedEffect(s.defaultAttack)
-	if ge == nil || ge.Support || s.r.data.ActiveSkill(ge.ActiveSkill) == nil || len(ge.Levels) == 0 {
-		return nil, fmt.Errorf("%w: default attack %q", ErrNoActiveSkill, s.defaultAttack)
+	sk, err := s.r.unsupported(s.defaultAttack, 0, defaultSource())
+	if err != nil {
+		return nil, fmt.Errorf("%w: default attack %q", err, s.defaultAttack)
 	}
-	active := s.r.data.ActiveSkill(ge.ActiveSkill)
+	return sk, nil
+}
+
+// MonsterSkill resolves granted effect id of the skills in x, whose stats are stats, as a
+// monster of level uses it: unsupported, at the highest of its level rows whose level
+// requirement is at most level, or its first, as PoB has it (CalcPerform.lua, the minion's
+// skills). src is the gem whose skill the monster is, such as the one that summons it. A
+// stat its row scales by effectiveness keeps the row's value, which is for the row's level. It
+// fails with ErrNoActiveSkill when id is not an active skill with levels.
+func MonsterSkill(x *dataset.SkillIndex, stats []dataset.Stat, id string, level int, src GemSource) (*Skill, error) {
+	r := &skillResolver{data: x, stats: stats}
+	ge := x.GrantedEffect(id)
+	if ge == nil {
+		return nil, fmt.Errorf("%w: monster skill %q", ErrNoActiveSkill, id)
+	}
+	row := 0
+	for i, l := range ge.Levels {
+		if int(l.PlayerLevel) <= level {
+			row = i
+		}
+	}
+	sk, err := r.unsupported(id, row, src)
+	if err != nil {
+		return nil, fmt.Errorf("%w: monster skill %q", err, id)
+	}
+	return sk, nil
+}
+
+// unsupported resolves granted effect id at its level row row, without supports, as a skill
+// of src. It fails with ErrNoActiveSkill when id is not an active skill with levels.
+func (r *skillResolver) unsupported(id string, row int, src GemSource) (*Skill, error) {
+	ge := r.data.GrantedEffect(id)
+	if ge == nil || ge.Support || r.data.ActiveSkill(ge.ActiveSkill) == nil || len(ge.Levels) == 0 {
+		return nil, ErrNoActiveSkill
+	}
+	active := r.data.ActiveSkill(ge.ActiveSkill)
+	l := ge.Levels[row]
 	sk := &Skill{
-		Source: defaultSource(), GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime, Level: 1,
-		Types: s.r.typeNames(s.r.typeSet(active.Types)), WeaponRestrictions: slices.Clone(active.WeaponRestrictions),
+		Source: src, GrantedEffect: ge.ID, ActiveSkill: ge.ActiveSkill, CastTime: ge.CastTime, Level: max(int(l.Level), 1),
+		Types: r.typeNames(r.typeSet(active.Types)), WeaponRestrictions: slices.Clone(active.WeaponRestrictions),
+		AttackTime: l.AttackTime, AttackSpeedMultiplier: l.AttackSpeedMultiplier, LevelRequirement: int(l.PlayerLevel),
 	}
-	row := ge.Levels[0]
-	sk.AttackTime, sk.AttackSpeedMultiplier = row.AttackTime, row.AttackSpeedMultiplier
-	sk.LevelRequirement = int(row.PlayerLevel)
 	for _, id := range ge.StatSets {
-		sk.StatSets = append(sk.StatSets, s.r.statSet(s.r.data.StatSet(id), sk.Level))
+		sk.StatSets = append(sk.StatSets, r.statSet(r.data.StatSet(id), sk.Level))
 	}
 	return sk, nil
 }
