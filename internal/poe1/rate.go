@@ -261,16 +261,18 @@ func rateBases(sk *resolve.Skill) []hitBase {
 	return nil
 }
 
-// hitRate is a skill's hits per second: one a trap or mine delivers hits at its throws; one
-// with a hit interval at that, scaled by its hit frequency; else an attack's from its attack
-// rate and speed, another skill's from its cast time and speed, either times the action speed
-// unless a totem uses it, and capped by the server tick, times the uses and their repeats,
-// unless channelled.
+// hitRate is a skill's hits per second: a triggered skill's at the rate the skill triggering it
+// hits (triggeredRate); one a trap or mine delivers hits at its throws; one with a hit interval
+// at that, scaled by its hit frequency; else an attack's from its attack rate and speed, another
+// skill's from its cast time and speed, either times the action speed unless a totem uses it,
+// and capped by the server tick, times the uses and their repeats, unless channelled.
 type hitRate struct {
 	castTime, castSpeed, attackRate, attackSpeed, action core.StatID
 	interval, activations, frequency, repeats, throws    core.StatID
-	// attack, channel and totem are the Attack, Channel and SummonsTotem types' context bits.
-	attack, channel, totem core.Mask
+	trigger, triggerChance, cooldown                     core.StatID
+	// attack, channel, totem and triggered are the Attack, Channel, SummonsTotem and
+	// Triggered types' context bits.
+	attack, channel, totem, triggered core.Mask
 }
 
 func newHitRate(ids map[string]core.StatID) hitRate {
@@ -281,7 +283,9 @@ func newHitRate(ids map[string]core.StatID) hitRate {
 		action: mustID(ids, statActionSpeed), interval: mustID(ids, statHitInterval),
 		activations: mustID(ids, statActivationsPerHit), frequency: mustID(ids, statHitFrequency),
 		repeats: mustID(ids, statRepeatCount), throws: mustID(ids, statThrowRate),
+		trigger: mustID(ids, statTriggerRate), triggerChance: mustID(ids, statTriggerHitChance), cooldown: mustID(ids, statCooldown),
 		attack: typeMask(c, typeAttack), channel: typeMask(c, typeChannel), totem: typeMask(c, typeSummonsTotem),
+		triggered: typeMask(c, typeTriggered),
 	}
 }
 
@@ -322,8 +326,17 @@ func (h hitRate) limit(m core.Mask, stat func(core.StatID) float64) float64 {
 	return (1 + stat(h.repeats)) / serverTickSeconds
 }
 
+// triggeredBy reports whether a skill used in context m with stat reading a stat is triggered
+// by a skill on the sheet.
+func (h hitRate) triggeredBy(m core.Mask, stat func(core.StatID) float64) bool {
+	return m.Intersects(h.triggered) && stat(h.trigger) > 0
+}
+
 func (h hitRate) formula() core.Formula {
 	return func(r core.Reader, _ core.Agg) float64 {
+		if h.triggeredBy(r.Mask(), r.Stat) {
+			return triggeredRate(r.Stat(h.trigger), r.Stat(h.triggerChance), r.Stat(h.cooldown))
+		}
 		if t := r.Stat(h.throws); t > 0 {
 			return t
 		}
@@ -344,14 +357,20 @@ func (h hitRate) formula() core.Formula {
 	}
 }
 
-// attribute credits the hits of traps and mines to the sources of their throws, the uses per
-// second before speed to the sources of the hit interval, or the attack rate or cast time, then
-// the speed's increases and more multipliers over them, then the action speed's over those
-// unless a totem uses the skill; what rounding and the tick cap change goes to the speed's
-// sources.
+// attribute credits a triggered skill's hits to its link to the skill triggering it, the hits
+// of traps and mines to the sources of their throws, the uses per second before speed to the
+// sources of the hit interval, or the attack rate or cast time, then the speed's increases and
+// more multipliers over them, then the action speed's over those unless a totem uses the skill;
+// what rounding and the tick cap change goes to the speed's sources.
 func (h hitRate) attribute() core.Attribute {
 	return func(a *core.Attributor) core.Attribution {
 		total := a.Explanation().Total
+		if h.triggeredBy(a.Mask(), a.Stat) {
+			if total == 0 {
+				return core.Attribution{}
+			}
+			return core.Attribution{Parts: a.Spread(core.SelfRef(h.trigger), total, core.OpBase), Amount: total}
+		}
 		if t := a.Stat(h.throws); t > 0 {
 			return core.Attribution{Parts: a.Spread(core.SelfRef(h.throws), total, core.OpBase), Amount: total}
 		}

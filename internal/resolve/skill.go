@@ -70,6 +70,8 @@ type Skill struct {
 	// skill's SkillTotemId, 0 for none.
 	LevelRequirement int
 	Totem            int32
+	// Cooldown is its level row's, in milliseconds; 0 for none.
+	Cooldown int32
 	// Costs are the skill's level row costs, before supports' multipliers.
 	Costs []dataset.Cost
 	// Reservation is what the skill reserves before supports' multipliers: its level row's, or
@@ -85,6 +87,16 @@ type Skill struct {
 	// Supports are those that apply to the skill: the item's supports for gems socketed in it,
 	// the group's support gems in group order, then those of the slots linked to the group's.
 	Supports []Support
+	// Supported are, for a skill a support gem grants, the active skills of the gem's group
+	// that support applies to, in gem order: the skills it is granted for, such as those that
+	// trigger it.
+	Supported []SkillRef
+}
+
+// SkillRef names a skill of a gem: which of the gem's skills it is (Skill.Which).
+type SkillRef struct {
+	Source GemSource
+	Which  int
 }
 
 // Reservation is the life and mana a skill reserves: flat amounts, and percentages of the
@@ -265,6 +277,27 @@ func (s *SkillResolver) skill(k skillKey) resolved {
 		out = resolved{err: err}
 	}
 	s.done[k] = out
+	if err == nil && s.r.groups[k.i].Gems[k.j].Support {
+		sk.Supported = s.supported(sk.Source)
+	}
+	return out
+}
+
+// supported returns the active skills of support gem src's group that the support applies to.
+// They are resolved after the skill src grants, whose warnings are kept apart.
+func (s *SkillResolver) supported(src GemSource) []SkillRef {
+	var out []SkillRef
+	for j, gem := range s.r.groups[src.Group].Gems {
+		if gem.Disabled || gem.Support {
+			continue
+		}
+		for _, which := range build.ActiveSkills(s.r.data, gem) {
+			sk := s.skill(skillKey{src.Group, j, which}).skill
+			if sk != nil && slices.ContainsFunc(sk.Supports, func(sp Support) bool { return sp.Source == Source(src) }) {
+				out = append(out, SkillRef{Source: sk.Source, Which: which})
+			}
+		}
+	}
 	return out
 }
 
@@ -296,7 +329,7 @@ func (r *skillResolver) gemSkill(i, j, which int) (*Skill, error) {
 	sk.Level = r.clampLevel(src, ge, gem.Level+level)
 	row := ge.Levels[rowAt(ge.Levels, sk.Level, effectLevel)]
 	sk.AttackTime, sk.AttackSpeedMultiplier = row.AttackTime, row.AttackSpeedMultiplier
-	sk.LevelRequirement = int(row.PlayerLevel)
+	sk.LevelRequirement, sk.Cooldown = int(row.PlayerLevel), row.Cooldown
 	sk.Costs = slices.Clone(row.Costs)
 	sk.Reservation = rowReservation(row)
 	for _, sp := range sk.Supports {
