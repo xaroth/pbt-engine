@@ -11,7 +11,7 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// skills writes b's groups as one skill set. Gems are named by gem id, variant and skill id,
+// skills writes b's groups as one skill set, with their counts and full DPS flags. Gems are named by gem id, variant and skill id,
 // the order PoB loads them in, so a name PoB spells differently does not matter.
 func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 	groups := ex.b.Skills.Groups
@@ -37,6 +37,12 @@ func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 
 func (ex *exporter) group(g build.SkillGroup, data *dataset.SkillIndex, text *dataset.Text) outSkill {
 	out := outSkill{Enabled: xmlTrue, Slot: pobSlot(g.Slot)}
+	if g.FullDPS {
+		out.FullDPS = xmlTrue
+	}
+	if g.Count > 0 {
+		out.GroupCount = strconv.Itoa(g.Count)
+	}
 	if g.Source != nil && g.Source.Node != 0 {
 		// PoB matches the group to the grant it finds on the node. Items are not exported, so
 		// the skill an item grants is written as a group of the player's.
@@ -140,6 +146,8 @@ type outSkill struct {
 	Slot       string   `xml:"slot,attr,omitempty"`
 	Source     string   `xml:"source,attr,omitempty"`
 	MainActive string   `xml:"mainActiveSkill,attr"`
+	FullDPS    string   `xml:"includeInFullDPS,attr,omitempty"`
+	GroupCount string   `xml:"groupCount,attr,omitempty"`
 	Gems       []outGem `xml:"Gem"`
 }
 
