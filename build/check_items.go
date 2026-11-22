@@ -141,6 +141,15 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		c.warnAboutf(about, ItemSlotClosed, "%s; item left out", why)
 		return false
 	}
+	return c.checkItemFits(about, s, it, data, func(i int) Warning {
+		return Warning{Subject: fmt.Sprintf("abyss jewel %s %d", s, i), Slot: s}
+	})
+}
+
+// checkItemFits fixes it, in slot s, as the dataset says, or reports false to leave it out: of
+// an unknown base or of a class the slot does not take. Each of those has a warning about
+// about; jewelAbout says what a warning about its abyss jewel at an index is about.
+func (c *Checked) checkItemFits(about Warning, s Slot, it *Item, data *dataset.Items, jewelAbout func(int) Warning) bool {
 	base := c.itemBase(about, it, data)
 	if base == nil {
 		return false
@@ -150,17 +159,18 @@ func (c *Checked) checkItem(s Slot, it *Item, data *dataset.Items) bool {
 		return false
 	}
 	c.checkMods(about, it, nil)
-	c.checkAbyssJewels(s, it, data)
+	c.checkAbyssJewels(it, data, jewelAbout)
 	return true
 }
 
-// checkAbyssJewels leaves out, each with a warning, the abyss jewels of it, in slot s, at an
-// index past its abyssal sockets, of an unknown base or of a class other than abyss jewel.
-func (c *Checked) checkAbyssJewels(s Slot, it *Item, data *dataset.Items) {
+// checkAbyssJewels leaves out, each with a warning about jewelAbout of its index, the abyss
+// jewels of it at an index past its abyssal sockets, of an unknown base or of a class other
+// than abyss jewel.
+func (c *Checked) checkAbyssJewels(it *Item, data *dataset.Items, jewelAbout func(int) Warning) {
 	sockets := strings.Count(it.Sockets, "A")
 	for _, i := range slices.Sorted(maps.Keys(it.AbyssJewels)) {
 		j := it.AbyssJewels[i]
-		about := Warning{Subject: fmt.Sprintf("abyss jewel %s %d", s, i), Slot: s}
+		about := jewelAbout(i)
 		if !c.checkAbyssJewel(about, i, sockets, &j, data) {
 			delete(it.AbyssJewels, i)
 			continue

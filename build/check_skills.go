@@ -23,18 +23,20 @@ const (
 	GemChoiceOutOfRange  Code = "gem-choice-out-of-range"
 	ActiveGemInvalid     Code = "active-gem-invalid"
 	MainSkillOutOfRange  Code = "main-skill-out-of-range"
+	GroupCountOutOfRange Code = "group-count-out-of-range"
 )
 
 // checkSkills checks the skill groups against the dataset's skills group: it matches the groups
 // items and passives grant with the grants (checkGrants), drops unknown gems, clears unknown
-// variants and slots without sockets, corrects which gems are supports, clamps gem levels and
-// quality, and moves a main skill or active gem that does not fit to the first, each with a
-// warning. Without the group, it warns once and keeps the groups as they are. The gems of the
-// groups in the weapon swap are disabled.
+// variants and slots without sockets, corrects which gems are supports, clamps gem levels,
+// quality and group counts, moves a main skill or active gem that does not fit to the first,
+// and checks each group's minion gear (checkMinionGear), each with a warning. Without the
+// group, it warns once and keeps the groups as they are. The gems of the groups in the weapon
+// swap are disabled.
 func (c *Checked) checkSkills() error {
 	defer c.disableSwap()
 	sk := &c.build.Skills
-	if len(c.skillGrants) == 0 && !slices.ContainsFunc(sk.Groups, func(g SkillGroup) bool { return len(g.Gems) > 0 }) {
+	if len(c.skillGrants) == 0 && !slices.ContainsFunc(sk.Groups, func(g SkillGroup) bool { return len(g.Gems) > 0 || len(g.MinionItems) > 0 }) {
 		return nil
 	}
 	data, err := c.store.SkillIndex()
@@ -48,6 +50,9 @@ func (c *Checked) checkSkills() error {
 	c.checkGrants(data)
 	for i := range sk.Groups {
 		c.checkGroup(i, data)
+		if err := c.checkMinionGear(i, data); err != nil {
+			return err
+		}
 	}
 	if !sk.hasGroup(sk.MainGroup) {
 		c.warnf(MainSkillOutOfRange, "skills", "main skill group %d of %d groups; group 1 used", sk.MainGroup+1, len(sk.Groups))
@@ -63,6 +68,10 @@ func (c *Checked) checkGroup(i int, data *dataset.SkillIndex) {
 	if g.Slot != "" && !slices.Contains(Slots(), g.Slot) {
 		c.warnf(SlotUnknown, subject, "slot %q has no sockets; cleared", g.Slot)
 		g.Slot = ""
+	}
+	if g.Count < 0 {
+		c.warnf(GroupCountOutOfRange, subject, "count %d is below 1; 1 used", g.Count)
+		g.Count = 0
 	}
 	active := -1
 	var kept []Gem
@@ -131,6 +140,29 @@ func ActiveSkills(data *dataset.SkillIndex, gem Gem) []int {
 		out = append(out, 1)
 	}
 	return out
+}
+
+// GemSkill returns the GrantedEffect id of skill which of gem: 0 its first, 1 its second. A
+// skill an item or passive grants is its first. Empty for a gem data does not have.
+func GemSkill(data *dataset.SkillIndex, gem Gem, which int) string {
+	if gem.Skill != "" {
+		if which == 0 {
+			return gem.Skill
+		}
+		return ""
+	}
+	dg := data.Gem(gem.ID)
+	if dg == nil || len(dg.Effects) == 0 {
+		return ""
+	}
+	e := &dg.Effects[0]
+	if x := dg.Effect(gem.Effect); x != nil {
+		e = x
+	}
+	if which == 1 {
+		return e.SecondaryGrantedEffect
+	}
+	return e.GrantedEffect
 }
 
 // checkGem fixes gem as the dataset says, or reports false to drop it. A granted skill is

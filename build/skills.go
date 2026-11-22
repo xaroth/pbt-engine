@@ -33,7 +33,19 @@ type SkillGroup struct {
 	// ActiveSkill is which skill of the active gem is the main one: 0 its first, 1 its second,
 	// such as a Vaal gem's regular skill.
 	ActiveSkill int `json:"activeSkill,omitzero"`
+	// Count is how many of the main active skill are in use, such as the minions it summons;
+	// 0 is 1. ActiveCount reads it.
+	Count int `json:"count,omitzero"`
+	// FullDPS reports whether the group counts towards the build's full DPS.
+	FullDPS bool `json:"fullDps,omitzero"`
+	// MinionItems are the items the minion of the main active skill uses, by slot, for a skill
+	// whose minion takes gear (MinionSlots).
+	MinionItems Items `json:"minionItems,omitempty"`
 }
+
+// ActiveCount returns how many of the group's main active skill are in use: Count, or 1 when
+// it is unset.
+func (g *SkillGroup) ActiveCount() int { return max(g.Count, 1) }
 
 // SkillSource is what grants a skill group its skill: the item in a slot or an allocated passive.
 type SkillSource struct {
@@ -173,6 +185,18 @@ func (g *Group) SetMain() *Group { return g.apply(SetMainSkill(g.index)) }
 
 // Remove removes the group; later groups move down by one.
 func (g *Group) Remove() *Group { return g.apply(RemoveSkillGroup(g.index)) }
+
+// SetCount sets how many of the group's main active skill are in use; 0 is 1.
+func (g *Group) SetCount(n int) *Group { return g.apply(SetGroupCount(g.index, n)) }
+
+// SetFullDPS sets whether the group counts towards full DPS.
+func (g *Group) SetFullDPS(on bool) *Group { return g.apply(SetFullDPS(g.index, on)) }
+
+// EquipMinion puts it in slot s of the gear of the group's minion.
+func (g *Group) EquipMinion(s Slot, it Item) *Group { return g.apply(EquipMinion(g.index, s, it)) }
+
+// UnequipMinion empties slot s of the gear of the group's minion.
+func (g *Group) UnequipMinion(s Slot) *Group { return g.apply(UnequipMinion(g.index, s)) }
 
 func (g *Group) apply(e Edit) *Group {
 	if g.err == nil {
