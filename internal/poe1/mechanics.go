@@ -64,6 +64,7 @@ func mechanics() []mechanic {
 		damageMechanic(),
 		enemyMechanic(),
 		exposureMechanic(),
+		witherMechanic(),
 		conversionMechanic(),
 		accuracyMechanic(),
 		hitEffectsMechanic(),

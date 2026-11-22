@@ -140,6 +140,8 @@ type Sheet struct {
 	equipment equipmentMods
 	// exposure holds the enemy's Exposure by damage type.
 	exposure map[DamageType]core.ModID
+	// wither holds the enemy's Withered stacks and what they make it take.
+	wither witherMods
 	// totems gives a totem's base life (SetTotemLives).
 	totems TotemLives
 	// minions maps a skill's minion, by slot and values, to its sources (SetMinions), and
@@ -412,7 +414,7 @@ func (sh *Sheet) addBaseValues() error {
 	for _, add := range []func() error{
 		sh.addBaseMovementSpeed, sh.addBaseDamage, sh.addBaseSpeeds, sh.addBaseAilmentValues,
 		sh.addConditions, sh.addArcaneSurge, sh.addResonance, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
-		sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock,
+		sh.addWither, sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock,
 	} {
 		if err := add(); err != nil {
 			return err

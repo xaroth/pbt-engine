@@ -136,6 +136,7 @@ const (
 	FrenzyCharges            = rules.FrenzyCharges
 	EnduranceCharges         = rules.EnduranceCharges
 	LowestResonance          = rules.LowestResonance
+	EnemyWitheredStacks      = rules.EnemyWitheredStacks
 )
 
 // CampaignStage is how far the character is through the story campaign: the value of
@@ -186,3 +187,6 @@ type ShockEffect = rules.ShockEffect
 
 // Resonance is a count of Resonance, from 0: the value of LowestResonance.
 type Resonance = rules.Resonance
+
+// WitheredStacks is a count of Withered stacks, from 0: the value of EnemyWitheredStacks.
+type WitheredStacks = rules.WitheredStacks

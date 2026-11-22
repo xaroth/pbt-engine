@@ -304,6 +304,7 @@ func (sh *Sheet) addEnemy() error {
 func enemyStats() []string {
 	return []string{
 		statEnemyResistance, statEnemyMaximumResistance, statEnemyExposure, statEnemyArmour, statEnemyEvasion, statEnemyDamageTaken,
+		statEnemyWitheredStacks,
 	}
 }
 
