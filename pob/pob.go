@@ -79,11 +79,11 @@ var treeVersion = regexp.MustCompile(`^(\d+)_(\d+)(?:_(ruthless|alternate))?$`)
 // Everything else in the file gives a warning: other specs, jewels in a node PoB generates,
 // overrides whose name names no override or several, config inputs, pantheon, a legacy
 // secondary ascendancy (Warden, Warlock, Primalist) or one the tree does not list, items in
-// other slots, used by neither the active set nor a minion's gear or not read, abyss jewels whose item is not imported, jewels not
-// read, and of the skills: groups an item or the tree grants (and the main skill when it is one
-// of them), gems the dataset lacks, gems of a name or skill id the dataset cannot choose between
-// (imported as the first), slots without sockets, the switches of a Vaal gem's two skills, and
-// every group when the dataset has no skills group.
+// other slots, used by neither the active set nor a minion's gear or not read, abyss jewels
+// whose item is not imported, jewels not read, and of the skills: groups an item or the tree
+// grants (and the main skill when it is one of them), gems the dataset lacks, gems of a name or
+// skill id the dataset cannot choose between (imported as the first), slots without sockets,
+// the switches of a Vaal gem's two skills, and every group when the dataset has no skills group.
 func FromXML(data []byte, reg *dataset.Registry) (*build.Build, []build.Warning, error) {
 	f, err := parse(data)
 	if err != nil {
