@@ -225,6 +225,11 @@
         "key": "lowest-resonance",
         "value": 0,
         "source": "default"
+      },
+      {
+        "key": "enemy-withered-stacks",
+        "value": 0,
+        "source": "default"
       }
     ]
   },
@@ -461,6 +466,11 @@
       },
       {
         "key": "lowest-resonance",
+        "value": 0,
+        "source": "default"
+      },
+      {
+        "key": "enemy-withered-stacks",
         "value": 0,
         "source": "default"
       }
