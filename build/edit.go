@@ -59,8 +59,9 @@ type Edit struct {
 	Key   string          `json:"key,omitzero"`
 	Value json.RawMessage `json:"value,omitzero"`
 	// Skill addresses the group, and the gem, of a skill edit. SkillGroup for add-skill-group,
-	// Gem for add-gem; Slot, Quality and Enabled for the edits of that name, and Level for
-	// set-gem-level. Slot and Item for equip, Slot for unequip. Node and Item for
+	// Gem for add-gem; Slot, Quality and Enabled for the edits of that name, Level for
+	// set-gem-level, Count for set-group-count and Enabled for set-full-dps. Slot and Item for
+	// equip and equip-minion, Slot for unequip and unequip-minion. Node and Item for
 	// socket-jewel, Node for unsocket-jewel.
 	Skill      *SkillAt    `json:"skill,omitzero"`
 	SkillGroup *SkillGroup `json:"group,omitzero"`
@@ -69,6 +70,7 @@ type Edit struct {
 	Quality    int         `json:"quality,omitzero"`
 	Enabled    bool        `json:"enabled,omitzero"`
 	Item       *Item       `json:"item,omitzero"`
+	Count      int         `json:"count,omitzero"`
 }
 
 // SetName sets the build's name; empty clears it.

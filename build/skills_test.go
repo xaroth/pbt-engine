@@ -23,7 +23,8 @@ func fireballAlt() build.GemID {
 }
 
 // withSkills is juggernaut with two groups: Fireball with Inspiration twice in the helmet, the
-// main skill, and Clarity in no item.
+// main skill, counted 3 times towards full DPS with a helmet for its minion, and Clarity in no
+// item. Edits do not judge whether a skill has a minion.
 func withSkills() *build.Build {
 	b := juggernaut()
 	b.Skills = build.Skills{Groups: []build.SkillGroup{
@@ -31,7 +32,7 @@ func withSkills() *build.Build {
 			{GemID: fireball(), Level: 20, Quality: 20},
 			{GemID: inspiration(), Level: 20, Support: true},
 			{GemID: inspiration(), Level: 18, Support: true, Disabled: true},
-		}},
+		}, Count: 3, FullDPS: true, MinionItems: build.Items{build.SlotHelmet: helmet()}},
 		{Gems: []build.Gem{{GemID: clarity(), Level: 10}}},
 	}}
 	return b
@@ -63,6 +64,17 @@ func TestSkillEdits(t *testing.T) {
 		{"set a gem quality", build.SetGemQuality(0, 0, 23), func(s *build.Skills) { s.Groups[0].Gems[0].Quality = 23 }},
 		{"disable a gem", build.SetGemEnabled(0, 1, false), func(s *build.Skills) { s.Groups[0].Gems[1].Disabled = true }},
 		{"enable a gem", build.SetGemEnabled(0, 2, true), func(s *build.Skills) { s.Groups[0].Gems[2].Disabled = false }},
+		{"set a count", build.SetGroupCount(1, 14), func(s *build.Skills) { s.Groups[1].Count = 14 }},
+		{"clear a count", build.SetGroupCount(0, 0), func(s *build.Skills) { s.Groups[0].Count = 0 }},
+		{"count for full DPS", build.SetFullDPS(1, true), func(s *build.Skills) { s.Groups[1].FullDPS = true }},
+		{"leave out of full DPS", build.SetFullDPS(0, false), func(s *build.Skills) { s.Groups[0].FullDPS = false }},
+		{"equip a minion", build.EquipMinion(1, build.SlotWeapon, helmet()), func(s *build.Skills) {
+			s.Groups[1].MinionItems = build.Items{build.SlotWeapon: helmet()}
+		}},
+		{"replace a minion's item", build.EquipMinion(0, build.SlotHelmet, abyssHelmet()), func(s *build.Skills) {
+			s.Groups[0].MinionItems[build.SlotHelmet] = abyssHelmet()
+		}},
+		{"unequip a minion", build.UnequipMinion(0, build.SlotHelmet), func(s *build.Skills) { s.Groups[0].MinionItems = nil }},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -175,6 +187,10 @@ func TestSkillEditTargets(t *testing.T) {
 		{"no address", build.Edit{Op: build.OpSetGemQuality}},
 		{"add a group without one", build.Edit{Op: build.OpAddSkillGroup}},
 		{"add a gem without one", build.Edit{Op: build.OpAddGem, Skill: &build.SkillAt{}}},
+		{"count of a missing group", build.SetGroupCount(2, 14)},
+		{"full DPS of a missing group", build.SetFullDPS(-1, true)},
+		{"equip a missing group's minion", build.EquipMinion(2, build.SlotWeapon, helmet())},
+		{"unequip a missing group's minion", build.UnequipMinion(2, build.SlotHelmet)},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -204,12 +220,17 @@ func TestSkillHandles(t *testing.T) {
 	group.AddSupport(clarity(), 20, 20).SetEnabled(false)
 	next.Skills.AddGroup(build.SkillGroup{}).SetSlot(build.SlotBoots).SetMain().AddGem(fireballAlt(), 1, 0).SetActive()
 	next.Skills.Group(0).Gem(inspiration()).Remove()
-	if group.Err() != nil {
-		t.Fatal(group.Err())
+	gear := next.Skills.Group(1).SetCount(14).SetFullDPS(true).EquipMinion(build.SlotWeapon, helmet())
+	next.Skills.Group(0).UnequipMinion(build.SlotHelmet)
+	if group.Err() != nil || gear.Err() != nil {
+		t.Fatal(group.Err(), gear.Err())
 	}
 	want := withSkills()
 	want.Skills.Groups = append(want.Skills.Groups, build.SkillGroup{Slot: build.SlotBoots, Gems: []build.Gem{{GemID: fireballAlt(), Level: 1}}})
 	want.Skills.MainGroup = 2
+	want.Skills.Groups[1].Count, want.Skills.Groups[1].FullDPS = 14, true
+	want.Skills.Groups[1].MinionItems = build.Items{build.SlotWeapon: helmet()}
+	want.Skills.Groups[0].MinionItems = nil
 	want.Skills.Groups[0].Gems = []build.Gem{
 		{GemID: fireball(), Level: 21, Quality: 23},
 		{GemID: inspiration(), Level: 18, Support: true, Disabled: true},
@@ -239,6 +260,8 @@ func TestSkillsCloneAndRoundTrip(t *testing.T) {
 	c := b.Clone()
 	c.Skills.Groups[0].Gems[0].Level = 1
 	c.Skills.Groups[1].Slot = build.SlotBoots
+	c.Skills.Groups[0].MinionItems[build.SlotHelmet].Mods[0].Stats[0].Value = 1
+	c.Skills.Groups[0].MinionItems[build.SlotWeapon] = helmet()
 	if diff := cmp.Diff(withSkills(), b); diff != "" {
 		t.Errorf("editing the clone changed the original (-want +got):\n%s", diff)
 	}
@@ -269,6 +292,7 @@ func randSkills(r *rand.Rand) build.Skills {
 		if len(g.Gems) > 0 {
 			g.Active = r.IntN(len(g.Gems))
 		}
+		g.Count, g.FullDPS, g.MinionItems = r.IntN(3)*7, r.IntN(2) == 0, randItems(r)
 		s.Groups = append(s.Groups, g)
 	}
 	if len(s.Groups) > 0 {

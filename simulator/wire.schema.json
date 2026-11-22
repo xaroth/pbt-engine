@@ -335,7 +335,8 @@
         "slot": { "$ref": "#/$defs/Slot" },
         "quality": { "type": "integer" },
         "enabled": { "type": "boolean" },
-        "item": { "$ref": "#/$defs/Item" }
+        "item": { "$ref": "#/$defs/Item" },
+        "count": { "type": "integer", "description": "A skill group's count, for set-group-count; absent is 1." }
       }
     },
     "EditOp": {
@@ -345,8 +346,8 @@
         "set-name", "allocate", "deallocate", "set-mastery", "clear-mastery", "set-override", "clear-override", "set-level", "set-class",
         "set-ascendancy", "set-bloodline", "set-config", "clear-config", "add-skill-group",
         "remove-skill-group", "set-skill-slot", "set-main-skill", "add-gem", "remove-gem",
-        "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "equip", "unequip",
-        "socket-jewel", "unsocket-jewel"
+        "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "set-group-count",
+        "set-full-dps", "equip-minion", "unequip-minion", "equip", "unequip", "socket-jewel", "unsocket-jewel"
       ]
     },
     "ConfigValue": {
@@ -394,6 +395,17 @@
         "activeSkill": {
           "description": "Which skill of the active gem is the main one: 0 its first, 1 its second.",
           "type": "integer", "minimum": 0
+        },
+        "count": {
+          "description": "How many of the main active skill are in use, such as the minions it summons; absent is 1.",
+          "type": "integer", "minimum": 0
+        },
+        "fullDps": { "type": "boolean", "description": "Whether the group counts towards full DPS." },
+        "minionItems": {
+          "type": "object",
+          "description": "The items the minion of the main active skill uses, by slot, for a skill whose minion takes gear.",
+          "propertyNames": { "$ref": "#/$defs/Slot" },
+          "additionalProperties": { "$ref": "#/$defs/Item" }
         }
       }
     },
