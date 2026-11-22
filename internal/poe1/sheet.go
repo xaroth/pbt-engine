@@ -116,6 +116,8 @@ type Sheet struct {
 	skills []skillSlot
 	// skillSources maps a skill, by slot and content, to the sources of its own stats.
 	skillSources map[skillKey][]core.SourceID
+	// keyBuf is reused to encode skill keys.
+	keyBuf []byte
 	// triggers maps a link of a triggered skill to the skill that triggers it to its source
 	// (setTriggers).
 	triggers map[triggerKey]core.SourceID
