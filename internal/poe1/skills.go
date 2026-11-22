@@ -3,7 +3,6 @@ package poe1
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/internal/core"
@@ -40,26 +39,26 @@ type skillSlot struct {
 	restrictions []string
 }
 
-// skillKey is a skill's sources by slot and content, and whether its buff affects you, which
-// depends on the skills in other slots (buffList).
+// skillKey is a skill's sources by slot and content (appendSkill), and whether its buff affects
+// you, which depends on the skills in other slots (buffList).
 type skillKey struct {
 	slot int
 	key  string
 	buff bool
 }
 
-// skillKeys returns the key of each of skills in its slot. Rendering a skill costs more than
-// comparing it with the one the slot has, so a slot whose skill and buff are unchanged keeps
-// its key.
+// skillKeys returns the key of each of skills in its slot. A slot whose skill and buff are
+// unchanged keeps its key, without allocating a new one.
 func (sh *Sheet) skillKeys(skills []*resolve.Skill) []skillKey {
 	keys := make([]skillKey, len(skills))
 	buffs := newBuffList(sh.buffs, skills)
 	for i, sk := range skills {
 		buff := buffs.take(sk)
-		if i < len(sh.skills) && sh.skills[i].key.buff == buff && reflect.DeepEqual(sh.skills[i].skill, sk) {
+		sh.keyBuf = appendSkill(sh.keyBuf[:0], sk)
+		if i < len(sh.skills) && sh.skills[i].key.buff == buff && sh.skills[i].key.key == string(sh.keyBuf) {
 			keys[i] = sh.skills[i].key
 		} else {
-			keys[i] = skillKey{i, fmt.Sprint(*sk), buff}
+			keys[i] = skillKey{i, string(sh.keyBuf), buff}
 		}
 	}
 	return keys

@@ -265,8 +265,8 @@ func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float
 
 // weaponKey is a weapon by hand and content.
 type weaponKey struct {
-	hand hand
-	key  string
+	hand   hand
+	weapon Weapon
 }
 
 // SetHands puts h in the character's hands: each hand's weapon's damage, attacks per second
@@ -278,7 +278,7 @@ func (sh *Sheet) SetHands(h Hands) error {
 	want := map[weaponKey]bool{}
 	for hd, w := range held {
 		if w != nil {
-			want[weaponKey{hd, fmt.Sprint(*w)}] = true
+			want[weaponKey{hd, *w}] = true
 		}
 	}
 	for k, src := range sh.weapons {
@@ -291,7 +291,7 @@ func (sh *Sheet) SetHands(h Hands) error {
 		if w == nil {
 			continue
 		}
-		k := weaponKey{hd, fmt.Sprint(*w)}
+		k := weaponKey{hd, *w}
 		if _, ok := sh.weapons[k]; ok {
 			continue
 		}
