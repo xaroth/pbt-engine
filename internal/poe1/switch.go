@@ -116,7 +116,7 @@ func (sw *Switch) hits() bool {
 }
 
 // Switch switches sh to sw's level, nodes, masteries, items, hands, totem lives, skills, their
-// minions, config and enemy.
+// minions, the skills counted in full DPS, config and enemy.
 func (sh *Sheet) Switch(sw *Switch) error {
 	cb := sw.Checked.Build()
 	if err := sh.SetLevel(cb.Level); err != nil {
@@ -137,6 +137,7 @@ func (sh *Sheet) Switch(sw *Switch) error {
 	if err := sh.SetMinions(sw.Minions); err != nil {
 		return err
 	}
+	sh.SetFullDPS(sw.Skills.FullDPS)
 	sh.DeriveOnly(sw.Skills.Kept)
 	sh.SetConfig(sw.Config)
 	sh.SetEnemy(sw.Enemy)

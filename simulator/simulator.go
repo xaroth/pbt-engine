@@ -411,15 +411,15 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	cat, hands := catalogue(), r.sheet.Hands
 	main := r.sheet.Skills.Main
 	st := &Stats{
-		keys: skillKeys(keys, cat, main, r.sheet.Minion(0), hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
+		keys: fullDPSKeys(skillKeys(keys, cat, main, r.sheet.Minion(0), hands), r.sheet.Skills.FullDPS), cfg: r.sheet.Config, budget: r.sheet.Budget,
 		build: r.build, checked: r.checked, items: r.sheet.Items, hands: hands, skill: main, sheetSkills: r.sheet.Skills.Skills,
 		enemy: r.sheet.Enemy, totems: r.sheet.Totems, minions: r.sheet.Minions,
-		animatedWeapons: r.sheet.Skills.AnimatedWeapons, sim: s,
+		animatedWeapons: r.sheet.Skills.AnimatedWeapons, fullDPS: r.sheet.Skills.FullDPS, sim: s,
 	}
 	if st.values, err = readOutputs(st.keys, func(k output.Key) (float64, error) { return sh.Output(k) }); err != nil {
 		return nil, err
 	}
-	if r.ask.any() {
+	if r.ask.any() || len(r.sheet.Skills.FullDPS) > 0 {
 		if st.perSkill, err = readSkills(r, sh, keys, st.values); err != nil {
 			return nil, err
 		}
@@ -432,6 +432,14 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 // with hands.
 func skillKeys(keys []output.Key, cat map[output.Key]Output, sk *resolve.Skill, mn *poe1.Minion, hands poe1.Hands) []output.Key {
 	return slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !poe1.Gives(cat[k], sk, mn, hands) })
+}
+
+// fullDPSKeys returns keys without TotalDPS when no skill is counted in full DPS.
+func fullDPSKeys(keys []output.Key, counted []poe1.FullDPSSkill) []output.Key {
+	if len(counted) > 0 {
+		return keys
+	}
+	return slices.DeleteFunc(keys, func(k output.Key) bool { return k == poe1.TotalDPS })
 }
 
 // readOutputs reads keys with read.
@@ -447,39 +455,53 @@ func readOutputs(keys []output.Key, read func(output.Key) (float64, error)) (map
 	return out, nil
 }
 
-// readSkills reads the skill outputs among keys of each skill on sh the run asks for, the main
-// skill's from mainValues, the main skill first. The default attack is no skill of the build, so
-// it has none.
+// readSkills reads the skill outputs among keys of each skill on sh the run asks for or counts
+// in full DPS, the main skill's from mainValues, the main skill first; a skill counted in full
+// DPS also has TotalDPS, when keys have it, as what it adds by its hits. The default attack is
+// no skill of the build, so it has none.
 func readSkills(r *run, sh *poe1.Sheet, keys []output.Key, mainValues map[output.Key]float64) ([]SkillStats, error) {
 	cat, hands := catalogue(), r.sheet.Hands
+	fullDPS := slices.Contains(keys, poe1.TotalDPS)
 	keys = slices.DeleteFunc(slices.Clone(keys), func(k output.Key) bool { return !cat[k].IsSkill() })
 	var out []SkillStats
 	for slot, sk := range r.sheet.Skills.Read() {
 		ref := refOf(sk)
-		if sk.Source.Default() || !r.ask.wants(ref) {
+		counted := slices.ContainsFunc(r.sheet.Skills.FullDPS, func(f poe1.FullDPSSkill) bool { return f.Slot == slot })
+		if sk.Source.Default() || !r.ask.wants(ref) && !counted {
 			continue
 		}
 		ss := SkillStats{Ref: ref, GrantedEffect: sk.GrantedEffect, keys: skillKeys(keys, cat, sk, r.sheet.Minion(slot), hands)}
-		if sk == r.sheet.Skills.Main {
-			ss.values = make(map[output.Key]float64, len(ss.keys))
-			for _, k := range ss.keys {
-				ss.values[k] = mainValues[k]
-			}
-		} else {
-			var err error
-			if ss.values, err = readOutputs(ss.keys, func(k output.Key) (float64, error) { return sh.SkillOutput(slot, k) }); err != nil {
-				return nil, err
-			}
+		if counted && fullDPS {
+			ss.keys = append(ss.keys, poe1.TotalDPS)
+		}
+		var err error
+		if ss.values, err = readSkill(sh, slot, ss.keys, sk == r.sheet.Skills.Main, mainValues); err != nil {
+			return nil, err
 		}
 		out = append(out, ss)
 	}
-	// The main skill is in the first slot; the others go by address.
-	others := out
-	if main := r.sheet.Skills.Main; len(out) > 0 && main != nil && out[0].Ref == refOf(main) {
-		others = out[1:]
+	sortSkills(out, r.sheet.Skills.Main)
+	return out, nil
+}
+
+// sortSkills sorts skills by address after the main skill, which is first when it is there.
+func sortSkills(skills []SkillStats, main *resolve.Skill) {
+	others := skills
+	if len(skills) > 0 && main != nil && skills[0].Ref == refOf(main) {
+		others = skills[1:]
 	}
 	slices.SortFunc(others, func(a, b SkillStats) int { return compareRefs(a.Ref, b.Ref) })
-	return out, nil
+}
+
+// readSkill reads keys of the skill in slot: for the main skill from mainValues, except TotalDPS,
+// which is the skill's part there and the build's full DPS in mainValues.
+func readSkill(sh *poe1.Sheet, slot int, keys []output.Key, main bool, mainValues map[output.Key]float64) (map[output.Key]float64, error) {
+	return readOutputs(keys, func(k output.Key) (float64, error) {
+		if main && k != poe1.TotalDPS {
+			return mainValues[k], nil
+		}
+		return sh.SkillOutput(slot, k)
+	})
 }
 
 // outputKeys returns keys, or every output when none are given; an unknown key fails.

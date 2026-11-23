@@ -128,11 +128,26 @@ func (sh *Sheet) Explain(k output.Key, v View) (*Explanation, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w %q", ErrUnknownOutput, k)
 	}
-	n, err := sh.outputNode(o, 0)
+	ex := &Explanation{Output: o, View: v, Version: sh.version}
+	var err error
+	if k == TotalDPS {
+		err = sh.explainFullDPS(ex, v)
+	} else {
+		err = sh.explainNode(ex, v)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("sheet: explain %s: %w", k, err)
 	}
-	ex := &Explanation{Output: o, View: v, Version: sh.version}
+	return ex, nil
+}
+
+// explainNode explains ex's output, which reads one node, in view v.
+func (sh *Sheet) explainNode(ex *Explanation, v View) error {
+	o := ex.Output
+	n, err := sh.outputNode(o, 0)
+	if err != nil {
+		return err
+	}
 	if o.IsSkill() {
 		src := sh.skills[0].source
 		ex.Skill = &src
@@ -142,18 +157,13 @@ func (sh *Sheet) Explain(k output.Key, v View) (*Explanation, error) {
 	}
 	switch v {
 	case Tree:
-		err = sh.explainTree(ex, n)
+		return sh.explainTree(ex, n)
 	case Proportional:
-		err = sh.explainProportional(ex, n)
+		return sh.explainProportional(ex, n)
 	case Marginal:
-		err = sh.explainMarginal(ex, n)
-	default:
-		err = fmt.Errorf("%w: %d", ErrUnknownView, v)
+		return sh.explainMarginal(ex, n)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("sheet: explain %s: %w", k, err)
-	}
-	return ex, nil
+	return fmt.Errorf("%w: %d", ErrUnknownView, v)
 }
 
 // amountStat is the engine stat whose total is o's amount before caps: a capped resistance's

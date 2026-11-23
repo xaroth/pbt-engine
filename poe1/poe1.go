@@ -63,6 +63,7 @@ const (
 	MinionHitChance             = rules.MinionHitChance
 	MinionHitsPerSecond         = rules.MinionHitsPerSecond
 	MinionHitDPS                = rules.MinionHitDPS
+	TotalDPS                    = rules.TotalDPS
 	DotDPS                      = rules.DotDPS
 	IgniteDPS                   = rules.IgniteDPS
 	BleedDPS                    = rules.BleedDPS

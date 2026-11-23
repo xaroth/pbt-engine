@@ -156,8 +156,8 @@ func TestSimulate(t *testing.T) {
 	outputs := s.Outputs()
 	catalogue := make([]output.Key, 0, len(outputs))
 	for _, o := range outputs {
-		// The build has no main skill, so no skill outputs.
-		if !o.IsSkill() {
+		// The build has no main skill, so no skill outputs, and no group counted in full DPS.
+		if !o.IsSkill() && o.Key != poe1.TotalDPS {
 			catalogue = append(catalogue, o.Key)
 		}
 	}

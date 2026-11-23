@@ -30,15 +30,20 @@ const typeRequiresShield = "RequiresShield"
 type SheetSkills struct {
 	// Main is the main skill, nil when the build has none.
 	Main *resolve.Skill
-	// Skills are in slot order: the main skill first, if any, then the other skills that
-	// reserve life or mana, grant you a buff or apply a curse, then the other skills, as many
-	// as the sheet holds. Every skill is on the sheet so the conditions it causes can be derived
+	// Skills are in slot order: the main skill first, if any, then those counted in full DPS,
+	// then the other skills that reserve life or mana, grant you a buff or apply a curse, then
+	// the other skills, as many as the sheet holds. Every skill is on the sheet so the conditions it causes can be derived
 	// (Sheet.DeriveConditions).
 	Skills []*resolve.Skill
-	// Every says the outputs of every skill are read, not only the main skill's.
+	// Every says the outputs of every skill are read, not only the main skill's and those of
+	// FullDPS.
 	Every bool
+	// FullDPS are the skills counted in full DPS: the main skill of each group the build counts
+	// in it (build.SkillGroup.FullDPS), by slot, with the group's count. They follow the main
+	// skill in Skills, and their outputs are read.
+	FullDPS []FullDPSSkill
 	// Kept is how many of Skills, from the first, are read and noted: the main skill, those
-	// that reserve, buff or curse and, with Every, the rest. The others are on the sheet only to derive the
+	// counted in full DPS, those that reserve, buff or curse and, with Every, the rest. The others are on the sheet only to derive the
 	// conditions they cause (Sheet.DeriveOnly).
 	Kept int
 	// AnimatedWeapons is the number of Animated Weapons the build's skills allow.
@@ -53,7 +58,8 @@ type SheetSkills struct {
 // SheetSkillsOf resolves the skills of c to put on a sheet with hands: the main skill, the
 // default attack when the build's main group has no active gem (resolve.SkillResolver.Default),
 // as when it has no groups, none when the dataset has no skills group or lacks the main gem
-// (the build check warns about that), the other skills that reserve life or mana, grant you a
+// (the build check warns about that), the main skill of each group counted in full DPS, whose
+// outputs are read, the other skills that reserve life or mana, grant you a
 // buff or apply a curse and each other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
 // skill are read. A skill that requires a shield is left out, with a warning, while hands hold
 // none, as the game does not let it be used. It warns about the gems whose hits the sheet does
@@ -73,6 +79,7 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 		if err := out.addMain(skills, hands, sk.MainGroup); err != nil {
 			return out, err
 		}
+		out.addFullDPS(skills, hands, sk.Groups)
 	}
 	if skills != nil {
 		all := skills.All()
@@ -86,15 +93,39 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 	return out, nil
 }
 
-// Read returns the skills whose outputs are read: the main skill, or with Every each skill.
+// Read returns the skills whose outputs are read: the main skill and those counted in full
+// DPS, or with Every each skill.
 func (s *SheetSkills) Read() []*resolve.Skill {
 	if s.Every {
 		return s.Skills
 	}
-	if s.Main == nil {
-		return nil
+	n := len(s.FullDPS)
+	if s.Main != nil && !slices.ContainsFunc(s.FullDPS, func(f FullDPSSkill) bool { return f.Slot == 0 }) {
+		n++
 	}
-	return s.Skills[:1]
+	return s.Skills[:n]
+}
+
+// addFullDPS adds the main skill of each group of groups counted in full DPS after the main
+// skill, unless it is the main skill, does not resolve or needs a shield hands lack. A group in
+// the weapon swap is not counted.
+func (s *SheetSkills) addFullDPS(skills *resolve.SkillResolver, hands Hands, groups []build.SkillGroup) {
+	for i, g := range groups {
+		if !g.FullDPS || g.Slot.Swap() {
+			continue
+		}
+		sk, warnings, err := skills.Group(i)
+		if err != nil || s.needsShield(sk, hands) {
+			continue
+		}
+		slot := slices.Index(s.Skills, sk)
+		if slot < 0 {
+			slot = len(s.Skills)
+			s.Skills = append(s.Skills, sk)
+			s.Warnings = append(s.Warnings, warnings...)
+		}
+		s.FullDPS = append(s.FullDPS, FullDPSSkill{Slot: slot, Count: g.ActiveCount()})
+	}
 }
 
 // addMain makes the skill of group the main skill, unless the dataset lacks it or it needs a
@@ -130,7 +161,7 @@ func (s *SheetSkills) addOthers(all []resolve.SkillWarnings, hands Hands, groups
 	buffs := s.buffList(all)
 	for _, sw := range all {
 		switch {
-		case sw.Skill != nil && sw.Skill == s.Main:
+		case sw.Skill != nil && slices.Contains(s.Skills, sw.Skill):
 		case sw.Err != nil:
 			s.unresolved(sw)
 		case keeps(sw.Skill, buffs):

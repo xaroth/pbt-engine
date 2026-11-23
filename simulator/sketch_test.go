@@ -48,8 +48,6 @@ func (n need) missing(s symbolSet) bool {
 	return slices.ContainsFunc(n.waitsOn, func(sym string) bool { return !s.has(sym) })
 }
 
-func needSkillSim(syms ...string) need { return need{what: "skill simulation", waitsOn: syms} }
-
 func needDerived(syms ...string) need { return need{what: "derived conditions", waitsOn: syms} }
 
 func needBuildNew() need {
@@ -148,17 +146,10 @@ func sketchRun() []sketchPart {
 func sketchCompare() []sketchPart {
 	return []sketchPart{
 		{name: "compare two builds", run: sketchCompareBuilds},
-		{name: "read the change of damage per second", code: `d := diff.Get(poe1.TotalDPS) // d.Before, d.After, d.Abs, d.Pct`,
-			needs: []need{needSkillSim("poe1.TotalDPS")}},
+		{name: "read the change of damage per second", run: sketchTotalDPS},
 		{name: "read what changed, the edits and both sides' warnings", run: sketchDiffParts},
 		{name: "diff one build on two datasets", run: sketchDataDiff},
-		{name: "sweep variants ranked by damage per second", code: `results, err := sim.Sweep(base, [][]build.Edit{
-	{build.Deallocate(clusterA...), build.Allocate(clusterB...)},
-	{build.SetGemLevel(0, 0, 21)},
-}, simulator.RankBy(poe1.TotalDPS), simulator.Workers(8))
-_ = results[0].Edits
-_ = results[0].Changes
-_ = results[0].Err`, needs: []need{needSkillSim("poe1.TotalDPS")}},
+		{name: "sweep variants ranked by damage per second", run: sketchSweepDPS},
 		{name: "stream a sweep", run: sketchSweepEach},
 		{name: "node power", run: sketchPower},
 		{name: "a new sim with the first one's config", code: `sim2, err := simulator.New(res2.Store, sim.Config().Options()...)`,
@@ -535,6 +526,42 @@ func sketchCompareBuilds(t *testing.T, s *sketchState) {
 		t.Fatal(err)
 	}
 	s.diff = diff
+}
+
+// sketchTotalDPS compares the two builds with their Fireball counted in full DPS: the next
+// one's is at level 21 with Inspiration.
+func sketchTotalDPS(t *testing.T, s *sketchState) {
+	base, next := s.base.Clone(), s.next.Clone()
+	for _, b := range []*build.Build{base, next} {
+		if err := b.Apply(build.SetFullDPS(0, true)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	diff, err := s.sim.Compare(base, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := diff.Get(poe1.TotalDPS); !d.Has || d.Abs <= 0 {
+		t.Errorf("full DPS change %+v, want a gain", d)
+	}
+}
+
+func sketchSweepDPS(t *testing.T, s *sketchState) {
+	cluster, _ := marginalLife(t, s.sim, s.base)
+	base := s.base.Clone()
+	if err := base.Apply(build.SetFullDPS(0, true)); err != nil {
+		t.Fatal(err)
+	}
+	results, err := s.sim.Sweep(base, [][]build.Edit{
+		{build.Deallocate(cluster[:3]...)},
+		{build.SetGemLevel(0, 0, 21)},
+	}, simulator.RankBy(poe1.TotalDPS), simulator.Workers(8))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := results[0]; r.Err != nil || r.Index != 1 || r.Changes[poe1.TotalDPS].Abs <= 0 {
+		t.Errorf("first result %+v, want the gem level with a gain in full DPS", r)
+	}
 }
 
 func sketchDiffParts(t *testing.T, s *sketchState) {

@@ -78,6 +78,10 @@ func TestEveryOutputExplains(t *testing.T) {
 			t.Parallel()
 			sh := open(t, resolved(endgame(extra...)...))
 			for _, o := range poe1.Outputs() {
+				// Full DPS sums other outputs on no engine stat of its own (fulldps_test.go).
+				if o.Key == poe1.TotalDPS {
+					continue
+				}
 				p := proportion(t, sh, poe1.OutputStat(o))
 				sum := 0.0
 				for _, pt := range p.Parts {

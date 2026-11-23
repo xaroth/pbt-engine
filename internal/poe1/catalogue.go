@@ -46,6 +46,9 @@ const (
 	// GroupMinion is the values of the main skill's minion, read in the skill's context. A
 	// build whose main skill summons no minion has none of them.
 	GroupMinion = "minion"
+	// GroupDPS is the build's full damage per second over the skill groups counted in it
+	// (build.SkillGroup.FullDPS). A build with no such group has none of it.
+	GroupDPS = "dps"
 )
 
 // Relations of an output to others, the keys of Output.Related.
@@ -222,7 +225,8 @@ func Outputs() []Output {
 		{Key: LifeCost, Label: "Life Cost", Better: output.Lower, Places: costPlaces, stat: statLifeCost, needs: needsCost},
 		{Key: TotemLife, Label: "Totem Life", Better: output.Higher, stat: statTotemLife, needs: needsTotem},
 	}), group(GroupSkill, hitOutputs()), group(GroupSkill, dotOutputs()), group(GroupSkill, igniteOutputs()),
-		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()), group(GroupMinion, minionOutputs()))
+		group(GroupSkill, bleedOutputs()), group(GroupSkill, poisonOutputs()), group(GroupMinion, minionOutputs()),
+		group(GroupDPS, []Output{{Key: TotalDPS, Label: "Full DPS", Better: output.Higher, Places: hitPlaces, stat: statFullDPS}}))
 	for i := range out {
 		out[i].Order = i
 	}
@@ -360,15 +364,25 @@ func group(g string, outputs []Output) []Output {
 }
 
 // Output returns the value of catalogue output k, an output of the skill group in the main
-// skill's context: the sheet's first skill.
-func (sh *Sheet) Output(k output.Key) (float64, error) { return sh.SkillOutput(0, k) }
+// skill's context: the sheet's first skill. TotalDPS is the build's full DPS (SetFullDPS).
+func (sh *Sheet) Output(k output.Key) (float64, error) {
+	if k == TotalDPS {
+		f, err := sh.fullDPSValue(-1)
+		return f.total, err
+	}
+	return sh.SkillOutput(0, k)
+}
 
 // SkillOutput returns the value of catalogue output k, an output of the skill group in the
-// context of skill i of SetSkills.
+// context of skill i of SetSkills. For TotalDPS it is what skill i adds by its hits: its hit
+// damage per second, or its minion's, times its count; 0 for a skill not counted.
 func (sh *Sheet) SkillOutput(i int, k output.Key) (float64, error) {
 	o, ok := sh.outputs[k]
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownOutput, k)
+	}
+	if k == TotalDPS {
+		return sh.fullDPSPart(i)
 	}
 	n, err := sh.outputNode(o, i)
 	if err != nil {
