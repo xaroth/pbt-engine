@@ -13,7 +13,7 @@ import (
 
 // skills writes b's groups as one skill set, with their counts and full DPS flags. Gems are named by gem id, variant and skill id,
 // the order PoB loads them in, so a name PoB spells differently does not matter.
-func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
+func (ex *exporter) skills(store *dataset.Store, items *itemWriter) (*outSkills, error) {
 	groups := ex.b.Skills.Groups
 	out := &outSkills{Active: "1", Sets: []outSkillSet{{ID: "1"}}}
 	if len(groups) == 0 {
@@ -29,13 +29,15 @@ func (ex *exporter) skills(store *dataset.Store) (*outSkills, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pob: %w", err)
 	}
-	for _, g := range groups {
-		out.Sets[0].Groups = append(out.Sets[0].Groups, ex.group(g, data, text))
+	for i, g := range groups {
+		out.Sets[0].Groups = append(out.Sets[0].Groups, ex.group(i, g, data, text, items))
 	}
 	return out, nil
 }
 
-func (ex *exporter) group(g build.SkillGroup, data *dataset.SkillIndex, text *dataset.Text) outSkill {
+// group writes g, the i-th group, with the item that grants it as its source and its minion's
+// gear in an item set of its own.
+func (ex *exporter) group(i int, g build.SkillGroup, data *dataset.SkillIndex, text *dataset.Text, items *itemWriter) outSkill {
 	out := outSkill{Enabled: xmlTrue, Slot: pobSlot(g.Slot)}
 	if g.FullDPS {
 		out.FullDPS = xmlTrue
@@ -43,16 +45,25 @@ func (ex *exporter) group(g build.SkillGroup, data *dataset.SkillIndex, text *da
 	if g.Count > 0 {
 		out.GroupCount = strconv.Itoa(g.Count)
 	}
-	if g.Source != nil && g.Source.Node != 0 {
-		// PoB matches the group to the grant it finds on the node. Items are not exported, so
-		// the skill an item grants is written as a group of the player's.
-		out.Source = "Tree:" + strconv.FormatUint(uint64(g.Source.Node), 10)
+	if g.Source != nil {
+		groupSource(&out, *g.Source, items)
 	}
-	// PoB's main active skill counts the active skills of enabled gems in order, 1-based; both
-	// switches of every gem are written on. See countedSkills.
+	for _, gem := range g.Gems {
+		out.Gems = append(out.Gems, ex.gem(gem, data, text))
+	}
+	out.MainActive = strconv.Itoa(mainActive(g, data))
+	if g.Active < len(out.Gems) && (len(g.MinionItems) > 0 || takesGear(data, g)) {
+		// A minion without a set of its own takes the character's items.
+		out.Gems[g.Active].MinionItemSet = items.minionSet(i, g.MinionItems)
+	}
+	return out
+}
+
+// mainActive is PoB's main active skill of g. PoB counts the active skills of enabled gems in
+// order, 1-based; both switches of every gem are written on. See countedSkills.
+func mainActive(g build.SkillGroup, data *dataset.SkillIndex) int {
 	main := 0
 	for i, gem := range g.Gems {
-		out.Gems = append(out.Gems, ex.gem(gem, data, text))
 		active := activeSkillsOf(data, gem)
 		switch {
 		case i == g.Active:
@@ -61,8 +72,25 @@ func (ex *exporter) group(g build.SkillGroup, data *dataset.SkillIndex, text *da
 			main += len(active)
 		}
 	}
-	out.MainActive = strconv.Itoa(max(main, 1))
-	return out
+	return max(main, 1)
+}
+
+// groupSource writes what grants a group into out.
+func groupSource(out *outSkill, src build.SkillSource, items *itemWriter) {
+	if src.Node != 0 {
+		// PoB matches the group to the grant it finds on the node.
+		out.Source = "Tree:" + strconv.FormatUint(uint64(src.Node), 10)
+		return
+	}
+	// Without its item, which warns, the group is written as one of the player's.
+	if s, ok := items.source(src.Item); ok {
+		out.Source, out.Slot = s, pobItemSlot(src.Item)
+	}
+}
+
+// takesGear reports whether the minion of g's main skill, which g has, uses gear.
+func takesGear(data *dataset.SkillIndex, g build.SkillGroup) bool {
+	return data != nil && build.MinionSlots(build.GemSkill(data, g.Gems[g.Active], g.ActiveSkill)) != nil
 }
 
 // activeSkillsOf is build.ActiveSkills, or an active gem's first skill without a skills group.
@@ -161,4 +189,5 @@ type outGem struct {
 	Enabled       string `xml:"enabled,attr"`
 	EnableGlobal1 string `xml:"enableGlobal1,attr"`
 	EnableGlobal2 string `xml:"enableGlobal2,attr"`
+	MinionItemSet int    `xml:"skillMinionItemSet,attr,omitempty"`
 }

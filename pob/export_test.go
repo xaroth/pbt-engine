@@ -153,11 +153,11 @@ func TestToXMLWarnings(t *testing.T) {
 		{Code: pob.OverrideNotExported, Subject: "node 2", Nodes: []uint32{2}, Message: `override "Unnamed1" has no English name; not exported`},
 		{Code: pob.ConfigNotExported, Subject: "rage", Message: "config value not exported"},
 		{Code: pob.ConfigNotExported, Subject: "bandits", Message: "PoB has no choice for the bandit quest not completed; its default, kill all, applies"},
+		{Code: pob.ItemNotExported, Subject: "belt", Message: `base "Heavy Belt" has no English name; not exported`},
+		{Code: pob.ItemNotExported, Subject: "ring-1", Message: `base "Ruby Ring" has no English name; not exported`},
+		{Code: pob.ItemNotExported, Subject: "node 26725", Nodes: []uint32{26725}, Message: `base "Crimson Jewel" has no English name; not exported`},
 		{Code: pob.GemUnknown, Subject: "Metadata/Items/Gems/SkillGemFlameDash", Message: "gem not in dataset; written by id only"},
-		{Code: pob.ItemNotExported, Subject: "belt", Message: "items are not exported"},
-		{Code: pob.ItemNotExported, Subject: "ring-1", Message: "items are not exported"},
-		{Code: pob.ItemNotExported, Subject: "skill group 3 minion weapon", Message: "items are not exported"},
-		{Code: pob.ItemNotExported, Subject: "node 26725", Nodes: []uint32{26725}, Message: "jewels are not exported"},
+		{Code: pob.ItemNotExported, Subject: "skill group 3 minion weapon", Message: `base "Rusted Sword" has no English name; not exported`},
 	}
 	if diff := cmp.Diff(want, warnings); diff != "" {
 		t.Errorf("warnings (-want +got):\n%s", diff)

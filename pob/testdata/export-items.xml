@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" className="Witch" ascendClassName="None" mainSocketGroup="1" targetVersion="3_0"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="3" ascendClassId="0" nodes="" masteryEffects="">
+			<Sockets>
+				<Socket nodeId="26196" itemId="9"/>
+			</Sockets>
+		</Spec>
+	</Tree>
+	<Items activeItemSet="1">
+		<Item id="1">
+Rarity: UNIQUE
+Chains of Command
+Saintly Chainmail
+Implicits: 0
+Trigger Level 20 Animate Guardian's Weapon when Animated Guardian Kills an Enemy
++89 to maximum Life
+</Item>
+		<Item id="2">
+Rarity: RARE
+Doom Crown
+Royal Burgonet
+Implicits: 0
++50 to maximum Life
+</Item>
+		<Item id="3">
+Rarity: UNIQUE
+Replica Dragonfang's Flight
+Onyx Amulet
+Item Level: 80
+LevelReq: 56
+Implicits: 2
+{crafted}Allocates Fervour
+Hatred has 24% increased Aura Effect
++3 to Level of all Glacial Cascade Gems
++6% to all Elemental Resistances
+8% increased Reservation Efficiency of Skills
+Items and Gems have 8% reduced Attribute Requirements
+Corrupted
+</Item>
+		<Item id="4">
+Rarity: UNIQUE
+Winterweave
+Coral Ring
+Item Level: 85
+Implicits: 2
++14% to all Elemental Resistances
++27% to Chaos Resistance
+Adds 15 to 28 Fire Damage to Attacks
+Adds 13 to 25 Cold Damage to Attacks
++35 to maximum Life
++28% to Cold Resistance
+10% increased Movement Speed while Ignited
+The Effect of Chill on you is reversed
+Corrupted
+</Item>
+		<Item id="5">
+Rarity: MAGIC
+Spiraled Wand of Expertise
+Item Level: 42
+Quality: 0
+Sockets: W-W W
+Implicits: 1
+Adds 1 to 11 Lightning Damage to Spells and Attacks
+16% increased Cast Speed
+</Item>
+		<Item id="6">
+Rarity: RARE
+Victory Bond
+Stygian Vise
+Item Level: 85
+Sockets: A
+Implicits: 1
+Has 1 Abyssal Socket
++35 to maximum Energy Shield
++126 to maximum Life
++28 to maximum Mana
++31% to Chaos Resistance
+8% increased Flask Charges gained
+{crafted}+20% to Fire and Cold Resistances
+</Item>
+		<Item id="7">
+Rarity: RARE
+Grim Lens
+Hypnotic Eye Jewel
+Item Level: 77
+Implicits: 0
++12% to Global Critical Strike Multiplier
++34 to maximum Energy Shield
++29 to maximum Life
++12% to Fire Resistance
+</Item>
+		<Item id="8">
+Rarity: RARE
+Storm Veil
+Sacred Chainmail
+Armour: 2514
+ArmourBasePercentile: 0.9719
+Energy Shield: 600
+EnergyShieldBasePercentile: 0.959
+Searing Exarch Item
+Eater of Worlds Item
+Item Level: 84
+Quality: 20
+Sockets: B-B-W-W-B-W
+Implicits: 3
+{crafted}8% increased Explicit Defence Modifier magnitudes
+10% of Physical Damage from Hits taken as Cold Damage
+14% increased effect of Non-Curse Auras from your Skills
++199 to Armour
+104% increased Armour and Energy Shield
++79 to maximum Energy Shield
++46% to Fire Resistance
+</Item>
+		<Item id="9">
+Rarity: RARE
+Carrion Scar
+Cobalt Jewel
+Item Level: 83
+Implicits: 0
++7 to all Attributes
++17% to Critical Strike Multiplier with Cold Skills
+{fractured}5% increased maximum Life
+Fractured Item
+</Item>
+		<Item id="10">
+Rarity: UNIQUE
+Foulborn Tulborn
+Opal Wand
+Item Level: 85
+Sockets: W-W W
+Implicits: 2
++29% to Global Critical Strike Multiplier
+Damage Penetrates 10% Elemental Resistances
+Gain a Power Charge on Killing a Frozen Enemy
+{mutated}+3 to Level of all Cold Spell Skill Gems
+Corrupted
+</Item>
+		<ItemSet id="1">
+			<Slot name="Weapon 1" itemId="5"/>
+			<Slot name="Helmet" itemId="2"/>
+			<Slot name="Body Armour" itemId="1"/>
+			<Slot name="Amulet" itemId="3"/>
+			<Slot name="Ring 1" itemId="4"/>
+			<Slot name="Belt" itemId="6"/>
+			<Slot name="Belt Abyssal Socket 1" itemId="7"/>
+		</ItemSet>
+		<ItemSet id="2" title="Animate Guardian">
+			<Slot name="Weapon 1" itemId="10"/>
+			<Slot name="Body Armour" itemId="8"/>
+		</ItemSet>
+	</Items>
+	<Skills activeSkillSet="1">
+		<SkillSet id="1">
+			<Skill enabled="true" slot="Helmet" mainActiveSkill="1">
+				<Gem nameSpec="Animate Guardian" gemId="Metadata/Items/Gems/SkillGemAnimateArmour" skillId="AnimateGuardian" variantId="AnimateGuardian"
+					level="20" quality="0" enabled="true" skillMinionItemSet="2"/>
+			</Skill>
+			<Skill enabled="true" slot="Body Armour" source="Item:1:Chains of Command, Saintly Chainmail" groupCount="14">
+				<Gem nameSpec="Animate Guardian's Weapon" skillId="AnimateGuardiansWeapon" level="20" quality="0" enabled="true" skillMinionItemSet="2"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+</PathOfBuilding>
