@@ -361,3 +361,50 @@ func TestMinionStatsOfTheCharacter(t *testing.T) {
 		})
 	}
 }
+
+// minionHits returns the minion hits per second of a level 20 Summon Raging Spirit of a level 90
+// Marauder with items.
+func minionHits(t *testing.T, items ...poe1.Item) float64 {
+	t.Helper()
+	b := build.Build{
+		Format: 1, Game: "poe1", Version: minionVersion, Class: "Metadata/Characters/Str/Str", Level: 90,
+		Skills: build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemSummonRagingSpirit", Level: 20}}}}},
+	}
+	got, err := gearSheet(t, &b, items...).Output(poe1.MinionHitsPerSecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+// Replica Maata's Teaching's "Non-Spectre Minions' Base Attack time is equal to the Attack time
+// of your Main Hand Weapon" gives a minion the attack rate of the character's main hand weapon
+// (CalcActiveSkill.lua NonSpectreMinionsUseParentMainHandAttackTime, ModParser.lua): a Raging
+// Spirit's 1 / 0.57 attacks per second become the 1.25 of a sceptre that attacks in 0.8 seconds,
+// and the minion that wields a weapon takes it for the weapon's own too. Without a weapon in the
+// main hand the character's unarmed rate is the main hand's.
+func TestMinionBaseAttackTimeFromMainHand(t *testing.T) {
+	t.Parallel()
+	maata := []resolve.StatValue{{Stat: "non_spectre_minions_use_your_main_hand_base_attack_duration_from_weapon", Value: 1}}
+	sceptre := func(stats []resolve.StatValue) poe1.Item {
+		return poe1.Item{Slot: build.SlotWeapon, Name: "Sceptre", Key: "sceptre", Weapon: weapon("Sceptre", 10, 20, 800, 500), Stats: stats}
+	}
+	if got := minionHits(t, sceptre(nil)); math.Abs(got-1/0.57) > 1e-9 {
+		t.Errorf("minion hits per second %v with a sceptre that does not set it, want %v", got, 1/0.57)
+	}
+	if got := minionHits(t, sceptre(maata)); math.Abs(got-1.25) > 1e-9 {
+		t.Errorf("minion hits per second %v with the main hand's 1.25, want 1.25", got)
+	}
+	armed := guardianBuild(build.Items{build.SlotWeapon: {Name: "Foil", Base: jewelledFoil}})
+	armed.Skills.Groups = armed.Skills.Groups[1:]
+	rate := func(items ...poe1.Item) float64 {
+		got, err := gearSheet(t, &armed, items...).Output(poe1.MinionHitsPerSecond)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if own, taken := rate(sceptre(nil)), rate(sceptre(maata)); own == 1.25 || math.Abs(taken-1.25) > 1e-9 {
+		t.Errorf("a guardian wielding a foil attacks %v times per second, %v with the main hand's 1.25, want its own and 1.25", own, taken)
+	}
+}
