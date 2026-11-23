@@ -67,35 +67,40 @@ func skillBuffs() buffRules {
 		return []string{"base_" + kind + "_damage_resistance_%", "base_maximum_" + kind + "_damage_resistance_%"}
 	}
 	out := buffRules{
-		"Anger":             {added("fire"), "affected_by_anger"},
-		"Wrath":             {append(added("lightning"), "wrath_aura_spell_lightning_damage_+%_final"), "affected_by_wrath"},
-		"Envy":              {added("chaos"), ""},
-		"Hatred":            {[]string{"physical_damage_%_to_add_as_cold", "hatred_aura_cold_damage_+%_final"}, "affected_by_hatred"},
-		"Grace":             {[]string{"base_evasion_rating", "grace_aura_evasion_rating_+%_final"}, "affected_by_grace"},
-		"Determination":     {[]string{"base_physical_damage_reduction_rating", "determination_aura_armour_+%_final"}, "affected_by_determination"},
-		"Discipline":        {[]string{"base_maximum_energy_shield", "energy_shield_recharge_rate_+%"}, "affected_by_discipline"},
-		"Clarity":           {[]string{"base_mana_regeneration_rate_per_minute"}, "affected_by_clarity"},
-		"Vitality":          {[]string{"base_life_regeneration_rate_per_minute"}, "affected_by_vitality"},
-		"Haste":             {[]string{"attack_speed_+%_granted_from_skill", "cast_speed_+%_granted_from_skill", "base_movement_velocity_+%"}, "affected_by_haste"},
-		"Precision":         {[]string{"accuracy_rating", "skill_buff_grants_critical_strike_chance_+%"}, "affected_by_precision"},
-		"PurityOfElements":  {[]string{"base_resist_all_elements_%"}, "affected_by_purity_of_elements"},
-		"PurityOfFire":      {resist("fire"), "affected_by_purity_of_fire"},
-		"PurityOfIce":       {resist("cold"), "affected_by_purity_of_ice"},
-		"PurityOfLightning": {resist("lightning"), "affected_by_purity_of_lightning"},
-		"Zealotry": {[]string{
+		"Anger":         {stats: added("fire"), affected: "affected_by_anger"},
+		"Wrath":         {stats: append(added("lightning"), "wrath_aura_spell_lightning_damage_+%_final"), affected: "affected_by_wrath"},
+		"Envy":          {stats: added("chaos")},
+		"Hatred":        {stats: []string{"physical_damage_%_to_add_as_cold", "hatred_aura_cold_damage_+%_final"}, affected: "affected_by_hatred"},
+		"Grace":         {stats: []string{"base_evasion_rating", "grace_aura_evasion_rating_+%_final"}, affected: "affected_by_grace"},
+		"Determination": {stats: []string{"base_physical_damage_reduction_rating", "determination_aura_armour_+%_final"}, affected: "affected_by_determination"},
+		"Discipline":    {stats: []string{"base_maximum_energy_shield", "energy_shield_recharge_rate_+%"}, affected: "affected_by_discipline"},
+		"Clarity":       {stats: []string{"base_mana_regeneration_rate_per_minute"}, affected: "affected_by_clarity"},
+		"Vitality":      {stats: []string{"base_life_regeneration_rate_per_minute"}, affected: "affected_by_vitality"},
+		"Haste": {
+			stats:    []string{"attack_speed_+%_granted_from_skill", "cast_speed_+%_granted_from_skill", "base_movement_velocity_+%"},
+			affected: "affected_by_haste",
+		},
+		"Precision":         {stats: []string{"accuracy_rating", "skill_buff_grants_critical_strike_chance_+%"}, affected: "affected_by_precision"},
+		"PurityOfElements":  {stats: []string{"base_resist_all_elements_%"}, affected: "affected_by_purity_of_elements"},
+		"PurityOfFire":      {stats: resist("fire"), affected: "affected_by_purity_of_fire"},
+		"PurityOfIce":       {stats: resist("cold"), affected: "affected_by_purity_of_ice"},
+		"PurityOfLightning": {stats: resist("lightning"), affected: "affected_by_purity_of_lightning"},
+		"Zealotry": {stats: []string{
 			"spell_damage_aura_spell_damage_+%_final", "spell_critical_strike_chance_+%",
 			"create_consecrated_ground_on_hit_%_vs_rare_or_unique_enemy",
-		}, "affected_by_spell_damage_aura"},
-		"Malevolence":     {[]string{"delirium_aura_damage_over_time_+%_final", "delirium_skill_effect_duration_+%"}, "affected_by_delirium"},
-		"HeraldOfAsh":     {[]string{"physical_damage_%_to_add_as_fire"}, "affected_by_herald_of_ash"},
-		"HeraldOfIce":     {added("cold"), "affected_by_herald_of_ice"},
-		"HeraldOfThunder": {added("lightning"), "affected_by_herald_of_thunder"},
-		"HeraldOfPurity":  {[]string{"herald_of_purity_physical_damage_+%_final"}, "affected_by_herald_of_purity"},
+		}, affected: "affected_by_spell_damage_aura"},
+		"Malevolence":     {stats: []string{"delirium_aura_damage_over_time_+%_final", "delirium_skill_effect_duration_+%"}, affected: "affected_by_delirium"},
+		"HeraldOfAsh":     {stats: []string{"physical_damage_%_to_add_as_fire"}, affected: "affected_by_herald_of_ash"},
+		"HeraldOfIce":     {stats: added("cold"), affected: "affected_by_herald_of_ice"},
+		"HeraldOfThunder": {stats: added("lightning"), affected: "affected_by_herald_of_thunder"},
+		"HeraldOfPurity":  {stats: []string{"herald_of_purity_physical_damage_+%_final"}, affected: "affected_by_herald_of_purity"},
 		"HeraldOfAgony": {
-			[]string{"skill_buff_grants_chance_to_poison_%", "herald_of_agony_poison_damage_+%_final"}, "affected_by_herald_of_agony",
+			stats:    []string{"skill_buff_grants_chance_to_poison_%", "herald_of_agony_poison_damage_+%_final"},
+			affected: "affected_by_herald_of_agony",
 		},
 		"HeraldOfTheBreach": {
-			[]string{"skill_buff_grants_damage_+%_final_per_herald_skill_affecting_you"}, "affected_by_herald_of_the_breach",
+			stats:    []string{"skill_buff_grants_damage_+%_final_per_herald_skill_affecting_you"},
+			affected: "affected_by_herald_of_the_breach",
 		},
 	}
 	addGuardAndGolemBuffs(out)
@@ -104,7 +109,7 @@ func skillBuffs() buffRules {
 
 // addGuardAndGolemBuffs adds the buffs of the guard and golem skills to r.
 func addGuardAndGolemBuffs(r buffRules) {
-	guard := func(stats ...string) skillBuff { return skillBuff{stats, statAffectedByGuard} }
+	guard := func(stats ...string) skillBuff { return skillBuff{stats: stats, affected: statAffectedByGuard} }
 	shell := guard(
 		"base_physical_damage_reduction_rating", "molten_shell_damage_absorbed_%",
 		"molten_shell_damage_absorb_limit_%_of_armour", "molten_shell_max_damage_absorbed",
@@ -163,15 +168,15 @@ func (r buffRules) of(sk *resolve.Skill) (skillBuff, bool) {
 	case !Reserves(sk) || !slices.ContainsFunc(sk.Types, func(t string) bool { return t == typeAura || t == typeHerald }):
 		return skillBuff{}, false
 	}
+	return b, !cannotAffectSelf(sk)
+}
+
+// cannotAffectSelf reports whether sk's stats or a support's say its aura cannot affect you.
+func cannotAffectSelf(sk *resolve.Skill) bool {
 	if statOf(sk.Set().Stats, statAuraCannotAffectSelf) != 0 {
-		return skillBuff{}, false
+		return true
 	}
-	for _, sp := range sk.Supports {
-		if statOf(sp.Stats, statAuraCannotAffectSelf) != 0 {
-			return skillBuff{}, false
-		}
-	}
-	return b, true
+	return slices.ContainsFunc(sk.Supports, func(sp resolve.Support) bool { return statOf(sp.Stats, statAuraCannotAffectSelf) != 0 })
 }
 
 func statOf(stats []resolve.StatValue, name string) float64 {
