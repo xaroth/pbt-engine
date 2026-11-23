@@ -38,6 +38,10 @@ const xmlTrue = "true"
 // liveTargetVersion is the targetVersion PoB writes for PoE1 builds (GameVersions.lua).
 const liveTargetVersion = "3_0"
 
+// clusterHashFormatVersion marks the spec's cluster jewel node ids as the current format; PoB
+// reads a spec without it as the legacy one and renumbers them.
+const clusterHashFormatVersion = 2
+
 var gameVersion = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.|$)`)
 
 // ToXML writes b as a PoB build file that FromXML reads back to b. Names come from the English
@@ -83,7 +87,15 @@ func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, erro
 	if err != nil {
 		return nil, nil, fmt.Errorf("pob: %w", err)
 	}
-	return append([]byte(xml.Header), append(out, '\n')...), ex.warnings, nil
+	return []byte(xml.Header + pobEscapes(string(out)) + "\n"), ex.warnings, nil
+}
+
+// pobEscapes rewrites the numeric references encoding/xml writes for text PoB's XML reader
+// decodes only as &lt; &gt; &amp; &apos; &quot; or not at all. A literal "&#xA;" in a value is
+// written as "&amp;#xA;", so no reference here is the value's own. A carriage return keeps its
+// reference: written raw, it would read back as a newline.
+func pobEscapes(s string) string {
+	return strings.NewReplacer("&#xA;", "\n", "&#x9;", "\t", "&#39;", "&apos;", "&#34;", "&quot;").Replace(s)
 }
 
 // itemsAndSkills writes b's items, its jewels in f's spec and its skill groups, with the item
@@ -161,7 +173,10 @@ func (ex *exporter) tree(s *dataset.Store, treeVersion string, bl *outBuild) (ou
 		return outTree{}, fmt.Errorf("%w %q", ErrClass, b.Class)
 	}
 	bl.Class, bl.Ascendancy = text.CharacterNames[i].Name, none
-	spec := outSpec{TreeVersion: treeVersion, ClassID: classID, Nodes: joinNodes(b.Nodes), Masteries: joinMasteries(b.Masteries)}
+	spec := outSpec{
+		TreeVersion: treeVersion, ClusterHash: clusterHashFormatVersion, ClassID: classID,
+		Nodes: joinNodes(b.Nodes), Masteries: joinMasteries(b.Masteries),
+	}
 	if b.Ascendancy != "" {
 		a := slices.IndexFunc(tree.Classes[classID].Ascendancies, func(a dataset.Ascendancy) bool { return a.ID == b.Ascendancy })
 		j := slices.IndexFunc(text.AscendancyNames, func(n dataset.AscendancyName) bool {
@@ -252,6 +267,7 @@ type outTree struct {
 
 type outSpec struct {
 	TreeVersion   string        `xml:"treeVersion,attr"`
+	ClusterHash   int           `xml:"clusterHashFormatVersion,attr"`
 	ClassID       int           `xml:"classId,attr"`
 	AscendClassID int           `xml:"ascendClassId,attr"`
 	SecondaryID   int           `xml:"secondaryAscendClassId,attr,omitempty"`

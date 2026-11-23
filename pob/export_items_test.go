@@ -3,6 +3,7 @@ package pob_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -48,6 +49,7 @@ func TestToXMLItemsReal(t *testing.T) {
 					t.Errorf("export warning %v", w)
 				}
 			}
+			checkPoBEscapes(t, name, file)
 			got, _, err := pob.FromXML(file, reg)
 			if err != nil {
 				t.Fatal(err)
@@ -85,5 +87,22 @@ func checkExportItems(t *testing.T, b *build.Build) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("fixture (-want +got):\n%s", diff)
+	}
+}
+
+// checkPoBEscapes checks that file writes newlines and quotes as PoB's XML reader reads them: it
+// decodes no numeric reference, so an item with one stays on one line.
+func checkPoBEscapes(t *testing.T, name string, file []byte) {
+	t.Helper()
+	if strings.Contains(string(file), "&#") {
+		t.Errorf("file holds a numeric character reference:\n%s", file)
+	}
+	if name != "export-items.xml" {
+		return
+	}
+	for _, want := range []string{"\n\t\t<Item id=\"1\">\nRarity: ", "Replica Dragonfang&apos;s Flight\n", "Animate Guardian&apos;s Weapon"} {
+		if !strings.Contains(string(file), want) {
+			t.Errorf("file lacks %q:\n%s", want, file)
+		}
 	}
 }

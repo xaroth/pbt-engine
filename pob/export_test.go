@@ -120,7 +120,7 @@ func TestToXMLSpec(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<Build level="90" targetVersion="3_0" className="Marauder" ascendClassName="Chieftain" bandit="Alira" mainSocketGroup="2">`,
-		`<Spec treeVersion="3_29" classId="1" ascendClassId="3" nodes="1731,4139,11505" masteryEffects="{4139,47642},{11505,36313}">`,
+		`<Spec treeVersion="3_29" clusterHashFormatVersion="2" classId="1" ascendClassId="3" nodes="1731,4139,11505" masteryEffects="{4139,47642},{11505,36313}">`,
 		`<Input name="bandit" string="Alira"></Input>`,
 		`<Input name="resistancePenalty" number="-30">`,
 		`<Gem nameSpec="Inspiration" gemId="Metadata/Items/Gems/SkillGemSupportInspiration" variantId="Inspiration" skillId="Inspiration" ` +
