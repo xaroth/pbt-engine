@@ -13,7 +13,10 @@ import (
 
 // counts are PoB's count inputs and the config key each imports into.
 func counts() map[string]string {
-	return map[string]string{"configResonanceCount": "lowest-resonance", "multiplierWitheredStackCount": "enemy-withered-stacks"}
+	return map[string]string{
+		"configResonanceCount": "lowest-resonance", "multiplierWitheredStackCount": "enemy-withered-stacks",
+		"minionsOverrideFrenzyCharges": "minion-frenzy-charge-count",
+	}
 }
 
 func TestFromXMLCount(t *testing.T) {

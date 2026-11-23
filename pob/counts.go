@@ -28,12 +28,13 @@ func countOf[T ~int](input string, k config.Key[T]) countInput {
 }
 
 // countInputs are PoB's count inputs the config holds: the lowest Resonance, shown while a
-// Trinity support is in use, and the Withered stacks on the enemy, shown while the build can
-// inflict Withered.
+// Trinity support is in use, the Withered stacks on the enemy, shown while the build can
+// inflict Withered, and the frenzy charges of minions, shown while they use them.
 func countInputs() []countInput {
 	return []countInput{
 		countOf("configResonanceCount", poe1.LowestResonance),
 		countOf("multiplierWitheredStackCount", poe1.EnemyWitheredStacks),
+		countOf("minionsOverrideFrenzyCharges", poe1.MinionFrenzyChargeCount),
 	}
 }
 
