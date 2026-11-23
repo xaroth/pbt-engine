@@ -85,7 +85,34 @@ type MinionGear map[int][]Item
 // read, such as minion_damage_+%, reach them through the table.
 func passedStats() map[string][]string {
 	conversion := []string{"skill_physical_damage_%_to_convert_to_lightning"}
-	return map[string][]string{"Absolution": conversion, "AbsolutionAltX": conversion}
+	guardiansWeapon := []string{"attack_minimum_added_physical_damage", "attack_maximum_added_physical_damage", "active_skill_damage_+%_final"}
+	return map[string][]string{"Absolution": conversion, "AbsolutionAltX": conversion, "AnimateGuardiansWeapon": guardiansWeapon}
+}
+
+// Monster varieties of minions.
+const (
+	varietyAnimatedGuardian = "Metadata/Monsters/AnimatedItem/AnimatedArmour"
+	varietyAnimatedWeapon   = "Metadata/Monsters/AnimatedItem/AnimatedWeapon"
+)
+
+// minionKind is a kind of minion that stats name, a value of the minion dimension.
+type minionKind uint8
+
+const (
+	minionAnimatedGuardian minionKind = iota
+)
+
+func minionKindNames() []string { return []string{minionAnimatedGuardian: "animated_guardian"} }
+
+// minionKinds are the kinds of minions by monster variety.
+func minionKinds() map[string]minionKind {
+	return map[string]minionKind{varietyAnimatedGuardian: minionAnimatedGuardian}
+}
+
+// namedVarieties are, by granted effect, the monster varieties of the minions of skills whose
+// stats do not name them, as PoB's skill data lists them (minionList).
+func namedVarieties() map[string]string {
+	return map[string]string{"AnimateGuardiansWeapon": varietyAnimatedWeapon}
 }
 
 // passed returns the stats of sk that its minion's skill has too.
@@ -123,11 +150,28 @@ func (mn *Minion) equip(items []Item) {
 // armed reports whether mn attacks with a weapon of its items.
 func (mn *Minion) armed() bool { return mn.Hands.MainHand != nil }
 
-// SummonsMinion reports whether sk summons a minion whose monster the game names.
+// SummonsMinion reports whether sk summons a minion whose monster the game or namedVarieties
+// names.
 func SummonsMinion(sk *resolve.Skill) bool {
+	if _, ok := namedVarieties()[sk.GrantedEffect]; ok {
+		return true
+	}
 	return len(sk.StatSets) > 0 && slices.ContainsFunc(sk.Set().Stats, func(sv resolve.StatValue) bool {
 		return sv.Stat == statDisplayMinionMonsterType
 	})
+}
+
+// varietyOf returns the id of the monster variety of the minion sk summons in m, false for none.
+func varietyOf(sk *resolve.Skill, m *dataset.Monsters) (string, bool) {
+	if id, ok := namedVarieties()[sk.GrantedEffect]; ok {
+		return id, true
+	}
+	display := int32(statOf(sk.Set().Stats, statDisplayMinionMonsterType))
+	d := find(m.DisplayMinions, func(d *dataset.DisplayMinion) bool { return d.ID == display })
+	if d == nil {
+		return "", false
+	}
+	return d.Variety, true
 }
 
 // minionLevel returns the level of sk's minions for a character of characterLevel: the
@@ -152,12 +196,11 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dat
 	if !SummonsMinion(sk) {
 		return Minion{}, false, nil
 	}
-	display := int32(statOf(sk.Set().Stats, statDisplayMinionMonsterType))
-	d := find(m.DisplayMinions, func(d *dataset.DisplayMinion) bool { return d.ID == display })
-	if d == nil {
+	id, ok := varietyOf(sk, m)
+	if !ok {
 		return Minion{}, false, nil
 	}
-	v := find(m.Varieties, func(v *dataset.MonsterVariety) bool { return v.ID == d.Variety })
+	v := find(m.Varieties, func(v *dataset.MonsterVariety) bool { return v.ID == id })
 	if v == nil {
 		return Minion{}, false, nil
 	}
@@ -490,11 +533,27 @@ func (sh *Sheet) minionNode(i int, name string, damage []DamageType, form damage
 	}
 	var types []string
 	var w wield
-	if i < len(sh.slotMinions) && sh.slotMinions[i] != nil && sh.slotMinions[i].Skill != nil {
-		types = sh.slotMinions[i].Skill.Types
-		w = sh.slotMinions[i].wield()
+	var mn *Minion
+	if i < len(sh.slotMinions) {
+		mn = sh.slotMinions[i]
 	}
-	return core.Node{Actor: minionActor, Stat: n.Stat, Ctx: sh.session.InternContext(sh.ctx.skillMask(i, types, w, damage, form))}, nil
+	if mn != nil && mn.Skill != nil {
+		types = mn.Skill.Types
+		w = mn.wield()
+	}
+	mask := sh.ctx.minionMask(mn, sh.ctx.skillMask(i, types, w, damage, form))
+	return core.Node{Actor: minionActor, Stat: n.Stat, Ctx: sh.session.InternContext(mask)}, nil
+}
+
+// minionMask returns m with the kind of mn, if it is one stats name.
+func (c contexts) minionMask(mn *Minion, m core.Mask) core.Mask {
+	if mn == nil {
+		return m
+	}
+	if k, ok := minionKinds()[mn.Variety]; ok {
+		m = m.Set(c.minion.Bit(int(k)))
+	}
+	return m
 }
 
 // wield returns what mn's skill attacks with: its main hand, with its weapon when armed, and

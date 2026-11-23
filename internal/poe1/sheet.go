@@ -144,6 +144,8 @@ type Sheet struct {
 	wither witherMods
 	// totems gives a totem's base life (SetTotemLives).
 	totems TotemLives
+	// animatedWeapons holds the number of Animated Weapons allowed (SetAnimatedWeaponsAllowed).
+	animatedWeapons core.ModID
 	// minions maps a skill's minion, by slot and values, to its sources (SetMinions), and
 	// slotMinions are the minions SetMinions last got, by slot.
 	minions     map[minionKey][]core.SourceID
@@ -414,7 +416,7 @@ func (sh *Sheet) addBaseValues() error {
 	for _, add := range []func() error{
 		sh.addBaseMovementSpeed, sh.addBaseDamage, sh.addBaseSpeeds, sh.addBaseAilmentValues,
 		sh.addConditions, sh.addArcaneSurge, sh.addResonance, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
-		sh.addWither, sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock,
+		sh.addWither, sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock, sh.addMinionLimits,
 	} {
 		if err := add(); err != nil {
 			return err

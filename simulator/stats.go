@@ -37,7 +37,9 @@ type Stats struct {
 	totems poe1.TotemLives
 	// minions are the minions of the skills whose outputs are read, by slot.
 	minions []*poe1.Minion
-	sim     *Sim
+	// animatedWeapons is the number of Animated Weapons the build's skills allow.
+	animatedWeapons int
+	sim             *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
 	explainMu    sync.Mutex
@@ -170,6 +172,7 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
 	sh.SetTotemLives(st.totems)
+	sh.SetAnimatedWeaponsAllowed(st.animatedWeapons)
 	if len(st.sheetSkills) > 0 {
 		if err := sh.SetSkills(st.sheetSkills); err != nil {
 			return nil, fmt.Errorf("simulator: explain: %w", err)
