@@ -71,6 +71,19 @@ func TestCompileWeapon(t *testing.T) {
 	if got := poe1.CompileItem(it, base).Weapon.AttackRate; got != 1.46 {
 		t.Errorf("attack rate with attack speed per 8%% quality: got %v, want 1.46", got)
 	}
+	// Quality that does not increase physical damage: 15 to 30 times the local increase of 50%.
+	it, base = axe()
+	it.Mods = append(it.Mods, build.ModLine{Kind: build.Explicit, Stats: []build.StatValue{{Stat: "local_quality_does_not_increase_physical_damage", Value: 1}}})
+	if d := poe1.CompileItem(it, base).Weapon.Damage[poe1.Physical]; d != (poe1.DamageRange{Min: 23, Max: 45}) {
+		t.Errorf("physical damage with quality that does not increase it: got %v, want 23 to 45", d)
+	}
+	// 1% increased critical strike chance per 4% quality at 20% quality is 5%, beside the axe's
+	// own 20%: 5 x 1.25 = 6.25.
+	it, base = axe()
+	it.Mods = append(it.Mods, build.ModLine{Kind: build.Explicit, Stats: []build.StatValue{{Stat: "local_critical_strike_chance_+%_per_4%_quality", Value: 1}}})
+	if got := poe1.CompileItem(it, base).Weapon.CriticalChance; got != 6.25 {
+		t.Errorf("critical strike chance with critical strike chance per 4%% quality: got %v, want 6.25", got)
+	}
 	if poe1.CompileItem(&build.Item{}, &dataset.ItemBase{Class: "Shield"}).Weapon != nil {
 		t.Error("a shield compiled to a weapon")
 	}

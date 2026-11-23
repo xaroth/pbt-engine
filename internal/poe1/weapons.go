@@ -132,6 +132,8 @@ const (
 	localElementalDamageInc = "local_elemental_damage_+%"
 	localAttackSpeedInc     = "local_attack_speed_+%"
 	localAttackSpeedPer8Q   = "local_attack_speed_+%_per_8%_quality"
+	localCriticalPer4Q      = "local_critical_strike_chance_+%_per_4%_quality"
+	localNoQualityPhysical  = "local_quality_does_not_increase_physical_damage"
 	localCriticalChance     = "local_critical_strike_chance"
 	localCriticalChanceInc  = "local_critical_strike_chance_+%"
 	localNoPhysicalDamage   = "local_weapon_no_physical_damage"
@@ -146,7 +148,8 @@ const (
 func localWeaponStats() map[string]bool {
 	local := map[string]bool{
 		localPhysicalDamageInc: true, localElementalDamageInc: true, localAttackSpeedInc: true, localAttackSpeedPer8Q: true,
-		localCriticalChance: true, localCriticalChanceInc: true, localNoPhysicalDamage: true,
+		localCriticalChance: true, localCriticalChanceInc: true, localCriticalPer4Q: true,
+		localNoPhysicalDamage: true, localNoQualityPhysical: true,
 		localAccuracy: true, localAccuracyInc: true, localAlwaysHit: true,
 		localToRandomElement: true, localAsColdOrLightning: true,
 	}
@@ -163,12 +166,14 @@ func localWeaponStats() map[string]bool {
 // compileWeapon returns the weapon it is on base, with sums of its stats; nil when base is not a
 // weapon. Physical damage is the base's plus local added damage, times the local increase and,
 // separately, the quality; elemental damage is the local added damage times the local elemental
-// increase; each rounded half up. Attacks per second are the base's, rounded to hundredths,
-// times the local increase, rounded again; the increase per 8% quality counts whole steps of
-// 8%, rounded down after multiplying; critical strike chance is the base's plus the local
-// addition, times the local increase, rounded to hundredths. Its accuracy stats apply to its
-// attacks only, as PoB makes them local (Item.lua). Order and roundings follow PoB
-// (Item.lua, BuildModListForSlotNum; the base's attacks per second from Export/Scripts/bases.lua);
+// increase; each rounded half up; a weapon whose quality does not increase physical damage has
+// no quality factor. Attacks per second are the base's, rounded to hundredths, times the local
+// increase, rounded again; the increase per 8% quality counts whole steps of 8%, rounded down
+// after multiplying; critical strike chance is the base's plus the local addition, times the
+// local increase plus that per 4% quality, counted the same way, rounded to hundredths. Its
+// accuracy stats apply to its attacks only, as PoB makes them local (Item.lua). Order and
+// roundings follow PoB (Item.lua, BuildModListForSlotNum; the base's attacks per second from
+// Export/Scripts/bases.lua);
 // the game text gives none of them.
 func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float64) *Weapon {
 	if base.Weapon == nil {
@@ -182,14 +187,25 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 	w := &Weapon{Name: it.Name, Class: base.Class, Kinds: ks, Damage: weaponDamage(it, b, sums), Sockets: it.Sockets}
 	w.AttackRate = roundHundredths(attackRate(b.AttackTime) * (1 + localAttackSpeed(it, sums)/percentScale))
 	crit := float64(b.CriticalChance)/critPermyriadToPercent + sums[localCriticalChance]/critPermyriadToPercent
-	w.CriticalChance = roundHundredths(crit * (1 + sums[localCriticalChanceInc]/percentScale))
+	w.CriticalChance = roundHundredths(crit * (1 + localCriticalInc(it, sums)/percentScale))
 	w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded = sums[localAccuracy], sums[localAccuracyInc], sums[localAlwaysHit] != 0
 	w.ConvertedToRandomElement, w.GainedAsColdOrLightning = sums[localToRandomElement], sums[localAsColdOrLightning]
 	return w
 }
 
-// qualityStep is the quality per step of a weapon's attack speed per 8% quality.
-const qualityStep = 8
+// Quality per step of a weapon's attack speed per 8% quality and of its critical strike chance
+// per 4% quality.
+const (
+	qualityStep         = 8
+	criticalQualityStep = 4
+)
+
+// localCriticalInc returns the local increased critical strike chance of it, given sums of its
+// stats: its own and that per 4% quality, rounded down after scaling by quality / 4 (Item.lua,
+// AlternateQualityLocalCritChancePer4Quality).
+func localCriticalInc(it *build.Item, sums map[string]float64) float64 {
+	return sums[localCriticalChanceInc] + math.Floor(float64(it.Quality)/criticalQualityStep*sums[localCriticalPer4Q])
+}
 
 // localAttackSpeed returns the local increased attack speed of it, given sums of its stats: its
 // own and that per 8% quality, which PoB rounds down after scaling by quality / 8 (Item.lua,
@@ -249,7 +265,7 @@ func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float
 		case Physical:
 			lo += float64(b.PhysicalDamage.Min)
 			hi += float64(b.PhysicalDamage.Max)
-			f := (1 + sums[localPhysicalDamageInc]/percentScale) * (1 + float64(it.Quality)/percentScale)
+			f := (1 + sums[localPhysicalDamageInc]/percentScale) * (1 + physicalQuality(it, sums)/percentScale)
 			lo, hi = roundHalf(lo*f), roundHalf(hi*f)
 		case Fire, Cold, Lightning:
 			f := 1 + sums[localElementalDamageInc]/percentScale
@@ -261,6 +277,15 @@ func weaponDamage(it *build.Item, b *dataset.WeaponValues, sums map[string]float
 		}
 	}
 	return out
+}
+
+// physicalQuality returns the quality that increases the physical damage of it, given sums of its
+// stats: none when its quality does not increase it (Item.lua, AlternateQualityWeapon).
+func physicalQuality(it *build.Item, sums map[string]float64) float64 {
+	if sums[localNoQualityPhysical] > 0 {
+		return 0
+	}
+	return float64(it.Quality)
 }
 
 // weaponKey is a weapon by hand and content.
