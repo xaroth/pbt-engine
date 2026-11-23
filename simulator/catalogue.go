@@ -87,8 +87,8 @@ type TreeNode = poe1.TreeNode
 type TreeTerm = poe1.TreeTerm
 
 // Source is what a value is credited to. Bundle.Source is one of CharacterSource,
-// LevelSource, NodeSource, RadiusSource, QuestSource, ItemSource or JewelSource; a rule's own source has no
-// Bundle and names itself in Rule.
+// LevelSource, NodeSource, RadiusSource, QuestSource, ItemSource, JewelSource or
+// MonsterSource; a rule's own source has no Bundle and names itself in Rule.
 type Source = poe1.Source
 
 // The kinds of bundle source.
@@ -110,6 +110,8 @@ type (
 	// between its socket and the class start that its effect grows with; with Passive, the
 	// notable it allocates with the jewel in socket With.
 	JewelSource = resolve.JewelSource
+	// MonsterSource is the object template of a minion's monster variety.
+	MonsterSource = resolve.MonsterSource
 )
 
 // Op is how a modifier applies.

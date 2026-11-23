@@ -115,8 +115,8 @@ func wireTree(n *TreeNode) *wireTreeNode {
 
 // MarshalJSON encodes the source as an object whose kind says which other fields it has:
 // character (id), level, node (node, effect: 0 for the node's own stats), quest (quest, flag),
-// item (slot, name: empty for an item without one), gem (group, gem, id: a skill's or support's
-// own stats) or rule (id, and text in English).
+// item (slot, name: empty for an item without one), monster (variety: a minion's template), gem
+// (group, gem, id: a skill's or support's own stats) or rule (id, and text in English).
 func (s Source) MarshalJSON() ([]byte, error) {
 	if s.Bundle == nil {
 		return marshal(struct {
@@ -125,7 +125,11 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Text string `json:"text"`
 		}{"rule", s.RuleID, s.Rule})
 	}
-	switch src := s.Bundle.Source.(type) {
+	return bundleSourceJSON(s.Bundle.Source)
+}
+
+func bundleSourceJSON(src resolve.Source) ([]byte, error) {
+	switch src := src.(type) {
 	case resolve.CharacterSource:
 		return marshal(struct {
 			Kind string `json:"kind"`
@@ -153,6 +157,11 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			Quest string `json:"quest"`
 			Flag  string `json:"flag"`
 		}{"quest", src.ID, src.Flag})
+	case resolve.MonsterSource:
+		return marshal(struct {
+			Kind    string `json:"kind"`
+			Variety string `json:"variety"`
+		}{"monster", src.Variety})
 	case resolve.GemSource:
 		return marshal(struct {
 			wireGem
@@ -176,7 +185,7 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			With     uint32 `json:"with,omitempty"`
 		}{"jewel", src.Node, src.Name, src.Passives, src.Passive, src.With})
 	}
-	return nil, fmt.Errorf("%w %T", errSourceKind, s.Bundle.Source)
+	return nil, fmt.Errorf("%w %T", errSourceKind, src)
 }
 
 var errSourceKind = errors.New("poe1: no JSON for source")

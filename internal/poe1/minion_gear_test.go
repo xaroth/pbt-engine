@@ -161,3 +161,24 @@ func TestGuardianStrengthBonus(t *testing.T) {
 		t.Errorf("physical damage %v with 100 strength, want %v (20%% more than %v)", got[1], want, got[0])
 	}
 }
+
+// The guardian's template gives it 10% more attack speed while dual wielding (Animated
+// Guardian, PoB's Data/Minions.lua): two foils attack 10% faster than one.
+func TestGuardianDualWieldSpeed(t *testing.T) {
+	t.Parallel()
+	foil := build.Item{Name: "Foil", Base: jewelledFoil}
+	rate := func(gear build.Items) float64 {
+		b := guardianBuild(gear)
+		b.Skills.Groups = b.Skills.Groups[1:]
+		got, err := gearSheet(t, &b).Output(poe1.MinionHitsPerSecond)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	one := rate(build.Items{build.SlotWeapon: foil})
+	two := rate(build.Items{build.SlotWeapon: foil, build.SlotOffhand: foil})
+	if want := one * 1.1; math.Abs(two-want) > 1e-9*want {
+		t.Errorf("%v hits per second dual wielding, want %v (10%% more than %v)", two, want, one)
+	}
+}

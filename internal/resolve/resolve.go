@@ -65,7 +65,7 @@ func (s Scope) String() string {
 }
 
 // Source is where a bundle came from: a CharacterSource, LevelSource, NodeSource,
-// RadiusSource, QuestSource, ItemSource or JewelSource.
+// RadiusSource, QuestSource, ItemSource, JewelSource or MonsterSource.
 type Source interface {
 	String() string
 	source()
@@ -104,7 +104,14 @@ type QuestSource struct {
 	Flag string
 }
 
+// MonsterSource is the object template of a minion's monster variety.
+type MonsterSource struct {
+	// Variety is the MonsterVarieties id.
+	Variety string
+}
+
 func (s CharacterSource) String() string { return "character " + s.ID }
+func (s MonsterSource) String() string   { return "monster " + s.Variety }
 func (LevelSource) String() string       { return "level" }
 func (s NodeSource) String() string {
 	if s.Effect != 0 {
@@ -197,6 +204,7 @@ func (LevelSource) source()     {}
 func (NodeSource) source()      {}
 func (RadiusSource) source()    {}
 func (QuestSource) source()     {}
+func (MonsterSource) source()   {}
 
 // StatValue is a game stat id and its value.
 type StatValue struct {
