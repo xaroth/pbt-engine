@@ -40,7 +40,7 @@ func witheredSheet(t *testing.T, b *build.Build, items []poe1.Item, stacks int) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	sw, err := poe1.SwitchOf(c, cfg, items, false)
+	sw, err := poe1.SwitchOf(c, cfg, items, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

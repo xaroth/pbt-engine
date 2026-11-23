@@ -69,6 +69,37 @@ func (s *Sim) compileItems(r *run, cb *build.Build) error {
 	return s.compileJewels(r, cb, jewels, bases)
 }
 
+// compileMinionGear sets the gear of r's minions from the minion items of cb's skill groups,
+// each compiled once per content. On a dataset without the items group, compileItems warns.
+func (s *Sim) compileMinionGear(r *run, cb *build.Build) error {
+	for i, g := range cb.Skills.Groups {
+		if len(g.MinionItems) == 0 {
+			continue
+		}
+		bases, err := s.bases()
+		if _, missing := errors.AsType[*dataset.MissingGroupError](err); missing {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("simulator: %w", err)
+		}
+		if r.gear == nil {
+			r.gear = poe1.MinionGear{}
+		}
+		for _, slot := range slices.Sorted(maps.Keys(g.MinionItems)) {
+			it := g.MinionItems[slot]
+			c, key, err := s.compile(&it, bases)
+			if err != nil {
+				return fmt.Errorf("simulator: group %d minion item %s: %w", i+1, slot, err)
+			}
+			r.gear[i] = append(r.gear[i], poe1.Item{
+				Slot: slot, Name: it.Name, Key: key, Stats: c.Stats, Weapon: c.Weapon, Shield: c.Shield, Armour: c.Armour,
+			})
+		}
+	}
+	return nil
+}
+
 // compileJewels adds to the items of r's sheet the jewels of cb in the allocated sockets, each
 // with the effect the others give it (poe1.SocketJewelEffect) and the effect it gains per
 // passive between its socket and the class start (poe1.EffectPerPassiveToStart).

@@ -6,6 +6,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/core"
 	"github.com/xaroth/pbt-engine/internal/resolve"
@@ -68,7 +69,15 @@ type Minion struct {
 	// Passed are the summoning skill's own stats that its minion's skill has too
 	// (passedStats).
 	Passed []resolve.StatValue
+	// Items are the items the minion uses, for a skill whose minion takes gear (equip), and
+	// Hands the weapons they put in its hands.
+	Items []Item
+	Hands Hands
 }
+
+// MinionGear are the compiled items of the minions that take gear, by the index of the skill
+// group whose main skill summons them (build.SkillGroup.MinionItems).
+type MinionGear map[int][]Item
 
 // passedStats are, by granted effect, the stats of a summoning skill that its minion's skill
 // has too, as PoB's skill data passes them (Data/Skills, a statMap entry with a MinionModifier):
@@ -92,11 +101,27 @@ func passed(sk *resolve.Skill) []resolve.StatValue {
 }
 
 // Hit reports whether the sheet gives mn's hit: its main skill is an attack with the minion's
-// own damage. A minion that attacks with items, such as an Animated Guardian, has none, and a
-// minion's spell needs its damage at the minion's level, which the dataset does not give.
+// own damage or a weapon of its items. A minion's spell needs its damage at the minion's level,
+// which the dataset does not give.
 func (mn *Minion) Hit() bool {
-	return mn != nil && mn.Skill != nil && hasTypes(mn.Skill, typeAttack) && mn.MaximumDamage > 0
+	return mn != nil && mn.Skill != nil && hasTypes(mn.Skill, typeAttack) && (mn.MaximumDamage > 0 || mn.armed())
 }
+
+// equip gives mn items: their stats are the minion's, and a weapon in the main hand replaces its
+// monster's damage, attacks per second and critical strike chance, with the off hand's weapon
+// for a second hand, as PoB has it (CalcActiveSkill.lua minion weaponData1 and weaponData2,
+// CalcPerform.lua minion itemList). An off hand weapon without one in the main hand is left
+// out: the minion's own attack is not a weapon to dual wield with.
+func (mn *Minion) equip(items []Item) {
+	mn.Items = items
+	mn.Hands = HandsOf(items, nil)
+	if mn.Hands.MainHand == nil {
+		mn.Hands.OffHand = nil
+	}
+}
+
+// armed reports whether mn attacks with a weapon of its items.
+func (mn *Minion) armed() bool { return mn.Hands.MainHand != nil }
 
 // SummonsMinion reports whether sk summons a minion whose monster the game names.
 func SummonsMinion(sk *resolve.Skill) bool {
@@ -230,9 +255,9 @@ func monsterBase(m *dataset.Monsters, stats []dataset.Stat, id string, otherwise
 }
 
 // minionsOf returns the minion of each skill of sw whose outputs are read, which are the first
-// slots, by slot: nil for a skill that summons none. It returns none when no such skill summons
-// one or the dataset has no monsters group.
-func minionsOf(sw *Switch) ([]*Minion, error) {
+// slots, by slot: nil for a skill that summons none. A minion that takes gear uses its group's
+// (gear). It returns none when no such skill summons one or the dataset has no monsters group.
+func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 	read := sw.Skills.Read()
 	if !slices.ContainsFunc(read, SummonsMinion) {
 		return nil, nil
@@ -259,6 +284,9 @@ func minionsOf(sw *Switch) ([]*Minion, error) {
 		case err != nil:
 			return nil, err
 		case ok:
+			if build.MinionSlots(sk.GrantedEffect) != nil {
+				mn.equip(gear[sk.Source.Group])
+			}
 			out[i] = &mn
 		}
 	}
@@ -271,14 +299,17 @@ type minionKey struct {
 	key  string
 }
 
-// keyOf returns mn's key in slot, by its values and its skill's, not the skill's address: each
-// switch resolves the skill anew.
+// keyOf returns mn's key in slot, by its values, its skill's and its items' keys, not their
+// addresses: each switch resolves the skill and compiles the items anew.
 func keyOf(slot int, mn *Minion) minionKey {
 	values := *mn
-	values.Skill = nil
+	values.Skill, values.Items, values.Hands = nil, nil, Hands{}
 	k := minionKey{slot: slot, key: fmt.Sprint(values)}
 	if mn.Skill != nil {
 		k.key += fmt.Sprint(*mn.Skill)
+	}
+	for _, it := range mn.Items {
+		k.key += fmt.Sprintf("|%s %s", it.Slot, it.Key)
 	}
 	return k
 }
@@ -328,10 +359,11 @@ type minionBase struct {
 
 // bases returns mn's base values; damage, attack rate, critical strike chance and that its hits
 // cannot be evaded in the context of attacks, damage in that of physical damage too, with dim
-// the damage dimension.
+// the damage dimension. A minion armed with a weapon attacks with the weapon's damage, attack
+// rate and critical strike chance instead (addWeapon).
 func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 	physicalAttack := []core.Mask{attack, damageBit(dim, Physical)}
-	return []minionBase{
+	own := []minionBase{
 		{resolve.LevelStat, core.OpBase, float64(mn.Level), nil},
 		{statMaximumLife, core.OpBase, mn.Life, nil},
 		{statMaximumEnergyShield, core.OpBase, mn.EnergyShield, nil},
@@ -346,25 +378,45 @@ func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 		{statMaximumLightningResistance, core.OpBase, mn.MaximumResistance, nil},
 		{statMaximumChaosResistance, core.OpBase, mn.MaximumResistance, nil},
 		{statCriticalStrikeMultiplier, core.OpBase, mn.CriticalStrikeMultiplier, nil},
+		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}},
+	}
+	if mn.armed() {
+		return own
+	}
+	return slices.Concat(own, []minionBase{
 		{statBaseMinimumDamage, core.OpBase, mn.MinimumDamage, physicalAttack},
 		{statBaseMaximumDamage, core.OpBase, mn.MaximumDamage, physicalAttack},
 		{statAttackRate, core.OpBase, mn.AttackRate, []core.Mask{attack}},
 		{statCriticalStrikeChance, core.OpBase, minionAttackCriticalChance, []core.Mask{attack}},
-		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}},
-	}
+	})
 }
 
-// addMinion adds mn's base values, and its skill's stats and hit, as sources whose modifiers
-// reach the minion actor in the context of the skill in slot.
+// addMinion adds mn's base values, its weapons, its items' stats, and its skill's stats and hit,
+// as sources whose modifiers reach the minion actor in the context of the skill in slot.
 func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
 	src, err := sh.addMinionBases(mn, slot)
 	if err != nil {
 		return nil, err
 	}
-	if mn.Skill == nil {
-		return []core.SourceID{src}, nil
+	srcs := []core.SourceID{src}
+	skill := core.MaskOf(sh.ctx.skill.Bit(slot))
+	for hd, w := range []*Weapon{handMain: mn.Hands.MainHand, handOff: mn.Hands.OffHand} {
+		if w == nil {
+			continue
+		}
+		src, err := sh.addWeapon(w, hand(hd), minionActor, skill)
+		if err != nil {
+			return nil, err
+		}
+		srcs = append(srcs, src)
 	}
-	srcs, err := sh.addBundles([]core.SourceID{src}, mn.bundles(), slot)
+	if srcs, err = sh.addBundles(srcs, mn.itemBundles(), slot); err != nil {
+		return nil, err
+	}
+	if mn.Skill == nil {
+		return srcs, nil
+	}
+	srcs, err = sh.addBundles(srcs, mn.bundles(), slot)
 	if err != nil {
 		return nil, err
 	}
@@ -415,6 +467,15 @@ func (mn *Minion) bundles() []resolve.Bundle {
 	return out
 }
 
+// itemBundles returns the bundles of the stats of mn's items.
+func (mn *Minion) itemBundles() []resolve.Bundle {
+	out := make([]resolve.Bundle, 0, len(mn.Items))
+	for _, it := range mn.Items {
+		out = append(out, minionBundle(resolve.ItemSource{Slot: it.Slot, Name: it.Name}, it.Stats))
+	}
+	return out
+}
+
 func minionBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {
 	return resolve.Bundle{Actor: resolve.Minion, Scope: resolve.Global, Source: src, Stats: stats}
 }
@@ -431,11 +492,27 @@ func (sh *Sheet) minionNode(i int, name string, damage []DamageType, form damage
 	var w wield
 	if i < len(sh.slotMinions) && sh.slotMinions[i] != nil && sh.slotMinions[i].Skill != nil {
 		types = sh.slotMinions[i].Skill.Types
-		if slices.Contains(types, typeAttack) {
-			w = wield{attack: true, hand: handMain}
-		}
+		w = sh.slotMinions[i].wield()
 	}
 	return core.Node{Actor: minionActor, Stat: n.Stat, Ctx: sh.session.InternContext(sh.ctx.skillMask(i, types, w, damage, form))}, nil
+}
+
+// wield returns what mn's skill attacks with: its main hand, with its weapon when armed, and
+// both hands when its off hand holds a weapon the skill can be used with. Not an attack, nothing.
+func (mn *Minion) wield() wield {
+	sk, h := mn.Skill, mn.Hands
+	if !slices.Contains(sk.Types, typeAttack) {
+		return wield{}
+	}
+	w := wield{attack: true, hand: handMain}
+	if !mn.armed() {
+		return w
+	}
+	w.weapon, w.dualWielding = h.MainHand.Kinds, h.dualWielding()
+	if h.bothHands(sk.Types, sk.WeaponRestrictions) {
+		w.offWeapon = h.OffHand.Kinds
+	}
+	return w
 }
 
 // MinionValue returns engine stat name of the minion of skill i of SetSkills, in that skill's
