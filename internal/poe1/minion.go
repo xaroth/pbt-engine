@@ -28,10 +28,15 @@ const (
 	statMonsterBaseMaximumAllResistances       = "base_maximum_all_resistances_%"
 	statMonsterBaseCriticalStrikeMultiplier    = "base_critical_strike_multiplier"
 	statMonsterCriticalAilmentDotMultiplier    = "critical_ailment_dot_multiplier_+"
+	statMonsterMaxPowerCharges                 = "max_power_charges"
 	statMonsterMaxFrenzyCharges                = "max_frenzy_charges"
+	statMonsterMaxEnduranceCharges             = "max_endurance_charges"
+	statMonsterCriticalChancePerPowerCharge    = "critical_strike_chance_+%_per_power_charge"
 	statMonsterAttackSpeedPerFrenzyCharge      = "base_attack_speed_+%_per_frenzy_charge"
 	statMonsterCastSpeedPerFrenzyCharge        = "base_cast_speed_+%_per_frenzy_charge"
 	statMonsterDamagePerFrenzyCharge           = "object_inherent_damage_+%_final_per_frenzy_charge"
+	statMonsterPhysicalReductionPerEndurance   = "physical_damage_reduction_%_per_endurance_charge"
+	statMonsterElementalReductionPerEndurance  = "elemental_damage_reduction_%_per_endurance_charge_if_player_minion"
 )
 
 // A minion's attack, as PoB makes it (CalcActiveSkill.lua minion weaponData1, CalcPerform.lua
@@ -69,10 +74,12 @@ type Minion struct {
 	// CriticalStrikeMultiplier is every monster's, from Monster.ot, and CriticalAilmentDotMultiplier
 	// what an ailment from its critical strike adds to its Damage over Time Multiplier.
 	CriticalStrikeMultiplier, CriticalAilmentDotMultiplier float64
-	// FrenzyCharges are its maximum frenzy charges and what each gives it, every monster's, from
-	// Monster.ot, as PoB gives them to every minion (CalcSetup.lua initModDB, CalcPerform.lua
-	// initMinionModDB).
-	FrenzyCharges FrenzyChargeValues
+	// PowerCharges, FrenzyCharges and EnduranceCharges are its maximum charges of each kind and
+	// what each gives it, every monster's, from Monster.ot, as PoB gives them to every minion
+	// (CalcSetup.lua initModDB, CalcPerform.lua initMinionModDB).
+	PowerCharges     PowerChargeValues
+	FrenzyCharges    FrenzyChargeValues
+	EnduranceCharges EnduranceChargeValues
 	// Skill is the minion's main skill, its variety's first, at the minion's level, with the
 	// summoning skill's supports that support it; nil when it has none that resolves.
 	Skill *resolve.Skill
@@ -83,6 +90,18 @@ type Minion struct {
 	// Hands the weapons they put in its hands.
 	Items []Item
 	Hands Hands
+}
+
+// PowerChargeValues are a minion's maximum power charges and, in percent, the increased
+// critical strike chance each gives it.
+type PowerChargeValues struct {
+	Maximum, CriticalChance float64
+}
+
+// EnduranceChargeValues are a minion's maximum endurance charges and, in percent, the physical
+// and elemental damage reduction each gives it.
+type EnduranceChargeValues struct {
+	Maximum, PhysicalReduction, ElementalReduction float64
 }
 
 // FrenzyChargeValues are a minion's maximum frenzy charges and, in percent, the increased
@@ -258,6 +277,15 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dat
 	mn := minionOf(v, t, l, m, monsterBase(m, stats, statMonsterBaseMaximumAllResistances, enemyBaseMaximumResistance))
 	mn.CriticalStrikeMultiplier = monsterBase(m, stats, statMonsterBaseCriticalStrikeMultiplier, 0)
 	mn.CriticalAilmentDotMultiplier = monsterBase(m, stats, statMonsterCriticalAilmentDotMultiplier, 0)
+	mn.PowerCharges = PowerChargeValues{
+		Maximum:        monsterBase(m, stats, statMonsterMaxPowerCharges, 0),
+		CriticalChance: monsterBase(m, stats, statMonsterCriticalChancePerPowerCharge, 0),
+	}
+	mn.EnduranceCharges = EnduranceChargeValues{
+		Maximum:            monsterBase(m, stats, statMonsterMaxEnduranceCharges, 0),
+		PhysicalReduction:  monsterBase(m, stats, statMonsterPhysicalReductionPerEndurance, 0),
+		ElementalReduction: monsterBase(m, stats, statMonsterElementalReductionPerEndurance, 0),
+	}
 	mn.FrenzyCharges = FrenzyChargeValues{
 		Maximum:     monsterBase(m, stats, statMonsterMaxFrenzyCharges, 0),
 		AttackSpeed: monsterBase(m, stats, statMonsterAttackSpeedPerFrenzyCharge, 0),
@@ -451,13 +479,13 @@ type minionBase struct {
 	per   string
 }
 
-// bases returns mn's base values, what each frenzy charge gives it among them; damage, attack
+// bases returns mn's base values, what each charge gives it among them; damage, attack
 // rate, critical strike chance and that its hits cannot be evaded in the context of attacks,
 // damage in that of physical damage too, with dim the damage dimension. A minion armed with a weapon attacks with the weapon's damage, attack
 // rate and critical strike chance instead (addWeapon).
 func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 	physicalAttack := []core.Mask{attack, damageBit(dim, Physical)}
-	fc := mn.FrenzyCharges
+	pc, fc, ec := mn.PowerCharges, mn.FrenzyCharges, mn.EnduranceCharges
 	own := []minionBase{
 		{resolve.LevelStat, core.OpBase, float64(mn.Level), nil, ""},
 		{statMaximumLife, core.OpBase, mn.Life, nil, ""},
@@ -475,10 +503,15 @@ func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 		{statCriticalStrikeMultiplier, core.OpBase, mn.CriticalStrikeMultiplier, nil, ""},
 		{statCriticalAilmentDamageOverTimeMultiple, core.OpBase, mn.CriticalAilmentDotMultiplier, nil, ""},
 		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}, ""},
+		{statMaximumPowerCharges, core.OpBase, pc.Maximum, nil, ""},
+		{statCriticalStrikeChance, core.OpInc, pc.CriticalChance, nil, statPowerCharges},
 		{statMaximumFrenzyCharges, core.OpBase, fc.Maximum, nil, ""},
 		{statAttackSpeed, core.OpInc, fc.AttackSpeed, nil, statFrenzyCharges},
 		{statCastSpeed, core.OpInc, fc.CastSpeed, nil, statFrenzyCharges},
 		{statDamage, core.OpMore, fc.MoreDamage, nil, statFrenzyCharges},
+		{statMaximumEnduranceCharges, core.OpBase, ec.Maximum, nil, ""},
+		{statPhysicalDamageReduction, core.OpBase, ec.PhysicalReduction, nil, statEnduranceCharges},
+		{statElementalDamageReduction, core.OpBase, ec.ElementalReduction, nil, statEnduranceCharges},
 	}
 	if mn.armed() {
 		return own

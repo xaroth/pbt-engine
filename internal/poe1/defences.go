@@ -13,6 +13,13 @@ const (
 	statMaximumEnergyShield    = "maximum_energy_shield"
 )
 
+// A minion's damage reduction, in percent: what its endurance charges give it. Nothing reads
+// them yet.
+const (
+	statPhysicalDamageReduction  = "physical_damage_reduction"
+	statElementalDamageReduction = "elemental_damage_reduction"
+)
+
 // mechanicDefences names the defences mechanic for those that come after it.
 const mechanicDefences = "defences"
 
@@ -24,6 +31,8 @@ func defenceMechanic() mechanic {
 		statMaximumLife,
 		statMaximumMana,
 		statMaximumEnergyShield,
+		statPhysicalDamageReduction,
+		statElementalDamageReduction,
 	}, def: defenceDef}
 }
 

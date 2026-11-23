@@ -257,8 +257,10 @@ func TestConfigKeys(t *testing.T) {
 	}
 	want = append(want, simulator.ConfigKey{Name: "lowest-resonance", Default: json.RawMessage("0")})
 	want = append(want, simulator.ConfigKey{Name: "enemy-withered-stacks", Default: json.RawMessage("0")})
-	want = append(want, simulator.ConfigKey{Name: "minion-frenzy-charges", Default: json.RawMessage("false")})
-	want = append(want, simulator.ConfigKey{Name: "minion-frenzy-charge-count", Default: json.RawMessage("0")})
+	for _, kind := range []string{"power", "frenzy", "endurance"} {
+		want = append(want, simulator.ConfigKey{Name: "minion-" + kind + "-charges", Default: json.RawMessage("false")})
+		want = append(want, simulator.ConfigKey{Name: "minion-" + kind + "-charge-count", Default: json.RawMessage("0")})
+	}
 	if diff := cmp.Diff(want, keys); diff != "" {
 		t.Errorf("config keys (-want +got):\n%s", diff)
 	}
