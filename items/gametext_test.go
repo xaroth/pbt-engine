@@ -100,6 +100,8 @@ Item Level: 85
 const headhunterPoB = `Rarity: UNIQUE
 Headhunter
 Leather Belt
+Catalyst: Intrinsic
+CatalystQuality: 20
 Item Level: 85
 Implicits: 1
 +37 to maximum Life

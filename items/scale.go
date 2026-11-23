@@ -110,11 +110,19 @@ func (mg magnitude) scales(kind build.ModKind, tags []string) bool {
 // scaling is what scales an item's mod values from their mods' ranges: its catalyst's quality
 // and its magnitude lines, as Path of Building scales them.
 type scaling struct {
-	// catalyst are the tags of the item's catalyst; quality is its quality when qualitySet.
-	catalyst   []string
+	// catalyst is the item's catalyst, nil for none; quality is its quality when qualitySet.
+	catalyst   *catalyst
 	quality    int
 	qualitySet bool
 	magnitudes []magnitude
+}
+
+// catalystQuality is the quality of the item's catalyst.
+func (s *scaling) catalystQuality() int {
+	if s.qualitySet {
+		return s.quality
+	}
+	return defaultCatalystQuality
 }
 
 // property reads a catalyst property, Path of Building's "Catalyst" or "CatalystQuality" or the
@@ -123,7 +131,7 @@ func (s *scaling) property(key string, n int, val string) bool {
 	switch key {
 	case "Catalyst":
 		if i := slices.IndexFunc(catalysts(), func(c catalyst) bool { return c.name == val }); i >= 0 {
-			s.catalyst = catalysts()[i].tags
+			s.catalyst = &catalysts()[i]
 		}
 		return true
 	case "CatalystQuality":
@@ -136,7 +144,7 @@ func (s *scaling) property(key string, n int, val string) bool {
 		return false
 	}
 	if i := slices.IndexFunc(catalysts(), func(c catalyst) bool { return c.modifiers == mods }); i >= 0 {
-		s.catalyst, s.quality, s.qualitySet = catalysts()[i].tags, n, true
+		s.catalyst, s.quality, s.qualitySet = &catalysts()[i], n, true
 	}
 	return true
 }
@@ -161,12 +169,8 @@ func (s *scaling) scaler(kind build.ModKind) scaler {
 		}
 		tags := scaleTags(m)
 		f := 1.0
-		if slices.ContainsFunc(s.catalyst, func(t string) bool { return slices.Contains(tags, t) }) {
-			q := defaultCatalystQuality
-			if s.qualitySet {
-				q = s.quality
-			}
-			f = float64(percent+q) / percent
+		if s.catalyst != nil && slices.ContainsFunc(s.catalyst.tags, func(t string) bool { return slices.Contains(tags, t) }) {
+			f = float64(percent+s.catalystQuality()) / percent
 		}
 		for _, mg := range s.magnitudes {
 			if mg.scales(kind, tags) {

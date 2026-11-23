@@ -228,7 +228,7 @@ func nameLines(it build.Item, base string) []string {
 }
 
 // propertyLines are the property lines of it before the implicit count: its defences with their
-// rolls, the flags Parse reads only there, its item level, quality and sockets.
+// rolls, the flags Parse reads only there, its catalyst, item level, quality and sockets.
 func propertyLines(it build.Item) []string {
 	var out []string
 	for _, d := range defenceProperties() {
@@ -243,6 +243,9 @@ func propertyLines(it build.Item) []string {
 		if !slices.Contains(flagLines(), f) {
 			out = append(out, f)
 		}
+	}
+	if it.Catalyst != "" {
+		out = append(out, "Catalyst: "+it.Catalyst, fmt.Sprintf("CatalystQuality: %d", it.CatalystQuality))
 	}
 	for _, p := range []struct {
 		name  string
