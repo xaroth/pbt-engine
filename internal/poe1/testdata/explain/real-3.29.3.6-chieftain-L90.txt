@@ -270,7 +270,7 @@ Life Regeneration: 66.7/s  [tree, dataset 3.29.3.6]
       base 1.8  node 24383
       base 0.5  node 42659
       base 0  node 48109
-      endurance_charges = 0 [maximum charges while used, else minimum charges capped by the maximum]
+      endurance_charges = 0 [maximum or configured charges while used, else minimum charges capped by the maximum]
         uses_endurance_charges = 0
         minimum_endurance_charges = 0
         maximum_endurance_charges = 5 [maximum endurance charges]

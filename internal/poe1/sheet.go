@@ -142,6 +142,8 @@ type Sheet struct {
 	exposure map[DamageType]core.ModID
 	// wither holds the enemy's Withered stacks and what they make it take.
 	wither witherMods
+	// minionCharges holds the frenzy charges the config gives minions.
+	minionCharges minionChargeMods
 	// totems gives a totem's base life (SetTotemLives).
 	totems TotemLives
 	// animatedWeapons holds the number of Animated Weapons allowed (SetAnimatedWeaponsAllowed).
@@ -416,7 +418,7 @@ func (sh *Sheet) addBaseValues() error {
 	for _, add := range []func() error{
 		sh.addBaseMovementSpeed, sh.addBaseDamage, sh.addBaseSpeeds, sh.addBaseAilmentValues,
 		sh.addConditions, sh.addArcaneSurge, sh.addResonance, sh.addHeld, sh.addEquipment, sh.addBleedMoving, sh.addEnemy, sh.addExposure,
-		sh.addWither, sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock, sh.addMinionLimits,
+		sh.addWither, sh.addBaseEfficiencies, sh.addCurseLimit, sh.addShieldBlock, sh.addMinionLimits, sh.addMinionBuffs,
 	} {
 		if err := add(); err != nil {
 			return err

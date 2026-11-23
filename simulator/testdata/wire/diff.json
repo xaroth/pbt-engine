@@ -187,6 +187,16 @@
         "source": "default"
       },
       {
+        "key": "enemy-near-you",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "feeding-frenzy",
+        "value": false,
+        "source": "default"
+      },
+      {
         "key": "power-charges",
         "value": false,
         "source": "default"
@@ -228,6 +238,16 @@
       },
       {
         "key": "enemy-withered-stacks",
+        "value": 0,
+        "source": "default"
+      },
+      {
+        "key": "minion-frenzy-charges",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "minion-frenzy-charge-count",
         "value": 0,
         "source": "default"
       }
@@ -430,6 +450,16 @@
         "source": "default"
       },
       {
+        "key": "enemy-near-you",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "feeding-frenzy",
+        "value": false,
+        "source": "default"
+      },
+      {
         "key": "power-charges",
         "value": false,
         "source": "default"
@@ -471,6 +501,16 @@
       },
       {
         "key": "enemy-withered-stacks",
+        "value": 0,
+        "source": "default"
+      },
+      {
+        "key": "minion-frenzy-charges",
+        "value": false,
+        "source": "default"
+      },
+      {
+        "key": "minion-frenzy-charge-count",
         "value": 0,
         "source": "default"
       }

@@ -27,6 +27,10 @@ const (
 	statMinionActorLevelIsUserLevelUpToMaximum = "minion_actor_level_is_user_level_up_to_maximum"
 	statMonsterBaseMaximumAllResistances       = "base_maximum_all_resistances_%"
 	statMonsterBaseCriticalStrikeMultiplier    = "base_critical_strike_multiplier"
+	statMonsterMaxFrenzyCharges                = "max_frenzy_charges"
+	statMonsterAttackSpeedPerFrenzyCharge      = "base_attack_speed_+%_per_frenzy_charge"
+	statMonsterCastSpeedPerFrenzyCharge        = "base_cast_speed_+%_per_frenzy_charge"
+	statMonsterDamagePerFrenzyCharge           = "object_inherent_damage_+%_final_per_frenzy_charge"
 )
 
 // A minion's attack, as PoB makes it (CalcActiveSkill.lua minion weaponData1, CalcPerform.lua
@@ -63,6 +67,10 @@ type Minion struct {
 	AttackRate                   float64
 	// CriticalStrikeMultiplier is every monster's, from Monster.ot.
 	CriticalStrikeMultiplier float64
+	// FrenzyCharges are its maximum frenzy charges and what each gives it, every monster's, from
+	// Monster.ot, as PoB gives them to every minion (CalcSetup.lua initModDB, CalcPerform.lua
+	// initMinionModDB).
+	FrenzyCharges FrenzyChargeValues
 	// Skill is the minion's main skill, its variety's first, at the minion's level, with the
 	// summoning skill's supports that support it; nil when it has none that resolves.
 	Skill *resolve.Skill
@@ -73,6 +81,13 @@ type Minion struct {
 	// Hands the weapons they put in its hands.
 	Items []Item
 	Hands Hands
+}
+
+// FrenzyChargeValues are a minion's maximum frenzy charges and, in percent, the increased
+// attack and cast speed and the more damage each gives it.
+type FrenzyChargeValues struct {
+	Maximum                            float64
+	AttackSpeed, CastSpeed, MoreDamage float64
 }
 
 // MinionGear are the compiled items of the minions that take gear, by the index of the skill
@@ -215,6 +230,12 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dat
 	}
 	mn := minionOf(v, t, l, m, monsterBase(m, stats, statMonsterBaseMaximumAllResistances, enemyBaseMaximumResistance))
 	mn.CriticalStrikeMultiplier = monsterBase(m, stats, statMonsterBaseCriticalStrikeMultiplier, 0)
+	mn.FrenzyCharges = FrenzyChargeValues{
+		Maximum:     monsterBase(m, stats, statMonsterMaxFrenzyCharges, 0),
+		AttackSpeed: monsterBase(m, stats, statMonsterAttackSpeedPerFrenzyCharge, 0),
+		CastSpeed:   monsterBase(m, stats, statMonsterCastSpeedPerFrenzyCharge, 0),
+		MoreDamage:  monsterBase(m, stats, statMonsterDamagePerFrenzyCharge, 0),
+	}
 	if len(v.GrantedEffects) > 0 {
 		// Not an error: a minion whose skill does not resolve has no hit.
 		mn.Skill, _ = resolve.MinionSkill(x, stats, v.GrantedEffects[0], mn.Level, sk)
@@ -392,45 +413,51 @@ func (sh *Sheet) SetMinions(minions []*Minion) error {
 }
 
 // minionBase is one of a minion's base values as a modifier, in the contexts of req besides
-// its skill's.
+// its skill's, per point of engine stat per when set.
 type minionBase struct {
 	stat  string
 	op    core.Op
 	value float64
 	req   []core.Mask
+	per   string
 }
 
-// bases returns mn's base values; damage, attack rate, critical strike chance and that its hits
-// cannot be evaded in the context of attacks, damage in that of physical damage too, with dim
-// the damage dimension. A minion armed with a weapon attacks with the weapon's damage, attack
+// bases returns mn's base values, what each frenzy charge gives it among them; damage, attack
+// rate, critical strike chance and that its hits cannot be evaded in the context of attacks,
+// damage in that of physical damage too, with dim the damage dimension. A minion armed with a weapon attacks with the weapon's damage, attack
 // rate and critical strike chance instead (addWeapon).
 func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 	physicalAttack := []core.Mask{attack, damageBit(dim, Physical)}
+	fc := mn.FrenzyCharges
 	own := []minionBase{
-		{resolve.LevelStat, core.OpBase, float64(mn.Level), nil},
-		{statMaximumLife, core.OpBase, mn.Life, nil},
-		{statMaximumEnergyShield, core.OpBase, mn.EnergyShield, nil},
-		{statArmour, core.OpBase, mn.Armour, nil},
-		{statEvasionRating, core.OpBase, mn.Evasion, nil},
-		{statFireResistance, core.OpBase, float64(mn.Resistances.Fire), nil},
-		{statColdResistance, core.OpBase, float64(mn.Resistances.Cold), nil},
-		{statLightningResistance, core.OpBase, float64(mn.Resistances.Lightning), nil},
-		{statChaosResistance, core.OpBase, float64(mn.Resistances.Chaos), nil},
-		{statMaximumFireResistance, core.OpBase, mn.MaximumResistance, nil},
-		{statMaximumColdResistance, core.OpBase, mn.MaximumResistance, nil},
-		{statMaximumLightningResistance, core.OpBase, mn.MaximumResistance, nil},
-		{statMaximumChaosResistance, core.OpBase, mn.MaximumResistance, nil},
-		{statCriticalStrikeMultiplier, core.OpBase, mn.CriticalStrikeMultiplier, nil},
-		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}},
+		{resolve.LevelStat, core.OpBase, float64(mn.Level), nil, ""},
+		{statMaximumLife, core.OpBase, mn.Life, nil, ""},
+		{statMaximumEnergyShield, core.OpBase, mn.EnergyShield, nil, ""},
+		{statArmour, core.OpBase, mn.Armour, nil, ""},
+		{statEvasionRating, core.OpBase, mn.Evasion, nil, ""},
+		{statFireResistance, core.OpBase, float64(mn.Resistances.Fire), nil, ""},
+		{statColdResistance, core.OpBase, float64(mn.Resistances.Cold), nil, ""},
+		{statLightningResistance, core.OpBase, float64(mn.Resistances.Lightning), nil, ""},
+		{statChaosResistance, core.OpBase, float64(mn.Resistances.Chaos), nil, ""},
+		{statMaximumFireResistance, core.OpBase, mn.MaximumResistance, nil, ""},
+		{statMaximumColdResistance, core.OpBase, mn.MaximumResistance, nil, ""},
+		{statMaximumLightningResistance, core.OpBase, mn.MaximumResistance, nil, ""},
+		{statMaximumChaosResistance, core.OpBase, mn.MaximumResistance, nil, ""},
+		{statCriticalStrikeMultiplier, core.OpBase, mn.CriticalStrikeMultiplier, nil, ""},
+		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}, ""},
+		{statMaximumFrenzyCharges, core.OpBase, fc.Maximum, nil, ""},
+		{statAttackSpeed, core.OpInc, fc.AttackSpeed, nil, statFrenzyCharges},
+		{statCastSpeed, core.OpInc, fc.CastSpeed, nil, statFrenzyCharges},
+		{statDamage, core.OpMore, fc.MoreDamage, nil, statFrenzyCharges},
 	}
 	if mn.armed() {
 		return own
 	}
 	return slices.Concat(own, []minionBase{
-		{statBaseMinimumDamage, core.OpBase, mn.MinimumDamage, physicalAttack},
-		{statBaseMaximumDamage, core.OpBase, mn.MaximumDamage, physicalAttack},
-		{statAttackRate, core.OpBase, mn.AttackRate, []core.Mask{attack}},
-		{statCriticalStrikeChance, core.OpBase, minionAttackCriticalChance, []core.Mask{attack}},
+		{statBaseMinimumDamage, core.OpBase, mn.MinimumDamage, physicalAttack, ""},
+		{statBaseMaximumDamage, core.OpBase, mn.MaximumDamage, physicalAttack, ""},
+		{statAttackRate, core.OpBase, mn.AttackRate, []core.Mask{attack}, ""},
+		{statCriticalStrikeChance, core.OpBase, minionAttackCriticalChance, []core.Mask{attack}, ""},
 	})
 }
 
@@ -485,6 +512,9 @@ func (sh *Sheet) addMinionBases(mn *Minion, slot int) (core.SourceID, error) {
 		}
 		pred := core.Predicate{Req: append([]core.Mask{skill}, b.req...)}
 		mod := core.Modifier{Actor: minionActor, Stat: sh.stats[b.stat], Op: b.op, Value: b.value, Source: src, Pred: pred}
+		if b.per != "" {
+			mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[b.per]), Step: 1}}
+		}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return 0, fmt.Errorf("sheet: minion %s: %w", mn.Variety, err)
 		}

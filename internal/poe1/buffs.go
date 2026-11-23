@@ -43,19 +43,22 @@ const vaalMoltenShell = "VaalMoltenShell"
 const baseBuffEffect = 100
 
 // skillBuff is the buff a skill grants you: the stats of its stat set that the buff carries,
-// and the stat set while it affects you, empty when the game has none.
+// and the stat set while it affects you, empty when the game has none. A buff of minions
+// reaches your minions and not you.
 type skillBuff struct {
 	stats    []string
 	affected string
+	minions  bool
 }
 
 // buffRules are the buffs of the skills the rules model, by granted effect.
 type buffRules map[string]skillBuff
 
-// skillBuffs are the buffs of the aura, herald, guard and golem skills the rules model, by
-// granted effect. The game data does not say which of a skill's stats its buff carries; these
-// are the stats the skill's description gives as granted to you ("You and nearby allies gain",
-// "Buff grants", "Golems grant"), not those of the skill's own area, duration or damage.
+// skillBuffs are the buffs of the aura, herald, guard, golem and offering skills the rules
+// model, by granted effect. The game data does not say which of a skill's stats its buff
+// carries; these are the stats the skill's description gives as granted to you or your minions
+// ("You and nearby allies gain", "Buff grants", "Golems grant", "Minions gain"), not those of
+// the skill's own area, duration or damage.
 func skillBuffs() buffRules {
 	added := func(kind string) []string {
 		return []string{
@@ -66,20 +69,18 @@ func skillBuffs() buffRules {
 	resist := func(kind string) []string {
 		return []string{"base_" + kind + "_damage_resistance_%", "base_maximum_" + kind + "_damage_resistance_%"}
 	}
+	speed := []string{"attack_speed_+%_granted_from_skill", "cast_speed_+%_granted_from_skill", "base_movement_velocity_+%"}
 	out := buffRules{
-		"Anger":         {stats: added("fire"), affected: "affected_by_anger"},
-		"Wrath":         {stats: append(added("lightning"), "wrath_aura_spell_lightning_damage_+%_final"), affected: "affected_by_wrath"},
-		"Envy":          {stats: added("chaos")},
-		"Hatred":        {stats: []string{"physical_damage_%_to_add_as_cold", "hatred_aura_cold_damage_+%_final"}, affected: "affected_by_hatred"},
-		"Grace":         {stats: []string{"base_evasion_rating", "grace_aura_evasion_rating_+%_final"}, affected: "affected_by_grace"},
-		"Determination": {stats: []string{"base_physical_damage_reduction_rating", "determination_aura_armour_+%_final"}, affected: "affected_by_determination"},
-		"Discipline":    {stats: []string{"base_maximum_energy_shield", "energy_shield_recharge_rate_+%"}, affected: "affected_by_discipline"},
-		"Clarity":       {stats: []string{"base_mana_regeneration_rate_per_minute"}, affected: "affected_by_clarity"},
-		"Vitality":      {stats: []string{"base_life_regeneration_rate_per_minute"}, affected: "affected_by_vitality"},
-		"Haste": {
-			stats:    []string{"attack_speed_+%_granted_from_skill", "cast_speed_+%_granted_from_skill", "base_movement_velocity_+%"},
-			affected: "affected_by_haste",
-		},
+		"Anger":             {stats: added("fire"), affected: "affected_by_anger"},
+		"Wrath":             {stats: append(added("lightning"), "wrath_aura_spell_lightning_damage_+%_final"), affected: "affected_by_wrath"},
+		"Envy":              {stats: added("chaos")},
+		"Hatred":            {stats: []string{"physical_damage_%_to_add_as_cold", "hatred_aura_cold_damage_+%_final"}, affected: "affected_by_hatred"},
+		"Grace":             {stats: []string{"base_evasion_rating", "grace_aura_evasion_rating_+%_final"}, affected: "affected_by_grace"},
+		"Determination":     {stats: []string{"base_physical_damage_reduction_rating", "determination_aura_armour_+%_final"}, affected: "affected_by_determination"},
+		"Discipline":        {stats: []string{"base_maximum_energy_shield", "energy_shield_recharge_rate_+%"}, affected: "affected_by_discipline"},
+		"Clarity":           {stats: []string{"base_mana_regeneration_rate_per_minute"}, affected: "affected_by_clarity"},
+		"Vitality":          {stats: []string{"base_life_regeneration_rate_per_minute"}, affected: "affected_by_vitality"},
+		"Haste":             {stats: speed, affected: "affected_by_haste"},
 		"Precision":         {stats: []string{"accuracy_rating", "skill_buff_grants_critical_strike_chance_+%"}, affected: "affected_by_precision"},
 		"PurityOfElements":  {stats: []string{"base_resist_all_elements_%"}, affected: "affected_by_purity_of_elements"},
 		"PurityOfFire":      {stats: resist("fire"), affected: "affected_by_purity_of_fire"},
@@ -104,6 +105,7 @@ func skillBuffs() buffRules {
 		},
 	}
 	addGuardAndGolemBuffs(out)
+	out["FleshOffering"] = skillBuff{stats: speed, minions: true}
 	return out
 }
 
@@ -155,7 +157,7 @@ func buffMechanic() mechanic {
 
 // of returns the buff sk grants you while it is active, false for a skill whose buff the
 // rules do not model or does not affect you: an aura or herald that does not reserve, and a
-// guard skill a totem casts, which buffs the totem.
+// guard or offering skill a totem casts, which buffs the totem.
 func (r buffRules) of(sk *resolve.Skill) (skillBuff, bool) {
 	b, ok := r[sk.GrantedEffect]
 	switch {
@@ -163,7 +165,7 @@ func (r buffRules) of(sk *resolve.Skill) (skillBuff, bool) {
 		return skillBuff{}, false
 	case slices.Contains(sk.Types, typeGolem):
 		return b, true
-	case slices.Contains(sk.Types, typeGuard):
+	case b.minions || slices.Contains(sk.Types, typeGuard):
 		return b, !slices.Contains(sk.Types, typeSummonsTotem)
 	case !Reserves(sk) || !slices.ContainsFunc(sk.Types, func(t string) bool { return t == typeAura || t == typeHerald }):
 		return skillBuff{}, false
@@ -232,6 +234,15 @@ func buffScale(ref core.Ref, stat string, op core.Op, v float64) core.Scale {
 		sc.Round, sc.Places = core.RoundFloor, 1
 	}
 	return sc
+}
+
+// addSkillBuff adds the buff b of sk in slot with context ctx, from its buff stats: to you
+// (addBuff) or, for a buff of minions, to them alone (addMinionBuff). It returns the sources.
+func (sh *Sheet) addSkillBuff(sk *resolve.Skill, b skillBuff, stats []resolve.StatValue, slot int, ctx core.CtxID) ([]core.SourceID, error) {
+	if b.minions {
+		return sh.addMinionBuff(sk, stats, slot, ctx)
+	}
+	return sh.addBuff(sk, b, stats, slot, ctx)
 }
 
 // addBuff adds the buff b of sk, in slot with context ctx, from its buff stats: those stats

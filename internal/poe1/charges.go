@@ -7,7 +7,9 @@ import (
 
 // Engine stats of charges. power_charges, frenzy_charges and endurance_charges are the charges
 // the character has: its maximum while the config says it uses that kind (uses_power_charges and
-// the like), else its minimum, at most its maximum, as PoB counts charges not in use.
+// the like), else its minimum, at most its maximum, as PoB counts charges not in use. While it
+// uses frenzy charges, configured_frenzy_charges, when above 0, takes the maximum's place, at
+// least the minimum: the count the config gives a minion.
 // fortification is the character's Fortification: its maximum while
 // has_maximum_fortification is set, else none, as PoB counts it by default (not Fortified);
 // fortification_above_20 is the part above 20. The character also has its maximum while the
@@ -36,6 +38,7 @@ const (
 	statUsesPowerCharges                               = "uses_power_charges"
 	statUsesFrenzyCharges                              = "uses_frenzy_charges"
 	statUsesEnduranceCharges                           = "uses_endurance_charges"
+	statConfiguredFrenzyCharges                        = "configured_frenzy_charges"
 )
 
 // Charge config keys: whether the character has its maximum charges of a kind, as when it keeps
@@ -50,7 +53,9 @@ const (
 // the character uses them, with the config key that says so.
 type charge struct {
 	current, minimum, maximum, uses string
-	key                             config.Key[bool]
+	// configured is the stat of the count the config gives, empty for a kind without one.
+	configured string
+	key        config.Key[bool]
 	// text names the condition in explanations.
 	text string
 }
@@ -63,7 +68,7 @@ func charges() []charge {
 		},
 		{
 			current: statFrenzyCharges, minimum: statMinimumFrenzyCharges, maximum: statMaximumFrenzyCharges,
-			uses: statUsesFrenzyCharges, key: FrenzyCharges, text: "maximum Frenzy Charges",
+			uses: statUsesFrenzyCharges, configured: statConfiguredFrenzyCharges, key: FrenzyCharges, text: "maximum Frenzy Charges",
 		},
 		{
 			current: statEnduranceCharges, minimum: statMinimumEnduranceCharges, maximum: statMaximumEnduranceCharges,
@@ -77,7 +82,7 @@ const fortificationThreshold = 20
 
 // Formula names shown in explanations.
 const (
-	formulaCharges                     = "maximum charges while used, else minimum charges capped by the maximum"
+	formulaCharges                     = "maximum or configured charges while used, else minimum charges capped by the maximum"
 	formulaMaximumEnduranceCharges     = "maximum endurance charges"
 	formulaDefaultFortification        = "maximum fortification while fortified"
 	formulaFortificationAboveThreshold = "fortification above 20"
@@ -95,7 +100,7 @@ func chargeDef(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 	}
 	for _, c := range charges() {
 		switch def.Name {
-		case c.minimum, c.maximum:
+		case c.minimum, c.maximum, c.configured:
 			def.HasMin = true
 		case c.current:
 			def.HasMin = true
@@ -131,19 +136,37 @@ func maximumCharges(maximum core.StatID) (core.Formula, core.Attribute) {
 	return formula, attribute
 }
 
-// currentCharges is the charges of c the character has.
+// currentCharges is the charges of c the character has. A configured count is not capped by
+// the maximum, as PoB does not cap it (CalcPerform.lua doActorCharges, FrenzyCharges override).
 func currentCharges(c charge, ids map[string]core.StatID) (core.Formula, core.Attribute) {
 	uses, minimum, maximum := mustID(ids, c.uses), mustID(ids, c.minimum), mustID(ids, c.maximum)
+	var configured core.StatID
+	hasConfigured := c.configured != ""
+	if hasConfigured {
+		configured = mustID(ids, c.configured)
+	}
+	// used is the stat the charges in use come from, and their number.
+	used := func(stat func(core.StatID) float64) (core.StatID, float64) {
+		if hasConfigured && stat(configured) > 0 {
+			if floor := min(stat(minimum), stat(maximum)); floor > stat(configured) {
+				return minimum, floor
+			}
+			return configured, stat(configured)
+		}
+		return maximum, stat(maximum)
+	}
 	formula := func(rd core.Reader, _ core.Agg) float64 {
 		if rd.Stat(uses) != 0 {
-			return rd.Stat(maximum)
+			_, n := used(rd.Stat)
+			return n
 		}
 		return min(rd.Stat(minimum), rd.Stat(maximum))
 	}
 	capped := cappedAttribute(minimum, maximum)
 	attribute := func(a *core.Attributor) core.Attribution {
 		if a.Stat(uses) != 0 {
-			parts, amount := a.Of(core.SelfRef(maximum))
+			from, _ := used(a.Stat)
+			parts, amount := a.Of(core.SelfRef(from))
 			return core.Attribution{Parts: parts, Amount: amount}
 		}
 		return capped(a)
@@ -236,6 +259,7 @@ func chargeMechanic() mechanic {
 			statInspirationCharges,
 			statMaximumBloodCharges,
 			statBloodCharges,
+			statConfiguredFrenzyCharges,
 		},
 		def: func(def core.StatDef, ids map[string]core.StatID) core.StatDef {
 			return fortificationDef(chargeDef(def, ids), ids)

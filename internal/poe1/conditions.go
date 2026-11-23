@@ -34,6 +34,7 @@ const (
 	statIsLeeching                 = "is_leeching"
 	statIsFocused                  = "is_focused"
 	statIsFortified                = "is_fortified"
+	statEnemyIsNearYou             = "enemy_is_near_you"
 )
 
 // Condition config keys: whether a condition holds for the character or the enemy its damage
@@ -57,6 +58,7 @@ const (
 	Leeching                 config.Key[bool] = "leeching"
 	Focused                  config.Key[bool] = "focused"
 	Fortified                config.Key[bool] = "fortified"
+	EnemyNearYou             config.Key[bool] = "enemy-near-you"
 )
 
 // EnemyShockEffect is the effect of the Shock on the enemy while EnemyShocked holds: the
@@ -107,6 +109,8 @@ func conditions() []condition {
 		{Focused, statIsFocused, "Focused"},
 		{Fortified, statIsFortified, "Fortified"},
 		{ArcaneSurge, statHasArcaneSurge, "Arcane Surge"},
+		{EnemyNearYou, statEnemyIsNearYou, "the enemy is near you"},
+		{FeedingFrenzy, statHasFeedingFrenzy, "Feeding Frenzy"},
 	}, chargeConditions())
 }
 
