@@ -61,7 +61,7 @@ Crimson Jewel
 			<Skill label="RF" enabled="true" slot="Body Armour" mainActiveSkill="1" includeInFullDPS="true" groupCount="3">
 				<Gem nameSpec="Righteous Fire" skillId="RighteousFire" gemId="Metadata/Items/Gems/SkillGemRighteousFire" variantId="RighteousFire"
 					level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="false" count="2" skillPart="2" skillStageCount="5"
-					skillMinionItemSet="1"/>
+					skillMinionItemSet="1" skillMinionSkill="2"/>
 				<Gem nameSpec="Burning Damage" level="20" quality="0" enabled="false"/>
 			</Skill>
 			<Skill label="" enabled="false" source="Item:3:Corruption Spark" includeInFullDPS="nil" groupCount="nil">
@@ -111,7 +111,7 @@ func TestParse(t *testing.T) {
 			{Label: "RF", Slot: "Body Armour", Enabled: true, IncludeInFullDPS: true, GroupCount: 3, MainActiveSkill: 1, Gems: []pobxml.Gem{
 				{
 					Name: "Righteous Fire", GemID: "Metadata/Items/Gems/SkillGemRighteousFire", SkillID: "RighteousFire", VariantID: "RighteousFire",
-					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true, SkillPart: 2, StageCount: 5, Count: 2, MinionItemSet: 1,
+					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true, SkillPart: 2, StageCount: 5, Count: 2, MinionItemSet: 1, MinionSkill: 2,
 				},
 				{Name: "Burning Damage", Level: 20, EnableGlobal1: true, EnableGlobal2: true},
 			}},

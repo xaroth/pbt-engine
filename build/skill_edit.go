@@ -19,12 +19,13 @@ const (
 	OpSetGemEnabled    EditOp = "set-gem-enabled"
 	OpSetGroupCount    EditOp = "set-group-count"
 	OpSetFullDPS       EditOp = "set-full-dps"
+	OpSetMinionSkill   EditOp = "set-minion-skill"
 	OpEquipMinion      EditOp = "equip-minion"
 	OpUnequipMinion    EditOp = "unequip-minion"
 )
 
 // SkillAt addresses a skill group by index, and a gem in it for the edits of one gem. Skill is
-// which of the gem's skills, for set-active-gem.
+// which of the gem's skills, for set-active-gem, or of the minion's, for set-minion-skill.
 type SkillAt struct {
 	Group int `json:"group"`
 	Gem   int `json:"gem"`
@@ -92,6 +93,12 @@ func SetFullDPS(i int, on bool) Edit {
 	return Edit{Op: OpSetFullDPS, Skill: &SkillAt{Group: i}, Enabled: on}
 }
 
+// SetMinionSkill makes skill n of the minion of group i's main active skill its main one; 0 is
+// its first.
+func SetMinionSkill(i, n int) Edit {
+	return Edit{Op: OpSetMinionSkill, Skill: &SkillAt{Group: i, Skill: n}}
+}
+
 // EquipMinion puts it in slot s of the gear of group i's minion, replacing what is there.
 // Whether the minion uses the slot is not checked here; Check warns.
 func EquipMinion(i int, s Slot, it Item) Edit {
@@ -107,7 +114,7 @@ func skillOps() []EditOp {
 	return []EditOp{
 		OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
 		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpSetGroupCount, OpSetFullDPS,
-		OpEquipMinion, OpUnequipMinion,
+		OpSetMinionSkill, OpEquipMinion, OpUnequipMinion,
 	}
 }
 
@@ -148,12 +155,8 @@ func (s *Skills) applyGroup(e Edit) error {
 			return fmt.Errorf("%w: %s without a gem", ErrEditTarget, e.Op)
 		}
 		g.Gems = append(g.Gems, *e.Gem)
-	case OpSetGroupCount:
-		g.Count = e.Count
-	case OpSetFullDPS:
-		g.FullDPS = e.Enabled
-	case OpEquipMinion, OpUnequipMinion:
-		g.applyMinionItem(e)
+	case OpSetGroupCount, OpSetFullDPS, OpSetMinionSkill, OpEquipMinion, OpUnequipMinion:
+		g.applyMinion(e)
 	default:
 		return s.applyGem(e)
 	}
@@ -182,23 +185,30 @@ func (s *Skills) applyGem(e Edit) error {
 	return nil
 }
 
-// applyMinionItem applies e, an equip-minion or unequip-minion edit, to g's minion gear.
-func (g *SkillGroup) applyMinionItem(e Edit) {
-	if e.Op == OpUnequipMinion {
+// applyMinion applies e, an edit of g's count, full DPS flag, minion skill or minion gear.
+func (g *SkillGroup) applyMinion(e Edit) {
+	switch e.Op {
+	case OpSetGroupCount:
+		g.Count = e.Count
+	case OpSetFullDPS:
+		g.FullDPS = e.Enabled
+	case OpSetMinionSkill:
+		g.MinionSkill = e.Skill.Skill
+	case OpUnequipMinion:
 		delete(g.MinionItems, e.Slot)
 		if len(g.MinionItems) == 0 {
 			g.MinionItems = nil
 		}
-		return
+	default: // equip-minion
+		if g.MinionItems == nil {
+			g.MinionItems = Items{}
+		}
+		var it Item
+		if e.Item != nil {
+			it = *e.Item.Clone()
+		}
+		g.MinionItems[e.Slot] = it
 	}
-	if g.MinionItems == nil {
-		g.MinionItems = Items{}
-	}
-	var it Item
-	if e.Item != nil {
-		it = *e.Item.Clone()
-	}
-	g.MinionItems[e.Slot] = it
 }
 
 // shifted returns index i after removing index removed: one lower above it, 0 in its place.
@@ -234,7 +244,7 @@ func (g *SkillGroup) cloned() SkillGroup {
 }
 
 // skillsDiff returns the edits that turn a into b: groups b does not have removed from the
-// last, then per shared group its slot, count, full DPS flag and minion gear, its gems (the gems after the first that differs in id
+// last, then per shared group its slot, count, full DPS flag, minion skill and minion gear, its gems (the gems after the first that differs in id
 // or role removed from the last and b's added, the others' level, quality and enabled set)
 // and its active gem and skill, then b's further groups added, then the main skill. Groups are
 // shared up to the first whose source differs.
@@ -301,8 +311,8 @@ func groupDiff(i int, a, b SkillGroup) []Edit {
 	return out
 }
 
-// minionDiff returns the edits that turn group i's count, full DPS flag and minion gear from
-// a's into b's.
+// minionDiff returns the edits that turn group i's count, full DPS flag, minion skill and
+// minion gear from a's into b's.
 func minionDiff(i int, a, b SkillGroup) []Edit {
 	var out []Edit
 	if a.Count != b.Count {
@@ -310,6 +320,9 @@ func minionDiff(i int, a, b SkillGroup) []Edit {
 	}
 	if a.FullDPS != b.FullDPS {
 		out = append(out, SetFullDPS(i, b.FullDPS))
+	}
+	if a.MinionSkill != b.MinionSkill {
+		out = append(out, SetMinionSkill(i, b.MinionSkill))
 	}
 	return append(out, itemsDiff(a.MinionItems, b.MinionItems,
 		func(s Slot) Edit { return UnequipMinion(i, s) },

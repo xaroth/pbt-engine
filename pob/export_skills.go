@@ -11,8 +11,9 @@ import (
 	"github.com/xaroth/pbt-engine/dataset"
 )
 
-// skills writes b's groups as one skill set, with their counts and full DPS flags. Gems are named by gem id, variant and skill id,
-// the order PoB loads them in, so a name PoB spells differently does not matter.
+// skills writes b's groups as one skill set, with their counts, full DPS flags and minion skills.
+// Gems are named by gem id, variant and skill id, the order PoB loads them in, so a name PoB
+// spells differently does not matter.
 func (ex *exporter) skills(store *dataset.Store, items *itemWriter) (*outSkills, error) {
 	groups := ex.b.Skills.Groups
 	out := &outSkills{Active: "1", Sets: []outSkillSet{{ID: "1"}}}
@@ -35,8 +36,8 @@ func (ex *exporter) skills(store *dataset.Store, items *itemWriter) (*outSkills,
 	return out, nil
 }
 
-// group writes g, the i-th group, with the item that grants it as its source and its minion's
-// gear in an item set of its own.
+// group writes g, the i-th group, with the item that grants it as its source, its minion's
+// skill, and its minion's gear in an item set of its own.
 func (ex *exporter) group(i int, g build.SkillGroup, data *dataset.SkillIndex, text *dataset.Text, items *itemWriter) outSkill {
 	out := outSkill{Enabled: xmlTrue, Slot: pobSlot(g.Slot)}
 	if g.FullDPS {
@@ -55,6 +56,9 @@ func (ex *exporter) group(i int, g build.SkillGroup, data *dataset.SkillIndex, t
 	if g.Active < len(out.Gems) && (len(g.MinionItems) > 0 || takesGear(data, g)) {
 		// A minion without a set of its own takes the character's items.
 		out.Gems[g.Active].MinionItemSet = items.minionSet(i, g.MinionItems)
+	}
+	if g.Active < len(out.Gems) && g.MinionSkill > 0 {
+		out.Gems[g.Active].MinionSkill = strconv.Itoa(g.MinionSkill + 1)
 	}
 	return out
 }
@@ -190,4 +194,5 @@ type outGem struct {
 	EnableGlobal1 string `xml:"enableGlobal1,attr"`
 	EnableGlobal2 string `xml:"enableGlobal2,attr"`
 	MinionItemSet int    `xml:"skillMinionItemSet,attr,omitempty"`
+	MinionSkill   string `xml:"skillMinionSkill,attr,omitempty"`
 }

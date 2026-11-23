@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" className="Witch" ascendClassName="None" mainSocketGroup="1" targetVersion="3_0"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="3" ascendClassId="0" nodes="" masteryEffects=""/>
+	</Tree>
+	<Skills activeSkillSet="1">
+		<SkillSet id="1">
+			<Skill enabled="true" slot="Helmet" mainActiveSkill="1" includeInFullDPS="true">
+				<Gem nameSpec="Animate Guardian of Smiting" gemId="Metadata/Items/Gems/SkillGemAnimateArmour" skillId="AnimateGuardianAltX"
+					variantId="AnimateGuardianAltX" level="20" quality="0" enabled="true" count="1" skillMinionSkill="2"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+</PathOfBuilding>

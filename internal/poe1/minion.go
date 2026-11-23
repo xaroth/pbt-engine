@@ -80,8 +80,9 @@ type Minion struct {
 	PowerCharges     PowerChargeValues
 	FrenzyCharges    FrenzyChargeValues
 	EnduranceCharges EnduranceChargeValues
-	// Skill is the minion's main skill, its variety's first, at the minion's level, with the
-	// summoning skill's supports that support it; nil when it has none that resolves.
+	// Skill is the minion's main skill, the one of its variety's its group picks, at the
+	// minion's level, with the summoning skill's supports that support it; nil when it has none
+	// that resolves.
 	Skill *resolve.Skill
 	// Passed are the summoning skill's own stats that its minion's skill has too
 	// (passedStats).
@@ -252,8 +253,10 @@ func minionLevel(sk *resolve.Skill, characterLevel int) int {
 
 // MinionOf returns the minion sk summons, for a character of characterLevel, from the monsters
 // group m and skills x of a dataset with stats; false when sk summons none or m lacks its
-// monster. A level m lacks is an error.
-func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dataset.SkillIndex, stats []dataset.Stat) (Minion, bool, error) {
+// monster. Its main skill is skill of its variety's, 0 the first, clamped to those it has as
+// PoB clamps skillMinionSkill (CalcActiveSkill.lua createMinionSkills). A level m lacks is an
+// error.
+func MinionOf(sk *resolve.Skill, skill, characterLevel int, m *dataset.Monsters, x *dataset.SkillIndex, stats []dataset.Stat) (Minion, bool, error) {
 	if !SummonsMinion(sk) {
 		return Minion{}, false, nil
 	}
@@ -294,7 +297,8 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dat
 	}
 	if len(v.GrantedEffects) > 0 {
 		// Not an error: a minion whose skill does not resolve has no hit.
-		mn.Skill, _ = resolve.MinionSkill(x, stats, v.GrantedEffects[0], mn.Level, sk)
+		id := v.GrantedEffects[min(max(skill, 0), len(v.GrantedEffects)-1)]
+		mn.Skill, _ = resolve.MinionSkill(x, stats, id, mn.Level, sk)
 	}
 	if mn.Skill != nil {
 		mn.Passed = passed(sk)
@@ -375,8 +379,8 @@ func monsterBase(m *dataset.Monsters, stats []dataset.Stat, id string, otherwise
 }
 
 // minionsOf returns the minion of each skill of sw whose outputs are read, which are the first
-// slots, by slot: nil for a skill that summons none. A minion that takes gear uses its group's
-// (gear). It returns none when no such skill summons one or the dataset has no monsters group.
+// slots, by slot: nil for a skill that summons none. A minion uses its group's minion skill, and
+// one that takes gear its group's gear. It returns none when no such skill summons one or the dataset has no monsters group.
 func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 	read := sw.Skills.Read()
 	if !slices.ContainsFunc(read, SummonsMinion) {
@@ -397,9 +401,10 @@ func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 	if err != nil {
 		return nil, err //nolint:wrapcheck // wrapped by the caller
 	}
+	b := sw.Checked.Build()
 	out := make([]*Minion, len(read))
 	for i, sk := range read {
-		mn, ok, err := MinionOf(sk, sw.Checked.Build().Level, m, x, stats)
+		mn, ok, err := MinionOf(sk, minionSkill(b.Skills.Groups, sk), b.Level, m, x, stats)
 		switch {
 		case err != nil:
 			return nil, err
@@ -412,6 +417,14 @@ func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 		}
 	}
 	return out, nil
+}
+
+// minionSkill returns the minion skill of the group of sk among groups, 0 for a skill of none.
+func minionSkill(groups []build.SkillGroup, sk *resolve.Skill) int {
+	if g := sk.Source.Group; g >= 0 && g < len(groups) {
+		return groups[g].MinionSkill
+	}
+	return 0
 }
 
 // minionKey is a minion's slot and its values with its skill's.

@@ -31,7 +31,8 @@
 //	             mainActiveSkill              1-based, among the group's active skills
 //	             includeInFullDPS groupCount>
 //	        <Gem nameSpec gemId skillId variantId level quality enabled enableGlobal1 enableGlobal2
-//	             count skillMinionItemSet/>   skillMinionItemSet: the id of the minion's item set
+//	             count skillMinionItemSet     skillMinionItemSet: the id of the minion's item set
+//	             skillMinionSkill/>           skillMinionSkill: the minion's main skill, 1-based
 //	      </Skill>
 //	    </SkillSet>
 //	    <Skill .../>                          older files: groups without sets
@@ -156,14 +157,15 @@ type SkillGroup struct {
 // Gem is a gem in a group. GemID is the gem's metadata path, SkillID its granted effect,
 // VariantID its gem effect; older files have only the name. EnableGlobal1 and EnableGlobal2
 // toggle a Vaal gem's two skills. SkillPart is PoB's 1-based part of the skill it shows and
-// StageCount its stages, Count how many of its skill are in use and MinionItemSet the id of the
-// item set its minion uses; 0 when unset.
+// StageCount its stages, Count how many of its skill are in use, MinionItemSet the id of the
+// item set its minion uses and MinionSkill the 1-based index of its minion's main skill; 0 when
+// unset.
 type Gem struct {
 	Name, GemID, SkillID, VariantID       string
 	Level, Quality                        int
 	Enabled, EnableGlobal1, EnableGlobal2 bool
 	SkillPart, StageCount                 int
-	Count, MinionItemSet                  int
+	Count, MinionItemSet, MinionSkill     int
 }
 
 type xmlFile struct {
@@ -264,6 +266,7 @@ type xmlSkill struct {
 		StageCount    string `xml:"skillStageCount,attr"`
 		Count         string `xml:"count,attr"`
 		MinionItemSet string `xml:"skillMinionItemSet,attr"`
+		MinionSkill   string `xml:"skillMinionSkill,attr"`
 	} `xml:"Gem"`
 }
 
@@ -442,7 +445,7 @@ func skills(x xmlFile) ([]SkillGroup, error) {
 				Name: xg.Name, GemID: xg.GemID, SkillID: xg.SkillID, VariantID: xg.VariantID,
 				Enabled: flag(xg.Enabled), EnableGlobal1: flag(xg.EnableGlobal1), EnableGlobal2: flag(xg.EnableGlobal2),
 				SkillPart: optional(xg.SkillPart), StageCount: optional(xg.StageCount),
-				Count: optional(xg.Count), MinionItemSet: optional(xg.MinionItemSet),
+				Count: optional(xg.Count), MinionItemSet: optional(xg.MinionItemSet), MinionSkill: optional(xg.MinionSkill),
 			}
 			if gem.Level, err = number("gem level", xg.Level); err != nil {
 				return nil, err
