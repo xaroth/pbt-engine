@@ -116,3 +116,26 @@ func TestGuardianGearSwitchAddsOnce(t *testing.T) {
 		}
 	}
 }
+
+// A weapon's alternate quality and "Deal no Physical or Elemental Damage" on the guardian's gear
+// reach the guardian's hit as they reach the character's.
+func TestGuardianWeaponAlternateQuality(t *testing.T) {
+	t.Parallel()
+	hit := func(stats ...build.StatValue) float64 {
+		foil := build.Item{Rarity: build.Rare, Name: "Foil", Base: jewelledFoil, Quality: 20, Mods: []build.ModLine{{Stats: stats}}}
+		b := guardianBuild(build.Items{build.SlotWeapon: foil})
+		b.Skills.Groups = b.Skills.Groups[1:]
+		got, err := gearSheet(t, &b).Output(poe1.MinionAverageHit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	plain := hit()
+	noQuality := hit(build.StatValue{Stat: "local_quality_does_not_increase_physical_damage", Value: 1})
+	none := hit(build.StatValue{Stat: "deal_no_elemental_physical_damage", Value: 1})
+	t.Logf("plain %v, no quality %v, none %v", plain, noQuality, none)
+	if !(noQuality < plain) || none != 0 {
+		t.Errorf("hits %v, %v and %v", plain, noQuality, none)
+	}
+}

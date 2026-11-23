@@ -159,6 +159,12 @@ func TestConversion(t *testing.T) {
 			want: hits{poe1.Lightning: {50, 50}},
 		},
 		{
+			name:   "Deal no Physical or Elemental Damage",
+			base:   hits{poe1.Physical: {100, 100}, poe1.Fire: {100, 100}, poe1.Cold: {100, 100}, poe1.Lightning: {100, 100}, poe1.Chaos: {100, 100}},
+			global: []resolve.StatValue{stat("deal_no_elemental_physical_damage", 1)},
+			want:   hits{poe1.Chaos: {100, 100}},
+		},
+		{
 			// Lightning's own minimum 50% less and maximum 25% more; cold none.
 			name:   "Lightning Purist",
 			base:   hits{poe1.Lightning: {100, 100}, poe1.Cold: {100, 100}},
