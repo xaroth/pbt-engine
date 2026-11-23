@@ -87,9 +87,6 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 		out.AnimatedWeapons = animatedWeaponsAllowed(all)
 		out.Warnings = append(out.Warnings, countWarnings(all, sk.Groups, out.AnimatedWeapons)...)
 	}
-	if w, ok := notSimulated(sk, out.Read(), out.off, hands); ok {
-		out.Warnings = append(out.Warnings, w)
-	}
 	return out, nil
 }
 
@@ -265,26 +262,4 @@ func (s *SheetSkills) addRest(rest []resolve.SkillWarnings) {
 			s.Warnings = append(s.Warnings, sw.Warnings...)
 		}
 	}
-}
-
-// notSimulated warns about the gems of s outside the groups of read whose hit the sheet gives
-// with hands. A group with a skill in off is left out: its own warning says why.
-func notSimulated(s build.Skills, read, off []*resolve.Skill, hands Hands) (build.Warning, bool) {
-	gems, groups := 0, 0
-	inGroup := func(i int) func(*resolve.Skill) bool {
-		return func(sk *resolve.Skill) bool { return sk.Source.Group == i }
-	}
-	for i, g := range s.Groups {
-		if len(g.Gems) == 0 || slices.ContainsFunc(off, inGroup(i)) ||
-			slices.ContainsFunc(read, func(sk *resolve.Skill) bool { return inGroup(i)(sk) && Hit(sk, hands) }) {
-			continue
-		}
-		gems += len(g.Gems)
-		groups++
-	}
-	if gems == 0 {
-		return build.Warning{}, false
-	}
-	msg := fmt.Sprintf("%d gems in %d groups not simulated yet; outputs leave them out", gems, groups)
-	return build.Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg}, true
 }

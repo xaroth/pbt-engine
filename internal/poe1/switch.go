@@ -2,6 +2,7 @@ package poe1
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/xaroth/pbt-engine/build"
@@ -43,14 +44,17 @@ func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, gear MinionGe
 		return sw, err
 	}
 	sw.Warnings = append(sw.Warnings, sw.Skills.Warnings...)
+	if sw.Minions, err = minionsOf(&sw, gear); err != nil {
+		return sw, err
+	}
+	if w, ok := sw.notSimulated(); ok {
+		sw.Warnings = append(sw.Warnings, w)
+	}
 	var over []build.Warning
 	if sw.Budget, over, err = PointBudget(c, cfg); err != nil {
 		return sw, err
 	}
 	sw.Warnings = append(sw.Warnings, over...)
-	if sw.Minions, err = minionsOf(&sw, gear); err != nil {
-		return sw, err
-	}
 	if sw.Enemy, err = enemyOf(&sw); err != nil {
 		return sw, err
 	}
@@ -113,6 +117,31 @@ func (sw *Switch) hits() bool {
 		}
 	}
 	return false
+}
+
+// notSimulated warns about the gems outside the groups of the skills whose outputs are read
+// whose hit, or whose minion's hit, the sheet gives. A group with a skill the hands lack a
+// shield for is left out: its own warning says why.
+func (sw *Switch) notSimulated() (build.Warning, bool) {
+	read := sw.Skills.Read()
+	gems, groups := 0, 0
+	for i, g := range sw.Checked.Build().Skills.Groups {
+		inGroup := func(sk *resolve.Skill) bool { return sk.Source.Group == i }
+		hit := false
+		for slot, sk := range read {
+			hit = hit || inGroup(sk) && (Hit(sk, sw.Hands) || sw.Minion(slot).Hit())
+		}
+		if len(g.Gems) == 0 || slices.ContainsFunc(sw.Skills.off, inGroup) || hit {
+			continue
+		}
+		gems += len(g.Gems)
+		groups++
+	}
+	if gems == 0 {
+		return build.Warning{}, false
+	}
+	msg := fmt.Sprintf("%d gems in %d groups not simulated yet; outputs leave them out", gems, groups)
+	return build.Warning{Code: SkillsNotSimulated, Subject: "skills", Message: msg}, true
 }
 
 // Switch switches sh to sw's level, nodes, masteries, items, hands, totem lives, skills, their

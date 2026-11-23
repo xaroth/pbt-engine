@@ -2,6 +2,7 @@ package simulator_test
 
 import (
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
@@ -235,5 +236,30 @@ func TestGuardianSmites(t *testing.T) {
 		if got, ok := st.Get(poe1.MinionAverageHit); !ok || math.Abs(got-c.want) > 1e-9*c.want {
 			t.Errorf("minion skill %d: average hit %v (%v), want %v", c.skill, got, ok, c.want)
 		}
+	}
+}
+
+// A group whose minion hits is simulated: the warning names the aura's group only.
+func TestNotSimulatedLeavesOutMinionGroups(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	sword, _, err := s.Data().Item(guardianSword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := marauderBuild(90)
+	b.Skills.Groups = []build.SkillGroup{
+		{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemAnimateArmour", Level: 20}}, MinionItems: build.Items{build.SlotWeapon: sword}},
+		{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemHaste", Level: 20}}},
+	}
+	st := simulate(t, s, b, simulator.EverySkill())
+	var got []string
+	for _, w := range st.Warnings() {
+		if w.Code == simulator.SkillsNotSimulated {
+			got = append(got, w.Message)
+		}
+	}
+	if want := "1 gems in 1 groups not simulated yet; outputs leave them out"; !slices.Equal(got, []string{want}) {
+		t.Errorf("warnings %q, want %q", got, want)
 	}
 }
