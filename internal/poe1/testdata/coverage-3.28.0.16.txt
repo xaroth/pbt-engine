@@ -1,4 +1,4 @@
-coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 405 authored, 108 unknown, 1 display-only, 0 gaps, 1328 outside
+coverage poe1 3.28.0.16 standard tree and characters: 1842 stats; 408 authored, 108 unknown, 1 display-only, 0 gaps, 1325 outside
 unknown by reason: condition 74, items 20, event 7, reservation 4, context 2, unestablished 1
 unvalidated projectile_damage_+% global, uses 40: that all damage of a skill with the Projectile type is projectile damage is our reading; the game data does not mark which of a skill's damage comes from projectiles. A skill with a projectile and a non-projectile hit would validate it
 unvalidated dual_wield_or_shield_block_% global, uses 16: a shield is not a weapon, so the character never both dual wields and holds a shield and the two modifiers never add up
@@ -172,8 +172,7 @@ unknown maximum_energy_shield_+_per_X_body_armour_evasion_rating global, uses 1:
 unvalidated maximum_energy_shield_increased_by_spell_block_chance global, uses 1: read as 1% increased maximum Energy Shield per 1% capped Chance to Block Spell Damage, counted in whole steps; PoB adds the unrounded chance, once however many sources have the stat
 unvalidated maximum_life_%_to_add_as_maximum_armour global, uses 1: the share starts from the source's flat amounts and takes the increases and more multipliers of source and target; the text does not say, this follows PoB
 unknown maximum_life_+%_while_no_gems_in_gloves global, uses 1: items: depends on equipped items, which an entry cannot check yet
-unvalidated minion_has_unholy_might global, uses 1: Unholy Might's chance to inflict Withered on Hit is read as making the minion's hits a source of Withered, as PoB does (Condition:CanWither); the stacks on the enemy come from the config
-omitted minion_has_unholy_might global, uses 1: Unholy Might's other effects
+unvalidated minion_has_unholy_might global, uses 1: Unholy Might is read as converting 100% of the minion's physical damage to chaos and making its hits a source of Withered, as PoB does (CalcPerform.lua UnholyMight, Condition:CanWither), not scaled by the effect of buffs on the minion; the stacks on the enemy come from the config
 unvalidated modifiers_to_fire_resistance_also_apply_to_cold_lightning_resistance_at_%_value global, uses 1: own modifiers to fire resistance only: not all-elemental ones, base values or the Kitava penalty, as PoB does; the text does not settle it
 unvalidated modifiers_to_maximum_fire_resistance_apply_to_maximum_cold_and_lightning_resistance global, uses 1: own modifiers to fire resistance only: not all-elemental ones, base values or the Kitava penalty, as PoB does; the text does not settle it
 unknown movement_speed_+%_during_flask_effect global, uses 1: condition: during a flask effect
