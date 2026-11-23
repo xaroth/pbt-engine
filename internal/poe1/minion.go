@@ -87,6 +87,8 @@ type Minion struct {
 	// Passed are the summoning skill's own stats that its minion's skill has too
 	// (passedStats).
 	Passed []resolve.StatValue
+	// Template are the stats of its variety's own object template.
+	Template []resolve.StatValue
 	// Items are the items the minion uses, for a skill whose minion takes gear (equip), and
 	// Hands the weapons they put in its hands.
 	Items []Item
@@ -278,6 +280,7 @@ func MinionOf(sk *resolve.Skill, skill, characterLevel int, m *dataset.Monsters,
 		return Minion{}, false, fmt.Errorf("poe1: no monster values for minion level %d: %w", level, dataset.ErrNotInDataset)
 	}
 	mn := minionOf(v, t, l, m, monsterBase(m, stats, statMonsterBaseMaximumAllResistances, enemyBaseMaximumResistance))
+	mn.Template = templateStats(v, stats)
 	mn.CriticalStrikeMultiplier = monsterBase(m, stats, statMonsterBaseCriticalStrikeMultiplier, 0)
 	mn.CriticalAilmentDotMultiplier = monsterBase(m, stats, statMonsterCriticalAilmentDotMultiplier, 0)
 	mn.PowerCharges = PowerChargeValues{
@@ -376,6 +379,17 @@ func monsterBase(m *dataset.Monsters, stats []dataset.Stat, id string, otherwise
 		}
 	}
 	return otherwise
+}
+
+// templateStats are the stats of v's own object template, with stats the dataset's stats.
+func templateStats(v *dataset.MonsterVariety, stats []dataset.Stat) []resolve.StatValue {
+	var out []resolve.StatValue
+	for _, sv := range v.Stats {
+		if int(sv.Stat) < len(stats) {
+			out = append(out, resolve.StatValue{Stat: stats[sv.Stat].ID, Value: float64(sv.Value)})
+		}
+	}
+	return out
 }
 
 // minionsOf returns the minion of each skill of sw whose outputs are read, which are the first
@@ -537,8 +551,9 @@ func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 	})
 }
 
-// addMinion adds mn's base values, its attribute bonuses, its weapons, its items' stats, and its skill's stats and hit,
-// as sources whose modifiers reach the minion actor in the context of the skill in slot.
+// addMinion adds mn's base values, its attribute bonuses, its weapons, its items' and its
+// template's stats, and its skill's stats and hit, as sources whose modifiers reach the minion
+// actor in the context of the skill in slot.
 func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
 	src, err := sh.addMinionBases(mn, slot)
 	if err != nil {
@@ -560,7 +575,7 @@ func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
 		}
 		srcs = append(srcs, src)
 	}
-	if srcs, err = sh.addBundles(srcs, mn.itemBundles(), slot); err != nil {
+	if srcs, err = sh.addBundles(srcs, append(mn.itemBundles(), mn.templateBundles()...), slot); err != nil {
 		return nil, err
 	}
 	if mn.Skill == nil {
@@ -627,6 +642,14 @@ func (mn *Minion) itemBundles() []resolve.Bundle {
 		out = append(out, minionBundle(resolve.ItemSource{Slot: it.Slot, Name: it.Name}, it.Stats))
 	}
 	return out
+}
+
+// templateBundles returns the bundle of the stats of mn's template, none without them.
+func (mn *Minion) templateBundles() []resolve.Bundle {
+	if len(mn.Template) == 0 {
+		return nil
+	}
+	return []resolve.Bundle{minionBundle(resolve.MonsterSource{Variety: mn.Variety}, mn.Template)}
 }
 
 func minionBundle(src resolve.Source, stats []resolve.StatValue) resolve.Bundle {

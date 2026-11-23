@@ -671,6 +671,19 @@
           }
         },
         {
+          "description": "The object template of a minion's monster variety.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "variety"],
+          "properties": {
+            "kind": { "const": "monster" },
+            "variety": {
+              "type": "string",
+              "description": "The dataset monster variety id."
+            }
+          }
+        },
+        {
           "description": "The character level.",
           "type": "object",
           "additionalProperties": false,

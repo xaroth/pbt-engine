@@ -22,9 +22,10 @@ Adds 10 to 20 Physical Damage
 // An Animated Guardian at gem level 20 attacks with the sword its group gives it, read from the
 // guardian skill's result while Fireball is the main skill. On 3.29 a Jewelled Foil deals 32 to
 // 60 physical damage at 1.6 attacks per second with a 5.5% critical strike chance; its local mods
-// make that 42 to 80 at 1.76. The gem's 38% more minion damage gives hits of round(42 x 1.38) =
-// 58 to round(80 x 1.38) = 110, 84 on average; critical strikes at the minion's 130% multiplier
-// add 5.5% x 30%: 85.386. Minion attacks always hit, and the enemy has no armour.
+// make that 42 to 80 at 1.76, and the guardian's template adds 2 to 6 in the main hand: 44 to
+// 86. The gem's 38% more minion damage gives hits of round(44 x 1.38) = 61 to round(86 x 1.38) =
+// 119, 90 on average; critical strikes at the minion's 130% multiplier add 5.5% x 30%: 91.485.
+// Minion attacks always hit, and the enemy has no armour.
 func TestGuardianAttacksWithItsSword(t *testing.T) {
 	t.Parallel()
 	s := realSim(t)
@@ -40,7 +41,7 @@ func TestGuardianAttacksWithItsSword(t *testing.T) {
 	st := simulate(t, s, b, simulator.EverySkill(), simulator.Set(poe1.EnemyArmour, 0))
 	guardian := st.Skill(simulator.SkillRef{Group: 1})
 	for k, want := range map[output.Key]float64{
-		poe1.MinionAverageHit: 85.386, poe1.MinionHitChance: 100, poe1.MinionHitsPerSecond: 1.76, poe1.MinionHitDPS: 85.386 * 1.76,
+		poe1.MinionAverageHit: 91.485, poe1.MinionHitChance: 100, poe1.MinionHitsPerSecond: 1.76, poe1.MinionHitDPS: 91.485 * 1.76,
 	} {
 		if got, ok := guardian.Get(k); !ok || math.Abs(got-want) > 1e-9*want {
 			t.Errorf("%s %v (%v), want %v", k, got, ok, want)
@@ -102,16 +103,16 @@ func TestGuardiansWeaponAttacksWithTheSword(t *testing.T) {
 
 // "Animated Guardian deals 5% increased Damage per Animated Weapon" counts the 14 Animated
 // Weapons the level 20 skill allows: 70% increased damage for the guardian, none for the
-// weapons. The guardian's sword hits for 42 to 80 with the gem's 38% more; 70% increased makes
-// that round(42 x 1.38 x 1.7) = 99 to round(80 x 1.38 x 1.7) = 188, 143.5 on average, and
-// critical strikes add 5.5% x 30%: 145.86775. The guardian is the main skill, so the weapon
+// weapons. The guardian's sword hits for 44 to 86 with the gem's 38% more; 70% increased makes
+// that round(44 x 1.38 x 1.7) = 103 to round(86 x 1.38 x 1.7) = 202, 152.5 on average, and
+// critical strikes add 5.5% x 30%: 155.01625. The guardian is the main skill, so the weapon
 // skill is not on the sheet and still sets the number allowed.
 func TestGuardianDamagePerAnimatedWeapon(t *testing.T) {
 	t.Parallel()
 	s := realSim(t)
 	b := guardiansWeaponBuild(t, s, "Animated Guardian deals 5% increased Damage per Animated Weapon\n")
 	st := simulate(t, s, b, simulator.Set(poe1.EnemyArmour, 0))
-	if got, want := get(t, st, poe1.MinionAverageHit), 145.86775; math.Abs(got-want) > 1e-9*want {
+	if got, want := get(t, st, poe1.MinionAverageHit), 155.01625; math.Abs(got-want) > 1e-9*want {
 		t.Errorf("guardian average hit %v, want %v", got, want)
 	}
 	every := simulate(t, s, b, simulator.EverySkill(), simulator.Set(poe1.EnemyArmour, 0))
@@ -207,9 +208,10 @@ func TestRangedArmsProjectilesByWeapon(t *testing.T) {
 }
 
 // Animate Guardian of Smiting at gem level 20, with the same sword, attacks with the skill its
-// group picks. Its 76% more minion damage makes the sword's 42 to 80 hit for round(42 x 1.76) =
-// 74 to round(80 x 1.76) = 141 with Melee, its first skill. Smite, its second, multiplies damage
-// by 3.25: round(42 x 3.25 x 1.76) = 240 to round(80 x 3.25 x 1.76) = 458, 349 on average. Half
+// group picks. The sword's 42 to 80 with the guardian's template's 2 to 6 is 44 to 86. Its 76%
+// more minion damage makes that round(44 x 1.76) = 77 to round(86 x 1.76) = 151 with Melee, its
+// first skill. Smite, its second, multiplies damage by 3.25: round(44 x 3.25 x 1.76) = 252 to
+// round(86 x 3.25 x 1.76) = 492, 372 on average. Half
 // of it is converted to lightning, so the enemy has no lightning resistance here. Critical
 // strikes add 5.5% x 30% as before. A pick past the minion's last skill is its last, as in PoB.
 func TestGuardianSmites(t *testing.T) {
@@ -223,7 +225,7 @@ func TestGuardianSmites(t *testing.T) {
 	for _, c := range []struct {
 		skill int
 		want  float64
-	}{{0, 107.5 * crit}, {1, 349 * crit}, {5, 349 * crit}} {
+	}{{0, 114 * crit}, {1, 372 * crit}, {5, 372 * crit}} {
 		b := marauderBuild(90)
 		b.Skills.Groups = []build.SkillGroup{{
 			Gems:        []build.Gem{{ID: "Metadata/Items/Gems/SkillGemAnimateArmour", Effect: "AnimateGuardianAltX", Level: 20}},

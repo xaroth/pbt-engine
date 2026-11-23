@@ -32,7 +32,7 @@ const (
 var ids = map[string]string{
 	Oldest:   "2c1c44c303e8cde646b56beca81d11b9e7fd5fb6bb76815eee3a6869ae7f54af",
 	Previous: "400942a0b5778859dd8204a898f3c9997997cba5e315014dda2e1ac9bb102916",
-	Current:  "a7ac693b1a4da19aecd8110379fa8c8f2b7bfdac1c48387573bb4d249ced86db",
+	Current:  "3a052cfa62330bffadb3bfd03eb59734f71b11db34fb43eb954349f131038347",
 	InGame:   "fe5fd41f270eadc01b1a059798eec7887e22754428b122821559a63613e5be4e",
 }
 
