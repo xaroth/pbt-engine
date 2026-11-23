@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/xaroth/pbt-engine/build"
+	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/internal/poe1"
 	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
@@ -299,5 +300,64 @@ func TestMinionIgnite(t *testing.T) {
 		if math.Abs(got-want) > 1e-9*want {
 			t.Errorf("%s %v, want %v", k, got, want)
 		}
+	}
+}
+
+// The character's stats that act on its minions, each on a level 20 Raise Zombie of a level 90
+// Marauder without passives, whose minion crits at 5% with Monster.ot's 130% multiplier and
+// whose average hit is zombieHit. Raise Zombie's minions stay until they die, so using it is
+// not using a Minion Skill Recently. The values follow PoB's ModParser.lua for each line; the
+// average hit rounds each damage roll, so 30% more damage from Meat Shield gives the same
+// (TestMinionBuffs).
+func TestMinionStatsOfTheCharacter(t *testing.T) {
+	t.Parallel()
+	alone := []build.SkillGroup{{Gems: []build.Gem{{ID: raiseZombie, Level: 20}}}}
+	on := func(k config.Key[bool]) func(*config.Values) error {
+		return func(v *config.Values) error { return config.Set(v, k, true) }
+	}
+	const fullLife = "minion_chance_to_deal_double_damage_while_on_full_life_%"
+	for _, c := range []struct {
+		name  string
+		stat  string
+		value float64
+		set   func(*config.Values) error
+		// read is the minion's engine stat, read on its attack's physical damage.
+		read string
+		want float64
+		hit  float64
+	}{
+		{"double damage", "minion_chance_to_deal_double_damage_%", 8, nil, "double_damage_chance", 8, zombieHit * 1.08},
+		{"double damage on full life", fullLife, 5, on(poe1.MinionsOnFullLife), "double_damage_chance", 5, zombieHit * 1.05},
+		{"double damage, not on full life", fullLife, 5, nil, "double_damage_chance", 0, zombieHit},
+		{"used a minion skill recently", "minion_damage_+%_if_have_used_a_minion_skill_recently", 30, on(poe1.UsedMinionSkillRecently), "damage", 130, 211.500625},
+		{"no minion skill used recently", "minion_damage_+%_if_have_used_a_minion_skill_recently", 30, nil, "damage", 100, zombieHit},
+		// The Marauder's 3 maximum power charges, not the minion's: 150% increased, 12.5%.
+		{"critical strike chance per maximum power charge", "minion_critical_strike_chance_+%_per_maximum_power_charge", 50, nil, "critical_strike_chance", 12.5, 0},
+		// +5% to critical strike chance: 10%.
+		{"base critical strike chance", "minion_additional_base_critical_strike_chance", 500, nil, "critical_strike_chance", 10, 0},
+		// The Whispers: 50% increased damage and attack speed.
+		{"whispers", "minions_go_crazy_on_crit_ms", 5000, nil, "damage", 150, 244.1075},
+		{"whispers' attack speed", "minions_go_crazy_on_crit_ms", 5000, nil, "attack_speed", 150, 0},
+		// Unholy Might converts all physical damage to chaos.
+		{"unholy might", "minion_has_unholy_might", 1, nil, "damage_converted_to_chaos", 100, 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ring := poe1.Item{Slot: build.SlotRing1, Name: "ring", Key: c.stat, Stats: []resolve.StatValue{{Stat: c.stat, Value: c.value}}}
+			sh := configuredSheet(t, &build.Build{Skills: build.Skills{Groups: alone}}, c.set, ring)
+			got, err := sh.MinionAttackValue(0, c.read, poe1.Physical)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if math.Abs(got-c.want) > 1e-9 {
+				t.Errorf("minion %s %v, want %v", c.read, got, c.want)
+			}
+			if c.hit == 0 {
+				return
+			}
+			if got := outputOf(t, sh, poe1.MinionAverageHit); math.Abs(got-c.hit) > 1e-9*c.hit {
+				t.Errorf("minion average hit %v, want %v", got, c.hit)
+			}
+		})
 	}
 }

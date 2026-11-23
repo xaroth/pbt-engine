@@ -23,6 +23,7 @@ func conditionInputs() []conditionInput {
 	return []conditionInput{
 		{"conditionFullLife", poe1.OnFullLife},
 		{"conditionFullEnergyShield", poe1.OnFullEnergyShield},
+		{"minionsConditionFullLife", poe1.MinionsOnFullLife},
 		{"usePowerCharges", poe1.PowerCharges},
 		{"useFrenzyCharges", poe1.FrenzyCharges},
 		{"useEnduranceCharges", poe1.EnduranceCharges},
@@ -30,6 +31,7 @@ func conditionInputs() []conditionInput {
 		{"buffFortification", poe1.Fortified},
 		{"buffArcaneSurge", poe1.ArcaneSurge},
 		{"conditionLeeching", poe1.Leeching},
+		{"conditionUsedMinionSkillRecently", poe1.UsedMinionSkillRecently},
 		{"conditionEnemyBleeding", poe1.EnemyBleeding},
 		{"conditionEnemyMoving", poe1.EnemyMoving},
 		{"conditionEnemyMaimed", poe1.EnemyMaimed},

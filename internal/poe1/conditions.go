@@ -35,6 +35,8 @@ const (
 	statIsFocused                  = "is_focused"
 	statIsFortified                = "is_fortified"
 	statEnemyIsNearYou             = "enemy_is_near_you"
+	statUsedMinionSkillRecently    = "used_minion_skill_recently"
+	statMinionsAreOnFullLife       = "minions_are_on_full_life"
 )
 
 // Condition config keys: whether a condition holds for the character or the enemy its damage
@@ -59,6 +61,8 @@ const (
 	Focused                  config.Key[bool] = "focused"
 	Fortified                config.Key[bool] = "fortified"
 	EnemyNearYou             config.Key[bool] = "enemy-near-you"
+	UsedMinionSkillRecently  config.Key[bool] = "used-minion-skill-recently"
+	MinionsOnFullLife        config.Key[bool] = "minions-full-life"
 )
 
 // EnemyShockEffect is the effect of the Shock on the enemy while EnemyShocked holds: the
@@ -111,6 +115,8 @@ func conditions() []condition {
 		{ArcaneSurge, statHasArcaneSurge, "Arcane Surge"},
 		{EnemyNearYou, statEnemyIsNearYou, "the enemy is near you"},
 		{FeedingFrenzy, statHasFeedingFrenzy, "Feeding Frenzy"},
+		{UsedMinionSkillRecently, statUsedMinionSkillRecently, "used a Minion Skill Recently"},
+		{MinionsOnFullLife, statMinionsAreOnFullLife, "minions on Full Life"},
 	}, chargeConditions())
 }
 
@@ -265,10 +271,11 @@ func derivables() []derivable {
 // whose value DeriveConditions derives where no layer sets one.
 func DerivedConditions() []config.Key[bool] {
 	ds, es := derivables(), exposures()
-	out := make([]config.Key[bool], 0, len(ds)+len(es))
+	out := make([]config.Key[bool], 0, len(ds)+len(es)+1)
 	for _, d := range ds {
 		out = append(out, d.key)
 	}
+	out = append(out, UsedMinionSkillRecently)
 	for _, e := range es {
 		out = append(out, e.key)
 	}
@@ -291,17 +298,12 @@ func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build
 		if err != nil {
 			return nil, nil, err
 		}
-		on, src := config.Lookup(cfg, d.key)
-		switch {
-		case !src.Explicit() && can:
-			out[d.key.Name()] = config.Entry{Value: true, Source: config.Derived}
-		case !src.Explicit():
-			out[d.key.Name()] = config.Entry{Value: false, Source: config.Default}
-		case on && !can:
-			warnings = append(warnings, noConditionSource(d.key, src))
+		if w, ok := sh.derive(cfg, out, d.key, d.stat, can); ok {
+			warnings = append(warnings, w)
 		}
-		v, _ := config.Lookup(out, d.key)
-		_ = sh.session.SetSourceEnabled(sh.conditions.sources[d.stat], v)
+	}
+	if w, ok := sh.derive(cfg, out, UsedMinionSkillRecently, statUsedMinionSkillRecently, sh.usesMinionSkill()); ok {
+		warnings = append(warnings, w)
 	}
 	exposed, err := sh.deriveExposure(cfg, out)
 	if err != nil {
@@ -313,13 +315,46 @@ func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build
 	return out, append(warnings, exposed...), nil
 }
 
+// derive sets condition key k of engine stat in out, from cfg and whether a skill can cause it,
+// as DeriveConditions does, and switches the sheet's condition to it. It returns the warning
+// for k set on by a layer while no skill can cause it, and whether there is one.
+func (sh *Sheet) derive(cfg, out config.Resolved, k config.Key[bool], stat string, can bool) (build.Warning, bool) {
+	on, src := config.Lookup(cfg, k)
+	var w build.Warning
+	warn := false
+	switch {
+	case !src.Explicit() && can:
+		out[k.Name()] = config.Entry{Value: true, Source: config.Derived}
+	case !src.Explicit():
+		out[k.Name()] = config.Entry{Value: false, Source: config.Default}
+	case on && !can:
+		w, warn = noConditionSource(k, src), true
+	}
+	v, _ := config.Lookup(out, k)
+	// The source is this session's, so this cannot fail.
+	_ = sh.session.SetSourceEnabled(sh.conditions.sources[stat], v)
+	return w, warn
+}
+
 // noConditionSource is the warning for condition key k, set on by a layer of source src that
-// no skill of the build inflicts.
+// no skill of the build causes.
 func noConditionSource(k config.Key[bool], src config.Source) build.Warning {
 	return build.Warning{
 		Code: NoConditionSource, Subject: "config " + k.Name(),
-		Message: fmt.Sprintf("on from the %s config, but no skill of the build inflicts it; applied as set", src),
+		Message: fmt.Sprintf("on from the %s config, but no skill of the build causes it; applied as set", src),
 	}
+}
+
+// statInfiniteMinionDuration is the skill stat of minions that stay until they die.
+const statInfiniteMinionDuration = "infinite_minion_duration"
+
+// usesMinionSkill reports whether a skill on the sheet, but the default attack, summons minions
+// that do not stay until they die: PoB counts a minion skill used recently unless its minions
+// are permanent (CalcPerform.lua UsedMinionSkillRecently, permanentMinion).
+func (sh *Sheet) usesMinionSkill() bool {
+	return slices.ContainsFunc(sh.skills, func(sl skillSlot) bool {
+		return !sl.source.Default() && SummonsMinion(sl.skill) && statOf(sl.skill.Set().Stats, statInfiniteMinionDuration) == 0
+	})
 }
 
 // inflicted reports whether the hit of a skill on the sheet, but the default attack, inflicts

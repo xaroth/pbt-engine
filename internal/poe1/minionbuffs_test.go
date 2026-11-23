@@ -132,8 +132,8 @@ func TestMinionEnduranceCharges(t *testing.T) {
 }
 
 // configuredSheet opens the sheet of b, a level 90 Marauder, on the real dataset of
-// minionVersion with the config set gives, and switches it to b.
-func configuredSheet(t *testing.T, b *build.Build, set func(*config.Values) error) *poe1.Sheet {
+// minionVersion with the config set gives, and switches it to b with the character's items.
+func configuredSheet(t *testing.T, b *build.Build, set func(*config.Values) error, items ...poe1.Item) *poe1.Sheet {
 	t.Helper()
 	b.Format, b.Game, b.Version, b.Class, b.Level = 1, "poe1", minionVersion, "Metadata/Characters/Str/Str", 90
 	var v config.Values
@@ -154,7 +154,7 @@ func configuredSheet(t *testing.T, b *build.Build, set func(*config.Values) erro
 	if err != nil {
 		t.Fatal(err)
 	}
-	sw, err := poe1.SwitchOf(c, cfg, nil, nil, false)
+	sw, err := poe1.SwitchOf(c, cfg, items, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

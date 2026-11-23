@@ -246,9 +246,9 @@ func TestConfigKeys(t *testing.T) {
 		"enemy-shocked", "enemy-chilled", "enemy-frozen", "enemy-ignited", "enemy-bleeding", "enemy-moving", "enemy-maimed",
 		"enemy-unnerved", "enemy-intimidated", "enemy-taunted", "enemy-on-consecrated-ground", "full-life",
 		"full-energy-shield", "leeching", "focused", "fortified", "arcane-surge", "enemy-near-you", "feeding-frenzy",
-		"power-charges", "frenzy-charges", "endurance-charges",
+		"used-minion-skill-recently", "minions-full-life", "power-charges", "frenzy-charges", "endurance-charges",
 	} {
-		derived := name == "enemy-shocked" || name == "enemy-chilled" || name == "enemy-ignited"
+		derived := name == "enemy-shocked" || name == "enemy-chilled" || name == "enemy-ignited" || name == "used-minion-skill-recently"
 		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false"), Derived: derived})
 	}
 	want = append(want, simulator.ConfigKey{Name: "enemy-shock-effect", Default: json.RawMessage("0")})
