@@ -132,11 +132,15 @@ const (
 	Focused                  = rules.Focused
 	Fortified                = rules.Fortified
 	ArcaneSurge              = rules.ArcaneSurge
+	EnemyNearYou             = rules.EnemyNearYou
+	FeedingFrenzy            = rules.FeedingFrenzy
 	PowerCharges             = rules.PowerCharges
 	FrenzyCharges            = rules.FrenzyCharges
 	EnduranceCharges         = rules.EnduranceCharges
 	LowestResonance          = rules.LowestResonance
 	EnemyWitheredStacks      = rules.EnemyWitheredStacks
+	MinionFrenzyCharges      = rules.MinionFrenzyCharges
+	MinionFrenzyChargeCount  = rules.MinionFrenzyChargeCount
 )
 
 // CampaignStage is how far the character is through the story campaign: the value of
@@ -190,3 +194,6 @@ type Resonance = rules.Resonance
 
 // WitheredStacks is a count of Withered stacks, from 0: the value of EnemyWitheredStacks.
 type WitheredStacks = rules.WitheredStacks
+
+// ChargeCount is a number of charges, from 0: the value of MinionFrenzyChargeCount.
+type ChargeCount = rules.ChargeCount

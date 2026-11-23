@@ -42,12 +42,14 @@ func configValues(cfg config.Resolved) (CampaignStage, BanditChoice) {
 }
 
 // SetConfig applies cfg to the sheet: each quest reward's source goes on or off by the campaign
-// stage and bandit choice, each condition by its key, and sets the lowest Resonance. A reward
+// stage and bandit choice, each condition by its key, and sets the lowest Resonance, the
+// Withered stacks and the frenzy charges of minions. A reward
 // these rules have no grant for stays off, noted once.
 func (sh *Sheet) SetConfig(cfg config.Resolved) {
 	sh.setConditions(cfg)
 	sh.setResonance(cfg)
 	sh.setWither(cfg)
+	sh.setMinionCharges(cfg)
 	c, b := configValues(cfg)
 	grants := questGrants()
 	for id, src := range sh.sources {

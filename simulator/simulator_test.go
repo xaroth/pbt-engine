@@ -245,7 +245,8 @@ func TestConfigKeys(t *testing.T) {
 	for _, name := range []string{
 		"enemy-shocked", "enemy-chilled", "enemy-frozen", "enemy-ignited", "enemy-bleeding", "enemy-moving", "enemy-maimed",
 		"enemy-unnerved", "enemy-intimidated", "enemy-taunted", "enemy-on-consecrated-ground", "full-life",
-		"full-energy-shield", "leeching", "focused", "fortified", "arcane-surge", "power-charges", "frenzy-charges", "endurance-charges",
+		"full-energy-shield", "leeching", "focused", "fortified", "arcane-surge", "enemy-near-you", "feeding-frenzy",
+		"power-charges", "frenzy-charges", "endurance-charges",
 	} {
 		derived := name == "enemy-shocked" || name == "enemy-chilled" || name == "enemy-ignited"
 		want = append(want, simulator.ConfigKey{Name: name, Default: json.RawMessage("false"), Derived: derived})
@@ -256,6 +257,8 @@ func TestConfigKeys(t *testing.T) {
 	}
 	want = append(want, simulator.ConfigKey{Name: "lowest-resonance", Default: json.RawMessage("0")})
 	want = append(want, simulator.ConfigKey{Name: "enemy-withered-stacks", Default: json.RawMessage("0")})
+	want = append(want, simulator.ConfigKey{Name: "minion-frenzy-charges", Default: json.RawMessage("false")})
+	want = append(want, simulator.ConfigKey{Name: "minion-frenzy-charge-count", Default: json.RawMessage("0")})
 	if diff := cmp.Diff(want, keys); diff != "" {
 		t.Errorf("config keys (-want +got):\n%s", diff)
 	}

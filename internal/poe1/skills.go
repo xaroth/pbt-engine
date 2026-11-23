@@ -137,7 +137,7 @@ func (sh *Sheet) addSkill(sk *resolve.Skill, slot int, buff bool) ([]core.Source
 	var more []core.SourceID
 	switch {
 	case buffs && buff:
-		more, err = sh.addBuff(sk, b, buffStats, slot, ctx)
+		more, err = sh.addSkillBuff(sk, b, buffStats, slot, ctx)
 	case curseStats != nil:
 		more, err = sh.addCurse(sk, curseStats, slot, ctx)
 	}
