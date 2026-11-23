@@ -75,6 +75,10 @@ type Item struct {
 	Base      string `json:"base"`
 	ItemLevel int    `json:"itemLevel,omitzero"`
 	Quality   int    `json:"quality,omitzero"`
+	// Catalyst is the name of the catalyst applied to the item, such as "Unstable", or empty.
+	// CatalystQuality is its quality; the mod values are already scaled by it.
+	Catalyst        string `json:"catalyst,omitzero"`
+	CatalystQuality int    `json:"catalystQuality,omitzero"`
 	// Sockets as the text writes them, such as "R-R-B G".
 	Sockets string `json:"sockets,omitzero"`
 	// Armour, Evasion, EnergyShield and Ward are the item's own defences as its text prints them,

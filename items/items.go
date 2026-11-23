@@ -234,6 +234,9 @@ func (r *Reader) Parse(text string) (build.Item, []build.Warning, error) {
 	}
 	it := p.item
 	it.Base = base.ID
+	if c := p.scaling.catalyst; c != nil {
+		it.Catalyst, it.CatalystQuality = c.name, p.scaling.catalystQuality()
+	}
 	var warnings []build.Warning
 	for i := 0; i < len(p.lines); {
 		// A description spanning lines does not cross from one kind of line to another.

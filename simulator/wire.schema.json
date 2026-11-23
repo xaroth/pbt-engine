@@ -450,6 +450,8 @@
         "base": { "type": "string", "description": "The dataset item base id." },
         "itemLevel": { "type": "integer" },
         "quality": { "type": "integer" },
+        "catalyst": { "type": "string", "description": "The name of the catalyst applied to the item, such as \"Unstable\"." },
+        "catalystQuality": { "type": "integer", "description": "The catalyst's quality; the mod values are already scaled by it." },
         "sockets": { "type": "string" },
         "armour": { "type": "integer" },
         "evasion": { "type": "integer" },
