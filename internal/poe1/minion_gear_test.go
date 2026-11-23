@@ -2,6 +2,7 @@ package poe1_test
 
 import (
 	"maps"
+	"math"
 	"slices"
 	"testing"
 
@@ -137,5 +138,26 @@ func TestGuardianWeaponAlternateQuality(t *testing.T) {
 	t.Logf("plain %v, no quality %v, none %v", plain, noQuality, none)
 	if !(noQuality < plain) || none != 0 {
 		t.Errorf("hits %v, %v and %v", plain, noQuality, none)
+	}
+}
+
+// A minion's attributes give it the bonuses a character's give it (PoB runs the same attribute
+// bonuses for the minion): 100 strength from the guardian's helmet is 20% increased melee
+// physical damage.
+func TestGuardianStrengthBonus(t *testing.T) {
+	t.Parallel()
+	strong := guardianBuild(build.Items{build.SlotHelmet: {Rarity: build.Rare, Name: "Grim Visor", Base: royalBurgonet, Mods: []build.ModLine{
+		{Stats: []build.StatValue{{Stat: "additional_strength", Value: 100}}},
+	}}})
+	bare := guardianBuild(nil)
+	var got [2]float64
+	for i, b := range []*build.Build{&bare, &strong} {
+		var err error
+		if got[i], err = gearSheet(t, b).MinionSkillValue(1, "damage", poe1.Physical); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if want := got[0] * 1.2; math.Abs(got[1]-want) > 1e-9*want {
+		t.Errorf("physical damage %v with 100 strength, want %v (20%% more than %v)", got[1], want, got[0])
 	}
 }

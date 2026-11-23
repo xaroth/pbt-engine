@@ -99,6 +99,8 @@ type Sheet struct {
 	sources []Source
 	version string
 	notes   []sourcedNote
+	// constants are the dataset's, for rules added after Open.
+	constants []resolve.Constant
 	// table and gameVersion turn bundles added after Open, such as other levels, into modifiers.
 	table       *semantics.Table
 	gameVersion dataset.GameVersion
@@ -227,7 +229,8 @@ func Open(r *resolve.Resolved, t *semantics.Table, cfg config.Resolved) (*Sheet,
 			return nil, err
 		}
 	}
-	if err := sh.addAttributeBonuses(r.Constants); err != nil {
+	sh.constants = r.Constants
+	if _, err := sh.addAttributeBonuses(playerActor, -1); err != nil {
 		return nil, err
 	}
 	if err := sh.addBaseValues(); err != nil {

@@ -461,14 +461,18 @@ func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 	})
 }
 
-// addMinion adds mn's base values, its weapons, its items' stats, and its skill's stats and hit,
+// addMinion adds mn's base values, its attribute bonuses, its weapons, its items' stats, and its skill's stats and hit,
 // as sources whose modifiers reach the minion actor in the context of the skill in slot.
 func (sh *Sheet) addMinion(mn *Minion, slot int) ([]core.SourceID, error) {
 	src, err := sh.addMinionBases(mn, slot)
 	if err != nil {
 		return nil, err
 	}
-	srcs := []core.SourceID{src}
+	attrs, err := sh.addAttributeBonuses(minionActor, slot)
+	if err != nil {
+		return nil, err
+	}
+	srcs := append([]core.SourceID{src}, attrs...)
 	skill := core.MaskOf(sh.ctx.skill.Bit(slot))
 	for hd, w := range []*Weapon{handMain: mn.Hands.MainHand, handOff: mn.Hands.OffHand} {
 		if w == nil {

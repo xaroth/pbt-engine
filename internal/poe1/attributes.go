@@ -87,21 +87,26 @@ func attributeBonuses() []attributeBonus {
 	}
 }
 
-// addAttributeBonuses adds the inherent attribute bonuses as modifiers, one source each so
-// each explains as its own line.
-func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
+// addAttributeBonuses adds the inherent attribute bonuses of actor as modifiers, one source
+// each so each explains as its own line, and returns the sources. slot is the skill slot whose
+// context they hold in, -1 for all (the player's). PoB gives every actor the same bonuses
+// (CalcPerform.lua doActorAttribsConditions, run for the player and for the minion).
+func (sh *Sheet) addAttributeBonuses(actor core.ActorID, slot int) ([]core.SourceID, error) {
+	var srcs []core.SourceID
 	for _, b := range attributeBonuses() {
-		c, err := constant(consts, b.constant)
+		c, err := constant(sh.constants, b.constant)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		pred, err := predicate(sh.session.Model(), semantics.ContextFilter{In: b.in, NotIn: b.notIn}, sh.ctx, -1)
+		pred, err := predicate(sh.session.Model(), semantics.ContextFilter{In: b.in, NotIn: b.notIn}, sh.ctx, slot)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		src := sh.newSource(Source{RuleID: b.id, Rule: fmt.Sprintf("%s (%d per %d, constant %s)", b.label, c.Value, c.Per, b.constant)})
+		srcs = append(srcs, src)
 		mod := core.Modifier{
-			Stat: sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src, Pred: pred,
+			Actor: actor,
+			Stat:  sh.stats[b.target], Op: b.op, Value: float64(c.Value), Source: src, Pred: pred,
 			Scales: []core.Scale{{Ref: core.SelfRef(sh.stats[b.attribute]), Step: float64(c.Per)}},
 		}
 		if b.off != "" {
@@ -110,16 +115,17 @@ func (sh *Sheet) addAttributeBonuses(consts []resolve.Constant) error {
 		mods := []core.Modifier{mod}
 		if b.instead != "" {
 			src := sh.newSource(Source{RuleID: b.id + "-instead", Rule: fmt.Sprintf("%s (%s per 1)", b.label, b.instead)})
+			srcs = append(srcs, src)
 			mods = append(mods, insteadModifier(mod, src, sh.stats[b.instead]))
 			mods[0].Conds = append(slices.Clone(mod.Conds), core.Cond{Ref: core.SelfRef(sh.stats[b.instead]), Cmp: core.CmpEQ})
 		}
 		for _, m := range mods {
 			if _, err := sh.session.AddModifier(m); err != nil {
-				return fmt.Errorf("sheet: %s: %w", b.constant, err)
+				return nil, fmt.Errorf("sheet: %s: %w", b.constant, err)
 			}
 		}
 	}
-	return nil
+	return srcs, nil
 }
 
 // insteadModifier is mod from src granting the value of stat instead per point of the
