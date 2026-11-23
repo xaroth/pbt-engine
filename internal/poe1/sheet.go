@@ -485,14 +485,17 @@ func notesFor(e *semantics.Entry, ok, ruled bool) []Note {
 }
 
 // modActor returns the session actor of a table modifier for actor a of a stat owned by owner:
-// the owner, or the player's minions. A minion has no minions, so a minion's stat gives no
-// modifier for them.
+// the owner, the player's minions, or for the enemy the player, whose actor holds the enemy's
+// stats that a minion's mirror (addMinionEnemy). A minion has no minions, so a minion's stat
+// gives no modifier for them.
 func modActor(a resolve.Actor, owner core.ActorID) (core.ActorID, bool) {
 	switch {
 	case a == resolve.Player:
 		return owner, true
 	case a == resolve.Minion && owner == playerActor:
 		return minionActor, true
+	case a == resolve.Enemy:
+		return playerActor, true
 	}
 	return 0, false
 }
@@ -534,6 +537,15 @@ func (sh *Sheet) addMods(e *semantics.Entry, value float64, src core.SourceID, s
 	return nil
 }
 
+// modSlot returns the slot whose context table modifier m of a stat in slot holds in: none for
+// a modifier of the enemy, which is the same for every skill, as PoB's EnemyModifier is.
+func modSlot(m *semantics.Mod, slot int) int {
+	if m.Actor == resolve.Enemy {
+		return -1
+	}
+	return slot
+}
+
 // tableModifier returns table modifier m of a stat of value from src owned by actor, in slot as
 // addMods has it; false when it applies to no actor or its condition can never hold.
 func (sh *Sheet) tableModifier(m *semantics.Mod, value float64, src core.SourceID, slot int, actor core.ActorID) (core.Modifier, bool, error) {
@@ -541,6 +553,7 @@ func (sh *Sheet) tableModifier(m *semantics.Mod, value float64, src core.SourceI
 	if !ok {
 		return core.Modifier{}, false, nil
 	}
+	slot = modSlot(m, slot)
 	// What a skill's stats give its minion is the minion's own, as PoB's MinionModifier is.
 	group, err := moreGroup(m, slot >= 0 && to == actor)
 	if err != nil {

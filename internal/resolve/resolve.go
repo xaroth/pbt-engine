@@ -23,6 +23,9 @@ const (
 	Player Actor = iota
 	// Minion is the minion a skill summons; its bundles hold the minion's own stats.
 	Minion
+	// Enemy is the enemy the build's hits meet, shared by the character and its minions. It owns
+	// no bundles; a table modifier names it for a stat that changes the enemy.
+	Enemy
 )
 
 func (a Actor) String() string {
@@ -31,6 +34,8 @@ func (a Actor) String() string {
 		return "player"
 	case Minion:
 		return "minion"
+	case Enemy:
+		return "enemy"
 	}
 	return "actor?"
 }

@@ -9,9 +9,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/config"
 	"github.com/xaroth/pbt-engine/dataset"
 	"github.com/xaroth/pbt-engine/internal/poe1"
+	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 )
 
@@ -115,5 +117,39 @@ func TestUberTakesLessDamage(t *testing.T) {
 	sh.SetEnemy(poe1.EnemyStats{Kind: poe1.EnemyPinnacle, FireResistance: 50})
 	if got := outputOf(t, sh, poe1.FireMinimum); got != 50 {
 		t.Errorf("fire minimum against a pinnacle boss: got %v, want 50", got)
+	}
+}
+
+// "Nearby Enemies have -10% to all Resistances" changes the enemy that the character's and its
+// minion's hits meet, whether the character's helmet or the minion's has it: the pinnacle
+// boss's 50% fire and 30% chaos resistance become 40% and 20% for the character's Fireball
+// (skill 0) and its Animate Guardian (skill 1). PoB applies the line as an EnemyModifier from
+// either actor.
+func TestItemEnemyLine(t *testing.T) {
+	t.Parallel()
+	const line = "local_display_nearby_enemies_all_resistances_%"
+	crown := build.Item{Rarity: build.Unique, Name: "Crown", Base: royalBurgonet, Mods: []build.ModLine{
+		{Stats: []build.StatValue{{Stat: line, Value: -10}}},
+	}}
+	character := poe1.Item{Slot: build.SlotHelmet, Name: "Crown", Key: "crown", Stats: []resolve.StatValue{{Stat: line, Value: -10}}}
+	bare, minionWears := guardianBuild(nil), guardianBuild(build.Items{build.SlotHelmet: crown})
+	for _, c := range []struct {
+		name string
+		sh   *poe1.Sheet
+		off  float64
+	}{
+		{"none", gearSheet(t, &bare), 0},
+		{"character", gearSheet(t, &bare, character), 10},
+		{"minion", gearSheet(t, &minionWears), 10},
+	} {
+		for d, res := range map[poe1.DamageType]float64{poe1.Fire: 50, poe1.Chaos: 30} {
+			want := res - c.off
+			if got, err := c.sh.SkillValue(0, "hit_enemy_resistance", d); err != nil || got != want {
+				t.Errorf("%s: character's %v hit meets %v (%v), want %v", c.name, d, got, err, want)
+			}
+			if got, err := c.sh.MinionValue(1, "hit_enemy_resistance", d); err != nil || got != want {
+				t.Errorf("%s: minion's %v hit meets %v (%v), want %v", c.name, d, got, err, want)
+			}
+		}
 	}
 }
