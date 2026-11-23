@@ -17,6 +17,7 @@ func TestCompareMonsters(t *testing.T) {
 	m.Resistances = m.Resistances[1:]
 	m.Types[1].Resistances = ""
 	m.Varieties[0].Mods2 = nil
+	m.Varieties[1].Stats = m.Varieties[1].Stats[1:]
 	m.Varieties = append(m.Varieties, dataset.MonsterVariety{ID: "Metadata/Monsters/New", Type: "RaisedZombie"})
 	m.Levels[1].AllyDamage = 300.5
 	m.Levels = append(m.Levels, dataset.MonsterLevel{Level: 69, Difficulty: dataset.MercilessDifficulty})
@@ -33,7 +34,7 @@ func TestCompareMonsters(t *testing.T) {
 		TypesChanged:            []string{"RaisedZombie"},
 		ResistancesRemoved:      []string{"None"},
 		VarietiesAdded:          []string{"Metadata/Monsters/New"},
-		VarietiesChanged:        []string{zombie},
+		VarietiesChanged:        []string{zombie, slamTotem},
 		LevelsAdded:             []int32{69},
 		LevelsChanged:           []int32{68},
 		BaseStatsChanged:        []string{"number_of_zombies_allowed"},

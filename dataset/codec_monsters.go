@@ -20,6 +20,9 @@ func (d *Dataset) monstersGroup() []group {
 func monsterStats(m *Monsters) map[uint32]bool {
 	used := map[uint32]bool{}
 	addStats(used, m.BaseStats)
+	for _, v := range m.Varieties {
+		addStats(used, v.Stats)
+	}
 	for _, mod := range m.Mods {
 		for _, s := range mod.Stats {
 			used[s.Stat] = true
@@ -57,7 +60,7 @@ func encodeMonsters(all []Stat, m *Monsters) []byte {
 	resists := encodeList(b, fb.MonstersStartResistancesVector, m.Resistances,
 		func(r MonsterResistance) flatbuffers.UOffsetT { return encodeMonsterResistance(b, r) })
 	varieties := encodeList(b, fb.MonstersStartVarietiesVector, m.Varieties,
-		func(v MonsterVariety) flatbuffers.UOffsetT { return encodeVariety(b, tagIndex, v) })
+		func(v MonsterVariety) flatbuffers.UOffsetT { return encodeVariety(b, st, tagIndex, v) })
 	levels := encodeList(b, fb.MonstersStartLevelsVector, m.Levels, func(l MonsterLevel) flatbuffers.UOffsetT { return encodeMonsterLevel(b, l) })
 	base := statValueVector(b, fb.MonstersStartBaseStatsVector, st.toLocal(m.BaseStats, true))
 	mods := encodeList(b, fb.MonstersStartModsVector, m.Mods, func(mod Mod) flatbuffers.UOffsetT { return encodeMod(b, st, tagIndex, mod) })
@@ -125,7 +128,7 @@ func sharedStrings(b *flatbuffers.Builder, start startFunc, ss []string) flatbuf
 	return encodeList(b, start, ss, b.CreateSharedString)
 }
 
-func encodeVariety(b *flatbuffers.Builder, tagIndex map[string]uint32, v MonsterVariety) flatbuffers.UOffsetT {
+func encodeVariety(b *flatbuffers.Builder, st statTable, tagIndex map[string]uint32, v MonsterVariety) flatbuffers.UOffsetT {
 	id, typ := b.CreateString(v.ID), b.CreateSharedString(v.Type)
 	mainHand, offHand := optString(b, v.MainHand), optString(b, v.OffHand)
 	var tags flatbuffers.UOffsetT
@@ -139,6 +142,10 @@ func encodeVariety(b *flatbuffers.Builder, tagIndex map[string]uint32, v Monster
 	part1 := sharedStrings(b, fb.MonsterVarietyStartPart1ModsVector, v.Part1Mods)
 	part2 := sharedStrings(b, fb.MonsterVarietyStartPart2ModsVector, v.Part2Mods)
 	endgame := sharedStrings(b, fb.MonsterVarietyStartEndgameModsVector, v.EndgameMods)
+	var stats flatbuffers.UOffsetT
+	if len(v.Stats) > 0 {
+		stats = statValueVector(b, fb.MonsterVarietyStartStatsVector, st.toLocal(v.Stats, true))
+	}
 	fb.MonsterVarietyStart(b)
 	fb.MonsterVarietyAddId(b, id)
 	fb.MonsterVarietyAddType(b, typ)
@@ -156,6 +163,7 @@ func encodeVariety(b *flatbuffers.Builder, tagIndex map[string]uint32, v Monster
 	fb.MonsterVarietyAddPart1Mods(b, part1)
 	fb.MonsterVarietyAddPart2Mods(b, part2)
 	fb.MonsterVarietyAddEndgameMods(b, endgame)
+	fb.MonsterVarietyAddStats(b, stats)
 	return fb.MonsterVarietyEnd(b)
 }
 

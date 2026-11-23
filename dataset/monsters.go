@@ -73,6 +73,10 @@ type MonsterVariety struct {
 	// The mod lists are Mod IDs, one per game column: ModsKeys, ModsKeys2 (stances in 3.29),
 	// Special_ModsKeys, Part1_ModsKeys, Part2_ModsKeys and Endgame_ModsKeys.
 	Mods, Mods2, SpecialMods, Part1Mods, Part2Mods, EndgameMods []string
+	// Stats are the Stats block of the variety's own object template, such as
+	// Metadata/Monsters/AnimatedItem/AnimatedArmour.ot, without what it inherits from
+	// Monster.ot or another parent. Sorted by Stat without repeats.
+	Stats []StatValue
 }
 
 // MonsterLevel is a row of DefaultMonsterStats. Ally values are those of player minions.
@@ -212,7 +216,7 @@ func validateMonsters(n int, effects map[string]bool, m *Monsters) error {
 	}
 	return firstError(
 		checkEach("monster type", m.Types, monsterTypeID, ids.monsterType),
-		checkEach("monster variety", m.Varieties, varietyID, func(v MonsterVariety) error { return ids.variety(effects, v) }),
+		checkEach("monster variety", m.Varieties, varietyID, func(v MonsterVariety) error { return ids.variety(n, effects, v) }),
 		validateMonsterLevels(m.Levels),
 		sortedStats("monster base stats", m.BaseStats, n),
 		validateMonsterMods(n, m.Mods),
@@ -235,7 +239,7 @@ func (ids monsterIDs) monsterType(t MonsterType) error {
 	return ids.ref("resistances", ids.resistances, t.Resistances)
 }
 
-func (ids monsterIDs) variety(effects map[string]bool, v MonsterVariety) error {
+func (ids monsterIDs) variety(n int, effects map[string]bool, v MonsterVariety) error {
 	if err := ids.ref("type", ids.types, v.Type); err != nil {
 		return err
 	}
@@ -252,7 +256,7 @@ func (ids monsterIDs) variety(effects map[string]bool, v MonsterVariety) error {
 			return err
 		}
 	}
-	return nil
+	return sortedStats("template", v.Stats, n)
 }
 
 func (ids monsterIDs) totem(t Totem) error {
