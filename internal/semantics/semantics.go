@@ -264,7 +264,8 @@ type Mod struct {
 	While   string
 	Context ContextFilter
 	// Actor is the actor the modifier applies to, relative to the stat's owner: Player for the
-	// owner itself, Minion for the owner's minions ("Minions deal 10% increased Damage").
+	// owner itself, Minion for the owner's minions ("Minions deal 10% increased Damage"), Enemy
+	// for the enemy whoever owns it meets ("Nearby Enemies have -10% to all Resistances").
 	Actor resolve.Actor
 }
 
@@ -708,13 +709,16 @@ func parseWhereWhen(m *Mod, f *fileMod, vocab Vocabulary) error {
 	return err
 }
 
-// parseActor reads a modifier's actor: empty for the stat's owner, "minion" for its minions.
+// parseActor reads a modifier's actor: empty for the stat's owner, "minion" for its minions,
+// "enemy" for the enemy.
 func parseActor(s string) (resolve.Actor, error) {
 	switch s {
 	case "":
 		return resolve.Player, nil
 	case resolve.Minion.String():
 		return resolve.Minion, nil
+	case resolve.Enemy.String():
+		return resolve.Enemy, nil
 	}
 	return 0, fmt.Errorf("%w actor %q", errUnknown, s)
 }

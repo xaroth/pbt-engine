@@ -31,9 +31,9 @@ func guardianBuild(gear build.Items) build.Build {
 	}
 }
 
-// gearSwitch returns what a sheet is switched to for b, its minions' gear compiled from the real
-// dataset.
-func gearSwitch(t *testing.T, b *build.Build) (*build.Checked, poe1.Switch) {
+// gearSwitch returns what a sheet is switched to for b with the character's items, its
+// minions' gear compiled from the real dataset.
+func gearSwitch(t *testing.T, b *build.Build, items ...poe1.Item) (*build.Checked, poe1.Switch) {
 	t.Helper()
 	s := realdata.Open(t, minionVersion)
 	c, _, err := build.Check(b, s)
@@ -53,16 +53,16 @@ func gearSwitch(t *testing.T, b *build.Build) (*build.Checked, poe1.Switch) {
 			gear[i] = append(gear[i], poe1.Item{Slot: slot, Name: it.Name, Key: it.Base, Stats: ci.Stats, Weapon: ci.Weapon, Armour: ci.Armour})
 		}
 	}
-	sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, gear, true)
+	sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), items, gear, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c, sw
 }
 
-func gearSheet(t *testing.T, b *build.Build) *poe1.Sheet {
+func gearSheet(t *testing.T, b *build.Build, items ...poe1.Item) *poe1.Sheet {
 	t.Helper()
-	c, sw := gearSwitch(t, b)
+	c, sw := gearSwitch(t, b, items...)
 	r, err := resolve.Resolve(c)
 	if err != nil {
 		t.Fatal(err)
