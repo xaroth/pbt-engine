@@ -17,6 +17,7 @@ const (
 	animateGuardian = "Metadata/Items/Gems/SkillGemAnimateArmour"
 	royalBurgonet   = "Metadata/Items/Armours/Helmets/HelmetStr10"
 	jewelledFoil    = "Metadata/Items/Weapons/OneHandWeapons/OneHandThrustingSwords/Rapier21"
+	spiritShield    = "Metadata/Items/Armours/Shields/ShieldInt1"
 )
 
 // guardianBuild is a level 90 Marauder whose second group's Animate Guardian, at gem level 20,
@@ -180,5 +181,56 @@ func TestGuardianDualWieldSpeed(t *testing.T) {
 	two := rate(build.Items{build.SlotWeapon: foil, build.SlotOffhand: foil})
 	if want := one * 1.1; math.Abs(two-want) > 1e-9*want {
 		t.Errorf("%v hits per second dual wielding, want %v (10%% more than %v)", two, want, one)
+	}
+}
+
+// characterLife is a body armour that brings the character of guardianBuild to want maximum
+// life.
+func characterLife(t *testing.T, b *build.Build, want float64) poe1.Item {
+	t.Helper()
+	have := value(t, gearSheet(t, b), "maximum_life")
+	return poe1.Item{Slot: build.SlotBodyArmour, Name: "Life", Key: "life", Stats: []resolve.StatValue{{Stat: "base_maximum_life", Value: want - have}}}
+}
+
+// The Grey Wind's "Attacks with this Weapon have Added Fire Damage equal to 12% of Player's
+// Maximum Life" on the guardian's weapon reads the character's life: 600 fire damage at 5,000.
+func TestGuardianWeaponFireOfCharacterLife(t *testing.T) {
+	t.Parallel()
+	foil := build.Item{Rarity: build.Unique, Name: "The Grey Wind", Base: jewelledFoil, Mods: []build.ModLine{
+		{Stats: []build.StatValue{{Stat: "local_fire_damage_from_life_%", Value: 12}}},
+	}}
+	b := guardianBuild(build.Items{build.SlotWeapon: foil})
+	b.Skills.Groups = b.Skills.Groups[1:]
+	sh := gearSheet(t, &b, characterLife(t, &b, 5000))
+	if got := value(t, sh, "maximum_life"); got != 5000 {
+		t.Fatalf("character life %v, want 5000", got)
+	}
+	for _, stat := range []string{"base_minimum_damage", "base_maximum_damage"} {
+		if got, err := sh.MinionSkillValue(0, stat, poe1.Fire); err != nil || got != 600 {
+			t.Errorf("guardian %s %v (%v), want 600", stat, got, err)
+		}
+	}
+}
+
+// Rathpith Globe's "4% increased Spell Damage per 100 Player Maximum Life" on the guardian's
+// shield reads the character's life: 200% increased spell damage at 5,000, twice what a plain
+// "100% increased Spell Damage" gives.
+func TestGuardianSpellDamagePerCharacterLife(t *testing.T) {
+	t.Parallel()
+	damage := func(stats ...build.StatValue) float64 {
+		shield := build.Item{Rarity: build.Unique, Name: "Rathpith Globe", Base: spiritShield, Mods: []build.ModLine{{Stats: stats}}}
+		b := guardianBuild(build.Items{build.SlotOffhand: shield})
+		b.Skills.Groups = b.Skills.Groups[1:]
+		got, err := gearSheet(t, &b, characterLife(t, &b, 5000)).MinionValue(0, "damage", poe1.Fire)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	bare := damage()
+	plain := damage(build.StatValue{Stat: "spell_damage_+%", Value: 100})
+	perLife := damage(build.StatValue{Stat: "spell_damage_+%_per_100_max_life", Value: 4})
+	if want := bare + 2*(plain-bare); math.Abs(perLife-want) > 1e-9*want {
+		t.Errorf("spell damage %v, want %v (bare %v, 100%% increased %v)", perLife, want, bare, plain)
 	}
 }

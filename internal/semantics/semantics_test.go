@@ -197,6 +197,10 @@ func TestLoadRejects(t *testing.T) {
 		{"bad factor", authored(`"mods": [{"stat": "life", "op": "base", "factor": "1/-60"}]`), `factor "1/-60"`},
 		{"unknown per stat", authored(`"mods": [{"stat": "life", "op": "base", "per": {"stat": "str", "step": 2}}]`), `per: unknown engine stat "str"`},
 		{"zero step", authored(`"mods": [{"stat": "life", "op": "base", "per": {"stat": "strength"}}]`), "step 0"},
+		{
+			"unknown per of", authored(`"mods": [{"stat": "life", "op": "base", "per": {"stat": "strength", "step": 2, "of": "enemy"}}]`),
+			`per strength: unknown of "enemy"`,
+		},
 		{"no sources", entries(`{"stat": "a", "scope": "global", "status": "unknown", ` + reason + `}`), "no sources"},
 		{
 			"unknown source kind",

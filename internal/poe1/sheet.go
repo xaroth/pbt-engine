@@ -500,6 +500,22 @@ func modActor(a resolve.Actor, owner core.ActorID) (core.ActorID, bool) {
 	return 0, false
 }
 
+// perScale returns the scale of table per p: the stat's owner's value of its stat, or the
+// character's.
+func (sh *Sheet) perScale(p *semantics.Per) core.Scale {
+	ref := core.SelfRef(sh.stats[p.Stat])
+	if p.Character {
+		ref = characterRef(sh.stats[p.Stat])
+	}
+	return core.Scale{Ref: ref, Step: float64(p.Step)}
+}
+
+// characterRef reads stat as the character has it, the sheet's own value (Value), whichever
+// actor and context read it.
+func characterRef(stat core.StatID) core.Ref {
+	return core.Ref{Actor: int32(playerActor), Stat: stat, Ctx: int64(core.GlobalCtx)}
+}
+
 // readOwner makes the counts and conditions of mod, which the stat's owner gives another actor,
 // read the owner's stats: "Minions deal 1% increased Damage per Power Charge" counts yours.
 func readOwner(mod *core.Modifier, owner core.ActorID) {
@@ -566,7 +582,7 @@ func (sh *Sheet) tableModifier(m *semantics.Mod, value float64, src core.SourceI
 		}
 	}
 	if m.Per != nil {
-		mod.Scales = []core.Scale{{Ref: core.SelfRef(sh.stats[m.Per.Stat]), Step: float64(m.Per.Step)}}
+		mod.Scales = []core.Scale{sh.perScale(m.Per)}
 	}
 	var holds bool
 	if mod.Conds, holds = sh.conds(m); !holds {

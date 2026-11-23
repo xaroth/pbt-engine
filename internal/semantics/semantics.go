@@ -222,6 +222,9 @@ func parseRatio(s string) (Ratio, error) {
 type Per struct {
 	Stat string
 	Step int32
+	// Character reads the character's value of Stat whoever owns the stat, as in "per 100
+	// Player Maximum Life" on a minion's item; otherwise the owner's is read.
+	Character bool
 }
 
 // Count holds a modifier until Stat reaches AtLeast: a dataset counter, as in "10% more
@@ -386,6 +389,7 @@ type fileCount struct {
 type filePer struct {
 	Stat string `json:"stat"`
 	Step int32  `json:"step"`
+	Of   string `json:"of"`
 }
 
 type fileSource struct {
@@ -747,6 +751,9 @@ func parseContext(in [][]string, notIn []string, vocab Vocabulary) (ContextFilte
 	return c, nil
 }
 
+// perOfCharacter is a per's "of" for the character's value (Per.Character).
+const perOfCharacter = "character"
+
 func parsePer(f *filePer, vocab Vocabulary) (*Per, error) {
 	switch {
 	case f == nil:
@@ -755,8 +762,10 @@ func parsePer(f *filePer, vocab Vocabulary) (*Per, error) {
 		return nil, fmt.Errorf("per: %w engine stat %q", errUnknown, f.Stat)
 	case f.Step <= 0:
 		return nil, fmt.Errorf("per %s: step %d, %w", f.Stat, f.Step, errStepPositive)
+	case f.Of != "" && f.Of != perOfCharacter:
+		return nil, fmt.Errorf("per %s: %w of %q", f.Stat, errUnknown, f.Of)
 	}
-	return &Per{Stat: f.Stat, Step: f.Step}, nil
+	return &Per{Stat: f.Stat, Step: f.Step, Character: f.Of == perOfCharacter}, nil
 }
 
 func parseWhile(stat string, vocab Vocabulary) (string, error) {
