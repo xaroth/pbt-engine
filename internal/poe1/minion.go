@@ -71,6 +71,9 @@ type Minion struct {
 	// attacks per second.
 	MinimumDamage, MaximumDamage float64
 	AttackRate                   float64
+	// ParentAttackRate is the attack rate of the character's main hand weapon when mn takes
+	// it as its own base (takeParentAttackRate), 0 when it does not.
+	ParentAttackRate float64
 	// CriticalStrikeMultiplier is every monster's, from Monster.ot, and CriticalAilmentDotMultiplier
 	// what an ailment from its critical strike adds to its Damage over Time Multiplier.
 	CriticalStrikeMultiplier, CriticalAilmentDotMultiplier float64
@@ -213,6 +216,38 @@ func (mn *Minion) fitWeapon() {
 
 // armed reports whether mn attacks with a weapon of its items.
 func (mn *Minion) armed() bool { return mn.Hands.MainHand != nil }
+
+// statUsesParentAttackTime is Replica Maata's Teaching's "Non-Spectre Minions' Base Attack time
+// is equal to the Attack time of your Main Hand Weapon". Every minion the sheet makes is a
+// non-Spectre one.
+const statUsesParentAttackTime = "non_spectre_minions_use_your_main_hand_base_attack_duration_from_weapon"
+
+// parentAttackWeapon returns the main hand weapon whose attack rate the minions of sw take, nil
+// when no item of the character has the line of statUsesParentAttackTime.
+func parentAttackWeapon(sw *Switch) *Weapon {
+	uses := slices.ContainsFunc(sw.Items, func(it Item) bool {
+		return slices.ContainsFunc(it.Stats, func(sv resolve.StatValue) bool { return sv.Stat == statUsesParentAttackTime && sv.Value != 0 })
+	})
+	if !uses {
+		return nil
+	}
+	return sw.Hands.MainHand
+}
+
+// takeParentAttackRate makes the attack rate of main, the character's main hand weapon, mn's
+// base attack rate, the weapon's too when mn wields one, and leaves it as it is when main is nil or has
+// none (CalcActiveSkill.lua NonSpectreMinionsUseParentMainHandAttackTime).
+func (mn *Minion) takeParentAttackRate(main *Weapon) {
+	if main == nil || main.AttackRate <= 0 {
+		return
+	}
+	mn.ParentAttackRate, mn.AttackRate = main.AttackRate, main.AttackRate
+	if w := mn.Hands.MainHand; w != nil {
+		own := *w
+		own.AttackRate = main.AttackRate
+		mn.Hands.MainHand = &own
+	}
+}
 
 // SummonsMinion reports whether sk summons a minion whose monster the game or namedVarieties
 // names.
@@ -417,6 +452,7 @@ func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 	}
 	b := sw.Checked.Build()
 	out := make([]*Minion, len(read))
+	parent := parentAttackWeapon(sw)
 	for i, sk := range read {
 		mn, ok, err := MinionOf(sk, minionSkill(b.Skills.Groups, sk), b.Level, m, x, stats)
 		switch {
@@ -427,6 +463,7 @@ func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 				mn.equip(gear[sk.Source.Group])
 			}
 			mn.fitWeapon()
+			mn.takeParentAttackRate(parent)
 			out[i] = &mn
 		}
 	}
