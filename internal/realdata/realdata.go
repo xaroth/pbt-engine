@@ -23,7 +23,7 @@ const (
 	Oldest   = "3.27.0.10"
 	Previous = "3.28.0.16"
 	Current  = "3.29.3.6"
-	InGame   = "3.30.0.1"
+	InGame   = "3.30.0.4"
 )
 
 // ids are the dataset ids of the pinned versions.
@@ -33,7 +33,7 @@ var ids = map[string]string{
 	Oldest:   "2c1c44c303e8cde646b56beca81d11b9e7fd5fb6bb76815eee3a6869ae7f54af",
 	Previous: "400942a0b5778859dd8204a898f3c9997997cba5e315014dda2e1ac9bb102916",
 	Current:  "3a052cfa62330bffadb3bfd03eb59734f71b11db34fb43eb954349f131038347",
-	InGame:   "fe5fd41f270eadc01b1a059798eec7887e22754428b122821559a63613e5be4e",
+	InGame:   "10bb67b538c3d94d61dc03d8d1167c443cdab832ce0cf5a48e7963b2478f400e",
 }
 
 // artIDs are the art manifest ids, each the manifest's SHA-256, published with the pinned
