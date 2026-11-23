@@ -122,7 +122,7 @@ func TestFromXMLSkills(t *testing.T) {
 	want := build.Skills{Groups: []build.SkillGroup{
 		{Slot: build.SlotHelmet, Gems: []build.Gem{
 			gem("Righteous Fire", 20, 20), support("Swift Affliction"), support("Elemental Focus"), support("Burning Damage"),
-		}},
+		}, FullDPS: true},
 		{Slot: build.SlotGloves, Gems: []build.Gem{gem("Malevolence", 20, 20), support("Eternal Blessing"), gem("Blood Rage", 11, 0)}},
 		{Slot: build.SlotBoots, Gems: []build.Gem{gem("Shield Charge", 20, 20), gem("Frostblink", 20, 20)}},
 		{Slot: build.SlotWeapon, Gems: []build.Gem{gem("Punishment", 20, 20)}},

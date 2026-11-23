@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" className="Witch" ascendClassName="None" mainSocketGroup="1" targetVersion="3_0"/>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="3" ascendClassId="0" nodes="" masteryEffects=""/>
+	</Tree>
+	<Items activeItemSet="1">
+		<Item id="1">
+Rarity: UNIQUE
+Chains of Command
+Saintly Chainmail
+Implicits: 0
+Trigger Level 20 Animate Guardian's Weapon when Animated Guardian Kills an Enemy
++89 to maximum Life
+</Item>
+		<Item id="2">
+Rarity: RARE
+Doom Crown
+Royal Burgonet
+Implicits: 0
++50 to maximum Life
+</Item>
+		<Item id="3">
+Rarity: RARE
+Gale Edge
+Jewelled Foil
+Implicits: 0
+Adds 10 to 20 Physical Damage
+</Item>
+		<Item id="4">
+Rarity: RARE
+Grim Visor
+Royal Burgonet
+Implicits: 0
++60 to maximum Life
+</Item>
+		<Item id="5">
+Rarity: NORMAL
+Iron Ring
+</Item>
+		<ItemSet id="1">
+			<Slot name="Body Armour" itemId="1"/>
+			<Slot name="Helmet" itemId="2"/>
+		</ItemSet>
+		<ItemSet id="2" title="Animate Guardian">
+			<Slot name="Weapon 1" itemId="3"/>
+			<Slot name="Helmet" itemId="4"/>
+			<Slot name="Ring 1" itemId="5"/>
+		</ItemSet>
+	</Items>
+	<Skills activeSkillSet="1">
+		<SkillSet id="1">
+			<Skill enabled="true" slot="Helmet" mainActiveSkill="1" includeInFullDPS="true">
+				<Gem nameSpec="Animate Guardian" gemId="Metadata/Items/Gems/SkillGemAnimateArmour" skillId="AnimateGuardian" variantId="AnimateGuardian"
+					level="20" quality="0" enabled="true" count="1" skillMinionItemSet="2"/>
+			</Skill>
+			<Skill enabled="true" slot="Body Armour" source="Item:1:Chains of Command, Saintly Chainmail" includeInFullDPS="true" groupCount="14">
+				<Gem nameSpec="Animate Guardian's Weapon" skillId="AnimateGuardiansWeapon" level="20" quality="0" enabled="true" skillMinionItemSet="2"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+</PathOfBuilding>

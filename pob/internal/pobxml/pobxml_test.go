@@ -58,12 +58,15 @@ Crimson Jewel
 	</Items>
 	<Skills activeSkillSet="1">
 		<SkillSet id="1">
-			<Skill label="RF" enabled="true" slot="Body Armour" mainActiveSkill="1">
+			<Skill label="RF" enabled="true" slot="Body Armour" mainActiveSkill="1" includeInFullDPS="true" groupCount="3">
 				<Gem nameSpec="Righteous Fire" skillId="RighteousFire" gemId="Metadata/Items/Gems/SkillGemRighteousFire" variantId="RighteousFire"
-					level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="false" count="1" skillPart="2" skillStageCount="5"/>
+					level="20" quality="20" enabled="true" enableGlobal1="true" enableGlobal2="false" count="2" skillPart="2" skillStageCount="5"
+					skillMinionItemSet="1"/>
 				<Gem nameSpec="Burning Damage" level="20" quality="0" enabled="false"/>
 			</Skill>
-			<Skill label="" enabled="false" source="Item:3:Corruption Spark"><Gem nameSpec="Flame Dash"/></Skill>
+			<Skill label="" enabled="false" source="Item:3:Corruption Spark" includeInFullDPS="nil" groupCount="nil">
+				<Gem nameSpec="Flame Dash" count="nil"/>
+			</Skill>
 		</SkillSet>
 	</Skills>
 	<Notes>notes</Notes>
@@ -103,11 +106,12 @@ func TestParse(t *testing.T) {
 			{3, "Corruption Spark", "\nRarity: RARE\nCorruption Spark\nCrimson Jewel\n"},
 		},
 		Equipped: []pobxml.Equipped{{"Helmet", 1}, {"Flask 1", 2}},
+		ItemSets: []pobxml.ItemSet{{1, []pobxml.Equipped{{"Helmet", 3}}}, {2, []pobxml.Equipped{{"Helmet", 1}, {"Flask 1", 2}}}},
 		Skills: []pobxml.SkillGroup{
-			{Label: "RF", Slot: "Body Armour", Enabled: true, MainActiveSkill: 1, Gems: []pobxml.Gem{
+			{Label: "RF", Slot: "Body Armour", Enabled: true, IncludeInFullDPS: true, GroupCount: 3, MainActiveSkill: 1, Gems: []pobxml.Gem{
 				{
 					Name: "Righteous Fire", GemID: "Metadata/Items/Gems/SkillGemRighteousFire", SkillID: "RighteousFire", VariantID: "RighteousFire",
-					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true, SkillPart: 2, StageCount: 5,
+					Level: 20, Quality: 20, Enabled: true, EnableGlobal1: true, SkillPart: 2, StageCount: 5, Count: 2, MinionItemSet: 1,
 				},
 				{Name: "Burning Damage", Level: 20, EnableGlobal1: true, EnableGlobal2: true},
 			}},
@@ -145,6 +149,9 @@ Iron Ring</Item><Slot name="Ring 2" itemId="4"/></Items>
 	}
 	if want := []pobxml.Equipped{{"Ring 2", 4}}; !reflect.DeepEqual(f.Equipped, want) {
 		t.Errorf("equipped %+v, want %+v", f.Equipped, want)
+	}
+	if want := []pobxml.ItemSet{{1, []pobxml.Equipped{{"Ring 2", 4}}}}; !reflect.DeepEqual(f.ItemSets, want) {
+		t.Errorf("item sets %+v, want %+v", f.ItemSets, want)
 	}
 }
 

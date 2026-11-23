@@ -21,14 +21,17 @@
 //	  </Config>
 //	  <Items activeItemSet>
 //	    <Item id>item text</Item>
-//	    <ItemSet id><Slot name itemId/></ItemSet>    itemId 0 is an empty slot
+//	    <ItemSet id><Slot name itemId/></ItemSet>    itemId 0 is an empty slot; a minion's gear
+//	                                          is a set its gem names
 //	    <Slot .../>                           older files: slots without sets
 //	  </Items>
 //	  <Skills activeSkillSet>
 //	    <SkillSet id>
 //	      <Skill label enabled slot source    source: the item or tree node granting the group
-//	             mainActiveSkill>             1-based, among the group's active skills
-//	        <Gem nameSpec gemId skillId variantId level quality enabled enableGlobal1 enableGlobal2/>
+//	             mainActiveSkill              1-based, among the group's active skills
+//	             includeInFullDPS groupCount>
+//	        <Gem nameSpec gemId skillId variantId level quality enabled enableGlobal1 enableGlobal2
+//	             count skillMinionItemSet/>   skillMinionItemSet: the id of the minion's item set
 //	      </Skill>
 //	    </SkillSet>
 //	    <Skill .../>                          older files: groups without sets
@@ -75,6 +78,9 @@ type File struct {
 	// Equipped are the active item set's slots that hold an item, or the slots of a file
 	// without sets, in file order.
 	Equipped []Equipped
+	// ItemSets are every item set in file order, or one with id 1 of the slots of a file
+	// without sets.
+	ItemSets []ItemSet
 	// Skills are the active skill set's groups, or the groups of a file without sets.
 	Skills []SkillGroup
 }
@@ -129,10 +135,18 @@ type Equipped struct {
 	Item int
 }
 
-// SkillGroup is a socket group.
+// ItemSet is an item set: its id and the slots that hold an item, in file order.
+type ItemSet struct {
+	ID    int
+	Slots []Equipped
+}
+
+// SkillGroup is a socket group. GroupCount is how many of its skill are in use, 0 when unset.
 type SkillGroup struct {
 	Label, Slot, Source string
 	Enabled             bool
+	IncludeInFullDPS    bool
+	GroupCount          int
 	// MainActiveSkill is the 1-based index of the main skill among the group's active skills;
 	// 0 when unset or not a number, such as the "nil" poe.ninja writes.
 	MainActiveSkill int
@@ -142,12 +156,14 @@ type SkillGroup struct {
 // Gem is a gem in a group. GemID is the gem's metadata path, SkillID its granted effect,
 // VariantID its gem effect; older files have only the name. EnableGlobal1 and EnableGlobal2
 // toggle a Vaal gem's two skills. SkillPart is PoB's 1-based part of the skill it shows and
-// StageCount its stages; 0 when unset.
+// StageCount its stages, Count how many of its skill are in use and MinionItemSet the id of the
+// item set its minion uses; 0 when unset.
 type Gem struct {
 	Name, GemID, SkillID, VariantID       string
 	Level, Quality                        int
 	Enabled, EnableGlobal1, EnableGlobal2 bool
 	SkillPart, StageCount                 int
+	Count, MinionItemSet                  int
 }
 
 type xmlFile struct {
@@ -232,6 +248,8 @@ type xmlSkill struct {
 	Slot       string `xml:"slot,attr"`
 	Source     string `xml:"source,attr"`
 	MainActive string `xml:"mainActiveSkill,attr"`
+	FullDPS    string `xml:"includeInFullDPS,attr"`
+	GroupCount string `xml:"groupCount,attr"`
 	Gems       []struct {
 		Name          string `xml:"nameSpec,attr"`
 		GemID         string `xml:"gemId,attr"`
@@ -244,6 +262,8 @@ type xmlSkill struct {
 		EnableGlobal2 string `xml:"enableGlobal2,attr"`
 		SkillPart     string `xml:"skillPart,attr"`
 		StageCount    string `xml:"skillStageCount,attr"`
+		Count         string `xml:"count,attr"`
+		MinionItemSet string `xml:"skillMinionItemSet,attr"`
 	} `xml:"Gem"`
 }
 
@@ -291,6 +311,7 @@ func Parse(data []byte) (*File, error) {
 		f.Items = append(f.Items, Item{ID: it.ID, Name: itemName(it.Text), Text: it.Text})
 	}
 	f.Equipped = equipped(x)
+	f.ItemSets = itemSets(x)
 	return f, nil
 }
 
@@ -410,7 +431,10 @@ func skills(x xmlFile) ([]SkillGroup, error) {
 	}
 	out := make([]SkillGroup, 0, len(list))
 	for _, g := range list {
-		sg := SkillGroup{Label: g.Label, Slot: g.Slot, Source: g.Source, Enabled: flag(g.Enabled)}
+		sg := SkillGroup{
+			Label: g.Label, Slot: g.Slot, Source: g.Source, Enabled: flag(g.Enabled),
+			IncludeInFullDPS: g.FullDPS == "true", GroupCount: optional(g.GroupCount),
+		}
 		sg.MainActiveSkill = optional(g.MainActive)
 		var err error
 		for _, xg := range g.Gems {
@@ -418,6 +442,7 @@ func skills(x xmlFile) ([]SkillGroup, error) {
 				Name: xg.Name, GemID: xg.GemID, SkillID: xg.SkillID, VariantID: xg.VariantID,
 				Enabled: flag(xg.Enabled), EnableGlobal1: flag(xg.EnableGlobal1), EnableGlobal2: flag(xg.EnableGlobal2),
 				SkillPart: optional(xg.SkillPart), StageCount: optional(xg.StageCount),
+				Count: optional(xg.Count), MinionItemSet: optional(xg.MinionItemSet),
 			}
 			if gem.Level, err = number("gem level", xg.Level); err != nil {
 				return nil, err
@@ -444,6 +469,23 @@ func equipped(x xmlFile) []Equipped {
 			}
 		}
 	}
+	return filled(list)
+}
+
+// itemSets are every item set, or set 1 of the flat list.
+func itemSets(x xmlFile) []ItemSet {
+	if len(x.Items.Sets) == 0 {
+		return []ItemSet{{ID: 1, Slots: filled(x.Items.Slots)}}
+	}
+	out := make([]ItemSet, 0, len(x.Items.Sets))
+	for _, s := range x.Items.Sets {
+		out = append(out, ItemSet{ID: optional(s.ID), Slots: filled(s.Slots)})
+	}
+	return out
+}
+
+// filled are the slots that hold an item.
+func filled(list []xmlSlot) []Equipped {
 	var out []Equipped
 	for _, s := range list {
 		if s.Item != 0 {

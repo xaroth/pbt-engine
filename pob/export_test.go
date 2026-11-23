@@ -43,7 +43,8 @@ func chieftain(t *testing.T) *build.Build {
 			{Slot: build.SlotGloves, Gems: []build.Gem{disabled(gem("Punishment", 20, 0)), gem("Frostblink", 1, 0), gem("Punishment", 1, 0)}, Active: 1},
 			// The Vaal gem's two skills come before the main active skill.
 			{Slot: build.SlotBodyArmour, Gems: []build.Gem{gem("Vaal Fireball", 20, 0), support("Inspiration"), splitting}, Active: 2},
-			{Gems: []build.Gem{disabled(gem("Frostblink", 5, 0))}},
+			// Counted 14 times towards full DPS.
+			{Gems: []build.Gem{disabled(gem("Frostblink", 5, 0))}, Count: 14, FullDPS: true},
 			// The Vaal gem's regular skill is the main one.
 			{Slot: build.SlotHelmet, Gems: []build.Gem{gem("Vaal Fireball", 20, 0), gem("Punishment", 1, 0)}, ActiveSkill: 1},
 			// The skill Predator grants counts before the main gem, and can be the main skill.
@@ -141,6 +142,7 @@ func TestToXMLWarnings(t *testing.T) {
 	b.Skills.Groups[0].Gems[1].ID = "Metadata/Items/Gems/SkillGemFlameDash"
 	b.Items = build.Items{build.SlotRing1: {Rarity: build.Rare, Base: "Ruby Ring"}, build.SlotBelt: {Rarity: build.Normal, Base: "Heavy Belt"}}
 	b.Jewels = build.Jewels{26725: {Rarity: build.Rare, Base: "Crimson Jewel"}}
+	b.Skills.Groups[2].MinionItems = build.Items{build.SlotWeapon: {Rarity: build.Normal, Base: "Rusted Sword"}}
 	b.Overrides[2] = "Unnamed1"
 	_, warnings, err := pob.ToXML(b, exportRegistry(t))
 	if err != nil {
@@ -154,6 +156,7 @@ func TestToXMLWarnings(t *testing.T) {
 		{Code: pob.GemUnknown, Subject: "Metadata/Items/Gems/SkillGemFlameDash", Message: "gem not in dataset; written by id only"},
 		{Code: pob.ItemNotExported, Subject: "belt", Message: "items are not exported"},
 		{Code: pob.ItemNotExported, Subject: "ring-1", Message: "items are not exported"},
+		{Code: pob.ItemNotExported, Subject: "skill group 3 minion weapon", Message: "items are not exported"},
 		{Code: pob.ItemNotExported, Subject: "node 26725", Nodes: []uint32{26725}, Message: "jewels are not exported"},
 	}
 	if diff := cmp.Diff(want, warnings); diff != "" {

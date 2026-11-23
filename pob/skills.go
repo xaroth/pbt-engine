@@ -57,7 +57,10 @@ func (im *importer) skills(store *dataset.Store) (build.Skills, error) {
 			}
 		}
 		index[i] = len(out.Groups)
-		group := im.group(g, i, store, data)
+		group, err := im.group(g, i, store, data)
+		if err != nil {
+			return out, err
+		}
 		group.Source = src
 		out.Groups = append(out.Groups, group)
 	}
@@ -119,13 +122,25 @@ func grantedSkill(g pobxml.Gem) build.Gem {
 	return build.Gem{Skill: id, Level: g.Level, Quality: g.Quality, Disabled: !g.Enabled}
 }
 
-// group imports group g, the i-th of the file.
-func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data *dataset.SkillIndex) build.SkillGroup {
+// group imports group g, the i-th of the file, with its count, full DPS flag and the gear of
+// its main skill's minion (groupMinion).
+func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data *dataset.SkillIndex) (build.SkillGroup, error) {
 	subject := groupSubject(g, i)
-	out := build.SkillGroup{Slot: slots()[g.Slot]}
+	out := build.SkillGroup{Slot: slots()[g.Slot], FullDPS: g.IncludeInFullDPS}
 	if out.Slot == "" && g.Slot != "" && g.Source == "" {
 		im.warnf(SlotIgnored, subject, "slot %q has no sockets; group imported without a slot", g.Slot)
 	}
+	from := im.groupGems(&out, g, store, data)
+	if len(out.Gems) == 0 {
+		return out, nil
+	}
+	return out, im.groupMinion(&out, subject, g, from[out.Active], store, data)
+}
+
+// groupGems imports the gems of g into out with its main active skill, and returns the file's
+// gem of each gem imported.
+func (im *importer) groupGems(out *build.SkillGroup, g pobxml.SkillGroup, store *dataset.Store, data *dataset.SkillIndex) []pobxml.Gem {
+	var from []pobxml.Gem
 	var skills []gemSkill // each active skill PoB counts for the main active skill
 	first := gemSkill{gem: -1}
 	for _, pg := range g.Gems {
@@ -142,10 +157,29 @@ func (im *importer) group(g pobxml.SkillGroup, i int, store *dataset.Store, data
 			skills = append(skills, countedSkills(pg, len(out.Gems), active)...)
 		}
 		out.Gems = append(out.Gems, gem)
+		from = append(from, pg)
 	}
 	main := activeSkill(skills, first, g.MainActiveSkill)
 	out.Active, out.ActiveSkill = main.gem, main.skill
-	return out
+	return from
+}
+
+// groupMinion sets the count of out, imported from g, and the gear of its main skill's minion
+// (minionGear) from pg, that skill's gem. The count is PoB's groupCount, else pg's count
+// (Calcs.lua getActiveSkillCount).
+func (im *importer) groupMinion(
+	out *build.SkillGroup, subject string, g pobxml.SkillGroup, pg pobxml.Gem, store *dataset.Store, data *dataset.SkillIndex,
+) error {
+	if n := cmp.Or(g.GroupCount, pg.Count); n > 1 {
+		out.Count = n
+	}
+	gem := out.Gems[out.Active]
+	if len(build.ActiveSkills(data, gem)) == 0 {
+		return nil
+	}
+	var err error
+	out.MinionItems, err = im.minionGear(subject, build.GemSkill(data, gem, out.ActiveSkill), pg, itemReader(store))
+	return err
 }
 
 // countedSkills returns the active skills of gem g, at index gem, that PoB counts for the main
@@ -196,7 +230,7 @@ func (im *importer) skillPart(g pobxml.Gem, gem *build.Gem, data *dataset.SkillI
 		for _, which := range build.ActiveSkills(data, *gem) {
 			if sets := len(skillSets(data, *gem, which)); g.SkillPart > sets {
 				im.warnf(SkillPartIgnored, g.Name, "PoB's skill part %d has no stat set of %s, which has %d; its primary set and no stages used",
-					g.SkillPart, skillEffect(data, *gem, which), sets)
+					g.SkillPart, build.GemSkill(data, *gem, which), sets)
 				return
 			}
 		}
@@ -205,22 +239,9 @@ func (im *importer) skillPart(g pobxml.Gem, gem *build.Gem, data *dataset.SkillI
 	gem.Stages = max(g.StageCount, 0)
 }
 
-// skillEffect returns the granted effect id of skill which (0 the first, 1 the second) of gem.
-func skillEffect(data *dataset.SkillIndex, gem build.Gem, which int) string {
-	dg := data.Gem(gem.ID)
-	e := &dg.Effects[0]
-	if x := dg.Effect(gem.Effect); x != nil {
-		e = x
-	}
-	if which == 1 {
-		return e.SecondaryGrantedEffect
-	}
-	return e.GrantedEffect
-}
-
 // skillSets returns the stat set ids of skill which of gem.
 func skillSets(data *dataset.SkillIndex, gem build.Gem, which int) []string {
-	if ge := data.GrantedEffect(skillEffect(data, gem, which)); ge != nil {
+	if ge := data.GrantedEffect(build.GemSkill(data, gem, which)); ge != nil {
 		return ge.StatSets
 	}
 	return nil

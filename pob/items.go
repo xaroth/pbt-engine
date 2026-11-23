@@ -59,8 +59,8 @@ type abyssJewel struct {
 // the jewels in their abyssal sockets, and puts the active spec's jewels in their tree sockets,
 // each read through the dataset's items group. Every other item warns: a jewel in a socket of a
 // cluster jewel, an abyss jewel whose item is not imported, an item in a slot the build does
-// not have (flasks, grafts), one the set does not equip, and one that does not read. The reader
-// is built only when an item is to be read.
+// not have (flasks, grafts), one neither the set nor a minion's gear (skills) uses, and one that
+// does not read. The reader is built only when an item is to be read.
 func (im *importer) items(store *dataset.Store) (build.Items, build.Jewels, error) {
 	jewels := im.socketNodes()
 	in := map[int][]string{}
@@ -78,26 +78,34 @@ func (im *importer) items(store *dataset.Store) (build.Items, build.Jewels, erro
 			}
 			continue
 		}
-		if len(in[it.ID]) == 0 {
+		if len(in[it.ID]) == 0 && !im.minionItems[it.ID] {
 			im.warnf(ItemIgnored, itemSubject(it), "not equipped in the active item set; not imported")
 			continue
 		}
-		for _, name := range in[it.ID] {
-			var err error
-			if slot, i, ok := abyssalSlot(name); ok {
-				err = im.readAbyssJewel(&abyss, it, slot, i, read)
-			} else {
-				err = im.equip(&out, it, name, read)
-			}
-			if err != nil {
-				return nil, nil, err
-			}
+		if err := im.equipIn(&out, &abyss, it, in[it.ID], read); err != nil {
+			return nil, nil, err
 		}
 	}
 	for _, j := range abyss {
 		im.setAbyssJewel(out, j)
 	}
 	return out, socketed, nil
+}
+
+// equipIn reads it into out at each of PoB's slot names, or into abyss for an abyssal socket.
+func (im *importer) equipIn(out *build.Items, abyss *[]abyssJewel, it pobxml.Item, names []string, read readItem) error {
+	for _, name := range names {
+		var err error
+		if slot, i, ok := abyssalSlot(name); ok {
+			err = im.readAbyssJewel(abyss, it, slot, i, read)
+		} else {
+			err = im.equip(out, it, name, read)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // socketNodes returns the tree socket node of each item id the active spec puts in one.
