@@ -10,6 +10,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/internal/resolve"
 	"github.com/xaroth/pbt-engine/output"
 	"github.com/xaroth/pbt-engine/poe1"
@@ -559,5 +560,51 @@ func TestWhileAffectedByGrantedAura(t *testing.T) {
 	b.Skills.AddGroup(build.SkillGroup{Gems: []build.Gem{{ID: "Metadata/Items/Gems/SkillGemFireball", Level: 20}}})
 	if got := get(t, simulate(t, s, b), poe1.CriticalStrikeChance); got != 6 {
 		t.Errorf("critical strike chance with the amulet's Hatred: got %v, want 6", got)
+	}
+}
+
+// The Foulborn Severed in Sleep of 3.30 reads "Grants Level 25 Envy". Imported with its Envy
+// group at level 25 it checks without a warning, and the Envy it grants reaches the character's
+// minion as the gem at level 25 does: a Raise Zombie hits harder with it than without, and the
+// same as with the gem.
+func TestGrantedEnvyReachesMinion(t *testing.T) {
+	t.Parallel()
+	const gems = "Metadata/Items/Gems/"
+	s, err := simulator.New(realdata.Open(t, realdata.InGame))
+	if err != nil {
+		t.Fatal(err)
+	}
+	it, w, err := s.Data().Item("Rarity: UNIQUE\nFoulborn Severed in Sleep\nBoot Blade\nImplicits: 0\nGrants Level 25 Envy\n")
+	if err != nil || len(w) != 0 {
+		t.Fatalf("item: %v, warnings %v", err, w)
+	}
+	zombie := build.SkillGroup{Gems: []build.Gem{{ID: gems + "SkillGemRaiseZombie", Level: 20}}}
+	granted := build.SkillGroup{Source: &build.SkillSource{Item: build.SlotWeapon}, Gems: []build.Gem{{Skill: "Envy", Level: 25}}}
+	hit := func(equip bool, groups ...build.SkillGroup) float64 {
+		b := marauderBuild(90)
+		b.Version = "3.30"
+		if equip {
+			if err := b.Apply(build.Equip(build.SlotWeapon, it)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, g := range groups {
+			b.Skills.AddGroup(g)
+		}
+		st := simulate(t, s, b)
+		for _, c := range codes(st) {
+			if strings.HasPrefix(string(c), "granted-skill") {
+				t.Errorf("warnings %v, want no granted skill warning", st.Warnings())
+			}
+		}
+		return get(t, st, poe1.MinionAverageHit)
+	}
+	gem := hit(false, zombie, build.SkillGroup{Gems: []build.Gem{{ID: gems + "SkillGemEnvy", Level: 25}}})
+	bare, item, added := hit(false, zombie), hit(true, zombie, granted), hit(true, zombie)
+	if gem <= bare {
+		t.Fatalf("minion average hit %v with the Envy gem, %v without: the gem does not reach the minion", gem, bare)
+	}
+	if item != gem || added != gem {
+		t.Errorf("minion average hit with the item's Envy group %v, group added by Check %v, want the gem's %v", item, added, gem)
 	}
 }
