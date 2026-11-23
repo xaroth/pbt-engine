@@ -44,6 +44,9 @@ func conditionInputs() []conditionInput {
 		{"conditionEnemyIntimidated", poe1.EnemyIntimidated},
 		{"conditionEnemyUnnerved", poe1.EnemyUnnerved},
 		{"conditionEnemyOnConsecratedGround", poe1.EnemyOnConsecratedGround},
+		{"feedingFrenzyFeedingFrenzyActive", poe1.FeedingFrenzy},
+		{"meatShieldEnemyNearYou", poe1.EnemyNearYou},
+		{"minionsUseFrenzyCharges", poe1.MinionFrenzyCharges},
 	}
 }
 
