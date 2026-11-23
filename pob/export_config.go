@@ -10,7 +10,7 @@ import (
 )
 
 // config writes the bandit choice into f's <Build> and its config set, the campaign stage as
-// the resistance penalty, and the enemy, condition and Resonance keys as PoB's inputs. Without
+// the resistance penalty, and the enemy, condition and count keys as PoB's inputs. Without
 // a bandit choice PoB's default, kill all, applies.
 func (ex *exporter) config(f *outFile) error {
 	v := ex.b.Config
@@ -49,7 +49,7 @@ func (ex *exporter) config(f *outFile) error {
 	return nil
 }
 
-// heldInputs returns the PoB inputs of v's enemy, condition and Resonance keys and the names of
+// heldInputs returns the PoB inputs of v's enemy, condition and count keys and the names of
 // the keys, and the enemy inputs PoB cannot be given.
 func heldInputs(v config.Values) (inputs []outInput, keys map[string]bool, unwritable []string, err error) {
 	enemy, keys, unwritable, err := enemyInputs(v)
@@ -60,13 +60,15 @@ func heldInputs(v config.Values) (inputs []outInput, keys map[string]bool, unwri
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	resonance, resonanceKey, err := resonanceOutputs(v)
+	counts, countKeys, err := countOutputs(v)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	maps.Copy(keys, conditionKeys)
-	keys[resonanceKey] = true
-	return slices.Concat(enemy, conditions, resonance), keys, unwritable, nil
+	for _, k := range countKeys {
+		keys[k] = true
+	}
+	return slices.Concat(enemy, conditions, counts), keys, unwritable, nil
 }
 
 // warnConfigLeftOut warns of each config key of v that config does not export: not the
