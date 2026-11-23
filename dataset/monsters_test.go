@@ -67,6 +67,7 @@ func sampleMonsters() *dataset.Monsters {
 				ID: slamTotem, Type: "AncestorTotem", LifeMultiplier: 120, DamageMultiplier: 100, MainHand: "Two Hand Mace", OffHand: "Shield",
 				Tags: []string{"construct"}, SpecialMods: []string{"CannotBeAugmented"},
 				Part1Mods: []string{"MonsterRare1"}, Part2Mods: []string{"MonsterRare1"}, EndgameMods: []string{"MonsterRare1", "CannotBeAugmented"},
+				Stats: []dataset.StatValue{{Stat: 2, Value: 15}, {Stat: damageReduction, Value: 10}},
 			},
 			{ID: strengthTotem, Type: "AncestorTotem", LifeMultiplier: 100},
 			{ID: statue, Type: "RaisedZombie"},
@@ -109,6 +110,10 @@ func sampleMonsters() *dataset.Monsters {
 func renumberMonsters(m *dataset.Monsters, h func(uint32) uint32) {
 	renumber(m.BaseStats, h)
 	slices.SortFunc(m.BaseStats, func(a, b dataset.StatValue) int { return cmp.Compare(a.Stat, b.Stat) })
+	for _, v := range m.Varieties {
+		renumber(v.Stats, h)
+		slices.SortFunc(v.Stats, func(a, b dataset.StatValue) int { return cmp.Compare(a.Stat, b.Stat) })
+	}
 	for _, mod := range m.Mods {
 		for i := range mod.Stats {
 			mod.Stats[i].Stat = h(mod.Stats[i].Stat)
@@ -193,6 +198,12 @@ func TestMonstersWriteErrors(t *testing.T) {
 		}},
 		{name: "unknown mod", want: "monster variety " + slamTotem + `: mod "x" not in monsters`, change: func(m *dataset.Monsters) {
 			m.Varieties[1].EndgameMods[1] = "x"
+		}},
+		{name: "template stats unsorted", want: "monster variety " + slamTotem + ": template: stats not sorted or repeated", change: func(m *dataset.Monsters) {
+			m.Varieties[1].Stats[1].Stat = 2
+		}},
+		{name: "template stat out of range", want: "monster variety " + slamTotem + ": template: stat 99 out of range", change: func(m *dataset.Monsters) {
+			m.Varieties[1].Stats[1].Stat = 99
 		}},
 		{name: "levels unsorted", want: "monster levels not sorted or repeated at 1", change: func(m *dataset.Monsters) { m.Levels[1].Level = 1 }},
 		{name: "difficulty", want: "monster level 68: difficulty 4 out of range", change: func(m *dataset.Monsters) { m.Levels[1].Difficulty = 4 }},

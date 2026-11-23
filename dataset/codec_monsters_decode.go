@@ -2,6 +2,7 @@ package dataset
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/xaroth/pbt-engine/dataset/internal/fb"
 )
@@ -131,6 +132,8 @@ func (d *skillDecoder) variety(v *fb.MonsterVariety, tagIDs []string) MonsterVar
 			tags[i] = d.str("tag", tagIDs, int(v.Tags(i)))
 		}
 	}
+	stats := d.stats(v.StatsLength(), v.Stats)
+	slices.SortFunc(stats, byStat)
 	return MonsterVariety{
 		ID: string(v.Id()), Type: string(v.Type()),
 		LifeMultiplier: v.LifeMultiplier(), DamageMultiplier: v.DamageMultiplier(), AilmentThreshold: v.AilmentThreshold(), AttackTime: v.AttackTime(),
@@ -143,6 +146,7 @@ func (d *skillDecoder) variety(v *fb.MonsterVariety, tagIDs []string) MonsterVar
 		Part1Mods:      strs(v.Part1ModsLength(), v.Part1Mods),
 		Part2Mods:      strs(v.Part2ModsLength(), v.Part2Mods),
 		EndgameMods:    strs(v.EndgameModsLength(), v.EndgameMods),
+		Stats:          stats,
 	}
 }
 

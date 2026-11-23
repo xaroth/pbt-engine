@@ -2,6 +2,7 @@ package dataset
 
 import (
 	"errors"
+	"maps"
 	"reflect"
 )
 
@@ -45,7 +46,8 @@ func compareMonsterGroups(a, b *Store, x, y *tables) (MonstersDiff, error) {
 	var d MonstersDiff
 	d.TypesAdded, d.TypesRemoved, d.TypesChanged = changes(p.Types, q.Types, monsterTypeID, same[MonsterType])
 	d.ResistancesAdded, d.ResistancesRemoved, d.ResistancesChanged = changes(p.Resistances, q.Resistances, monsterResistanceID, same[MonsterResistance])
-	d.VarietiesAdded, d.VarietiesRemoved, d.VarietiesChanged = changes(p.Varieties, q.Varieties, varietyID, same[MonsterVariety])
+	d.VarietiesAdded, d.VarietiesRemoved, d.VarietiesChanged = changes(p.Varieties, q.Varieties, varietyID,
+		func(v, w MonsterVariety) bool { return sameVariety(x, y, v, w) })
 	d.LevelsAdded, d.LevelsRemoved, d.LevelsChanged = changes(p.Levels, q.Levels, func(l MonsterLevel) int32 { return l.Level }, same[MonsterLevel])
 	before, after := statMap(x, p.BaseStats), statMap(y, q.BaseStats)
 	for _, id := range sortedUnion(before, after) {
@@ -72,6 +74,15 @@ func compareMonsterGroups(a, b *Store, x, y *tables) (MonstersDiff, error) {
 // is compared without a change here; validation rejects NaN, which DeepEqual would report as
 // changed.
 func same[T any](a, b T) bool { return reflect.DeepEqual(a, b) }
+
+// sameVariety compares varieties whose template stats hold the stat handles of a and b.
+func sameVariety(a, b *tables, v, w MonsterVariety) bool {
+	if !maps.Equal(statMap(a, v.Stats), statMap(b, w.Stats)) {
+		return false
+	}
+	v.Stats, w.Stats = nil, nil
+	return reflect.DeepEqual(v, w)
+}
 
 func (m remap) minionType(t MinionType) MinionType {
 	t.LimitStat, t.ActiveCountStat = m.optionalStat(t.LimitStat), m.optionalStat(t.ActiveCountStat)
