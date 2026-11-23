@@ -277,7 +277,8 @@ func DerivedConditions() []config.Key[bool] {
 // inflict it, and else off with source Default. It switches the sheet's conditions to the
 // result and returns it, with a warning for each condition a layer sets on that no skill can
 // inflict. An explicit value wins, off included. Exposure is derived likewise
-// (deriveExposure).
+// (deriveExposure), and the chaos damage the enemy's Withered stacks make it take from whether
+// a skill inflicts Withered (deriveWither).
 func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build.Warning, error) {
 	out := maps.Clone(cfg)
 	var warnings []build.Warning
@@ -300,6 +301,9 @@ func (sh *Sheet) DeriveConditions(cfg config.Resolved) (config.Resolved, []build
 	}
 	exposed, err := sh.deriveExposure(cfg, out)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := sh.deriveWither(); err != nil {
 		return nil, nil, err
 	}
 	return out, append(warnings, exposed...), nil

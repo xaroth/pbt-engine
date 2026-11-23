@@ -78,7 +78,7 @@ func ConfigSpecs() []config.Spec {
 	return slices.Concat([]config.Spec{
 		config.SpecOf(Campaign, CampaignComplete, campaignStages()...),
 		config.SpecOf(Bandits, BanditsNotCompleted, banditChoices()...),
-	}, enemySpecs(), conditionSpecs(), exposureSpecs(), resonanceSpecs())
+	}, enemySpecs(), conditionSpecs(), exposureSpecs(), resonanceSpecs(), witherSpecs())
 }
 
 // Output keys, one per catalogue entry.

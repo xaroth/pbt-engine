@@ -47,6 +47,7 @@ func configValues(cfg config.Resolved) (CampaignStage, BanditChoice) {
 func (sh *Sheet) SetConfig(cfg config.Resolved) {
 	sh.setConditions(cfg)
 	sh.setResonance(cfg)
+	sh.setWither(cfg)
 	c, b := configValues(cfg)
 	grants := questGrants()
 	for id, src := range sh.sources {
