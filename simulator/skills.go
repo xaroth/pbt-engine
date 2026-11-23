@@ -44,9 +44,11 @@ func (s SkillStats) Get(k output.Key) (float64, bool) {
 // Keys returns the skill's outputs computed, in the order of Stats.Keys.
 func (s SkillStats) Keys() []output.Key { return slices.Clone(s.keys) }
 
-// Skills returns the outputs of each skill the call asked for (EverySkill, RankBySkill), the
-// main skill first, then by group, gem and skill. A skill that did not resolve is left out and
-// warned about.
+// Skills returns the outputs of each skill the call asked for (EverySkill, RankBySkill) and of
+// each skill counted in full DPS, the main skill first, then by group, gem and skill. A skill
+// counted in full DPS also has poe1.TotalDPS: what it adds by its hits, its hit damage per
+// second, or its minion's, times its group's count. A skill that did not resolve is left out
+// and warned about.
 func (st *Stats) Skills() []SkillStats { return slices.Clone(st.perSkill) }
 
 // Skill returns the outputs of the skill at ref, none when the call did not compute them.

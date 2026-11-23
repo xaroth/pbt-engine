@@ -108,17 +108,10 @@ func readSteps() []step {
 func compareSteps() []step {
 	return []step{
 		{name: "compare two builds", run: compareBuilds},
-		{name: "compare damage per second", pending: &pending{
-			needs: "skills on a build", waitsOn: []string{"poe1.TotalDPS"},
-			code: `diff, err := sim.Compare(base, next)
-d := diff.Get(poe1.TotalDPS)`,
-		}},
+		{name: "compare damage per second", run: compareDPS},
 		{name: "diff one build across two leagues", run: diffAcrossLeagues},
 		{name: "sweep edits ranked by an output", run: sweep},
-		{name: "sweep a gem level ranked by damage per second", pending: &pending{
-			needs: "skills on a build", waitsOn: []string{"build.SetGemLevel", "poe1.TotalDPS"},
-			code: `results, err := sim.Sweep(base, [][]build.Edit{{build.SetGemLevel(base.Skills.MainGroup, 0, 21)}}, simulator.RankBy(poe1.TotalDPS))`,
-		}},
+		{name: "sweep a gem level ranked by damage per second", run: sweepGemLevel},
 		{name: "stream a sweep", run: sweepEach},
 		{name: "make a second sim with the first one's config", run: secondSim},
 	}
@@ -679,6 +672,48 @@ func compareWarnings(t *testing.T, w *walk, diff *simulator.Diff) {
 	}
 	if d := gocmp.Diff(w.stats.Warnings(), diff.After.Warnings()); d != "" {
 		t.Errorf("after warnings (-simulate +compare):\n%s", d)
+	}
+}
+
+// fullDPS returns the next build with its main group counted in full DPS.
+func fullDPS(t *testing.T, w *walk) *build.Build {
+	t.Helper()
+	b := w.next.Clone()
+	if err := b.Apply(build.SetFullDPS(b.Skills.MainGroup, true)); err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// compareDPS: a second Fireball counted adds its hits to full DPS, the part its group gives,
+// and not its ignite: full DPS takes the best one.
+func compareDPS(t *testing.T, w *walk) {
+	base := fullDPS(t, w)
+	next := base.Clone()
+	if err := next.Apply(build.SetGroupCount(next.Skills.MainGroup, 2)); err != nil {
+		t.Fatal(err)
+	}
+	diff, err := w.sim.Compare(base, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := simulator.SkillRef{Group: base.Skills.MainGroup}
+	part, ok := diff.Before.Skill(ref).Get(poe1.TotalDPS)
+	if d := diff.Get(poe1.TotalDPS); !ok || !d.Has || part <= 0 || math.Abs(d.Abs-part) > 1e-9*part {
+		t.Errorf("full DPS change %+v, want the group's part %v (%v)", d, part, ok)
+	}
+}
+
+// sweepGemLevel: the main gem at level 20 ranks above it at level 1.
+func sweepGemLevel(t *testing.T, w *walk) {
+	base := fullDPS(t, w)
+	main := base.Skills.MainGroup
+	results, err := w.sim.Sweep(base, [][]build.Edit{{build.SetGemLevel(main, 0, 1)}, {build.SetGemLevel(main, 0, 20)}}, simulator.RankBy(poe1.TotalDPS))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Index != 1 || results[0].Changes[poe1.TotalDPS].After <= results[1].Changes[poe1.TotalDPS].After {
+		t.Errorf("results %+v, want level 20 first with the higher full DPS", results)
 	}
 }
 

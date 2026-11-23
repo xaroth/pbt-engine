@@ -41,7 +41,7 @@
     "OutputGroup": {
       "title": "OutputGroup",
       "description": "The topic an output is shown under. Groups come in this order in the catalogue; skill and minion outputs are read in the main skill's context, minion outputs of the minion it summons.",
-      "enum": ["attributes", "life", "mana", "energy-shield", "resistances", "defences", "skill", "minion"]
+      "enum": ["attributes", "life", "mana", "energy-shield", "resistances", "defences", "skill", "minion", "dps"]
     },
     "Relation": {
       "title": "Relation",

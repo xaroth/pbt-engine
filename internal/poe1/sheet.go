@@ -152,6 +152,8 @@ type Sheet struct {
 	// slotMinions are the minions SetMinions last got, by slot.
 	minions     map[minionKey][]core.SourceID
 	slotMinions []*Minion
+	// fullDPS are the skills counted in full DPS (SetFullDPS).
+	fullDPS []FullDPSSkill
 	// outputs is the catalogue by key.
 	outputs map[output.Key]Output
 	// marked is true from Mark to Commit: switches are journalled, additions refused.

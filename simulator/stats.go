@@ -39,7 +39,9 @@ type Stats struct {
 	minions []*poe1.Minion
 	// animatedWeapons is the number of Animated Weapons the build's skills allow.
 	animatedWeapons int
-	sim             *Sim
+	// fullDPS are the skills counted in full DPS, by slot.
+	fullDPS []poe1.FullDPSSkill
+	sim     *Sim
 
 	// explainMu guards the explanation sheet: its session is not safe for concurrent use.
 	explainMu    sync.Mutex
@@ -181,6 +183,7 @@ func (st *Stats) openSheet() (*poe1.Sheet, error) {
 	if err := sh.SetMinions(st.minions); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
 	}
+	sh.SetFullDPS(st.fullDPS)
 	sh.SetEnemy(st.enemy)
 	if _, _, err := sh.DeriveConditions(st.cfg); err != nil {
 		return nil, fmt.Errorf("simulator: explain: %w", err)
