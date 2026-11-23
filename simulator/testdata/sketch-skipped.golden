@@ -1,5 +1,3 @@
 make a build from scratch: build.New
 hand a condition back: typed Clear
-read the change of damage per second: skill simulation
-sweep variants ranked by damage per second: skill simulation
 a new sim with the first one's config: Config().Options()

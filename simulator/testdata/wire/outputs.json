@@ -797,5 +797,14 @@
     "group": "minion",
     "better": "higher",
     "order": 86
+  },
+  {
+    "key": "dps.total",
+    "label": "Full DPS",
+    "unit": "",
+    "places": 1,
+    "group": "dps",
+    "better": "higher",
+    "order": 87
   }
 ]
