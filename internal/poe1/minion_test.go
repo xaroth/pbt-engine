@@ -28,7 +28,7 @@ func switchedSheet(t *testing.T, b *build.Build) *poe1.Sheet {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, false)
+	sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,8 +206,8 @@ func TestMinionHitReached(t *testing.T) {
 }
 
 // The sheet gives a minion's hit for a skill whose minion attacks with damage of its own: not
-// for one whose minion attacks with items (Animate Guardian) or casts spells (Flame Golem), nor
-// for a skill without a minion.
+// for one whose minion attacks with items and has none (Animate Guardian without gear) or casts
+// spells (Flame Golem), nor for a skill without a minion.
 func TestMinionHitGiven(t *testing.T) {
 	t.Parallel()
 	hit := poe1.Outputs()[slices.IndexFunc(poe1.Outputs(), func(o poe1.Output) bool { return o.Key == poe1.MinionAverageHit })]
@@ -225,7 +225,7 @@ func TestMinionHitGiven(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, false)
+		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -253,7 +253,7 @@ func TestMinionSwitchAddsOnce(t *testing.T) {
 	}
 	want := sh.SourceCount()
 	for range 3 {
-		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, false)
+		sw, err := poe1.SwitchOf(c, poe1.DefaultConfig(), nil, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}

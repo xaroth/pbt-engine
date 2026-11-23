@@ -30,12 +30,13 @@ type Switch struct {
 	Warnings []build.Warning
 }
 
-// SwitchOf returns what a sheet is switched to for c under cfg with its compiled items; with
-// every, each skill of the build goes on the sheet (SheetSkillsOf). The enemy is the default
-// one unless the sheet gives the hit of a skill whose outputs are read; it reads the monsters
+// SwitchOf returns what a sheet is switched to for c under cfg with its compiled items and its
+// minions' gear; with every, each skill of the build goes on the sheet (SheetSkillsOf). The
+// enemy is the default one unless the sheet gives the hit of a skill whose outputs are read or
+// of its minion; it reads the monsters
 // group of c's dataset only when its kind takes a normal monster's armour and evasion, for the
 // totem life of a totem skill whose outputs are read, or for the minion of such a skill.
-func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, every bool) (Switch, error) {
+func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, gear MinionGear, every bool) (Switch, error) {
 	sw := Switch{Checked: c, Config: cfg, Items: items, Hands: HandsOf(items, c.Character())}
 	var err error
 	if sw.Skills, err = SheetSkillsOf(c, sw.Hands, every); err != nil {
@@ -47,13 +48,13 @@ func SwitchOf(c *build.Checked, cfg config.Resolved, items []Item, every bool) (
 		return sw, err
 	}
 	sw.Warnings = append(sw.Warnings, over...)
+	if sw.Minions, err = minionsOf(&sw, gear); err != nil {
+		return sw, err
+	}
 	if sw.Enemy, err = enemyOf(&sw); err != nil {
 		return sw, err
 	}
 	if sw.Totems, err = totemsOf(&sw); err != nil {
-		return sw, err
-	}
-	if sw.Minions, err = minionsOf(&sw); err != nil {
 		return sw, err
 	}
 	return sw, nil
@@ -76,10 +77,11 @@ func totemsOf(sw *Switch) (TotemLives, error) {
 }
 
 // enemyOf resolves the enemy of sw's config when the sheet gives the hit of a skill whose
-// outputs are read, the default enemy otherwise. Only an enemy kind with a normal monster's
-// armour and evasion reads them from the dataset's monsters group, and fails without it.
+// outputs are read or of its minion, the default enemy otherwise. Only an enemy kind with a
+// normal monster's armour and evasion reads them from the dataset's monsters group, and fails
+// without it.
 func enemyOf(sw *Switch) (EnemyStats, error) {
-	if !slices.ContainsFunc(sw.Skills.Read(), func(sk *resolve.Skill) bool { return Hit(sk, sw.Hands) }) {
+	if !sw.hits() {
 		return DefaultEnemy(), nil
 	}
 	var levels []dataset.MonsterLevel
@@ -101,6 +103,16 @@ func (sw *Switch) Minion(slot int) *Minion {
 		return nil
 	}
 	return sw.Minions[slot]
+}
+
+// hits reports whether the sheet gives the hit of a skill whose outputs are read or of its minion.
+func (sw *Switch) hits() bool {
+	for i, sk := range sw.Skills.Read() {
+		if Hit(sk, sw.Hands) || sw.Minion(i).Hit() {
+			return true
+		}
+	}
+	return false
 }
 
 // Switch switches sh to sw's level, nodes, masteries, items, hands, totem lives, skills, their

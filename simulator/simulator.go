@@ -336,6 +336,8 @@ type run struct {
 	checked *build.Checked
 	shape   shape
 	sheet   poe1.Switch
+	// gear are the compiled items of the minions that take gear.
+	gear poe1.MinionGear
 	// ask is which skills the call reads the outputs of besides the main skill's.
 	ask      skillAsk
 	warnings []Warning
@@ -362,12 +364,15 @@ func (s *Sim) prepare(b *build.Build, co callOptions, sim config.Values) (*run, 
 	if err := s.compileItems(r, &cb); err != nil {
 		return nil, err
 	}
+	if err := s.compileMinionGear(r, &cb); err != nil {
+		return nil, err
+	}
 	r.ask = co.skills
 	cfg, problems := resolveConfig(co, sim, cb.Config)
 	for _, p := range problems {
 		r.warnings = append(r.warnings, configWarning(p))
 	}
-	if r.sheet, err = poe1.SwitchOf(c, cfg, r.sheet.Items, co.skills.any()); err != nil {
+	if r.sheet, err = poe1.SwitchOf(c, cfg, r.sheet.Items, r.gear, co.skills.any()); err != nil {
 		return nil, fmt.Errorf("simulator: %w", err)
 	}
 	r.warnings = append(r.warnings, r.sheet.Warnings...)

@@ -298,7 +298,7 @@ func (sh *Sheet) SetHands(h Hands) error {
 		if sh.marked {
 			return fmt.Errorf("%w: %s weapon %s", ErrCheckpointOpen, handLabel(hd), w.label())
 		}
-		src, err := sh.addWeapon(w, hd)
+		src, err := sh.addWeapon(w, hd, playerActor, core.Mask{})
 		if err != nil {
 			return err
 		}
@@ -368,10 +368,13 @@ func (w *Weapon) randomElementMods(dim core.Dimension) []weaponMod {
 	return out
 }
 
-// addWeapon adds w's values as a source whose modifiers reach the attacks read with hand hd
-// only.
-func (sh *Sheet) addWeapon(w *Weapon, hd hand) (core.SourceID, error) {
+// addWeapon adds w's values as a source whose modifiers reach actor's attacks read with hand hd
+// only, in the context of ctx too when it is not empty.
+func (sh *Sheet) addWeapon(w *Weapon, hd hand, actor core.ActorID, ctx core.Mask) (core.SourceID, error) {
 	label := handLabel(hd)
+	if actor == minionActor {
+		label = "minion " + label
+	}
 	src := sh.newSource(Source{RuleID: strings.ReplaceAll(label, " ", "-") + "-weapon", Rule: label + " weapon " + w.label()})
 	md := sh.session.Model()
 	attack, ok := md.Bit(dimType + "." + typeAttack)
@@ -387,7 +390,10 @@ func (sh *Sheet) addWeapon(w *Weapon, hd hand) (core.SourceID, error) {
 			continue
 		}
 		req := append([]core.Mask{core.MaskOf(attack), core.MaskOf(held)}, m.req...)
-		mod := core.Modifier{Stat: sh.stats[m.stat], Op: m.op, Value: m.value, Source: src, Pred: core.Predicate{Req: req}}
+		if !ctx.IsZero() {
+			req = append(req, ctx)
+		}
+		mod := core.Modifier{Actor: actor, Stat: sh.stats[m.stat], Op: m.op, Value: m.value, Source: src, Pred: core.Predicate{Req: req}}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return 0, fmt.Errorf("sheet: %s weapon: %w", label, err)
 		}
