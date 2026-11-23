@@ -346,7 +346,8 @@ func critOfStrongest(crit, n float64) float64 { return 1 - math.Pow(1-crit, max(
 const baseAilmentDuration = 100
 
 // addBaseAilmentValues adds the base ailment duration and the one instance of an ailment that
-// deals damage at once as rules' sources, so modifiers apply to them by the default rule.
+// deals damage at once, for every actor, as rules' sources, so modifiers apply to them by the
+// default rule.
 func (sh *Sheet) addBaseAilmentValues() error {
 	for _, b := range []struct {
 		stat, id, rule string
@@ -356,9 +357,11 @@ func (sh *Sheet) addBaseAilmentValues() error {
 		{statAilmentMaximumInstances, "base-ailment-instances", "one instance of an ailment deals damage at once", 1},
 	} {
 		src := sh.newSource(Source{RuleID: b.id, Rule: b.rule})
-		mod := core.Modifier{Stat: sh.stats[b.stat], Op: core.OpBase, Value: b.value, Source: src}
-		if _, err := sh.session.AddModifier(mod); err != nil {
-			return fmt.Errorf("sheet: %s: %w", b.rule, err)
+		for actor := range sheetActors {
+			mod := core.Modifier{Stat: sh.stats[b.stat], Actor: actor, Op: core.OpBase, Value: b.value, Source: src}
+			if _, err := sh.session.AddModifier(mod); err != nil {
+				return fmt.Errorf("sheet: %s: %w", b.rule, err)
+			}
 		}
 	}
 	return nil

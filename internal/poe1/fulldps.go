@@ -58,9 +58,9 @@ func (f fullDPSOf) dotScale() float64 {
 
 // fullDPSValue returns full DPS as PoB's calcFullDPS gives it, over the skills counted other
 // than the one in slot skip (-1 for none): each one's hit damage per second, or its minion's,
-// times its count; plus the best ignite, the best bleeding and each one's poisons times its
-// count, together at most dotDPSCap. A totem skill counts one totem's hits, as PoB does. A hit
-// whose rate the sheet does not give adds nothing.
+// times its count; plus the best ignite, a minion's among them, the best bleeding and each
+// one's poisons times its count, together at most dotDPSCap. A totem skill counts one totem's
+// hits, as PoB does. A hit whose rate the sheet does not give adds nothing.
 func (sh *Sheet) fullDPSValue(skip int) (fullDPSOf, error) {
 	var all []fullDPSTerm
 	for _, fs := range sh.fullDPS {
@@ -82,7 +82,7 @@ func sumFullDPS(all []fullDPSTerm) fullDPSOf {
 	var ignite, bleed *fullDPSTerm
 	for _, t := range all {
 		switch t.o.Key {
-		case IgniteDPS:
+		case IgniteDPS, MinionIgniteDPS:
 			ignite = best(ignite, t)
 		case BleedDPS:
 			bleed = best(bleed, t)
@@ -127,11 +127,11 @@ func (sh *Sheet) fullDPSHitTerm(fs FullDPSSkill) ([]fullDPSTerm, error) {
 	return []fullDPSTerm{t}, err
 }
 
-// fullDPSAilments returns the ailment terms of fs the sheet gives: ignite and bleeding at their
-// value, poison times fs's count.
+// fullDPSAilments returns the ailment terms of fs the sheet gives: ignite, its own or its
+// minion's, and bleeding at their value, poison times fs's count.
 func (sh *Sheet) fullDPSAilments(fs FullDPSSkill) ([]fullDPSTerm, error) {
 	var out []fullDPSTerm
-	for _, k := range []output.Key{IgniteDPS, BleedDPS, PoisonDPS} {
+	for _, k := range []output.Key{IgniteDPS, MinionIgniteDPS, BleedDPS, PoisonDPS} {
 		if !sh.gives(k, fs.Slot) {
 			continue
 		}

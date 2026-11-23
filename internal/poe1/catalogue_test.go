@@ -60,7 +60,7 @@ func TestOutputKeys(t *testing.T) {
 		poe1.OffHandFireMinimum, poe1.OffHandFireMaximum, poe1.OffHandColdMinimum, poe1.OffHandColdMaximum,
 		poe1.OffHandLightningMinimum, poe1.OffHandLightningMaximum, poe1.OffHandChaosMinimum, poe1.OffHandChaosMaximum,
 		poe1.DotDPS, poe1.IgniteDPS, poe1.BleedDPS, poe1.PoisonDPS,
-		poe1.MinionAverageHit, poe1.MinionHitChance, poe1.MinionHitsPerSecond, poe1.MinionHitDPS,
+		poe1.MinionAverageHit, poe1.MinionHitChance, poe1.MinionHitsPerSecond, poe1.MinionHitDPS, poe1.MinionIgniteDPS,
 		poe1.TotalDPS,
 	}
 	outputs := poe1.Outputs()

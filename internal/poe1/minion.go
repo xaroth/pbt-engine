@@ -27,6 +27,7 @@ const (
 	statMinionActorLevelIsUserLevelUpToMaximum = "minion_actor_level_is_user_level_up_to_maximum"
 	statMonsterBaseMaximumAllResistances       = "base_maximum_all_resistances_%"
 	statMonsterBaseCriticalStrikeMultiplier    = "base_critical_strike_multiplier"
+	statMonsterCriticalAilmentDotMultiplier    = "critical_ailment_dot_multiplier_+"
 	statMonsterMaxFrenzyCharges                = "max_frenzy_charges"
 	statMonsterAttackSpeedPerFrenzyCharge      = "base_attack_speed_+%_per_frenzy_charge"
 	statMonsterCastSpeedPerFrenzyCharge        = "base_cast_speed_+%_per_frenzy_charge"
@@ -65,8 +66,9 @@ type Minion struct {
 	// attacks per second.
 	MinimumDamage, MaximumDamage float64
 	AttackRate                   float64
-	// CriticalStrikeMultiplier is every monster's, from Monster.ot.
-	CriticalStrikeMultiplier float64
+	// CriticalStrikeMultiplier is every monster's, from Monster.ot, and CriticalAilmentDotMultiplier
+	// what an ailment from its critical strike adds to its Damage over Time Multiplier.
+	CriticalStrikeMultiplier, CriticalAilmentDotMultiplier float64
 	// FrenzyCharges are its maximum frenzy charges and what each gives it, every monster's, from
 	// Monster.ot, as PoB gives them to every minion (CalcSetup.lua initModDB, CalcPerform.lua
 	// initMinionModDB).
@@ -151,6 +153,12 @@ func passed(sk *resolve.Skill) []resolve.StatValue {
 // which the dataset does not give.
 func (mn *Minion) Hit() bool {
 	return mn != nil && mn.Skill != nil && hasTypes(mn.Skill, typeAttack) && (mn.MaximumDamage > 0 || mn.armed())
+}
+
+// ailmentHit reports whether the sheet gives the damaging ailments of mn's hit: it gives the hit
+// and the minion attacks with one hand, as for the character's (ailmentSkill).
+func (mn *Minion) ailmentHit() bool {
+	return mn.Hit() && !mn.Hands.bothHands(mn.Skill.Types, mn.Skill.WeaponRestrictions)
 }
 
 // equip gives mn items: their stats are the minion's, and a weapon in the main hand replaces its
@@ -249,6 +257,7 @@ func MinionOf(sk *resolve.Skill, characterLevel int, m *dataset.Monsters, x *dat
 	}
 	mn := minionOf(v, t, l, m, monsterBase(m, stats, statMonsterBaseMaximumAllResistances, enemyBaseMaximumResistance))
 	mn.CriticalStrikeMultiplier = monsterBase(m, stats, statMonsterBaseCriticalStrikeMultiplier, 0)
+	mn.CriticalAilmentDotMultiplier = monsterBase(m, stats, statMonsterCriticalAilmentDotMultiplier, 0)
 	mn.FrenzyCharges = FrenzyChargeValues{
 		Maximum:     monsterBase(m, stats, statMonsterMaxFrenzyCharges, 0),
 		AttackSpeed: monsterBase(m, stats, statMonsterAttackSpeedPerFrenzyCharge, 0),
@@ -464,6 +473,7 @@ func (mn *Minion) bases(dim core.Dimension, attack core.Mask) []minionBase {
 		{statMaximumLightningResistance, core.OpBase, mn.MaximumResistance, nil, ""},
 		{statMaximumChaosResistance, core.OpBase, mn.MaximumResistance, nil, ""},
 		{statCriticalStrikeMultiplier, core.OpBase, mn.CriticalStrikeMultiplier, nil, ""},
+		{statCriticalAilmentDamageOverTimeMultiple, core.OpBase, mn.CriticalAilmentDotMultiplier, nil, ""},
 		{statHitsCannotBeEvaded, core.OpFlag, 1, []core.Mask{attack}, ""},
 		{statMaximumFrenzyCharges, core.OpBase, fc.Maximum, nil, ""},
 		{statAttackSpeed, core.OpInc, fc.AttackSpeed, nil, statFrenzyCharges},

@@ -113,6 +113,9 @@ const (
 	needsCost
 	// needsMinionHit is a skill whose minion's hit the sheet gives (Minion.Hit).
 	needsMinionHit
+	// needsMinionAilment is a skill whose minion's damaging ailments the sheet gives
+	// (Minion.ailmentHit).
+	needsMinionAilment
 )
 
 // IsSkill reports whether o is read in the main skill's context: an output of the skill or the
@@ -121,7 +124,7 @@ func (o Output) IsSkill() bool { return o.Group == GroupSkill || o.Group == Grou
 
 // Gives reports whether the sheet gives o for a build whose main skill is sk, nil for none, and
 // summons mn, nil for none, with hands: an output of the sheet always, one of the minion group
-// when it gives mn's hit (Minion.Hit), one of the skill group for a main skill; its hit only
+// when it gives mn's hit (Minion.Hit), its ignite when mn hits with one hand, one of the skill group for a main skill; its hit only
 // for a hit, its accuracy only for an attack's with one hand, its hit per damage type only for
 // a hit with one hand, its hit and accuracy per hand only for an attack's with both, its rate
 // of hits and hit damage per second only for a hit whose rate it gives, that of every totem
@@ -134,6 +137,8 @@ func Gives(o Output, sk *resolve.Skill, mn *Minion, hands Hands) bool {
 		return true
 	case o.needs == needsMinionHit:
 		return mn.Hit()
+	case o.needs == needsMinionAilment:
+		return mn.ailmentHit()
 	case sk == nil:
 		return false
 	}
@@ -159,7 +164,7 @@ func (n skillNeed) met(sk *resolve.Skill, hands Hands) bool {
 		return ailmentSkill(sk, hands)
 	case needsCost:
 		return paysCost(sk)
-	case needsSkill, needsMinionHit:
+	case needsSkill, needsMinionHit, needsMinionAilment:
 	}
 	return true
 }
@@ -295,7 +300,8 @@ func hitOutputs() []Output {
 }
 
 // minionOutputs are the outputs of the main skill's minion's hit: what the enemy takes from an
-// average hit, the chance to hit, hits per second and hit damage per second.
+// average hit, the chance to hit, hits per second, hit damage per second and ignite damage per
+// second.
 func minionOutputs() []Output {
 	return []Output{
 		{Key: MinionAverageHit, Label: "Minion Average Hit", Better: output.Higher, Places: hitPlaces, stat: statAverageHit, needs: needsMinionHit},
@@ -305,6 +311,7 @@ func minionOutputs() []Output {
 			stat: statHitsPerSecond, needs: needsMinionHit,
 		},
 		{Key: MinionHitDPS, Label: "Minion Hit DPS", Better: output.Higher, Places: hitPlaces, stat: statHitDPS, needs: needsMinionHit},
+		{Key: MinionIgniteDPS, Label: "Minion Ignite DPS", Better: output.Higher, Places: hitPlaces, stat: statIgniteDPS, needs: needsMinionAilment},
 	}
 }
 
@@ -410,7 +417,8 @@ func (sh *Sheet) outputNode(o Output, i int) (core.Node, error) {
 	switch o.needs {
 	case needsSkill, needsDot, needsTotem, needsCost:
 		form = formNone
-	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment, needsMinionHit:
+	case needsHit, needsRate, needsTotemRate, needsOneHandAttackHit, needsOneHandHit, needsBothHandsHit, needsAilment, needsMinionHit,
+		needsMinionAilment:
 		form = formHit
 	}
 	if o.Group == GroupMinion {
