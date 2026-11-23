@@ -21,7 +21,7 @@ func support(id string, stats ...resolve.StatValue) resolve.Support {
 func TestMoreRoundsPerName(t *testing.T) {
 	t.Parallel()
 	sh := open(t, resolved(bundle(resolve.NodeSource{ID: 1}, resolve.Global,
-		resolve.StatValue{Stat: "support_multiple_projectile_damage_+%_final", Value: 39},
+		resolve.StatValue{Stat: "support_additional_totem_damage_+%_final", Value: 39},
 	)))
 	sk := spell()
 	sk.Supports = []resolve.Support{
@@ -36,6 +36,32 @@ func TestMoreRoundsPerName(t *testing.T) {
 	} {
 		if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
 			t.Errorf("%s: got %v, want %v", k, got, want)
+		}
+	}
+}
+
+// Void Manipulation's 35% more chaos damage is more ChaosDamage, and Greater Multiple
+// Projectiles' 26% less is less projectile damage: a spell without the Projectile type takes
+// only the first, 135 chaos and 100 fire; one with it takes both, rounded per name: 0.74 x 1.35
+// for chaos, 0.74 for fire.
+func TestSupportMoreLimits(t *testing.T) {
+	t.Parallel()
+	supports := []resolve.Support{
+		support("void", resolve.StatValue{Stat: "support_void_manipulation_chaos_damage_+%_final", Value: 35}),
+		support("projectiles", resolve.StatValue{Stat: "support_multiple_projectile_damage_+%_final", Value: -26}),
+	}
+	for _, c := range []struct {
+		types       []string
+		chaos, fire float64
+	}{{nil, 135, 100}, {[]string{"Projectile"}, 100 * 0.74 * 1.35, 74}} {
+		sh := open(t, resolved())
+		sk := spellWith(c.types)
+		sk.Supports = supports
+		setSkills(t, sh, sk)
+		for k, want := range map[output.Key]float64{poe1.ChaosDamageModifier: c.chaos, poe1.FireDamageModifier: c.fire} {
+			if got := outputOf(t, sh, k); math.Abs(got-want) > 1e-9 {
+				t.Errorf("types %v %s: got %v, want %v", c.types, k, got, want)
+			}
 		}
 	}
 }
