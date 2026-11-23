@@ -28,9 +28,13 @@ func countOf[T ~int](input string, k config.Key[T]) countInput {
 }
 
 // countInputs are PoB's count inputs the config holds: the lowest Resonance, shown while a
-// Trinity support is in use.
+// Trinity support is in use, and the Withered stacks on the enemy, shown while the build can
+// inflict Withered.
 func countInputs() []countInput {
-	return []countInput{countOf("configResonanceCount", poe1.LowestResonance)}
+	return []countInput{
+		countOf("configResonanceCount", poe1.LowestResonance),
+		countOf("multiplierWitheredStackCount", poe1.EnemyWitheredStacks),
+	}
 }
 
 // countFrom imports PoB's input name with value into v when it is a count input. It reports
