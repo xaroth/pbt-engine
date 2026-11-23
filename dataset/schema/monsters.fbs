@@ -37,7 +37,7 @@ table MonsterType {
   alt_life2: bool;
 }
 
-// MonsterVarieties row. Mod lists are Mod ids, one list per game column.
+// MonsterVarieties row with its object template's own stats. Mod lists are Mod ids, one list per game column.
 table MonsterVariety {
   id: string (required);
   // MonsterType id.
@@ -61,6 +61,9 @@ table MonsterVariety {
   part1_mods: [string];
   part2_mods: [string];
   endgame_mods: [string];
+  // Stats block of the variety's own object template, without what it inherits; sorted by
+  // stat, indexes into stat_ids.
+  stats: [StatValue];
 }
 
 // DefaultMonsterStats row.
