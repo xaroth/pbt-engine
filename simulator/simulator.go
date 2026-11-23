@@ -55,6 +55,9 @@ const (
 	// SkillNeedsShield is a skill that requires a shield in a build whose off hand holds none:
 	// it is off, so it reserves nothing, gives no buff and no hit.
 	SkillNeedsShield = poe1.SkillNeedsShield
+	// MinionCountAboveLimit is a skill group counted as more Animated Weapons than the build's
+	// skills allow: the count is used, as Path of Building uses it.
+	MinionCountAboveLimit = poe1.MinionCountAboveLimit
 	// NoConditionSource is a condition the build can cause itself (EnemyShocked,
 	// EnemyChilled, EnemyIgnited, and the enemy's Exposure of an element) that the config sets
 	// on while no skill of the build inflicts it: it applies as set.
@@ -410,7 +413,8 @@ func (s *Sim) statsOf(r *run, sh *poe1.Sheet, keys []output.Key) (*Stats, error)
 	st := &Stats{
 		keys: skillKeys(keys, cat, main, r.sheet.Minion(0), hands), cfg: r.sheet.Config, budget: r.sheet.Budget,
 		build: r.build, checked: r.checked, items: r.sheet.Items, hands: hands, skill: main, sheetSkills: r.sheet.Skills.Skills,
-		enemy: r.sheet.Enemy, totems: r.sheet.Totems, minions: r.sheet.Minions, sim: s,
+		enemy: r.sheet.Enemy, totems: r.sheet.Totems, minions: r.sheet.Minions,
+		animatedWeapons: r.sheet.Skills.AnimatedWeapons, sim: s,
 	}
 	if st.values, err = readOutputs(st.keys, func(k output.Key) (float64, error) { return sh.Output(k) }); err != nil {
 		return nil, err

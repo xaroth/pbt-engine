@@ -77,6 +77,7 @@ func mechanics() []mechanic {
 		bleedMechanic(),
 		poisonMechanic(),
 		totalDotMechanic(),
+		minionLimitMechanic(),
 	}
 }
 

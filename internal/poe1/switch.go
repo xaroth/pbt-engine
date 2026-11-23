@@ -130,6 +130,7 @@ func (sh *Sheet) Switch(sw *Switch) error {
 		return err
 	}
 	sh.SetTotemLives(sw.Totems)
+	sh.SetAnimatedWeaponsAllowed(sw.Skills.AnimatedWeapons)
 	if err := sh.SetSkills(sw.Skills.Skills); err != nil {
 		return err
 	}

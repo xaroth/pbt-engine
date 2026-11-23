@@ -43,6 +43,9 @@ const (
 	// hands read with the main hand: the attack's context, from which its off hand's is made
 	// (handBits). Tables never name it.
 	dimOffHandWeapon = "off_hand_weapon"
+	// dimMinion holds the kind of the minion whose values are read (minionKindNames), for stats
+	// of one kind of minion. The character's values read none.
+	dimMinion = "minion"
 )
 
 // hand is a value of the hand dimension.
@@ -142,7 +145,7 @@ func typeMask(c contexts, t string) core.Mask {
 
 // contexts are the context dimensions of a sheet model.
 type contexts struct {
-	types, damage, skill, form, weapon, hand, offHandWeapon, ailment core.Dimension
+	types, damage, skill, form, weapon, hand, offHandWeapon, ailment, minion core.Dimension
 }
 
 // addContexts registers the context dimensions on b.
@@ -161,6 +164,7 @@ func addContexts(b *core.ModelBuilder) contexts {
 		// The same values as the weapon dimension's, so a kind's index is its bit in either.
 		offHandWeapon: mustDimension(b, dimOffHandWeapon, weaponKindNames()),
 		ailment:       mustDimension(b, dimAilment, ailmentNames()),
+		minion:        mustDimension(b, dimMinion, minionKindNames()),
 	}
 }
 
@@ -190,6 +194,8 @@ func isTableContext(name string) bool {
 		return slices.Contains(handNames(), value)
 	case dim == dimAilment:
 		return slices.Contains(ailmentNames(), value)
+	case dim == dimMinion:
+		return slices.Contains(minionKindNames(), value)
 	}
 	return false
 }

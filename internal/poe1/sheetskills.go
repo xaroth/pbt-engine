@@ -40,8 +40,10 @@ type SheetSkills struct {
 	// Kept is how many of Skills, from the first, are read and noted: the main skill, those
 	// that reserve, buff or curse and, with Every, the rest. The others are on the sheet only to derive the
 	// conditions they cause (Sheet.DeriveOnly).
-	Kept     int
-	Warnings []build.Warning
+	Kept int
+	// AnimatedWeapons is the number of Animated Weapons the build's skills allow.
+	AnimatedWeapons int
+	Warnings        []build.Warning
 	// off are the skills left out because they need a shield and the hands hold none.
 	off []*resolve.Skill
 	// store names the skills in warnings.
@@ -55,7 +57,9 @@ type SheetSkills struct {
 // buff or apply a curse and each other skill of the build (resolve.SkillResolver.All). With every, the sheet's outputs of each
 // skill are read. A skill that requires a shield is left out, with a warning, while hands hold
 // none, as the game does not let it be used. It warns about the gems whose hits the sheet does
-// not give and, with every, about the skills that do not resolve or do not fit the sheet.
+// not give and, with every, about the skills that do not resolve or do not fit the sheet. It
+// gives the number of Animated Weapons the skills allow and warns about each group counted as
+// more.
 func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, error) {
 	out := SheetSkills{Every: every, store: c.Store()}
 	sk := c.Build().Skills
@@ -71,7 +75,10 @@ func SheetSkillsOf(c *build.Checked, hands Hands, every bool) (SheetSkills, erro
 		}
 	}
 	if skills != nil {
-		out.addOthers(skills.All(), hands, sk.Groups)
+		all := skills.All()
+		out.addOthers(all, hands, sk.Groups)
+		out.AnimatedWeapons = animatedWeaponsAllowed(all)
+		out.Warnings = append(out.Warnings, countWarnings(all, sk.Groups, out.AnimatedWeapons)...)
 	}
 	if w, ok := notSimulated(sk, out.Read(), out.off, hands); ok {
 		out.Warnings = append(out.Warnings, w)
