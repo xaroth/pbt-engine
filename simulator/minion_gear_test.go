@@ -208,9 +208,10 @@ func TestRangedArmsProjectilesByWeapon(t *testing.T) {
 }
 
 // Animate Guardian of Smiting at gem level 20, with the same sword, attacks with the skill its
-// group picks. Its 76% more minion damage makes the sword's 42 to 80 hit for round(42 x 1.76) =
-// 74 to round(80 x 1.76) = 141 with Melee, its first skill. Smite, its second, multiplies damage
-// by 3.25: round(42 x 3.25 x 1.76) = 240 to round(80 x 3.25 x 1.76) = 458, 349 on average. Half
+// group picks. The sword's 42 to 80 with the guardian's template's 2 to 6 is 44 to 86. Its 76%
+// more minion damage makes that round(44 x 1.76) = 77 to round(86 x 1.76) = 151 with Melee, its
+// first skill. Smite, its second, multiplies damage by 3.25: round(44 x 3.25 x 1.76) = 252 to
+// round(86 x 3.25 x 1.76) = 492, 372 on average. Half
 // of it is converted to lightning, so the enemy has no lightning resistance here. Critical
 // strikes add 5.5% x 30% as before. A pick past the minion's last skill is its last, as in PoB.
 func TestGuardianSmites(t *testing.T) {
@@ -224,7 +225,7 @@ func TestGuardianSmites(t *testing.T) {
 	for _, c := range []struct {
 		skill int
 		want  float64
-	}{{0, 107.5 * crit}, {1, 349 * crit}, {5, 349 * crit}} {
+	}{{0, 114 * crit}, {1, 372 * crit}, {5, 372 * crit}} {
 		b := marauderBuild(90)
 		b.Skills.Groups = []build.SkillGroup{{
 			Gems:        []build.Gem{{ID: "Metadata/Items/Gems/SkillGemAnimateArmour", Effect: "AnimateGuardianAltX", Level: 20}},
