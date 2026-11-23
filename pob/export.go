@@ -44,12 +44,14 @@ var gameVersion = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.|$)`)
 // text of the dataset reg resolves for b's version, or of the newest poe1 dataset when it has
 // none (warning VersionFallback). The file holds one tree with b's class, ascendancy,
 // bloodline, level, nodes, mastery choices and overrides; the bandit choice and the campaign
-// stage as PoB's resistance penalty; and b's skill groups with their gems and main skill. A
-// bandit choice PoB has no option for, a bloodline the tree does not list or PoB ignores, an
-// override the text does not name, other config values, items, jewels and the items of a
-// minion's gear give warnings. A gem the
-// dataset lacks is written by id only, with warning GemUnknown. ErrGame, ErrClass,
-// ErrAscendancy and ErrVersion are a build the file cannot name.
+// stage as PoB's resistance penalty; b's items in the active item set, with their abyss jewels,
+// and its jewels in their tree sockets; and b's skill groups with their gems and main skill, a
+// group an item grants with that item as its source and the gear of a group's minion in an
+// item set of its own. A bandit choice PoB has no option for, a bloodline the tree does not
+// list or PoB ignores, an override the text does not name, other config values and an item
+// whose base has no English name give warnings. A gem the dataset lacks is written by id only,
+// with warning GemUnknown. ErrGame, ErrClass, ErrAscendancy and ErrVersion are a build the file
+// cannot name.
 func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, error) {
 	if b.Game != game {
 		return nil, nil, fmt.Errorf("%w: %q", ErrGame, b.Game)
@@ -73,11 +75,10 @@ func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, erro
 	if err := ex.config(&f); err != nil {
 		return nil, nil, err
 	}
-	if f.Skills, err = ex.skills(store); err != nil {
+	if err := ex.itemsAndSkills(store, &f); err != nil {
 		return nil, nil, err
 	}
 	f.Build.MainSocketGroup = b.Skills.MainGroup + 1
-	ex.itemsLeftOut()
 	out, err := xml.MarshalIndent(f, "", "\t")
 	if err != nil {
 		return nil, nil, fmt.Errorf("pob: %w", err)
@@ -85,19 +86,22 @@ func ToXML(b *build.Build, reg *dataset.Registry) ([]byte, []build.Warning, erro
 	return append([]byte(xml.Header), append(out, '\n')...), ex.warnings, nil
 }
 
-// itemsLeftOut warns about each item, jewel and item of a minion's gear, as none are exported.
-func (ex *exporter) itemsLeftOut() {
-	for _, s := range slices.Sorted(maps.Keys(ex.b.Items)) {
-		ex.warnf(ItemNotExported, string(s), "items are not exported")
+// itemsAndSkills writes b's items, its jewels in f's spec and its skill groups, with the item
+// sets of their minions' gear.
+func (ex *exporter) itemsAndSkills(store *dataset.Store, f *outFile) error {
+	text, err := store.Text("en")
+	if err != nil {
+		return fmt.Errorf("pob: %w", err)
 	}
-	for i, g := range ex.b.Skills.Groups {
-		for _, s := range slices.Sorted(maps.Keys(g.MinionItems)) {
-			ex.warnf(ItemNotExported, fmt.Sprintf("skill group %d minion %s", i+1, s), "items are not exported")
-		}
+	items := ex.newItemWriter(text)
+	f.Tree.Specs[0].Sockets = items.character()
+	if f.Skills, err = ex.skills(store, items); err != nil {
+		return err
 	}
-	for _, node := range slices.Sorted(maps.Keys(ex.b.Jewels)) {
-		ex.warnNodef(ItemNotExported, node, "jewels are not exported")
+	if len(items.out.Items) > 0 || len(items.out.Sets) > 1 {
+		f.Items = &items.out
 	}
+	return nil
 }
 
 // EncodeCode returns the share code of a build file, as PoB writes it: the file compressed
@@ -227,6 +231,7 @@ type outFile struct {
 	XMLName xml.Name   `xml:"PathOfBuilding"`
 	Build   outBuild   `xml:"Build"`
 	Tree    outTree    `xml:"Tree"`
+	Items   *outItems  `xml:"Items"`
 	Skills  *outSkills `xml:"Skills"`
 	Config  *outConfig `xml:"Config"`
 }
@@ -253,6 +258,7 @@ type outSpec struct {
 	Nodes         string        `xml:"nodes,attr"`
 	Masteries     string        `xml:"masteryEffects,attr"`
 	Overrides     []outOverride `xml:"Overrides>Override,omitempty"`
+	Sockets       []outSocket   `xml:"Sockets>Socket,omitempty"`
 }
 
 type outOverride struct {

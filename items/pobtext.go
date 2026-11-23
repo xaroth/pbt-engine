@@ -1,6 +1,7 @@
 package items
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -167,10 +168,115 @@ func (p *parsed) defenceRoll(key, val string) bool {
 
 // basePercentiles are Path of Building's properties that give a defence's roll.
 func basePercentiles() map[string]build.Defence {
-	return map[string]build.Defence{
-		"ArmourBasePercentile": build.DefenceArmour, "EvasionBasePercentile": build.DefenceEvasion,
-		"EnergyShieldBasePercentile": build.DefenceEnergyShield, "WardBasePercentile": build.DefenceWard,
+	out := map[string]build.Defence{}
+	for _, d := range defenceProperties() {
+		out[d.percentile] = d.key
 	}
+	return out
+}
+
+// defenceProperty names a defence in Path of Building's text: its property and the property of
+// its roll.
+type defenceProperty struct {
+	key              build.Defence
+	name, percentile string
+	value            func(*build.Item) int
+}
+
+// defenceProperties are the defences in the order Path of Building writes them.
+func defenceProperties() []defenceProperty {
+	return []defenceProperty{
+		{build.DefenceArmour, "Armour", "ArmourBasePercentile", func(it *build.Item) int { return it.Armour }},
+		{build.DefenceEvasion, "Evasion", "EvasionBasePercentile", func(it *build.Item) int { return it.Evasion }},
+		{build.DefenceEnergyShield, "Energy Shield", "EnergyShieldBasePercentile", func(it *build.Item) int { return it.EnergyShield }},
+		{build.DefenceWard, "Ward", "WardBasePercentile", func(it *build.Item) int { return it.Ward }},
+	}
+}
+
+// PoBText writes it as Path of Building's item text, which Parse reads back to it; base is the
+// English name of its base. Its abyss jewels are items of their own and are not written.
+//
+// Lines are in the order Path of Building writes them (Item.lua BuildRaw). An implicit line
+// after an explicit one reads back as explicit. Flags Parse reads after the mods are written
+// there, others before the implicit count.
+func PoBText(it build.Item, base string) string {
+	var lines []string
+	trailing := slices.DeleteFunc(slices.Clone(it.Flags), func(f string) bool { return !slices.Contains(flagLines(), f) })
+	lines = append(lines, nameLines(it, base)...)
+	lines = append(lines, propertyLines(it)...)
+	lines = append(lines, fmt.Sprintf("Implicits: %d", implicitCount(it.Mods)))
+	for _, m := range it.Mods {
+		for l := range strings.SplitSeq(m.Text, "\n") {
+			lines = append(lines, kindTags()[m.Kind]+l)
+		}
+	}
+	lines = append(lines, trailing...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+// nameLines are the rarity and name lines of it, of base.
+func nameLines(it build.Item, base string) []string {
+	rarity := "Rarity: " + strings.ToUpper(string(it.Rarity))
+	switch it.Rarity {
+	case build.Rare, build.Unique:
+		return []string{rarity, it.Name, base}
+	case build.Magic:
+		return []string{rarity, cmp.Or(it.Name, base)}
+	case build.Normal:
+	}
+	return []string{rarity, base}
+}
+
+// propertyLines are the property lines of it before the implicit count: its defences with their
+// rolls, the flags Parse reads only there, its item level, quality and sockets.
+func propertyLines(it build.Item) []string {
+	var out []string
+	for _, d := range defenceProperties() {
+		if v := d.value(&it); v > 0 {
+			out = append(out, fmt.Sprintf("%s: %d", d.name, v))
+		}
+		if r, ok := it.DefenceRolls[d.key]; ok {
+			out = append(out, d.percentile+": "+strconv.FormatFloat(r, 'g', -1, 64))
+		}
+	}
+	for _, f := range it.Flags {
+		if !slices.Contains(flagLines(), f) {
+			out = append(out, f)
+		}
+	}
+	for _, p := range []struct {
+		name  string
+		value int
+	}{{"Item Level", it.ItemLevel}, {"Quality", it.Quality}} {
+		if p.value > 0 {
+			out = append(out, fmt.Sprintf("%s: %d", p.name, p.value))
+		}
+	}
+	if it.Sockets != "" {
+		out = append(out, "Sockets: "+it.Sockets)
+	}
+	return out
+}
+
+// implicitCount is the number of lines up to the last implicit or enchant line before the first
+// explicit one. Tagged lines among them, such as a crafted implicit, keep their kind.
+func implicitCount(mods []build.ModLine) int {
+	n, lines := 0, 0
+	for _, m := range mods {
+		if m.Kind == build.Explicit {
+			break
+		}
+		lines += strings.Count(m.Text, "\n") + 1
+		if m.Kind == build.Implicit || m.Kind == build.Enchant {
+			n = lines
+		}
+	}
+	return n
+}
+
+// kindTags are the tags Path of Building marks a mod line of a kind with.
+func kindTags() map[build.ModKind]string {
+	return map[build.ModKind]string{build.Crafted: "{crafted}", build.Fractured: "{fractured}", build.Enchant: "{enchant}"}
 }
 
 // lineTags are the leading {tag} markers of a Path of Building mod line.
