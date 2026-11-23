@@ -57,3 +57,17 @@ func (sh *Sheet) MinionAttackValue(i int, name string, damage ...DamageType) (fl
 
 // SourceCount returns how many sources the sheet has added.
 func (sh *Sheet) SourceCount() int { return len(sh.sources) }
+
+// MinionSkillValue returns engine stat name of the minion of skill i in the context of that
+// skill's slot and of its minion's skill, reading the part of its damage whose chain is damage.
+func (sh *Sheet) MinionSkillValue(i int, name string, damage ...DamageType) (float64, error) {
+	n, err := sh.minionNode(i, name, damage, formNone)
+	if err != nil {
+		return 0, err
+	}
+	v, err := sh.session.Get(n)
+	if err != nil {
+		return 0, fmt.Errorf("minion %s: %w", name, err)
+	}
+	return v, nil
+}
