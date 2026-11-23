@@ -318,7 +318,7 @@ func (c *Checked) editWarnings(e Edit, allocated map[uint32]bool) []Warning {
 		w, bad = c.socketProblem(e.Node)
 	case OpSetName, OpClearMastery, OpClearOverride, OpSetLevel, OpSetClass, OpSetAscendancy, OpSetBloodline, OpSetConfig, OpClearConfig,
 		OpAddSkillGroup, OpRemoveSkillGroup, OpSetSkillSlot, OpSetMainSkill, OpAddGem, OpRemoveGem,
-		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpSetGroupCount, OpSetFullDPS, OpEquipMinion, OpUnequipMinion,
+		OpSetActiveGem, OpSetGemLevel, OpSetGemQuality, OpSetGemEnabled, OpSetGroupCount, OpSetFullDPS, OpSetMinionSkill, OpEquipMinion, OpUnequipMinion,
 		OpEquip, OpUnequip, OpUnsocketJewel:
 	}
 	if bad {

@@ -347,7 +347,7 @@
         "set-ascendancy", "set-bloodline", "set-config", "clear-config", "add-skill-group",
         "remove-skill-group", "set-skill-slot", "set-main-skill", "add-gem", "remove-gem",
         "set-active-gem", "set-gem-level", "set-gem-quality", "set-gem-enabled", "set-group-count",
-        "set-full-dps", "equip-minion", "unequip-minion", "equip", "unequip", "socket-jewel", "unsocket-jewel"
+        "set-full-dps", "set-minion-skill", "equip-minion", "unequip-minion", "equip", "unequip", "socket-jewel", "unsocket-jewel"
       ]
     },
     "ConfigValue": {
@@ -366,7 +366,7 @@
     },
     "SkillAt": {
       "title": "SkillAt",
-      "description": "A skill group, and a gem in it, by index; skill is which of the gem's skills, for set-active-gem.",
+      "description": "A skill group, and a gem in it, by index; skill is which of the gem's skills, for set-active-gem, or of the minion's, for set-minion-skill.",
       "type": "object",
       "additionalProperties": false,
       "required": ["group", "gem"],
@@ -401,6 +401,10 @@
           "type": "integer", "minimum": 0
         },
         "fullDps": { "type": "boolean", "description": "Whether the group counts towards full DPS." },
+        "minionSkill": {
+          "description": "Which skill of the main active skill's minion is its main one: 0 its first, past the last its last.",
+          "type": "integer", "minimum": 0
+        },
         "minionItems": {
           "type": "object",
           "description": "The items the minion of the main active skill uses, by slot, for a skill whose minion takes gear.",

@@ -23,8 +23,8 @@ func fireballAlt() build.GemID {
 }
 
 // withSkills is juggernaut with two groups: Fireball with Inspiration twice in the helmet, the
-// main skill, counted 3 times towards full DPS with a helmet for its minion, and Clarity in no
-// item. Edits do not judge whether a skill has a minion.
+// main skill, counted 3 times towards full DPS with its minion's second skill and a helmet for
+// its minion, and Clarity in no item. Edits do not judge whether a skill has a minion.
 func withSkills() *build.Build {
 	b := juggernaut()
 	b.Skills = build.Skills{Groups: []build.SkillGroup{
@@ -32,7 +32,7 @@ func withSkills() *build.Build {
 			{GemID: fireball(), Level: 20, Quality: 20},
 			{GemID: inspiration(), Level: 20, Support: true},
 			{GemID: inspiration(), Level: 18, Support: true, Disabled: true},
-		}, Count: 3, FullDPS: true, MinionItems: build.Items{build.SlotHelmet: helmet()}},
+		}, Count: 3, FullDPS: true, MinionSkill: 1, MinionItems: build.Items{build.SlotHelmet: helmet()}},
 		{Gems: []build.Gem{{GemID: clarity(), Level: 10}}},
 	}}
 	return b
@@ -68,6 +68,8 @@ func TestSkillEdits(t *testing.T) {
 		{"clear a count", build.SetGroupCount(0, 0), func(s *build.Skills) { s.Groups[0].Count = 0 }},
 		{"count for full DPS", build.SetFullDPS(1, true), func(s *build.Skills) { s.Groups[1].FullDPS = true }},
 		{"leave out of full DPS", build.SetFullDPS(0, false), func(s *build.Skills) { s.Groups[0].FullDPS = false }},
+		{"set a minion skill", build.SetMinionSkill(1, 2), func(s *build.Skills) { s.Groups[1].MinionSkill = 2 }},
+		{"set the first minion skill", build.SetMinionSkill(0, 0), func(s *build.Skills) { s.Groups[0].MinionSkill = 0 }},
 		{"equip a minion", build.EquipMinion(1, build.SlotWeapon, helmet()), func(s *build.Skills) {
 			s.Groups[1].MinionItems = build.Items{build.SlotWeapon: helmet()}
 		}},
@@ -189,6 +191,7 @@ func TestSkillEditTargets(t *testing.T) {
 		{"add a gem without one", build.Edit{Op: build.OpAddGem, Skill: &build.SkillAt{}}},
 		{"count of a missing group", build.SetGroupCount(2, 14)},
 		{"full DPS of a missing group", build.SetFullDPS(-1, true)},
+		{"minion skill of a missing group", build.SetMinionSkill(2, 1)},
 		{"equip a missing group's minion", build.EquipMinion(2, build.SlotWeapon, helmet())},
 		{"unequip a missing group's minion", build.UnequipMinion(2, build.SlotHelmet)},
 	}
@@ -220,7 +223,7 @@ func TestSkillHandles(t *testing.T) {
 	group.AddSupport(clarity(), 20, 20).SetEnabled(false)
 	next.Skills.AddGroup(build.SkillGroup{}).SetSlot(build.SlotBoots).SetMain().AddGem(fireballAlt(), 1, 0).SetActive()
 	next.Skills.Group(0).Gem(inspiration()).Remove()
-	gear := next.Skills.Group(1).SetCount(14).SetFullDPS(true).EquipMinion(build.SlotWeapon, helmet())
+	gear := next.Skills.Group(1).SetCount(14).SetFullDPS(true).SetMinionSkill(1).EquipMinion(build.SlotWeapon, helmet())
 	next.Skills.Group(0).UnequipMinion(build.SlotHelmet)
 	if group.Err() != nil || gear.Err() != nil {
 		t.Fatal(group.Err(), gear.Err())
@@ -228,7 +231,7 @@ func TestSkillHandles(t *testing.T) {
 	want := withSkills()
 	want.Skills.Groups = append(want.Skills.Groups, build.SkillGroup{Slot: build.SlotBoots, Gems: []build.Gem{{GemID: fireballAlt(), Level: 1}}})
 	want.Skills.MainGroup = 2
-	want.Skills.Groups[1].Count, want.Skills.Groups[1].FullDPS = 14, true
+	want.Skills.Groups[1].Count, want.Skills.Groups[1].FullDPS, want.Skills.Groups[1].MinionSkill = 14, true, 1
 	want.Skills.Groups[1].MinionItems = build.Items{build.SlotWeapon: helmet()}
 	want.Skills.Groups[0].MinionItems = nil
 	want.Skills.Groups[0].Gems = []build.Gem{
@@ -260,6 +263,7 @@ func TestSkillsCloneAndRoundTrip(t *testing.T) {
 	c := b.Clone()
 	c.Skills.Groups[0].Gems[0].Level = 1
 	c.Skills.Groups[1].Slot = build.SlotBoots
+	c.Skills.Groups[0].MinionSkill = 0
 	c.Skills.Groups[0].MinionItems[build.SlotHelmet].Mods[0].Stats[0].Value = 1
 	c.Skills.Groups[0].MinionItems[build.SlotWeapon] = helmet()
 	if diff := cmp.Diff(withSkills(), b); diff != "" {
@@ -292,7 +296,7 @@ func randSkills(r *rand.Rand) build.Skills {
 		if len(g.Gems) > 0 {
 			g.Active = r.IntN(len(g.Gems))
 		}
-		g.Count, g.FullDPS, g.MinionItems = r.IntN(3)*7, r.IntN(2) == 0, randItems(r)
+		g.Count, g.FullDPS, g.MinionSkill, g.MinionItems = r.IntN(3)*7, r.IntN(2) == 0, r.IntN(2), randItems(r)
 		s.Groups = append(s.Groups, g)
 	}
 	if len(s.Groups) > 0 {

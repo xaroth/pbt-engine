@@ -38,6 +38,9 @@ type SkillGroup struct {
 	Count int `json:"count,omitzero"`
 	// FullDPS reports whether the group counts towards the build's full DPS.
 	FullDPS bool `json:"fullDps,omitzero"`
+	// MinionSkill is which skill of the main active skill's minion is its main one: 0 its
+	// first, in the order of its monster variety's skills. Past the last is the last.
+	MinionSkill int `json:"minionSkill,omitzero"`
 	// MinionItems are the items the minion of the main active skill uses, by slot, for a skill
 	// whose minion takes gear (MinionSlots).
 	MinionItems Items `json:"minionItems,omitempty"`
@@ -191,6 +194,9 @@ func (g *Group) SetCount(n int) *Group { return g.apply(SetGroupCount(g.index, n
 
 // SetFullDPS sets whether the group counts towards full DPS.
 func (g *Group) SetFullDPS(on bool) *Group { return g.apply(SetFullDPS(g.index, on)) }
+
+// SetMinionSkill makes skill n of the group's minion its main one; 0 is its first.
+func (g *Group) SetMinionSkill(n int) *Group { return g.apply(SetMinionSkill(g.index, n)) }
 
 // EquipMinion puts it in slot s of the gear of the group's minion.
 func (g *Group) EquipMinion(s Slot, it Item) *Group { return g.apply(EquipMinion(g.index, s, it)) }

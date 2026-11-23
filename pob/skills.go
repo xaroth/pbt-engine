@@ -164,15 +164,16 @@ func (im *importer) groupGems(out *build.SkillGroup, g pobxml.SkillGroup, store 
 	return from
 }
 
-// groupMinion sets the count of out, imported from g, and the gear of its main skill's minion
-// (minionGear) from pg, that skill's gem. The count is PoB's groupCount, else pg's count
-// (Calcs.lua getActiveSkillCount).
+// groupMinion sets the count of out, imported from g, and its main skill's minion's main skill
+// and gear (minionGear) from pg, that skill's gem. The count is PoB's groupCount, else pg's
+// count (Calcs.lua getActiveSkillCount).
 func (im *importer) groupMinion(
 	out *build.SkillGroup, subject string, g pobxml.SkillGroup, pg pobxml.Gem, store *dataset.Store, data *dataset.SkillIndex,
 ) error {
 	if n := cmp.Or(g.GroupCount, pg.Count); n > 1 {
 		out.Count = n
 	}
+	out.MinionSkill = max(pg.MinionSkill-1, 0)
 	gem := out.Gems[out.Active]
 	if len(build.ActiveSkills(data, gem)) == 0 {
 		return nil

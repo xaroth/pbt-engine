@@ -11,6 +11,7 @@ import (
 
 	"github.com/xaroth/pbt-engine/build"
 	"github.com/xaroth/pbt-engine/dataset"
+	"github.com/xaroth/pbt-engine/internal/realdata"
 	"github.com/xaroth/pbt-engine/pob"
 )
 
@@ -371,5 +372,40 @@ func TestFromXMLMainActiveSkillOfSupport(t *testing.T) {
 		if g := b.Skills.Groups[0]; g.Active != want[0] || g.ActiveSkill != want[1] {
 			t.Errorf("mainActiveSkill %q: gem %d skill %d, want gem %d skill %d", main, g.Active, g.ActiveSkill, want[0], want[1])
 		}
+	}
+}
+
+// TestFromXMLMinionSkill imports Animate Guardian of Smiting with its minion's second skill,
+// Smite, picked, and exports the choice back: PoB counts it from 1, the build from 0.
+func TestFromXMLMinionSkill(t *testing.T) {
+	t.Parallel()
+	reg := &dataset.Registry{}
+	if _, err := reg.Add(realdata.Record(t, realdata.Current)); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join("testdata", "animate-guardian-smite.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, warnings, err := pob.FromXML(data, reg)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("import: %v, %v", warnings, err)
+	}
+	if got := b.Skills.Groups[0].MinionSkill; got != 1 {
+		t.Errorf("minion skill %d, want 1", got)
+	}
+	file, warnings, err := pob.ToXML(b, reg)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("export: %v, %v", warnings, err)
+	}
+	if !strings.Contains(string(file), `skillMinionSkill="2"`) {
+		t.Errorf("export lacks the minion skill:\n%s", file)
+	}
+	again, _, err := pob.FromXML(file, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(b, again); diff != "" {
+		t.Errorf("FromXML(ToXML) (-want +got):\n%s", diff)
 	}
 }

@@ -205,3 +205,33 @@ func TestRangedArmsProjectilesByWeapon(t *testing.T) {
 		t.Errorf("sword: average hit %v with the support, %v without", got, want)
 	}
 }
+
+// Animate Guardian of Smiting at gem level 20, with the same sword, attacks with the skill its
+// group picks. Its 76% more minion damage makes the sword's 42 to 80 hit for round(42 x 1.76) =
+// 74 to round(80 x 1.76) = 141 with Melee, its first skill. Smite, its second, multiplies damage
+// by 3.25: round(42 x 3.25 x 1.76) = 240 to round(80 x 3.25 x 1.76) = 458, 349 on average. Half
+// of it is converted to lightning, so the enemy has no lightning resistance here. Critical
+// strikes add 5.5% x 30% as before. A pick past the minion's last skill is its last, as in PoB.
+func TestGuardianSmites(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	sword, warnings, err := s.Data().Item(guardianSword)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the sword: %v, %v", warnings, err)
+	}
+	const crit = 1 + 0.055*0.3
+	for _, c := range []struct {
+		skill int
+		want  float64
+	}{{0, 107.5 * crit}, {1, 349 * crit}, {5, 349 * crit}} {
+		b := marauderBuild(90)
+		b.Skills.Groups = []build.SkillGroup{{
+			Gems:        []build.Gem{{ID: "Metadata/Items/Gems/SkillGemAnimateArmour", Effect: "AnimateGuardianAltX", Level: 20}},
+			MinionItems: build.Items{build.SlotWeapon: sword}, MinionSkill: c.skill,
+		}}
+		st := simulate(t, s, b, simulator.Set(poe1.EnemyArmour, 0), simulator.Set(poe1.EnemyLightningResistance, 0))
+		if got, ok := st.Get(poe1.MinionAverageHit); !ok || math.Abs(got-c.want) > 1e-9*c.want {
+			t.Errorf("minion skill %d: average hit %v (%v), want %v", c.skill, got, ok, c.want)
+		}
+	}
+}
