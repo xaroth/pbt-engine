@@ -15,7 +15,8 @@ import (
 func counts() map[string]string {
 	return map[string]string{
 		"configResonanceCount": "lowest-resonance", "multiplierWitheredStackCount": "enemy-withered-stacks",
-		"minionsOverrideFrenzyCharges": "minion-frenzy-charge-count",
+		"minionsOverridePowerCharges": "minion-power-charge-count", "minionsOverrideFrenzyCharges": "minion-frenzy-charge-count",
+		"minionsOverrideEnduranceCharges": "minion-endurance-charge-count",
 	}
 }
 

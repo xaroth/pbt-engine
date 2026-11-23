@@ -103,46 +103,50 @@ const (
 
 // Config keys, as simulator.Sim.ConfigKeys lists them.
 const (
-	Campaign                 = rules.Campaign
-	Bandits                  = rules.Bandits
-	Enemy                    = rules.Enemy
-	EnemyLevel               = rules.EnemyLevel
-	EnemyFireResistance      = rules.EnemyFireResistance
-	EnemyColdResistance      = rules.EnemyColdResistance
-	EnemyLightningResistance = rules.EnemyLightningResistance
-	EnemyChaosResistance     = rules.EnemyChaosResistance
-	EnemyArmour              = rules.EnemyArmour
-	EnemyEvasion             = rules.EnemyEvasion
-	EnemyShocked             = rules.EnemyShocked
-	EnemyShockEffect         = rules.EnemyShockEffect
-	EnemyFireExposure        = rules.EnemyFireExposure
-	EnemyColdExposure        = rules.EnemyColdExposure
-	EnemyLightningExposure   = rules.EnemyLightningExposure
-	EnemyChilled             = rules.EnemyChilled
-	EnemyFrozen              = rules.EnemyFrozen
-	EnemyIgnited             = rules.EnemyIgnited
-	EnemyBleeding            = rules.EnemyBleeding
-	EnemyMoving              = rules.EnemyMoving
-	EnemyMaimed              = rules.EnemyMaimed
-	EnemyUnnerved            = rules.EnemyUnnerved
-	EnemyIntimidated         = rules.EnemyIntimidated
-	EnemyTaunted             = rules.EnemyTaunted
-	EnemyOnConsecratedGround = rules.EnemyOnConsecratedGround
-	OnFullLife               = rules.OnFullLife
-	OnFullEnergyShield       = rules.OnFullEnergyShield
-	Leeching                 = rules.Leeching
-	Focused                  = rules.Focused
-	Fortified                = rules.Fortified
-	ArcaneSurge              = rules.ArcaneSurge
-	EnemyNearYou             = rules.EnemyNearYou
-	FeedingFrenzy            = rules.FeedingFrenzy
-	PowerCharges             = rules.PowerCharges
-	FrenzyCharges            = rules.FrenzyCharges
-	EnduranceCharges         = rules.EnduranceCharges
-	LowestResonance          = rules.LowestResonance
-	EnemyWitheredStacks      = rules.EnemyWitheredStacks
-	MinionFrenzyCharges      = rules.MinionFrenzyCharges
-	MinionFrenzyChargeCount  = rules.MinionFrenzyChargeCount
+	Campaign                   = rules.Campaign
+	Bandits                    = rules.Bandits
+	Enemy                      = rules.Enemy
+	EnemyLevel                 = rules.EnemyLevel
+	EnemyFireResistance        = rules.EnemyFireResistance
+	EnemyColdResistance        = rules.EnemyColdResistance
+	EnemyLightningResistance   = rules.EnemyLightningResistance
+	EnemyChaosResistance       = rules.EnemyChaosResistance
+	EnemyArmour                = rules.EnemyArmour
+	EnemyEvasion               = rules.EnemyEvasion
+	EnemyShocked               = rules.EnemyShocked
+	EnemyShockEffect           = rules.EnemyShockEffect
+	EnemyFireExposure          = rules.EnemyFireExposure
+	EnemyColdExposure          = rules.EnemyColdExposure
+	EnemyLightningExposure     = rules.EnemyLightningExposure
+	EnemyChilled               = rules.EnemyChilled
+	EnemyFrozen                = rules.EnemyFrozen
+	EnemyIgnited               = rules.EnemyIgnited
+	EnemyBleeding              = rules.EnemyBleeding
+	EnemyMoving                = rules.EnemyMoving
+	EnemyMaimed                = rules.EnemyMaimed
+	EnemyUnnerved              = rules.EnemyUnnerved
+	EnemyIntimidated           = rules.EnemyIntimidated
+	EnemyTaunted               = rules.EnemyTaunted
+	EnemyOnConsecratedGround   = rules.EnemyOnConsecratedGround
+	OnFullLife                 = rules.OnFullLife
+	OnFullEnergyShield         = rules.OnFullEnergyShield
+	Leeching                   = rules.Leeching
+	Focused                    = rules.Focused
+	Fortified                  = rules.Fortified
+	ArcaneSurge                = rules.ArcaneSurge
+	EnemyNearYou               = rules.EnemyNearYou
+	FeedingFrenzy              = rules.FeedingFrenzy
+	PowerCharges               = rules.PowerCharges
+	FrenzyCharges              = rules.FrenzyCharges
+	EnduranceCharges           = rules.EnduranceCharges
+	LowestResonance            = rules.LowestResonance
+	EnemyWitheredStacks        = rules.EnemyWitheredStacks
+	MinionPowerCharges         = rules.MinionPowerCharges
+	MinionPowerChargeCount     = rules.MinionPowerChargeCount
+	MinionFrenzyCharges        = rules.MinionFrenzyCharges
+	MinionFrenzyChargeCount    = rules.MinionFrenzyChargeCount
+	MinionEnduranceCharges     = rules.MinionEnduranceCharges
+	MinionEnduranceChargeCount = rules.MinionEnduranceChargeCount
 )
 
 // CampaignStage is how far the character is through the story campaign: the value of
@@ -197,5 +201,5 @@ type Resonance = rules.Resonance
 // WitheredStacks is a count of Withered stacks, from 0: the value of EnemyWitheredStacks.
 type WitheredStacks = rules.WitheredStacks
 
-// ChargeCount is a number of charges, from 0: the value of MinionFrenzyChargeCount.
+// ChargeCount is a number of charges, from 0: the value of the minion charge count keys.
 type ChargeCount = rules.ChargeCount

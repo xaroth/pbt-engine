@@ -42,9 +42,10 @@ func TestMinionBuffs(t *testing.T) {
 		return func(v *config.Values) error { return config.Set(v, k, true) }
 	}
 	charges := func(n int, use bool) func(*config.Values) error {
-		return func(v *config.Values) error {
-			return errors.Join(config.Set(v, poe1.MinionFrenzyCharges, use), config.Set(v, poe1.MinionFrenzyChargeCount, poe1.ChargeCount(n)))
-		}
+		return minionCharges(poe1.MinionFrenzyCharges, poe1.MinionFrenzyChargeCount, n, use)
+	}
+	power := func(n int, use bool) func(*config.Values) error {
+		return minionCharges(poe1.MinionPowerCharges, poe1.MinionPowerChargeCount, n, use)
 	}
 	for _, c := range []struct {
 		name     string
@@ -69,6 +70,13 @@ func TestMinionBuffs(t *testing.T) {
 		{"frenzy charges 2", alone, charges(2, true), 175.721875, 162.20480769231},
 		{"frenzy charges 5", alone, charges(5, true), 195.13375, 200.13717948718},
 		{"frenzy charges off", alone, charges(2, false), zombieHit, zombieDPS},
+		// Each power charge 50% increased critical strike chance on the minion's 5%: 7.5%, 10%,
+		// 12.5% with the maximum, 3, when no count is given, and 17.5%, not capped.
+		{"power charges", alone, power(0, true), 166.259375, 142.10202991453},
+		{"power charges 1", alone, power(1, true), 163.855625, 140.04754273504},
+		{"power charges 2", alone, power(2, true), 165.0575, 141.07478632479},
+		{"power charges 5", alone, power(5, true), 168.663125, 144.15651709402},
+		{"power charges off", alone, power(2, false), zombieHit, zombieDPS},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
@@ -81,6 +89,43 @@ func TestMinionBuffs(t *testing.T) {
 				if math.Abs(got-want) > 1e-9*want {
 					t.Errorf("%s %v, want %v", k, got, want)
 				}
+			}
+		})
+	}
+}
+
+func minionCharges(on config.Key[bool], count config.Key[poe1.ChargeCount], n int, use bool) func(*config.Values) error {
+	return func(v *config.Values) error {
+		return errors.Join(config.Set(v, on, use), config.Set(v, count, poe1.ChargeCount(n)))
+	}
+}
+
+// Each endurance charge gives a minion 4% physical damage reduction and 4% elemental damage
+// reduction (Monster.ot): its maximum, 3, when no count is given; a count above it is not
+// capped. Path of Building 2.67.2 gives the minion the same per charge (CalcPerform.lua
+// initMinionModDB); it shows no output of them the comparison reads.
+func TestMinionEnduranceCharges(t *testing.T) {
+	t.Parallel()
+	alone := []build.SkillGroup{{Gems: []build.Gem{{ID: raiseZombie, Level: 20}}}}
+	for _, c := range []struct {
+		name    string
+		n       int
+		use     bool
+		charges float64
+	}{
+		{"maximum", 0, true, 3},
+		{"2", 2, true, 2},
+		{"5", 5, true, 5},
+		{"off", 2, false, 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			sh := configuredSheet(t, &build.Build{Skills: build.Skills{Groups: alone}},
+				minionCharges(poe1.MinionEnduranceCharges, poe1.MinionEnduranceChargeCount, c.n, c.use))
+			for name, want := range map[string]float64{
+				"endurance_charges": c.charges, "physical_damage_reduction": 4 * c.charges, "elemental_damage_reduction": 4 * c.charges,
+			} {
+				wantMinion(t, sh, name, want)
 			}
 		})
 	}

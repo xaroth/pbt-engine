@@ -527,12 +527,32 @@
       "source": "default"
     },
     {
+      "key": "minion-power-charges",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "minion-power-charge-count",
+      "value": 0,
+      "source": "default"
+    },
+    {
       "key": "minion-frenzy-charges",
       "value": false,
       "source": "default"
     },
     {
       "key": "minion-frenzy-charge-count",
+      "value": 0,
+      "source": "default"
+    },
+    {
+      "key": "minion-endurance-charges",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "minion-endurance-charge-count",
       "value": 0,
       "source": "default"
     }
