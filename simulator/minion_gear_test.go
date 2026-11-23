@@ -140,3 +140,68 @@ func TestAnimatedWeaponCountAboveLimit(t *testing.T) {
 		t.Errorf("warnings %v, want one: %s", got, want)
 	}
 }
+
+const (
+	shortBow     = "Rarity: NORMAL\nShort Bow\nImplicits: 0\n"
+	jewelledFoil = "Rarity: NORMAL\nJewelled Foil\nImplicits: 0\n"
+)
+
+// rangedArmsHit returns the average hit of the minion of Animate Weapon of Ranged Arms at gem
+// level 20, linked to supports, animating weapon, on a level 90 Marauder, against an enemy with
+// no armour and 50% lightning resistance.
+func rangedArmsHit(t *testing.T, s *simulator.Sim, weapon string, supports ...string) float64 {
+	t.Helper()
+	it, warnings, err := s.Data().Item(weapon)
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("read the weapon: %v, %v", warnings, err)
+	}
+	gems := make([]build.Gem, 0, 1+len(supports))
+	gems = append(gems, build.Gem{ID: "Metadata/Items/Gems/SkillGemAnimateWeapon", Effect: "AnimateWeaponAltY", Level: 20})
+	for _, id := range supports {
+		gems = append(gems, build.Gem{ID: id, Level: 20, Support: true})
+	}
+	b := marauderBuild(90)
+	b.Skills.Groups = []build.SkillGroup{{Gems: gems, MinionItems: build.Items{build.SlotWeapon: it}}}
+	st := simulate(t, s, b, simulator.Set(poe1.EnemyArmour, 0), simulator.Set(poe1.EnemyLightningResistance, 50))
+	return get(t, st, poe1.MinionAverageHit)
+}
+
+// Animate Weapon of Ranged Arms gives its minion the gem's added physical damage, 126 to 184 at
+// level 20, beside its Short Bow's 6 to 16, with the gem's 38% more minion damage: round(132 x
+// 1.38) = 182 to round(200 x 1.38) = 276, 229 on average. Critical strikes at the bow's 5% and the
+// minion's 130% multiplier add 5% x 30%: 232.435.
+func TestRangedArmsAddedDamage(t *testing.T) {
+	t.Parallel()
+	if got, want := rangedArmsHit(t, realSim(t), shortBow), 232.435; math.Abs(got-want) > 1e-9*want {
+		t.Errorf("average hit %v, want %v", got, want)
+	}
+}
+
+// Physical to Lightning at level 20, linked to Animate Weapon of Ranged Arms, converts half of its
+// minion's 182 to 276 physical damage (TestRangedArmsAddedDamage) to lightning and adds 29% of it
+// as lightning: 91 to 138 physical, round(182 x 0.79) = 144 to round(276 x 0.79) = 218
+// lightning, halved by the enemy's resistance. (114.5 + 181 x 0.5) x 1.015 = 208.075.
+func TestRangedArmsConversionSupport(t *testing.T) {
+	t.Parallel()
+	got := rangedArmsHit(t, realSim(t), shortBow, "Metadata/Items/Gems/SupportGemPhysicalToLightning")
+	if want := 208.075; math.Abs(got-want) > 1e-9*want {
+		t.Errorf("average hit %v, want %v", got, want)
+	}
+}
+
+// The minion's attack fires projectiles from a bow and strikes in melee with a sword, so Greater
+// Multiple Projectiles' 26% less projectile damage at level 20 applies to the first only. With
+// the bow the gem's 38% more and the support's less make 1.0212, rounded to 1.02 as PoB rounds
+// each mod name's product: round(132 x 1.02) = 135 to round(200 x 1.02) = 204, 169.5 x 1.015 =
+// 172.0425.
+func TestRangedArmsProjectilesByWeapon(t *testing.T) {
+	t.Parallel()
+	s := realSim(t)
+	gmp := "Metadata/Items/Gems/SupportGemGreaterMultipleProjectiles"
+	if got, want := rangedArmsHit(t, s, shortBow, gmp), 172.0425; math.Abs(got-want) > 1e-9*want {
+		t.Errorf("bow: average hit %v, want %v", got, want)
+	}
+	if got, want := rangedArmsHit(t, s, jewelledFoil, gmp), rangedArmsHit(t, s, jewelledFoil); got != want {
+		t.Errorf("sword: average hit %v with the support, %v without", got, want)
+	}
+}

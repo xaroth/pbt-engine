@@ -100,8 +100,12 @@ type MinionGear map[int][]Item
 // read, such as minion_damage_+%, reach them through the table.
 func passedStats() map[string][]string {
 	conversion := []string{"skill_physical_damage_%_to_convert_to_lightning"}
-	guardiansWeapon := []string{"attack_minimum_added_physical_damage", "attack_maximum_added_physical_damage", "active_skill_damage_+%_final"}
-	return map[string][]string{"Absolution": conversion, "AbsolutionAltX": conversion, "AnimateGuardiansWeapon": guardiansWeapon}
+	addedPhysical := []string{"attack_minimum_added_physical_damage", "attack_maximum_added_physical_damage"}
+	guardiansWeapon := append(slices.Clone(addedPhysical), "active_skill_damage_+%_final")
+	return map[string][]string{
+		"Absolution": conversion, "AbsolutionAltX": conversion,
+		"AnimateGuardiansWeapon": guardiansWeapon, "AnimateWeaponAltY": addedPhysical,
+	}
 }
 
 // Monster varieties of minions.
@@ -160,6 +164,21 @@ func (mn *Minion) equip(items []Item) {
 	if mn.Hands.MainHand == nil {
 		mn.Hands.OffHand = nil
 	}
+}
+
+// fitWeapon makes mn's attack that can strike in melee or fire projectiles the one its weapon
+// uses: projectiles from a weapon that is not a melee weapon (a bow or wand), a melee strike
+// with any other or none, as PoB has it (CalcActiveSkill.lua weapon flags). The other's
+// modifiers, such as Multiple Projectiles' less damage with a melee weapon, do not apply.
+func (mn *Minion) fitWeapon() {
+	if mn.Skill == nil || !hasTypes(mn.Skill, typeMelee, typeProjectile) {
+		return
+	}
+	drop := typeProjectile
+	if mn.armed() && mn.Hands.MainHand.Kinds&kinds(weaponMelee) == 0 {
+		drop = typeMelee
+	}
+	mn.Skill.Types = slices.DeleteFunc(slices.Clone(mn.Skill.Types), func(t string) bool { return t == drop })
 }
 
 // armed reports whether mn attacks with a weapon of its items.
@@ -351,6 +370,7 @@ func minionsOf(sw *Switch, gear MinionGear) ([]*Minion, error) {
 			if build.MinionSlots(sk.GrantedEffect) != nil {
 				mn.equip(gear[sk.Source.Group])
 			}
+			mn.fitWeapon()
 			out[i] = &mn
 		}
 	}
