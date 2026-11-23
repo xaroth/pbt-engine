@@ -170,5 +170,6 @@ const (
 	MinionHitChance             output.Key = "minion.hit_chance"
 	MinionHitsPerSecond         output.Key = "minion.hits_per_second"
 	MinionHitDPS                output.Key = "minion.hit_dps"
+	MinionIgniteDPS             output.Key = "minion.ignite_dps"
 	TotalDPS                    output.Key = "dps.total"
 )

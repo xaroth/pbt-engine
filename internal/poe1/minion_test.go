@@ -269,3 +269,35 @@ func TestMinionSwitchAddsOnce(t *testing.T) {
 		t.Errorf("minion average hit %v (%v), want 165.064375", got, err)
 	}
 }
+
+// A minion's hit ignites as the character's does, read on the minion: a level 20 Raise Zombie
+// with "Minions have 100% chance to Ignite" and "Minions deal 100 to 200 additional Fire Damage"
+// on a ring, on a level 90 Marauder without passives, its group counted in full DPS. The
+// minion's critical strikes add Monster.ot's +30% to the Damage over Time Multiplier of their
+// ailments. Path of Building 2.67.2 gives the same average hit, hit damage per second, ignite
+// damage per second (Minion.IgniteDPS) and full DPS, the hit's plus the ignite's.
+func TestMinionIgnite(t *testing.T) {
+	t.Parallel()
+	const hitDPS, igniteDPS = 204.0844017094, 83.667697944825
+	b := build.Build{
+		Format: 1, Game: "poe1", Version: minionVersion, Class: "Metadata/Characters/Str/Str", Level: 90,
+		Skills: build.Skills{Groups: []build.SkillGroup{{Gems: []build.Gem{{ID: raiseZombie, Level: 20}}, FullDPS: true}}},
+	}
+	ring := poe1.Item{Slot: build.SlotRing1, Name: "Test Loop", Key: "ring", Stats: []resolve.StatValue{
+		{Stat: "minion_chance_to_ignite_%", Value: 100},
+		{Stat: "minion_global_minimum_added_fire_damage", Value: 100},
+		{Stat: "minion_global_maximum_added_fire_damage", Value: 200},
+	}}
+	sh := gearSheet(t, &b, ring)
+	for k, want := range map[output.Key]float64{
+		poe1.MinionAverageHit: 238.77875, poe1.MinionHitDPS: hitDPS, poe1.MinionIgniteDPS: igniteDPS, poe1.TotalDPS: hitDPS + igniteDPS,
+	} {
+		got, err := sh.Output(k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if math.Abs(got-want) > 1e-9*want {
+			t.Errorf("%s %v, want %v", k, got, want)
+		}
+	}
+}

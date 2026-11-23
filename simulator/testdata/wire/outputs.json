@@ -799,12 +799,21 @@
     "order": 86
   },
   {
+    "key": "minion.ignite_dps",
+    "label": "Minion Ignite DPS",
+    "unit": "",
+    "places": 1,
+    "group": "minion",
+    "better": "higher",
+    "order": 87
+  },
+  {
     "key": "dps.total",
     "label": "Full DPS",
     "unit": "",
     "places": 1,
     "group": "dps",
     "better": "higher",
-    "order": 87
+    "order": 88
   }
 ]
