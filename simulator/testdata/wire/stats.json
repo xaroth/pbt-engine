@@ -482,6 +482,16 @@
       "source": "default"
     },
     {
+      "key": "used-minion-skill-recently",
+      "value": false,
+      "source": "default"
+    },
+    {
+      "key": "minions-full-life",
+      "value": false,
+      "source": "default"
+    },
+    {
       "key": "power-charges",
       "value": false,
       "source": "default"

@@ -197,3 +197,65 @@ func spellCrit(sk *resolve.Skill) *resolve.Skill {
 	c.StatSets[0].SpellCritChance = 5000
 	return &c
 }
+
+// You have used a Minion Skill Recently, derived, while a skill on the sheet summons minions
+// that do not stay until they die, as PoB counts its main skill (CalcPerform.lua
+// UsedMinionSkillRecently, permanentMinion); an explicit value wins, and one set on without
+// such a skill applies with a warning.
+func TestDeriveUsedMinionSkillRecently(t *testing.T) {
+	t.Parallel()
+	summons := func(stats ...resolve.StatValue) *resolve.Skill {
+		sk := skill(0, "Minion", "CreatesMinion")
+		sk.StatSets = []resolve.SkillStatSet{{Stats: append([]resolve.StatValue{{Stat: "display_minion_monster_type", Value: 1}}, stats...)}}
+		return sk
+	}
+	temporary := summons()
+	permanent := summons(resolve.StatValue{Stat: "infinite_minion_duration", Value: 1})
+	for _, c := range []struct {
+		name  string
+		set   string
+		skill *resolve.Skill
+		on    bool
+		src   config.Source
+		warns bool
+	}{
+		{"derived", "", temporary, true, config.Derived, false},
+		{"permanent minions", "", permanent, false, config.Default, false},
+		{"no minion skill", "", spellOf(0, "fire"), false, config.Default, false},
+		{"forced off", "false", temporary, false, config.FromBuild, false},
+		{"forced on", "true", permanent, true, config.FromBuild, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			values := config.Values{}
+			if c.set != "" {
+				values[poe1.UsedMinionSkillRecently.Name()] = json.RawMessage(c.set)
+			}
+			cfg, problems := config.Resolve(poe1.ConfigSpecs(), config.Layer{Source: config.FromBuild, Values: values})
+			if len(problems) != 0 {
+				t.Fatal(problems)
+			}
+			sh, err := poe1.Open(resolved(), table(t), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			setSkills(t, sh, c.skill)
+			derived, warnings, err := sh.DeriveConditions(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			on, src := config.Lookup(derived, poe1.UsedMinionSkillRecently)
+			warns := slices.ContainsFunc(warnings, func(w build.Warning) bool { return w.Code == poe1.NoConditionSource })
+			if on != c.on || src != c.src || warns != c.warns {
+				t.Errorf("got %v from %v, warns %v; want %v from %v, warns %v", on, src, warns, c.on, c.src, c.warns)
+			}
+			want := 0.0
+			if c.on {
+				want = 1
+			}
+			if got := value(t, sh, "used_minion_skill_recently"); got != want {
+				t.Errorf("used_minion_skill_recently %v, want %v", got, want)
+			}
+		})
+	}
+}

@@ -59,8 +59,9 @@ const (
 	// skills allow: the count is used, as Path of Building uses it.
 	MinionCountAboveLimit = poe1.MinionCountAboveLimit
 	// NoConditionSource is a condition the build can cause itself (EnemyShocked,
-	// EnemyChilled, EnemyIgnited, and the enemy's Exposure of an element) that the config sets
-	// on while no skill of the build inflicts it: it applies as set.
+	// EnemyChilled, EnemyIgnited, the enemy's Exposure of an element, and
+	// UsedMinionSkillRecently) that the config sets on while no skill of the build causes it:
+	// it applies as set.
 	NoConditionSource = poe1.NoConditionSource
 	// ItemsNotSimulated is a build with items on a dataset without the items group: outputs
 	// leave them out.

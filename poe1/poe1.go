@@ -136,6 +136,8 @@ const (
 	ArcaneSurge                = rules.ArcaneSurge
 	EnemyNearYou               = rules.EnemyNearYou
 	FeedingFrenzy              = rules.FeedingFrenzy
+	UsedMinionSkillRecently    = rules.UsedMinionSkillRecently
+	MinionsOnFullLife          = rules.MinionsOnFullLife
 	PowerCharges               = rules.PowerCharges
 	FrenzyCharges              = rules.FrenzyCharges
 	EnduranceCharges           = rules.EnduranceCharges
