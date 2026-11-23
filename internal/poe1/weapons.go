@@ -108,6 +108,9 @@ type Weapon struct {
 	// ConvertedToRandomElement and GainedAsColdOrLightning are the percentages of its attacks'
 	// physical damage converted to a random element and gained as cold or lightning.
 	ConvertedToRandomElement, GainedAsColdOrLightning float64
+	// FireOfCharacterLife is the fire damage its attacks add, in percent of the character's
+	// maximum life, whoever wields it.
+	FireOfCharacterLife float64
 	// Sockets are the item's sockets as its text writes them, such as "R-B-B".
 	Sockets string
 }
@@ -142,6 +145,7 @@ const (
 	localAlwaysHit          = "local_always_hit"
 	localToRandomElement    = "local_physical_damage_%_to_convert_to_a_random_element"
 	localAsColdOrLightning  = "local_physical_damage_%_to_gain_as_cold_or_lightning"
+	localFireOfLife         = "local_fire_damage_from_life_%"
 )
 
 // localWeaponStats are the stats that change a weapon's own values.
@@ -151,7 +155,7 @@ func localWeaponStats() map[string]bool {
 		localCriticalChance: true, localCriticalChanceInc: true, localCriticalPer4Q: true,
 		localNoPhysicalDamage: true, localNoQualityPhysical: true,
 		localAccuracy: true, localAccuracyInc: true, localAlwaysHit: true,
-		localToRandomElement: true, localAsColdOrLightning: true,
+		localToRandomElement: true, localAsColdOrLightning: true, localFireOfLife: true,
 	}
 	for _, ids := range localAdded() {
 		for _, id := range ids {
@@ -190,6 +194,7 @@ func compileWeapon(it *build.Item, base *dataset.ItemBase, sums map[string]float
 	w.CriticalChance = roundHundredths(crit * (1 + localCriticalInc(it, sums)/percentScale))
 	w.Accuracy, w.IncreasedAccuracy, w.CannotBeEvaded = sums[localAccuracy], sums[localAccuracyInc], sums[localAlwaysHit] != 0
 	w.ConvertedToRandomElement, w.GainedAsColdOrLightning = sums[localToRandomElement], sums[localAsColdOrLightning]
+	w.FireOfCharacterLife = sums[localFireOfLife]
 	return w
 }
 
@@ -342,12 +347,14 @@ func handLabel(h hand) string {
 	return "main hand"
 }
 
-// weaponMod is one of a weapon's values as a modifier, in the contexts of req besides attacks.
+// weaponMod is one of a weapon's values as a modifier, in the contexts of req besides attacks;
+// with ofLife, in percent of the character's maximum life.
 type weaponMod struct {
-	stat  string
-	op    core.Op
-	value float64
-	req   []core.Mask
+	stat   string
+	op     core.Op
+	value  float64
+	req    []core.Mask
+	ofLife bool
 }
 
 // mods returns w's values as modifiers, damage in the context of its type, with dim the damage
@@ -357,18 +364,25 @@ func (w *Weapon) mods(dim core.Dimension) []weaponMod {
 	for d := Physical; d <= Chaos; d++ {
 		bit := []core.Mask{damageBit(dim, d)}
 		out = append(out,
-			weaponMod{statBaseMinimumDamage, core.OpBase, w.Damage[d].Min, bit},
-			weaponMod{statBaseMaximumDamage, core.OpBase, w.Damage[d].Max, bit},
+			weaponMod{stat: statBaseMinimumDamage, op: core.OpBase, value: w.Damage[d].Min, req: bit},
+			weaponMod{stat: statBaseMaximumDamage, op: core.OpBase, value: w.Damage[d].Max, req: bit},
 		)
 	}
 	out = append(out,
-		weaponMod{statAttackRate, core.OpBase, w.AttackRate, nil},
-		weaponMod{statCriticalStrikeChance, core.OpBase, w.CriticalChance, nil},
-		weaponMod{statAccuracyRating, core.OpBase, w.Accuracy, nil},
-		weaponMod{statAccuracyRating, core.OpInc, w.IncreasedAccuracy, nil},
+		weaponMod{stat: statAttackRate, op: core.OpBase, value: w.AttackRate},
+		weaponMod{stat: statCriticalStrikeChance, op: core.OpBase, value: w.CriticalChance},
+		weaponMod{stat: statAccuracyRating, op: core.OpBase, value: w.Accuracy},
+		weaponMod{stat: statAccuracyRating, op: core.OpInc, value: w.IncreasedAccuracy},
 	)
 	if w.CannotBeEvaded {
-		out = append(out, weaponMod{statHitsCannotBeEvaded, core.OpFlag, 1, nil})
+		out = append(out, weaponMod{stat: statHitsCannotBeEvaded, op: core.OpFlag, value: 1})
+	}
+	if v := w.FireOfCharacterLife; v != 0 {
+		fire := []core.Mask{damageBit(dim, Fire)}
+		out = append(out,
+			weaponMod{stat: statBaseMinimumDamage, op: core.OpBase, value: v, req: fire, ofLife: true},
+			weaponMod{stat: statBaseMaximumDamage, op: core.OpBase, value: v, req: fire, ofLife: true},
+		)
 	}
 	return append(out, w.randomElementMods(dim)...)
 }
@@ -380,21 +394,22 @@ func (w *Weapon) mods(dim core.Dimension) []weaponMod {
 func (w *Weapon) randomElementMods(dim core.Dimension) []weaponMod {
 	physical := []core.Mask{damageBit(dim, Physical)}
 	var out []weaponMod
-	if v := w.ConvertedToRandomElement; v != 0 {
-		for _, d := range []DamageType{Fire, Cold, Lightning} {
-			out = append(out, weaponMod{conversionStat(d), core.OpBase, v / 3, physical})
+	if v, to := w.ConvertedToRandomElement, []DamageType{Fire, Cold, Lightning}; v != 0 {
+		for _, d := range to {
+			out = append(out, weaponMod{stat: conversionStat(d), op: core.OpBase, value: v / float64(len(to)), req: physical})
 		}
 	}
-	if v := w.GainedAsColdOrLightning; v != 0 {
-		for _, d := range []DamageType{Cold, Lightning} {
-			out = append(out, weaponMod{gainStat(d), core.OpBase, v / 2, physical})
+	if v, to := w.GainedAsColdOrLightning, []DamageType{Cold, Lightning}; v != 0 {
+		for _, d := range to {
+			out = append(out, weaponMod{stat: gainStat(d), op: core.OpBase, value: v / float64(len(to)), req: physical})
 		}
 	}
 	return out
 }
 
 // addWeapon adds w's values as a source whose modifiers reach actor's attacks read with hand hd
-// only, in the context of ctx too when it is not empty.
+// only, in the context of ctx too when it is not empty. Its fire damage of the character's life
+// reads the character's maximum life as the sheet gives it, unrounded, as PoB's PercentStat does.
 func (sh *Sheet) addWeapon(w *Weapon, hd hand, actor core.ActorID, ctx core.Mask) (core.SourceID, error) {
 	label := handLabel(hd)
 	if actor == minionActor {
@@ -419,6 +434,9 @@ func (sh *Sheet) addWeapon(w *Weapon, hd hand, actor core.ActorID, ctx core.Mask
 			req = append(req, ctx)
 		}
 		mod := core.Modifier{Actor: actor, Stat: sh.stats[m.stat], Op: m.op, Value: m.value, Source: src, Pred: core.Predicate{Req: req}}
+		if m.ofLife {
+			mod.Scales = []core.Scale{{Ref: characterRef(sh.stats[statMaximumLife]), Step: percentScale, Ratio: true}}
+		}
 		if _, err := sh.session.AddModifier(mod); err != nil {
 			return 0, fmt.Errorf("sheet: %s weapon: %w", label, err)
 		}
